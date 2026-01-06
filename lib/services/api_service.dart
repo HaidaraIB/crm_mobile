@@ -1,0 +1,1427 @@
+import 'dart:async';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import '../core/constants/app_constants.dart';
+import '../models/lead_model.dart';
+import '../models/user_model.dart';
+import '../models/settings_model.dart';
+import '../models/client_task_model.dart';
+import '../models/inventory_model.dart';
+import '../models/deal_model.dart';
+import 'error_logger.dart';
+
+class ApiService {
+  static final ApiService _instance = ApiService._internal();
+  factory ApiService() => _instance;
+  ApiService._internal();
+  
+  String get baseUrl => AppConstants.baseUrl;
+  
+  Future<String?> _getAccessToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(AppConstants.accessTokenKey);
+  }
+  
+  Future<String?> _getRefreshToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(AppConstants.refreshTokenKey);
+  }
+  
+  Future<Map<String, String>> _getHeaders({bool includeAuth = true}) async {
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+    };
+    
+    if (includeAuth) {
+      final token = await _getAccessToken();
+      if (token != null) {
+        headers['Authorization'] = 'Bearer $token';
+      }
+    }
+    
+    return headers;
+  }
+  
+  Future<http.Response> _makeRequest(
+    String method,
+    String endpoint, {
+    Map<String, dynamic>? body,
+    bool retryOn401 = true,
+    Duration? timeout,
+  }) async {
+    // Ensure endpoint starts with / and baseUrl doesn't end with /
+    final cleanEndpoint = endpoint.startsWith('/') ? endpoint : '/$endpoint';
+    final cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final url = Uri.parse('$cleanBaseUrl$cleanEndpoint');
+    final headers = await _getHeaders();
+    
+    // Default timeout of 5 seconds
+    final requestTimeout = timeout ?? const Duration(seconds: 5);
+    
+    http.Response response;
+    
+    try {
+      Future<http.Response> requestFuture;
+      
+      switch (method.toUpperCase()) {
+        case 'GET':
+          requestFuture = http.get(url, headers: headers);
+          break;
+        case 'POST':
+          requestFuture = http.post(
+            url,
+            headers: headers,
+            body: body != null ? jsonEncode(body) : null,
+          );
+          break;
+        case 'PUT':
+          requestFuture = http.put(
+            url,
+            headers: headers,
+            body: body != null ? jsonEncode(body) : null,
+          );
+          break;
+        case 'PATCH':
+          requestFuture = http.patch(
+            url,
+            headers: headers,
+            body: body != null ? jsonEncode(body) : null,
+          );
+          break;
+        case 'DELETE':
+          requestFuture = http.delete(url, headers: headers);
+          break;
+        default:
+          throw Exception('Unsupported HTTP method: $method');
+      }
+      
+      // Apply timeout to the request
+      response = await requestFuture.timeout(
+        requestTimeout,
+        onTimeout: () {
+          throw TimeoutException('Request timed out after ${requestTimeout.inSeconds} seconds');
+        },
+      );
+    } on TimeoutException catch (e, stackTrace) {
+      // Log timeout errors
+      ErrorLogger().logError(
+        error: e.toString(),
+        stackTrace: stackTrace.toString(),
+        endpoint: endpoint,
+        method: method,
+        requestData: body,
+      );
+      rethrow;
+    } catch (e, stackTrace) {
+      // Log connection errors
+      ErrorLogger().logError(
+        error: e.toString(),
+        stackTrace: stackTrace.toString(),
+        endpoint: endpoint,
+        method: method,
+        requestData: body,
+      );
+      rethrow;
+    }
+    
+    // Log non-2xx responses
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      String? responseBody;
+      try {
+        responseBody = response.body;
+      } catch (_) {}
+      
+      ErrorLogger().logError(
+        error: 'HTTP ${response.statusCode}: ${response.reasonPhrase}',
+        endpoint: endpoint,
+        method: method,
+        requestData: body,
+        statusCode: response.statusCode,
+        responseBody: responseBody,
+      );
+    }
+    
+    // Handle 401 Unauthorized - try to refresh token
+    if (response.statusCode == 401 && retryOn401) {
+      final refreshed = await _refreshToken();
+      if (refreshed) {
+        // Retry the request with new token
+        return _makeRequest(method, endpoint, body: body, retryOn401: false);
+      } else {
+        // Refresh failed, clear tokens and logout
+        await _clearTokens();
+        throw Exception('Session expired. Please login again.');
+      }
+    }
+    
+    return response;
+  }
+  
+  Future<bool> _refreshToken() async {
+    try {
+      final refreshToken = await _getRefreshToken();
+      if (refreshToken == null) return false;
+      
+      final cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+      final url = Uri.parse('$cleanBaseUrl/auth/refresh/');
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'refresh': refreshToken}),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final newAccessToken = data['access'] as String?;
+        
+        if (newAccessToken != null) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(AppConstants.accessTokenKey, newAccessToken);
+          return true;
+        }
+      }
+      
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+  
+  Future<void> _clearTokens() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(AppConstants.accessTokenKey);
+    await prefs.remove(AppConstants.refreshTokenKey);
+    await prefs.remove(AppConstants.currentUserKey);
+    await prefs.remove(AppConstants.isLoggedInKey);
+  }
+  
+  // Authentication
+  Future<Map<String, dynamic>> login(String username, String password) async {
+    try {
+      final cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+      final url = Uri.parse('$cleanBaseUrl/auth/login/');
+      final requestBody = {
+        'username': username,
+        'password': password,
+      };
+      
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(requestBody),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        
+        // Save tokens
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(AppConstants.accessTokenKey, data['access'] as String);
+        await prefs.setString(AppConstants.refreshTokenKey, data['refresh'] as String);
+        
+        // Get user data
+        final userResponse = await getCurrentUser();
+        return {'success': true, 'user': userResponse};
+      } else {
+        String errorMessage;
+        try {
+          final error = jsonDecode(response.body) as Map<String, dynamic>;
+          errorMessage = error['detail'] ?? error['message'] ?? 'Login failed';
+        } catch (_) {
+          errorMessage = 'Login failed with status ${response.statusCode}';
+        }
+        
+        ErrorLogger().logError(
+          error: errorMessage,
+          endpoint: '/auth/login/',
+          method: 'POST',
+          requestData: {'username': username}, // Don't log password
+          statusCode: response.statusCode,
+          responseBody: response.body,
+        );
+        
+        throw Exception(errorMessage);
+      }
+    } catch (e, stackTrace) {
+      if (e is Exception) {
+        rethrow;
+      }
+      
+      ErrorLogger().logError(
+        error: e.toString(),
+        stackTrace: stackTrace.toString(),
+        endpoint: '/auth/login/',
+        method: 'POST',
+        requestData: {'username': username},
+      );
+      
+      rethrow;
+    }
+  }
+  
+  // Request 2FA code (with password validation)
+  Future<Map<String, dynamic>> requestTwoFactorAuth(String username, String password, String language) async {
+    final cleanEndpoint = '/auth/request-2fa/';
+    final cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final url = Uri.parse('$cleanBaseUrl$cleanEndpoint');
+    
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept-Language': language,
+        },
+        body: jsonEncode({
+          'username': username,
+          'password': password, // Include password to validate credentials
+        }),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return data;
+      } else {
+        String errorMessage = 'Failed to request 2FA code';
+        Exception? customException;
+        
+        try {
+          final error = jsonDecode(response.body) as Map<String, dynamic>;
+          
+          // Extract the actual error message from the backend
+          String backendErrorMessage = error['error'] ?? error['detail'] ?? error['message'] ?? '';
+          
+          // Handle field-specific errors (like username errors)
+          if (error['username'] != null) {
+            if (error['username'] is List && (error['username'] as List).isNotEmpty) {
+              backendErrorMessage = (error['username'] as List).first.toString();
+            } else if (error['username'] is String) {
+              backendErrorMessage = error['username'] as String;
+            }
+          }
+          
+          // If we still don't have a message, use default
+          if (backendErrorMessage.isEmpty) {
+            backendErrorMessage = 'Failed to request 2FA code with status ${response.statusCode}';
+          }
+          
+          // Handle special error codes FIRST - before setting generic error message
+          // IMPORTANT: Check subscription status FIRST - if inactive, prevent 2FA code from being sent
+          if (error['code'] == 'SUBSCRIPTION_INACTIVE' || 
+              (error['error']?.toString().toLowerCase().contains('subscription') ?? false) ||
+              backendErrorMessage.toLowerCase().contains('subscription')) {
+            // Use the actual backend error message for better clarity
+            customException = Exception(backendErrorMessage);
+            (customException as dynamic).code = 'SUBSCRIPTION_INACTIVE';
+            (customException as dynamic).subscriptionId = error['subscriptionId'];
+          } else if (error['code'] == 'ACCOUNT_TEMPORARILY_INACTIVE') {
+            // Use the actual backend error message
+            customException = Exception(backendErrorMessage);
+            (customException as dynamic).code = 'ACCOUNT_TEMPORARILY_INACTIVE';
+          } else if (backendErrorMessage.toLowerCase().contains('invalid credentials') ||
+                     backendErrorMessage.toLowerCase().contains('invalid username') ||
+                     backendErrorMessage.toLowerCase().contains('invalid password') ||
+                     backendErrorMessage.toLowerCase().contains('user not found') ||
+                     backendErrorMessage.toLowerCase().contains('unable to log in') ||
+                     backendErrorMessage.toLowerCase().contains('no active account')) {
+            // Use the actual backend error message for invalid credentials
+            customException = Exception(backendErrorMessage);
+          } else {
+            // Use the backend error message for other errors
+            errorMessage = backendErrorMessage;
+          }
+        } catch (e) {
+          // If parsing failed, use generic message
+          errorMessage = 'Failed to request 2FA code with status ${response.statusCode}';
+        }
+        
+        // Log the error
+        ErrorLogger().logError(
+          error: customException?.toString().replaceAll('Exception: ', '') ?? errorMessage,
+          endpoint: cleanEndpoint,
+          method: 'POST',
+          requestData: {'username': username},
+          statusCode: response.statusCode,
+          responseBody: response.body,
+        );
+        
+        // Throw the custom exception if we have one, otherwise throw generic
+        if (customException != null) {
+          throw customException;
+        } else {
+          throw Exception(errorMessage);
+        }
+      }
+    } catch (e, stackTrace) {
+      // Check if this is a custom error with code property - rethrow it directly
+      // Use a safe check to avoid NoSuchMethodError
+      bool isCustomError = false;
+      try {
+        if (e is Exception) {
+          final dynamic error = e;
+          // Safely check if code property exists by catching NoSuchMethodError
+          try {
+            final code = error.code;
+            if (code != null) {
+              isCustomError = true;
+            }
+          } catch (_) {
+            // Property doesn't exist, not a custom error
+            isCustomError = false;
+          }
+        }
+      } catch (_) {
+        // Can't determine, assume not custom
+        isCustomError = false;
+      }
+      
+      // If it's a custom error, rethrow it directly without logging
+      if (isCustomError) {
+        rethrow;
+      }
+      
+      // Only log and rethrow if it's not a custom error
+      ErrorLogger().logError(
+        error: e.toString(),
+        stackTrace: stackTrace.toString(),
+        endpoint: cleanEndpoint,
+        method: 'POST',
+        requestData: {'username': username},
+      );
+      
+      rethrow;
+    }
+  }
+  
+  // Verify 2FA code
+  Future<Map<String, dynamic>> verifyTwoFactorAuth({
+    required String username,
+    required String password,
+    required String code,
+    String? token,
+  }) async {
+    final cleanEndpoint = '/auth/verify-2fa/';
+    final cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final url = Uri.parse('$cleanBaseUrl$cleanEndpoint');
+    
+    try {
+      final requestBody = <String, dynamic>{
+        'username': username,
+        'password': password,
+        'code': code,
+      };
+      if (token != null) {
+        requestBody['token'] = token;
+      }
+      
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(requestBody),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        
+        // Save tokens
+        if (data['access'] != null && data['refresh'] != null) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(AppConstants.accessTokenKey, data['access'] as String);
+          await prefs.setString(AppConstants.refreshTokenKey, data['refresh'] as String);
+        }
+        
+        return data;
+      } else {
+        String errorMessage = 'Failed to verify 2FA code';
+        try {
+          final error = jsonDecode(response.body) as Map<String, dynamic>;
+          errorMessage = error['detail'] ?? error['error'] ?? error['message'] ?? errorMessage;
+          
+          // Handle special error codes
+          if (error['code'] == 'ACCOUNT_TEMPORARILY_INACTIVE') {
+            final accountError = Exception('ACCOUNT_TEMPORARILY_INACTIVE');
+            (accountError as dynamic).code = 'ACCOUNT_TEMPORARILY_INACTIVE';
+            throw accountError;
+          }
+          
+          if (error['code'] == 'SUBSCRIPTION_INACTIVE' || 
+              (error['error']?.toString().toLowerCase().contains('subscription') ?? false)) {
+            final subscriptionError = Exception('SUBSCRIPTION_INACTIVE');
+            (subscriptionError as dynamic).code = 'SUBSCRIPTION_INACTIVE';
+            (subscriptionError as dynamic).subscriptionId = error['subscriptionId'];
+            throw subscriptionError;
+          }
+        } catch (e) {
+          // Check if this is a custom error with code property
+          try {
+            if (e is Exception) {
+              final dynamic error = e;
+              if (error.code != null) {
+                rethrow;
+              }
+            }
+          } catch (_) {
+            // Not a custom error, continue with default error message
+          }
+          errorMessage = 'Failed to verify 2FA code with status ${response.statusCode}';
+        }
+        
+        ErrorLogger().logError(
+          error: errorMessage,
+          endpoint: cleanEndpoint,
+          method: 'POST',
+          statusCode: response.statusCode,
+          responseBody: response.body,
+        );
+        
+        throw Exception(errorMessage);
+      }
+    } catch (e, stackTrace) {
+      // Check if this is a custom error with code property
+      try {
+        if (e is Exception) {
+          final dynamic error = e;
+          if (error.code != null) {
+            rethrow;
+          }
+        }
+      } catch (_) {
+        // Not a custom error, continue with error logging
+      }
+      
+      ErrorLogger().logError(
+        error: e.toString(),
+        stackTrace: stackTrace.toString(),
+        endpoint: cleanEndpoint,
+        method: 'POST',
+      );
+      
+      rethrow;
+    }
+  }
+  
+  // Get current user
+  Future<UserModel> getCurrentUser() async {
+    final response = await _makeRequest('GET', '/users/me/');
+    
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return UserModel.fromJson(data);
+    } else {
+      throw Exception('Failed to get current user');
+    }
+  }
+  
+  // Update user profile
+  Future<UserModel> updateUser({
+    required int userId,
+    String? firstName,
+    String? lastName,
+    String? phone,
+    String? profilePhotoPath,
+  }) async {
+    final cleanEndpoint = '/users/$userId/';
+    final cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final url = Uri.parse('$cleanBaseUrl$cleanEndpoint');
+    
+    final token = await _getAccessToken();
+    if (token == null) {
+      throw Exception('Not authenticated');
+    }
+    
+    try {
+      final request = http.MultipartRequest('PATCH', url);
+      request.headers['Authorization'] = 'Bearer $token';
+      
+      if (firstName != null && firstName.isNotEmpty) {
+        request.fields['first_name'] = firstName;
+      }
+      if (lastName != null && lastName.isNotEmpty) {
+        request.fields['last_name'] = lastName;
+      }
+      if (phone != null && phone.isNotEmpty) {
+        request.fields['phone'] = phone;
+      }
+      
+      if (profilePhotoPath != null && profilePhotoPath.isNotEmpty) {
+        final file = await http.MultipartFile.fromPath('profile_photo', profilePhotoPath);
+        request.files.add(file);
+      }
+      
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return UserModel.fromJson(data);
+      } else {
+        String errorMessage = 'Failed to update profile';
+        try {
+          final error = jsonDecode(response.body) as Map<String, dynamic>;
+          errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
+        } catch (_) {
+          errorMessage = 'Failed to update profile with status ${response.statusCode}';
+        }
+        throw Exception(errorMessage);
+      }
+    } catch (e, stackTrace) {
+      ErrorLogger().logError(
+        error: e.toString(),
+        stackTrace: stackTrace.toString(),
+        endpoint: cleanEndpoint,
+        method: 'PATCH',
+      );
+      rethrow;
+    }
+  }
+  
+  // Leads
+  Future<Map<String, dynamic>> getLeads({
+    String? status,
+    String? type,
+    String? search,
+    int? page,
+  }) async {
+    // Get current user to check role
+    final currentUser = await getCurrentUser();
+    final isEmployee = currentUser.isEmployee;
+    
+    final queryParams = <String, String>{};
+    if (status != null && status != 'All') queryParams['status'] = status;
+    if (type != null && type != 'All') queryParams['type'] = type;
+    if (search != null && search.isNotEmpty) queryParams['search'] = search;
+    if (page != null) queryParams['page'] = page.toString();
+    
+    // For employees, filter by assigned_to
+    if (isEmployee) {
+      queryParams['assigned_to'] = currentUser.id.toString();
+    }
+    
+    final queryString = queryParams.isEmpty 
+        ? '' 
+        : '?${queryParams.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&')}';
+    
+    final response = await _makeRequest('GET', '/clients/$queryString');
+    
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final resultsList = data['results'] as List?;
+      final results = resultsList != null
+          ? resultsList.map((e) => LeadModel.fromJson(e as Map<String, dynamic>)).toList()
+          : <LeadModel>[];
+      
+      return {
+        'results': results,
+        'count': (data['count'] as num?)?.toInt() ?? 0,
+        'next': data['next'] as String?,
+        'previous': data['previous'] as String?,
+      };
+    } else {
+      throw Exception('Failed to get leads');
+    }
+  }
+  
+  // Get lead by ID
+  Future<LeadModel> getLeadById(int id) async {
+    final response = await _makeRequest('GET', '/clients/$id/');
+    
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return LeadModel.fromJson(data);
+    } else {
+      throw Exception('Failed to get lead');
+    }
+  }
+  
+  // Add action to lead
+  Future<void> addActionToLead({
+    required int leadId,
+    required int stage,
+    required String notes,
+    DateTime? reminderDate,
+  }) async {
+    final body = <String, dynamic>{
+      'client': leadId,
+      'stage': stage,
+      'notes': notes,
+    };
+    
+    if (reminderDate != null) {
+      body['reminder_date'] = reminderDate.toIso8601String();
+    }
+    
+    final response = await _makeRequest('POST', '/client-tasks/', body: body);
+    
+    if (response.statusCode != 201) {
+      final error = jsonDecode(response.body) as Map<String, dynamic>;
+      throw Exception(error['detail'] ?? error['message'] ?? 'Failed to add action');
+    }
+  }
+  
+  // Get client tasks (actions) for a lead
+  Future<List<ClientTaskModel>> getClientTasks(int leadId) async {
+    final response = await _makeRequest('GET', '/client-tasks/?client=$leadId');
+    
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final resultsList = data['results'] as List?;
+      final results = resultsList != null
+          ? resultsList.map((e) => ClientTaskModel.fromJson(e as Map<String, dynamic>)).toList()
+          : <ClientTaskModel>[];
+      return results;
+    } else {
+      throw Exception('Failed to get client tasks');
+    }
+  }
+  
+  // Create lead
+  Future<LeadModel> createLead({
+    required String name,
+    required String phone,
+    List<Map<String, dynamic>>? phoneNumbers,
+    double? budget,
+    int? assignedTo,
+    required String type,
+    String? communicationWay,
+    String? priority,
+    String? status,
+  }) async {
+    final body = <String, dynamic>{
+      'name': name,
+      'phone_number': phone,
+      'type': type.toLowerCase(),
+    };
+    
+    if (phoneNumbers != null && phoneNumbers.isNotEmpty) {
+      body['phone_numbers'] = phoneNumbers;
+    }
+    
+    if (budget != null) body['budget'] = budget;
+    if (assignedTo != null && assignedTo > 0) body['assigned_to'] = assignedTo;
+    if (communicationWay != null) body['communication_way'] = communicationWay;
+    if (priority != null) body['priority'] = priority.toLowerCase();
+    if (status != null) body['status'] = status;
+    
+    final response = await _makeRequest('POST', '/clients/', body: body);
+    
+    if (response.statusCode == 201) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return LeadModel.fromJson(data);
+    } else {
+      final error = jsonDecode(response.body) as Map<String, dynamic>;
+      throw Exception(error['detail'] ?? error['message'] ?? 'Failed to create lead');
+    }
+  }
+  
+  // Update lead
+  Future<LeadModel> updateLead({
+    required int id,
+    String? name,
+    String? phone,
+    List<Map<String, dynamic>>? phoneNumbers,
+    double? budget,
+    int? assignedTo,
+    String? type,
+    String? communicationWay,
+    String? priority,
+    String? status,
+  }) async {
+    final body = <String, dynamic>{};
+    
+    if (name != null) body['name'] = name;
+    if (phone != null) body['phone_number'] = phone;
+    if (phoneNumbers != null) body['phone_numbers'] = phoneNumbers;
+    if (budget != null) body['budget'] = budget;
+    if (assignedTo != null) body['assigned_to'] = assignedTo > 0 ? assignedTo : null;
+    if (type != null) body['type'] = type.toLowerCase();
+    if (communicationWay != null) body['communication_way'] = communicationWay;
+    if (priority != null) body['priority'] = priority.toLowerCase();
+    if (status != null) body['status'] = status;
+    
+    final response = await _makeRequest('PATCH', '/clients/$id/', body: body);
+    
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return LeadModel.fromJson(data);
+    } else {
+      final error = jsonDecode(response.body) as Map<String, dynamic>;
+      throw Exception(error['detail'] ?? error['message'] ?? 'Failed to update lead');
+    }
+  }
+  
+  // Delete lead
+  Future<void> deleteLead(int id) async {
+    final response = await _makeRequest('DELETE', '/clients/$id/');
+    
+    if (response.statusCode != 204) {
+      final error = jsonDecode(response.body) as Map<String, dynamic>;
+      throw Exception(error['detail'] ?? error['message'] ?? 'Failed to delete lead');
+    }
+  }
+  
+  // Assign lead(s)
+  Future<void> assignLeads({
+    required List<int> clientIds,
+    int? userId,
+  }) async {
+    final body = <String, dynamic>{
+      'client_ids': clientIds,
+      'user_id': userId,
+    };
+    
+    final response = await _makeRequest('POST', '/clients/bulk_assign/', body: body);
+    
+    if (response.statusCode != 200) {
+      final error = jsonDecode(response.body) as Map<String, dynamic>;
+      throw Exception(error['detail'] ?? error['message'] ?? 'Failed to assign leads');
+    }
+  }
+  
+  // Get users
+  Future<Map<String, dynamic>> getUsers() async {
+    final response = await _makeRequest('GET', '/users/');
+    
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final resultsList = data['results'] as List?;
+      final results = <UserModel>[];
+      
+      if (resultsList != null) {
+        for (var item in resultsList) {
+          if (item is Map<String, dynamic>) {
+            try {
+              results.add(UserModel.fromJson(item));
+            } catch (e) {
+              ErrorLogger().logError(
+                error: 'Failed to parse user: $e\nItem: $item',
+                endpoint: '/users/',
+                method: 'GET',
+              );
+            }
+          }
+        }
+      }
+      
+      return {
+        'results': results,
+        'count': (data['count'] as num?)?.toInt() ?? 0,
+      };
+    } else {
+      throw Exception('Failed to get users');
+    }
+  }
+  
+  // Get user by ID
+  Future<UserModel> getUserById(int userId) async {
+    final response = await _makeRequest('GET', '/users/$userId/');
+    
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return UserModel.fromJson(data);
+    } else {
+      throw Exception('Failed to get user');
+    }
+  }
+  
+  
+  // Get deals (legacy method - kept for backward compatibility)
+  Future<Map<String, dynamic>> getDeals() async {
+    final response = await _makeRequest('GET', '/deals/');
+    
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final resultsList = data['results'] as List?;
+      
+      return {
+        'results': resultsList ?? [],
+        'count': (data['count'] as num?)?.toInt() ?? 0,
+      };
+    } else {
+      throw Exception('Failed to get deals');
+    }
+  }
+  
+  // Get deals as list of DealModel
+  Future<List<DealModel>> getDealsList() async {
+    final response = await _makeRequest('GET', '/deals/');
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final results = data['results'] as List<dynamic>? ?? [];
+      return results.map((json) => DealModel.fromJson(json as Map<String, dynamic>)).toList();
+    }
+    throw Exception('Failed to load deals');
+  }
+  
+  // Update deal
+  Future<DealModel> updateDeal(int dealId, Map<String, dynamic> data) async {
+    final response = await _makeRequest('PUT', '/deals/$dealId/', body: data);
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      return DealModel.fromJson(json);
+    } else {
+      String errorMessage = 'Failed to update deal';
+      try {
+        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
+      } catch (_) {
+        errorMessage = 'Failed to update deal with status ${response.statusCode}';
+      }
+      throw Exception(errorMessage);
+    }
+  }
+  
+  // Delete deal
+  Future<void> deleteDeal(int dealId) async {
+    final response = await _makeRequest('DELETE', '/deals/$dealId/');
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      String errorMessage = 'Failed to delete deal';
+      try {
+        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
+      } catch (_) {
+        errorMessage = 'Failed to delete deal with status ${response.statusCode}';
+      }
+      throw Exception(errorMessage);
+    }
+  }
+  
+  // ==================== Settings APIs (Channels, Stages, Statuses) ====================
+  
+  // Channels CRUD
+  Future<List<ChannelModel>> getChannels() async {
+    final response = await _makeRequest('GET', '/settings/channels/');
+    
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data is List) {
+        return data.map((item) => ChannelModel.fromJson(item as Map<String, dynamic>)).toList();
+      } else if (data is Map && data['results'] != null) {
+        final results = data['results'] as List;
+        return results.map((item) => ChannelModel.fromJson(item as Map<String, dynamic>)).toList();
+      }
+      return [];
+    } else {
+      throw Exception('Failed to get channels');
+    }
+  }
+  
+  Future<ChannelModel> createChannel({
+    required String name,
+    required String type,
+    required String priority,
+  }) async {
+    // Get current user to retrieve company ID
+    final currentUser = await getCurrentUser();
+    if (currentUser.company == null) {
+      throw Exception('User must be associated with a company');
+    }
+    
+    final response = await _makeRequest(
+      'POST',
+      '/settings/channels/',
+      body: {
+        'name': name,
+        'type': type,
+        'priority': priority.toLowerCase(), // Convert to lowercase
+        'company': currentUser.company!.id, // Include company ID
+      },
+    );
+    
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return ChannelModel.fromJson(data);
+    } else {
+      String errorMessage = 'Failed to create channel';
+      try {
+        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        // Try to extract field-specific errors
+        if (error.containsKey('priority')) {
+          final priorityErrors = error['priority'] as List?;
+          if (priorityErrors != null && priorityErrors.isNotEmpty) {
+            errorMessage = priorityErrors.first.toString();
+          }
+        } else if (error.containsKey('company')) {
+          final companyErrors = error['company'] as List?;
+          if (companyErrors != null && companyErrors.isNotEmpty) {
+            errorMessage = companyErrors.first.toString();
+          }
+        } else {
+          errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
+        }
+      } catch (_) {
+        errorMessage = 'Failed to create channel with status ${response.statusCode}';
+      }
+      throw Exception(errorMessage);
+    }
+  }
+  
+  Future<ChannelModel> updateChannel({
+    required int channelId,
+    required String name,
+    required String type,
+    required String priority,
+  }) async {
+    // Get current user to retrieve company ID
+    final currentUser = await getCurrentUser();
+    if (currentUser.company == null) {
+      throw Exception('User must be associated with a company');
+    }
+    
+    final response = await _makeRequest(
+      'PATCH',
+      '/settings/channels/$channelId/',
+      body: {
+        'name': name,
+        'type': type,
+        'priority': priority.toLowerCase(), // Convert to lowercase
+        'company': currentUser.company!.id, // Include company ID
+      },
+    );
+    
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return ChannelModel.fromJson(data);
+    } else {
+      String errorMessage = 'Failed to update channel';
+      try {
+        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        // Try to extract field-specific errors
+        if (error.containsKey('priority')) {
+          final priorityErrors = error['priority'] as List?;
+          if (priorityErrors != null && priorityErrors.isNotEmpty) {
+            errorMessage = priorityErrors.first.toString();
+          }
+        } else if (error.containsKey('company')) {
+          final companyErrors = error['company'] as List?;
+          if (companyErrors != null && companyErrors.isNotEmpty) {
+            errorMessage = companyErrors.first.toString();
+          }
+        } else {
+          errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
+        }
+      } catch (_) {
+        errorMessage = 'Failed to update channel with status ${response.statusCode}';
+      }
+      throw Exception(errorMessage);
+    }
+  }
+  
+  Future<void> deleteChannel(int channelId) async {
+    final response = await _makeRequest('DELETE', '/settings/channels/$channelId/');
+    
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      String errorMessage = 'Failed to delete channel';
+      try {
+        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
+      } catch (_) {
+        errorMessage = 'Failed to delete channel with status ${response.statusCode}';
+      }
+      throw Exception(errorMessage);
+    }
+  }
+  
+  // Stages CRUD
+  Future<List<StageModel>> getStages() async {
+    final response = await _makeRequest('GET', '/settings/stages/');
+    
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data is List) {
+        return data.map((item) => StageModel.fromJson(item as Map<String, dynamic>)).toList();
+      } else if (data is Map && data['results'] != null) {
+        final results = data['results'] as List;
+        return results.map((item) => StageModel.fromJson(item as Map<String, dynamic>)).toList();
+      }
+      return [];
+    } else {
+      throw Exception('Failed to get stages');
+    }
+  }
+  
+  Future<StageModel> createStage({
+    required String name,
+    String? description,
+    required String color,
+    required bool required,
+    required bool autoAdvance,
+  }) async {
+    // Get current user to retrieve company ID
+    final currentUser = await getCurrentUser();
+    if (currentUser.company == null) {
+      throw Exception('User must be associated with a company');
+    }
+    
+    final response = await _makeRequest(
+      'POST',
+      '/settings/stages/',
+      body: {
+        'name': name,
+        'description': description,
+        'color': color,
+        'required': required,
+        'auto_advance': autoAdvance,
+        'company': currentUser.company!.id, // Include company ID
+      },
+    );
+    
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return StageModel.fromJson(data);
+    } else {
+      String errorMessage = 'Failed to create stage';
+      try {
+        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        if (error.containsKey('company')) {
+          final companyErrors = error['company'] as List?;
+          if (companyErrors != null && companyErrors.isNotEmpty) {
+            errorMessage = companyErrors.first.toString();
+          }
+        } else {
+          errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
+        }
+      } catch (_) {
+        errorMessage = 'Failed to create stage with status ${response.statusCode}';
+      }
+      throw Exception(errorMessage);
+    }
+  }
+  
+  Future<StageModel> updateStage({
+    required int stageId,
+    required String name,
+    String? description,
+    required String color,
+    required bool required,
+    required bool autoAdvance,
+  }) async {
+    // Get current user to retrieve company ID
+    final currentUser = await getCurrentUser();
+    if (currentUser.company == null) {
+      throw Exception('User must be associated with a company');
+    }
+    
+    final response = await _makeRequest(
+      'PATCH',
+      '/settings/stages/$stageId/',
+      body: {
+        'name': name,
+        'description': description,
+        'color': color,
+        'required': required,
+        'auto_advance': autoAdvance,
+        'company': currentUser.company!.id, // Include company ID
+      },
+    );
+    
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return StageModel.fromJson(data);
+    } else {
+      String errorMessage = 'Failed to update stage';
+      try {
+        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        if (error.containsKey('company')) {
+          final companyErrors = error['company'] as List?;
+          if (companyErrors != null && companyErrors.isNotEmpty) {
+            errorMessage = companyErrors.first.toString();
+          }
+        } else {
+          errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
+        }
+      } catch (_) {
+        errorMessage = 'Failed to update stage with status ${response.statusCode}';
+      }
+      throw Exception(errorMessage);
+    }
+  }
+  
+  Future<void> deleteStage(int stageId) async {
+    final response = await _makeRequest('DELETE', '/settings/stages/$stageId/');
+    
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      String errorMessage = 'Failed to delete stage';
+      try {
+        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
+      } catch (_) {
+        errorMessage = 'Failed to delete stage with status ${response.statusCode}';
+      }
+      throw Exception(errorMessage);
+    }
+  }
+  
+  // Statuses CRUD
+  Future<List<StatusModel>> getStatuses() async {
+    final response = await _makeRequest('GET', '/settings/statuses/');
+    
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data is List) {
+        return data.map((item) => StatusModel.fromJson(item as Map<String, dynamic>)).toList();
+      } else if (data is Map && data['results'] != null) {
+        final results = data['results'] as List;
+        return results.map((item) => StatusModel.fromJson(item as Map<String, dynamic>)).toList();
+      }
+      return [];
+    } else {
+      throw Exception('Failed to get statuses');
+    }
+  }
+  
+  Future<StatusModel> createStatus({
+    required String name,
+    String? description,
+    required String category,
+    required String color,
+    required bool isDefault,
+    required bool isHidden,
+  }) async {
+    // Get current user to retrieve company ID
+    final currentUser = await getCurrentUser();
+    if (currentUser.company == null) {
+      throw Exception('User must be associated with a company');
+    }
+    
+    // Normalize category to lowercase and handle "Follow Up" variations
+    String normalizedCategory = category.toLowerCase();
+    if (normalizedCategory == 'follow up' || normalizedCategory == 'followup') {
+      normalizedCategory = 'follow_up';
+    }
+    
+    final response = await _makeRequest(
+      'POST',
+      '/settings/statuses/',
+      body: {
+        'name': name,
+        'description': description,
+        'category': normalizedCategory, // Use normalized lowercase category
+        'color': color,
+        'is_default': isDefault,
+        'is_hidden': isHidden,
+        'company': currentUser.company!.id, // Include company ID
+      },
+    );
+    
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return StatusModel.fromJson(data);
+    } else {
+      String errorMessage = 'Failed to create status';
+      try {
+        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        if (error.containsKey('category')) {
+          final categoryErrors = error['category'] as List?;
+          if (categoryErrors != null && categoryErrors.isNotEmpty) {
+            errorMessage = categoryErrors.first.toString();
+          }
+        } else if (error.containsKey('company')) {
+          final companyErrors = error['company'] as List?;
+          if (companyErrors != null && companyErrors.isNotEmpty) {
+            errorMessage = companyErrors.first.toString();
+          }
+        } else {
+          errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
+        }
+      } catch (_) {
+        errorMessage = 'Failed to create status with status ${response.statusCode}';
+      }
+      throw Exception(errorMessage);
+    }
+  }
+  
+  Future<StatusModel> updateStatus({
+    required int statusId,
+    required String name,
+    String? description,
+    required String category,
+    required String color,
+    required bool isDefault,
+    required bool isHidden,
+  }) async {
+    // Get current user to retrieve company ID
+    final currentUser = await getCurrentUser();
+    if (currentUser.company == null) {
+      throw Exception('User must be associated with a company');
+    }
+    
+    // Normalize category to lowercase and handle "Follow Up" variations
+    String normalizedCategory = category.toLowerCase();
+    if (normalizedCategory == 'follow up' || normalizedCategory == 'followup') {
+      normalizedCategory = 'follow_up';
+    }
+    
+    final response = await _makeRequest(
+      'PATCH',
+      '/settings/statuses/$statusId/',
+      body: {
+        'name': name,
+        'description': description,
+        'category': normalizedCategory, // Use normalized lowercase category
+        'color': color,
+        'is_default': isDefault,
+        'is_hidden': isHidden,
+        'company': currentUser.company!.id, // Include company ID
+      },
+    );
+    
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return StatusModel.fromJson(data);
+    } else {
+      String errorMessage = 'Failed to update status';
+      try {
+        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        if (error.containsKey('category')) {
+          final categoryErrors = error['category'] as List?;
+          if (categoryErrors != null && categoryErrors.isNotEmpty) {
+            errorMessage = categoryErrors.first.toString();
+          }
+        } else if (error.containsKey('company')) {
+          final companyErrors = error['company'] as List?;
+          if (companyErrors != null && companyErrors.isNotEmpty) {
+            errorMessage = companyErrors.first.toString();
+          }
+        } else {
+          errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
+        }
+      } catch (_) {
+        errorMessage = 'Failed to update status with status ${response.statusCode}';
+      }
+      throw Exception(errorMessage);
+    }
+  }
+  
+  Future<void> deleteStatus(int statusId) async {
+    final response = await _makeRequest('DELETE', '/settings/statuses/$statusId/');
+    
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      String errorMessage = 'Failed to delete status';
+      try {
+        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
+      } catch (_) {
+        errorMessage = 'Failed to delete status with status ${response.statusCode}';
+      }
+      throw Exception(errorMessage);
+    }
+  }
+  
+  // ==================== Real Estate Inventory APIs ====================
+  
+  // Developers
+  Future<List<Developer>> getDevelopers() async {
+    final response = await _makeRequest('GET', '/developers/');
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final results = data['results'] as List<dynamic>? ?? [];
+      return results.map((json) => Developer.fromJson(json as Map<String, dynamic>)).toList();
+    }
+    throw Exception('Failed to load developers');
+  }
+  
+  // Projects
+  Future<List<Project>> getProjects() async {
+    final response = await _makeRequest('GET', '/projects/');
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final results = data['results'] as List<dynamic>? ?? [];
+      return results.map((json) => Project.fromJson(json as Map<String, dynamic>)).toList();
+    }
+    throw Exception('Failed to load projects');
+  }
+  
+  // Units
+  Future<List<Unit>> getUnits() async {
+    final response = await _makeRequest('GET', '/units/');
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final results = data['results'] as List<dynamic>? ?? [];
+      return results.map((json) => Unit.fromJson(json as Map<String, dynamic>)).toList();
+    }
+    throw Exception('Failed to load units');
+  }
+  
+  // Owners
+  Future<List<Owner>> getOwners() async {
+    final response = await _makeRequest('GET', '/owners/');
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final results = data['results'] as List<dynamic>? ?? [];
+      return results.map((json) => Owner.fromJson(json as Map<String, dynamic>)).toList();
+    }
+    throw Exception('Failed to load owners');
+  }
+  
+  // ==================== Services Inventory APIs ====================
+  
+  // Services
+  Future<List<Service>> getServices() async {
+    final response = await _makeRequest('GET', '/services/');
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final results = data['results'] as List<dynamic>? ?? [];
+      return results.map((json) => Service.fromJson(json as Map<String, dynamic>)).toList();
+    }
+    throw Exception('Failed to load services');
+  }
+  
+  // Service Packages
+  Future<List<ServicePackage>> getServicePackages() async {
+    final response = await _makeRequest('GET', '/service-packages/');
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final results = data['results'] as List<dynamic>? ?? [];
+      return results.map((json) => ServicePackage.fromJson(json as Map<String, dynamic>)).toList();
+    }
+    throw Exception('Failed to load service packages');
+  }
+  
+  // Service Providers
+  Future<List<ServiceProvider>> getServiceProviders() async {
+    final response = await _makeRequest('GET', '/service-providers/');
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final results = data['results'] as List<dynamic>? ?? [];
+      return results.map((json) => ServiceProvider.fromJson(json as Map<String, dynamic>)).toList();
+    }
+    throw Exception('Failed to load service providers');
+  }
+  
+  // ==================== Products Inventory APIs ====================
+  
+  // Products
+  Future<List<Product>> getProducts() async {
+    final response = await _makeRequest('GET', '/products/');
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final results = data['results'] as List<dynamic>? ?? [];
+      return results.map((json) => Product.fromJson(json as Map<String, dynamic>)).toList();
+    }
+    throw Exception('Failed to load products');
+  }
+  
+  // Product Categories
+  Future<List<ProductCategory>> getProductCategories() async {
+    final response = await _makeRequest('GET', '/product-categories/');
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final results = data['results'] as List<dynamic>? ?? [];
+      return results.map((json) => ProductCategory.fromJson(json as Map<String, dynamic>)).toList();
+    }
+    throw Exception('Failed to load product categories');
+  }
+  
+  // Suppliers
+  Future<List<Supplier>> getSuppliers() async {
+    final response = await _makeRequest('GET', '/suppliers/');
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final results = data['results'] as List<dynamic>? ?? [];
+      return results.map((json) => Supplier.fromJson(json as Map<String, dynamic>)).toList();
+    }
+    throw Exception('Failed to load suppliers');
+  }
+}
+

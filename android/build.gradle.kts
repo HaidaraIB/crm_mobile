@@ -17,6 +17,25 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(":app")
+    
+    // Configure Java compilation for all subprojects
+    tasks.withType<JavaCompile>().configureEach {
+        options.compilerArgs.add("-Xlint:-options")
+    }
+    
+    // Configure Kotlin compilation for all subprojects  
+    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+        kotlinOptions {
+            jvmTarget = "17"
+        }
+    }
+    
+    // Configure Java compilation for all subprojects to use Java 17
+    tasks.withType<JavaCompile>().configureEach {
+        sourceCompatibility = "17"
+        targetCompatibility = "17"
+        options.compilerArgs.add("-Xlint:-options")
+    }
 }
 
 tasks.register<Delete>("clean") {
