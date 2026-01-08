@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 
 class AppLocalizations {
   final Locale locale;
-  
+
   AppLocalizations(this.locale);
-  
+
   static AppLocalizations? of(BuildContext context) {
     return Localizations.of<AppLocalizations>(context, AppLocalizations);
   }
-  
-  static const LocalizationsDelegate<AppLocalizations> delegate = _AppLocalizationsDelegate();
-  
+
+  static const LocalizationsDelegate<AppLocalizations> delegate =
+      _AppLocalizationsDelegate();
+
   static final Map<String, Map<String, String>> _localizedValues = {
     'en': {
       // Common
@@ -194,9 +195,11 @@ class AppLocalizations {
       'phoneTypeWork': 'Work',
       'phoneTypeOther': 'Other',
       'noInternetConnection': 'No Internet Connection',
-      'noInternetMessage': 'Please check your internet connection and try again',
+      'noInternetMessage':
+          'Please check your internet connection and try again',
       'connectionError': 'Connection Error',
-      'connectionErrorMessage': 'Unable to connect to the server. Please try again later',
+      'connectionErrorMessage':
+          'Unable to connect to the server. Please try again later',
       'errorOccurred': 'An error occurred',
       'tryAgain': 'Try Again',
       'primary': 'Primary',
@@ -241,9 +244,12 @@ class AppLocalizations {
       'twoFactorAuthTitle': 'Two-Factor Authentication',
       'enter2FACode': 'Enter the 6-digit code sent to your email',
       'twoFactorCodeLabel': 'Verification Code',
-      'pleaseEnter2FACode': 'Please enter the 6-digit two-factor authentication code',
-      'twoFactorCodeSent': 'Two-factor authentication code has been sent to your email',
-      'twoFactorCodeExpired': 'Two-factor authentication code has expired. Please request a new one',
+      'pleaseEnter2FACode':
+          'Please enter the 6-digit two-factor authentication code',
+      'twoFactorCodeSent':
+          'Two-factor authentication code has been sent to your email',
+      'twoFactorCodeExpired':
+          'Two-factor authentication code has expired. Please request a new one',
       'twoFactorCodeInvalid': 'Invalid two-factor authentication code',
       'twoFactorAuthFailed': 'Failed to verify two-factor authentication code',
       'resendCode': 'Resend Code',
@@ -255,9 +261,11 @@ class AppLocalizations {
       'didntReceiveCode': "Didn't receive code?",
       'accountTemporarilyInactive': 'Your account is temporarily inactive',
       'noActiveSubscription': 'No active subscription found',
-      'invalidCredentials': 'Invalid credentials. Please go back and check your username and password.',
+      'invalidCredentials':
+          'Invalid credentials. Please go back and check your username and password.',
       'userNotFound': 'User not found',
-      'subscriptionNotActive': 'Your subscription is not active. Please contact support or complete your payment to access the system.',
+      'subscriptionNotActive':
+          'Your subscription is not active. Please contact support or complete your payment to access the system.',
       'anErrorOccurred': 'An error occurred. Please try again.',
       // Settings
       'settings': 'Settings',
@@ -360,7 +368,8 @@ class AppLocalizations {
       'failedToLoadStatuses': 'Failed to load statuses',
       'setAsDefault': 'Set as Default',
       'setAsDefaultMessage': 'There is already a default status',
-      'setAsDefaultMessage2': 'Setting this status as default will unset the previous default. Do you want to continue?',
+      'setAsDefaultMessage2':
+          'Setting this status as default will unset the previous default. Do you want to continue?',
       'continue': 'Continue',
       'filterOptions': 'Filter Options',
       'byStatus': 'By Status',
@@ -400,6 +409,10 @@ class AppLocalizations {
       'city': 'City',
       'developer': 'Developer',
       'finishing': 'Finishing',
+      'apartment': 'Apartment',
+      'villa': 'Villa',
+      'finished': 'Finished',
+      'semiFinished': 'Semi-Finished',
       'paymentMethod': 'Payment Method',
       'cannotMakeCall': 'Cannot make call',
       // Inventory - Services
@@ -726,7 +739,8 @@ class AppLocalizations {
       'noInternetConnection': 'لا يوجد اتصال بالإنترنت',
       'noInternetMessage': 'يرجى التحقق من اتصالك بالإنترنت والمحاولة مرة أخرى',
       'connectionError': 'خطأ في الاتصال',
-      'connectionErrorMessage': 'تعذر الاتصال بالخادم. يرجى المحاولة مرة أخرى لاحقاً',
+      'connectionErrorMessage':
+          'تعذر الاتصال بالخادم. يرجى المحاولة مرة أخرى لاحقاً',
       'errorOccurred': 'حدث خطأ',
       'tryAgain': 'حاول مرة أخرى',
       'primary': 'أساسي',
@@ -760,11 +774,15 @@ class AppLocalizations {
       'logoutConfirmTitle': 'تأكيد تسجيل الخروج',
       'logoutConfirmMessage': 'هل أنت متأكد من تسجيل الخروج؟',
       'twoFactorAuthTitle': 'المصادقة الثنائية',
-      'enter2FACode': 'أدخل الرمز المكون من 6 أرقام المرسل إلى بريدك الإلكتروني',
+      'enter2FACode':
+          'أدخل الرمز المكون من 6 أرقام المرسل إلى بريدك الإلكتروني',
       'twoFactorCodeLabel': 'رمز التحقق',
-      'pleaseEnter2FACode': 'الرجاء إدخال رمز المصادقة الثنائية المكون من 6 أرقام',
-      'twoFactorCodeSent': 'تم إرسال رمز المصادقة الثنائية إلى بريدك الإلكتروني',
-      'twoFactorCodeExpired': 'انتهت صلاحية رمز المصادقة الثنائية. يرجى طلب رمز جديد',
+      'pleaseEnter2FACode':
+          'الرجاء إدخال رمز المصادقة الثنائية المكون من 6 أرقام',
+      'twoFactorCodeSent':
+          'تم إرسال رمز المصادقة الثنائية إلى بريدك الإلكتروني',
+      'twoFactorCodeExpired':
+          'انتهت صلاحية رمز المصادقة الثنائية. يرجى طلب رمز جديد',
       'twoFactorCodeInvalid': 'رمز المصادقة الثنائية غير صحيح',
       'twoFactorAuthFailed': 'فشل التحقق من رمز المصادقة الثنائية',
       'resendCode': 'إعادة إرسال الرمز',
@@ -776,9 +794,11 @@ class AppLocalizations {
       'didntReceiveCode': 'لم تستلم الرمز؟',
       'accountTemporarilyInactive': 'حسابك غير نشط مؤقتاً',
       'noActiveSubscription': 'لا يوجد اشتراك نشط',
-      'invalidCredentials': 'بيانات الاعتماد غير صحيحة. يرجى العودة والتحقق من اسم المستخدم وكلمة المرور.',
+      'invalidCredentials':
+          'بيانات الاعتماد غير صحيحة. يرجى العودة والتحقق من اسم المستخدم وكلمة المرور.',
       'userNotFound': 'المستخدم غير موجود',
-      'subscriptionNotActive': 'اشتراكك غير نشط. يرجى الاتصال بالدعم أو إتمام الدفع للوصول إلى النظام.',
+      'subscriptionNotActive':
+          'اشتراكك غير نشط. يرجى الاتصال بالدعم أو إتمام الدفع للوصول إلى النظام.',
       'anErrorOccurred': 'حدث خطأ. يرجى المحاولة مرة أخرى.',
       // Settings
       'settings': 'الإعدادات',
@@ -881,7 +901,8 @@ class AppLocalizations {
       'failedToLoadStatuses': 'فشل تحميل الحالات',
       'setAsDefault': 'تعيين كافتراضي',
       'setAsDefaultMessage': 'يوجد بالفعل حالة افتراضية',
-      'setAsDefaultMessage2': 'تعيين هذه الحالة كافتراضية سيلغي الحالة الافتراضية السابقة. هل تريد المتابعة؟',
+      'setAsDefaultMessage2':
+          'تعيين هذه الحالة كافتراضية سيلغي الحالة الافتراضية السابقة. هل تريد المتابعة؟',
       'continue': 'متابعة',
       'filterOptions': 'خيارات التصفية',
       'byStatus': 'حسب الحالة',
@@ -921,6 +942,10 @@ class AppLocalizations {
       'city': 'المدينة',
       'developer': 'المطور',
       'finishing': 'التشطيب',
+      'apartment': 'شقة',
+      'villa': 'فيلا',
+      'finished': 'منتهي بالكامل',
+      'semiFinished': 'نصف منتهي',
       'paymentMethod': 'طريقة الدفع',
       'cannotMakeCall': 'لا يمكن إجراء المكالمة',
       // Inventory - Services
@@ -1055,27 +1080,26 @@ class AppLocalizations {
       'editClient': 'تعديل العميل',
     },
   };
-  
+
   String translate(String key) {
     return _localizedValues[locale.languageCode]?[key] ?? key;
   }
-  
+
   bool get isRTL => locale.languageCode == 'ar';
 }
 
-class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
+class _AppLocalizationsDelegate
+    extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
-  
+
   @override
   bool isSupported(Locale locale) => ['en', 'ar'].contains(locale.languageCode);
-  
+
   @override
   Future<AppLocalizations> load(Locale locale) async {
     return AppLocalizations(locale);
   }
-  
+
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
 }
-
-

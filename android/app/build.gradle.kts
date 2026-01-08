@@ -7,10 +7,41 @@ plugins {
 
 // Load keystore properties
 val keystorePropertiesFile = rootProject.file("key.properties")
-val keystoreProperties = java.util.Properties()
-if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(java.io.FileInputStream(keystorePropertiesFile))
+val keystoreProperties = if (keystorePropertiesFile.exists()) {
+    try {
+        val propsMap = mutableMapOf<String, String>()
+        keystorePropertiesFile.readLines().forEach { line ->
+            if (line.contains("=") && !line.trimStart().startsWith("#")) {
+                val parts = line.split("=", limit = 2)
+                if (parts.size == 2) {
+                    propsMap[parts[0].trim()] = parts[1].trim()
+                }
+            }
+        }
+        propsMap
+    } catch (e: Exception) {
+        null
+    }
+} else {
+    null
 }
+
+// Check if keystore file exists (file() is relative to project root, which is android/ directory)
+val keystoreFileExists = keystoreProperties?.let { props ->
+    val storeFilePath = props["storeFile"] ?: ""
+    if (storeFilePath.isNotEmpty()) {
+        // Try app directory first (most common location)
+        val keystoreFile = file("app/$storeFilePath")
+        if (keystoreFile.exists()) {
+            true
+        } else {
+            // Try project root
+            file(storeFilePath).exists()
+        }
+    } else {
+        false
+    }
+} ?: false
 
 android {
     namespace = "com.example.crm_mobile"
@@ -40,19 +71,30 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            if (keystorePropertiesFile.exists()) {
-                keyAlias = keystoreProperties["keyAlias"] as String
-                keyPassword = keystoreProperties["keyPassword"] as String
-                storeFile = file(keystoreProperties["storeFile"] as String)
-                storePassword = keystoreProperties["storePassword"] as String
+        if (keystoreFileExists && keystoreProperties != null) {
+            create("release") {
+                keystoreProperties?.let { props ->
+                    keyAlias = props["keyAlias"] ?: ""
+                    keyPassword = props["keyPassword"] ?: ""
+                    val storeFilePath = props["storeFile"] ?: ""
+                    if (storeFilePath.isNotEmpty()) {
+                        // Try app directory first, then project root
+                        val keystoreFile = file("app/$storeFilePath")
+                        storeFile = if (keystoreFile.exists()) {
+                            keystoreFile
+                        } else {
+                            file(storeFilePath)
+                        }
+                    }
+                    storePassword = props["storePassword"] ?: ""
+                }
             }
         }
     }
 
     buildTypes {
         release {
-            signingConfig = if (keystorePropertiesFile.exists()) {
+            signingConfig = if (keystoreFileExists && keystoreProperties != null) {
                 signingConfigs.getByName("release")
             } else {
                 signingConfigs.getByName("debug")
