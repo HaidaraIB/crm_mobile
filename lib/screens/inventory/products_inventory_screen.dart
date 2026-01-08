@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/utils/number_formatter.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/inventory_card.dart';
+import '../../widgets/modals/add_product_modal.dart';
+import '../../widgets/modals/edit_product_modal.dart';
+import '../../widgets/modals/add_product_category_modal.dart';
+import '../../widgets/modals/edit_product_category_modal.dart';
+import '../../widgets/modals/add_supplier_modal.dart';
+import '../../widgets/modals/edit_supplier_modal.dart';
 
 class ProductsInventoryScreen extends StatefulWidget {
   const ProductsInventoryScreen({super.key});
@@ -16,6 +23,9 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
   final ApiService _apiService = ApiService();
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
+  
+  // User
+  bool _isAdmin = false;
   
   // Products
   List<Product> _products = [];
@@ -39,8 +49,20 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _loadUser();
     _loadData();
     _searchController.addListener(_filterData);
+  }
+  
+  Future<void> _loadUser() async {
+    try {
+      final user = await _apiService.getCurrentUser();
+      setState(() {
+        _isAdmin = user.isAdmin;
+      });
+    } catch (e) {
+      // User not loaded, but continue
+    }
   }
 
   @override
@@ -209,6 +231,16 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
           ),
         ],
       ),
+      floatingActionButton: _isAdmin
+          ? FloatingActionButton(
+              onPressed: () {
+                _showAddDialog(context, localizations, theme);
+              },
+              backgroundColor: AppTheme.primaryColor,
+              child: const Icon(Icons.add, color: Colors.white),
+            )
+          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
@@ -371,10 +403,124 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
                 color: stockColor,
                 icon: Icons.inventory_2,
               ),
+              // Admin actions
+              if (_isAdmin) ...[
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit, size: 20),
+                      onPressed: () => _showEditProductDialog(context, localizations, theme, product),
+                      color: theme.colorScheme.primary,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, size: 20),
+                      onPressed: () => _showDeleteProductDialog(context, localizations, theme, product),
+                      color: Colors.red,
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         );
       },
+    );
+  }
+  
+  void _showAddDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme) {
+    final currentTab = _tabController.index;
+    if (currentTab == 0) {
+      _showAddProductDialog(context, localizations, theme);
+    } else if (currentTab == 1) {
+      _showAddCategoryDialog(context, localizations, theme);
+    } else if (currentTab == 2) {
+      _showAddSupplierDialog(context, localizations, theme);
+    }
+  }
+  
+  void _showAddProductDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme) {
+    showDialog(
+      context: context,
+      builder: (context) => AddProductModal(
+        onProductCreated: (product) {
+          _loadProducts();
+        },
+      ),
+    );
+  }
+  
+  void _showAddCategoryDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme) {
+    showDialog(
+      context: context,
+      builder: (context) => AddProductCategoryModal(
+        onCategoryCreated: (category) {
+          _loadCategories();
+        },
+      ),
+    );
+  }
+  
+  void _showAddSupplierDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme) {
+    showDialog(
+      context: context,
+      builder: (context) => AddSupplierModal(
+        onSupplierCreated: (supplier) {
+          _loadSuppliers();
+        },
+      ),
+    );
+  }
+  
+  void _showEditProductDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme, Product product) {
+    showDialog(
+      context: context,
+      builder: (context) => EditProductModal(
+        product: product,
+        onProductUpdated: (updatedProduct) {
+          _loadProducts();
+        },
+      ),
+    );
+  }
+  
+  void _showDeleteProductDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme, Product product) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(localizations?.translate('deleteProduct') ?? 'Delete Product'),
+        content: Text('${localizations?.translate('confirmDeleteProduct') ?? 'Are you sure you want to delete'} ${product.name}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(localizations?.translate('cancel') ?? 'Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final navigator = Navigator.of(context);
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              navigator.pop();
+              try {
+                await _apiService.deleteProduct(product.id);
+                if (mounted) {
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(content: Text(localizations?.translate('productDeleted') ?? 'Product deleted')),
+                  );
+                  _loadProducts();
+                }
+              } catch (e) {
+                if (mounted) {
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(content: Text('${localizations?.translate('error') ?? 'Error'}: $e')),
+                  );
+                }
+              }
+            },
+            child: Text(localizations?.translate('delete') ?? 'Delete', style: const TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -473,10 +619,84 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
                   ],
                 ),
               ),
+              // Admin actions
+              if (_isAdmin) ...[
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit, size: 20),
+                      onPressed: () => _showEditCategoryDialog(context, localizations, theme, category),
+                      color: theme.colorScheme.primary,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, size: 20),
+                      onPressed: () => _showDeleteCategoryDialog(context, localizations, theme, category),
+                      color: Colors.red,
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         );
       },
+    );
+  }
+  
+  void _showEditCategoryDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme, ProductCategory category) {
+    showDialog(
+      context: context,
+      builder: (context) => EditProductCategoryModal(
+        category: category,
+        onCategoryUpdated: (updatedCategory) {
+          _loadCategories();
+        },
+      ),
+    );
+  }
+  
+  void _showDeleteCategoryDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme, ProductCategory category) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(localizations?.translate('deleteProductCategory') ?? 'Delete Category'),
+        content: Text('${localizations?.translate('confirmDeleteProductCategory') ?? 'Are you sure you want to delete'} ${category.name}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(localizations?.translate('cancel') ?? 'Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final navigator = Navigator.of(context);
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              navigator.pop();
+              try {
+                await _apiService.deleteProductCategory(category.id);
+                if (mounted) {
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(content: Text(localizations?.translate('categoryDeleted') ?? 'Category deleted')),
+                  );
+                  // Reload categories and products since deleting a category cascades to products
+                  await Future.wait([
+                    _loadCategories(),
+                    _loadProducts(),
+                  ]);
+                }
+              } catch (e) {
+                if (mounted) {
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(content: Text('${localizations?.translate('error') ?? 'Error'}: $e')),
+                  );
+                }
+              }
+            },
+            child: Text(localizations?.translate('delete') ?? 'Delete', style: const TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -599,10 +819,80 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
                   label: localizations?.translate('specialization') ?? 'Specialization',
                   value: supplier.specialization!,
                 ),
+              // Admin actions
+              if (_isAdmin) ...[
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit, size: 20),
+                      onPressed: () => _showEditSupplierDialog(context, localizations, theme, supplier),
+                      color: theme.colorScheme.primary,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, size: 20),
+                      onPressed: () => _showDeleteSupplierDialog(context, localizations, theme, supplier),
+                      color: Colors.red,
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         );
       },
+    );
+  }
+  
+  void _showEditSupplierDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme, Supplier supplier) {
+    showDialog(
+      context: context,
+      builder: (context) => EditSupplierModal(
+        supplier: supplier,
+        onSupplierUpdated: (updatedSupplier) {
+          _loadSuppliers();
+        },
+      ),
+    );
+  }
+  
+  void _showDeleteSupplierDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme, Supplier supplier) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(localizations?.translate('deleteSupplier') ?? 'Delete Supplier'),
+        content: Text('${localizations?.translate('confirmDeleteSupplier') ?? 'Are you sure you want to delete'} ${supplier.name}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(localizations?.translate('cancel') ?? 'Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final navigator = Navigator.of(context);
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              navigator.pop();
+              try {
+                await _apiService.deleteSupplier(supplier.id);
+                if (mounted) {
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(content: Text(localizations?.translate('supplierDeleted') ?? 'Supplier deleted')),
+                  );
+                  _loadSuppliers();
+                }
+              } catch (e) {
+                if (mounted) {
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(content: Text('${localizations?.translate('error') ?? 'Error'}: $e')),
+                  );
+                }
+              }
+            },
+            child: Text(localizations?.translate('delete') ?? 'Delete', style: const TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
     );
   }
 }

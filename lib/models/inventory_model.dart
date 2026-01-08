@@ -86,6 +86,7 @@ class Project {
 class Unit {
   final int id;
   final String code;
+  final String name;
   final String project;
   final int bedrooms;
   final int bathrooms;
@@ -100,6 +101,7 @@ class Unit {
   Unit({
     required this.id,
     required this.code,
+    required this.name,
     required this.project,
     required this.bedrooms,
     required this.bathrooms,
@@ -151,6 +153,7 @@ class Unit {
     return Unit(
       id: json['id'] as int,
       code: json['code'] as String? ?? '',
+      name: json['name'] as String? ?? '',
       project: projectName,
       bedrooms: parseToInt(json['bedrooms']),
       bathrooms: parseToInt(json['bathrooms']),
@@ -168,6 +171,7 @@ class Unit {
     return {
       'id': id,
       'code': code,
+      'name': name,
       'project': project,
       'bedrooms': bedrooms,
       'bathrooms': bathrooms,

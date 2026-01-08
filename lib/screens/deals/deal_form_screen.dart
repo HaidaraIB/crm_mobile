@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import '../../core/localization/app_localizations.dart';
+import '../../core/theme/app_theme.dart';
 import '../../models/deal_model.dart';
 import '../../models/user_model.dart';
 import '../../models/lead_model.dart';
@@ -9,16 +10,16 @@ import '../../services/api_service.dart';
 import '../../widgets/inventory_card.dart';
 import '../../core/utils/specialization_helper.dart';
 
-class EditDealScreen extends StatefulWidget {
-  final DealModel deal;
+class DealFormScreen extends StatefulWidget {
+  final DealModel? deal;
 
-  const EditDealScreen({super.key, required this.deal});
+  const DealFormScreen({super.key, this.deal});
 
   @override
-  State<EditDealScreen> createState() => _EditDealScreenState();
+  State<DealFormScreen> createState() => _DealFormScreenState();
 }
 
-class _EditDealScreenState extends State<EditDealScreen> {
+class _DealFormScreenState extends State<DealFormScreen> {
   final ApiService _apiService = ApiService();
   final _formKey = GlobalKey<FormState>();
   
@@ -47,6 +48,13 @@ class _EditDealScreenState extends State<EditDealScreen> {
   final Map<String, String> _formState = {};
   final Map<String, String> _errors = {};
   
+  // Text editing controllers for calculated fields and dates
+  late TextEditingController _discountAmountController;
+  late TextEditingController _totalValueController;
+  late TextEditingController _salesCommissionAmountController;
+  late TextEditingController _startDateController;
+  late TextEditingController _closedDateController;
+  
   // Calculated values
   double get _calculatedDiscountAmount {
     final value = double.tryParse(_formState['value'] ?? '0') ?? 0;
@@ -67,7 +75,29 @@ class _EditDealScreenState extends State<EditDealScreen> {
   @override
   void initState() {
     super.initState();
+    // Initialize controllers
+    _discountAmountController = TextEditingController();
+    _totalValueController = TextEditingController();
+    _salesCommissionAmountController = TextEditingController();
+    _startDateController = TextEditingController();
+    _closedDateController = TextEditingController();
     _loadData();
+  }
+  
+  @override
+  void dispose() {
+    _discountAmountController.dispose();
+    _totalValueController.dispose();
+    _salesCommissionAmountController.dispose();
+    _startDateController.dispose();
+    _closedDateController.dispose();
+    super.dispose();
+  }
+  
+  void _updateCalculatedFields() {
+    _discountAmountController.text = _calculatedDiscountAmount.toStringAsFixed(2);
+    _totalValueController.text = _calculatedTotalValue.toStringAsFixed(2);
+    _salesCommissionAmountController.text = _calculatedSalesCommissionAmount.toStringAsFixed(2);
   }
 
   Future<void> _loadData() async {
@@ -80,12 +110,28 @@ class _EditDealScreenState extends State<EditDealScreen> {
       // Load leads
       final leadsResponse = await _apiService.getLeads();
       final leadsData = leadsResponse['results'] as List<dynamic>? ?? [];
-      final leads = leadsData.map((l) => LeadModel.fromJson(l as Map<String, dynamic>)).toList();
+      final leads = leadsData.map((l) {
+        if (l is LeadModel) {
+          return l;
+        } else if (l is Map<String, dynamic>) {
+          return LeadModel.fromJson(l);
+        } else {
+          throw Exception('Invalid lead data type: ${l.runtimeType}');
+        }
+      }).toList();
       
       // Load users
       final usersResponse = await _apiService.getUsers();
       final usersData = usersResponse['results'] as List<dynamic>? ?? [];
-      final users = usersData.map((u) => UserModel.fromJson(u as Map<String, dynamic>)).toList();
+      final users = usersData.map((u) {
+        if (u is UserModel) {
+          return u;
+        } else if (u is Map<String, dynamic>) {
+          return UserModel.fromJson(u);
+        } else {
+          throw Exception('Invalid user data type: ${u.runtimeType}');
+        }
+      }).toList();
       
       // Load projects and units if real estate
       List<Project> projects = [];
@@ -102,8 +148,12 @@ class _EditDealScreenState extends State<EditDealScreen> {
         _units = units;
       });
       
-      // Initialize form state from deal
-      _initializeFormState();
+      // Initialize form state from deal or defaults
+      if (widget.deal != null) {
+        _initializeFormState();
+      } else {
+        _initializeDefaultFormState();
+      }
     } catch (e) {
       debugPrint('Error loading data: $e');
       if (mounted) {
@@ -121,8 +171,36 @@ class _EditDealScreenState extends State<EditDealScreen> {
     }
   }
 
+  void _initializeDefaultFormState() {
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    
+    setState(() {
+      _formState['project'] = _projects.isNotEmpty ? _projects.first.id.toString() : '';
+      _formState['unit'] = '';
+      _formState['leadId'] = _leads.isNotEmpty ? _leads.first.id.toString() : '0';
+      _formState['employee'] = (_currentUser?.id ?? 0).toString();
+      _formState['startedBy'] = (_currentUser?.id ?? 0).toString();
+      _formState['closedBy'] = (_currentUser?.id ?? 0).toString();
+      _formState['paymentMethod'] = 'Cash';
+      _formState['status'] = 'Reservation';
+      _formState['stage'] = 'in_progress';
+      _formState['startDate'] = today;
+      _formState['closedDate'] = '';
+      _formState['value'] = '';
+      _formState['discountPercentage'] = '0';
+      _formState['discountAmount'] = '0';
+      _formState['salesCommissionPercentage'] = '0';
+      _formState['description'] = '';
+    });
+    
+    // Update controllers
+    _startDateController.text = today;
+    _closedDateController.text = '';
+    _updateCalculatedFields();
+  }
+
   void _initializeFormState() {
-    final deal = widget.deal;
+    final deal = widget.deal!;
     
     // Handle project
     String projectValue = '';
@@ -202,6 +280,11 @@ class _EditDealScreenState extends State<EditDealScreen> {
       _formState['salesCommissionPercentage'] = (deal.salesCommissionPercentage ?? 0.0).toString();
       _formState['description'] = deal.description ?? '';
     });
+    
+    // Update controllers
+    _startDateController.text = _formState['startDate'] ?? '';
+    _closedDateController.text = _formState['closedDate'] ?? '';
+    _updateCalculatedFields();
   }
 
   void _clearError(String field) {
@@ -213,23 +296,24 @@ class _EditDealScreenState extends State<EditDealScreen> {
   }
 
   bool _validateForm() {
+    final localizations = AppLocalizations.of(context);
     final newErrors = <String, String>{};
     
     if (_formState['leadId'] == null || _formState['leadId'] == '0') {
-      newErrors['leadId'] = 'Lead is required';
+      newErrors['leadId'] = localizations?.translate('leadRequired') ?? 'Lead is required';
     }
     
     if (_formState['value'] == null || _formState['value']!.isEmpty || 
         (double.tryParse(_formState['value']!) ?? 0) <= 0) {
-      newErrors['value'] = 'Deal value is required and must be greater than 0';
+      newErrors['value'] = localizations?.translate('valueRequired') ?? 'Deal value is required and must be greater than 0';
     }
     
     if (_isRealEstate && (_formState['project'] == null || _formState['project']!.isEmpty)) {
-      newErrors['project'] = 'Project is required';
+      newErrors['project'] = localizations?.translate('projectRequired') ?? 'Project is required';
     }
     
     if (_isRealEstate && (_formState['unit'] == null || _formState['unit']!.isEmpty)) {
-      newErrors['unit'] = 'Unit is required';
+      newErrors['unit'] = localizations?.translate('unitRequired') ?? 'Unit is required';
     }
     
     setState(() {
@@ -245,6 +329,8 @@ class _EditDealScreenState extends State<EditDealScreen> {
       return;
     }
     
+    final localizations = AppLocalizations.of(context);
+    
     setState(() {
       _isSaving = true;
     });
@@ -252,6 +338,7 @@ class _EditDealScreenState extends State<EditDealScreen> {
     try {
       final payload = <String, dynamic>{
         'client': int.parse(_formState['leadId']!),
+        'company': widget.deal?.company ?? _currentUser?.company?.id,
         'employee': int.tryParse(_formState['employee'] ?? '') ?? _currentUser?.id,
         'started_by': int.tryParse(_formState['startedBy'] ?? '') ?? _currentUser?.id,
         'closed_by': int.tryParse(_formState['closedBy'] ?? '') ?? _currentUser?.id,
@@ -277,22 +364,38 @@ class _EditDealScreenState extends State<EditDealScreen> {
         }
       }
       
-      await _apiService.updateDeal(widget.deal.id, payload);
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Deal updated successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.pop(context, true);
+      if (widget.deal != null) {
+        await _apiService.updateDeal(widget.deal!.id, payload);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(localizations?.translate('dealUpdatedSuccessfully') ?? 'Deal updated successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pop(context, true);
+        }
+      } else {
+        await _apiService.createDeal(payload);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(localizations?.translate('dealCreatedSuccessfully') ?? 'Deal created successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pop(context, true);
+        }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to update deal: $e'),
+            content: Text(widget.deal != null 
+              ? (localizations?.translate('failedToUpdateDeal') ?? 'Failed to update deal: $e')
+              : (localizations?.translate('failedToCreateDeal') ?? 'Failed to create deal: $e')),
             backgroundColor: Colors.red,
           ),
         );
@@ -319,44 +422,34 @@ class _EditDealScreenState extends State<EditDealScreen> {
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    final isRTL = localizations?.isRTL ?? false;
     
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(
-          title: Text(localizations?.translate('editDeal') ?? 'Edit Deal'),
+          title: Text(widget.deal != null 
+            ? (localizations?.translate('editDeal') ?? 'Edit Deal')
+            : (localizations?.translate('createDeal') ?? 'Create Deal')),
         ),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
     
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(localizations?.translate('editDeal') ?? 'Edit Deal'),
-        actions: [
-          if (_isSaving)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            )
-          else
-            IconButton(
-              icon: const Icon(Icons.save),
-              onPressed: _saveDeal,
-              tooltip: localizations?.translate('save') ?? 'Save',
-            ),
-        ],
-      ),
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+    return Directionality(
+      textDirection: isRTL ? TextDirection.rtl : TextDirection.ltr,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(widget.deal != null 
+            ? (localizations?.translate('editDeal') ?? 'Edit Deal')
+            : (localizations?.translate('createDeal') ?? 'Create Deal')),
+        ),
+        body: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
               if (_errors.isNotEmpty)
                 InventoryCard(
                   child: Column(
@@ -578,7 +671,7 @@ class _EditDealScreenState extends State<EditDealScreen> {
                     ),
                     const SizedBox(height: 20),
                     TextFormField(
-                      initialValue: _formState['startDate'],
+                      controller: _startDateController,
                       decoration: InputDecoration(
                         labelText: localizations?.translate('startDate') ?? 'Start Date',
                         border: OutlineInputBorder(
@@ -586,12 +679,7 @@ class _EditDealScreenState extends State<EditDealScreen> {
                         ),
                         suffixIcon: const Icon(Icons.calendar_today),
                       ),
-                      keyboardType: TextInputType.datetime,
-                      onChanged: (value) {
-                        setState(() {
-                          _formState['startDate'] = value;
-                        });
-                      },
+                      readOnly: true,
                       onTap: () async {
                         final date = await showDatePicker(
                           context: context,
@@ -602,15 +690,17 @@ class _EditDealScreenState extends State<EditDealScreen> {
                           lastDate: DateTime(2100),
                         );
                         if (date != null) {
+                          final formattedDate = DateFormat('yyyy-MM-dd').format(date);
                           setState(() {
-                            _formState['startDate'] = DateFormat('yyyy-MM-dd').format(date);
+                            _formState['startDate'] = formattedDate;
+                            _startDateController.text = formattedDate;
                           });
                         }
                       },
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
-                      initialValue: _formState['closedDate'],
+                      controller: _closedDateController,
                       decoration: InputDecoration(
                         labelText: localizations?.translate('closedDate') ?? 'Closed Date',
                         border: OutlineInputBorder(
@@ -618,12 +708,7 @@ class _EditDealScreenState extends State<EditDealScreen> {
                         ),
                         suffixIcon: const Icon(Icons.event),
                       ),
-                      keyboardType: TextInputType.datetime,
-                      onChanged: (value) {
-                        setState(() {
-                          _formState['closedDate'] = value;
-                        });
-                      },
+                      readOnly: true,
                       onTap: () async {
                         final date = await showDatePicker(
                           context: context,
@@ -634,8 +719,10 @@ class _EditDealScreenState extends State<EditDealScreen> {
                           lastDate: DateTime(2100),
                         );
                         if (date != null) {
+                          final formattedDate = DateFormat('yyyy-MM-dd').format(date);
                           setState(() {
-                            _formState['closedDate'] = DateFormat('yyyy-MM-dd').format(date);
+                            _formState['closedDate'] = formattedDate;
+                            _closedDateController.text = formattedDate;
                           });
                         }
                       },
@@ -667,9 +754,21 @@ class _EditDealScreenState extends State<EditDealScreen> {
                         prefixIcon: const Icon(Icons.attach_money),
                       ),
                       keyboardType: TextInputType.number,
+                      textDirection: TextDirection.ltr,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return localizations?.translate('valueRequired') ?? 'Value is required and must be greater than 0';
+                        }
+                        final numValue = double.tryParse(value.trim());
+                        if (numValue == null || numValue <= 0) {
+                          return localizations?.translate('valueRequired') ?? 'Value is required and must be greater than 0';
+                        }
+                        return null;
+                      },
                       onChanged: (value) {
                         setState(() {
                           _formState['value'] = value;
+                          _updateCalculatedFields();
                         });
                         _clearError('value');
                       },
@@ -688,12 +787,13 @@ class _EditDealScreenState extends State<EditDealScreen> {
                       onChanged: (value) {
                         setState(() {
                           _formState['discountPercentage'] = value;
+                          _updateCalculatedFields();
                         });
                       },
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
-                      initialValue: _calculatedDiscountAmount.toStringAsFixed(2),
+                      controller: _discountAmountController,
                       decoration: InputDecoration(
                         labelText: localizations?.translate('discountAmount') ?? 'Discount Amount',
                         border: OutlineInputBorder(
@@ -706,7 +806,7 @@ class _EditDealScreenState extends State<EditDealScreen> {
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
-                      initialValue: _calculatedTotalValue.toStringAsFixed(2),
+                      controller: _totalValueController,
                       decoration: InputDecoration(
                         labelText: localizations?.translate('totalValue') ?? 'Total Value',
                         border: OutlineInputBorder(
@@ -736,12 +836,13 @@ class _EditDealScreenState extends State<EditDealScreen> {
                       onChanged: (value) {
                         setState(() {
                           _formState['salesCommissionPercentage'] = value;
+                          _updateCalculatedFields();
                         });
                       },
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
-                      initialValue: _calculatedSalesCommissionAmount.toStringAsFixed(2),
+                      controller: _salesCommissionAmountController,
                       decoration: InputDecoration(
                         labelText: localizations?.translate('salesCommissionAmount') ?? 'Sales Commission Amount',
                         border: OutlineInputBorder(
@@ -859,9 +960,42 @@ class _EditDealScreenState extends State<EditDealScreen> {
                 ),
               ),
               const SizedBox(height: 32),
-            ],
-          ),
-        ),
+                      // Buttons
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: _isSaving ? null : () => Navigator.pop(context),
+                            child: Text(localizations?.translate('cancel') ?? 'Cancel'),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: _isSaving ? null : _saveDeal,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryColor,
+                              foregroundColor: Colors.white,
+                            ),
+                            child: _isSaving
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    ),
+                                  )
+                                : Text(
+                                    widget.deal != null
+                                        ? (localizations?.translate('saveChanges') ?? 'Save Changes')
+                                        : (localizations?.translate('add') ?? 'Add'),
+                                  ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
       ),
     );
   }

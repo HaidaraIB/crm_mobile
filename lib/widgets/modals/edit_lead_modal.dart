@@ -6,6 +6,7 @@ import '../../models/user_model.dart';
 import '../../models/settings_model.dart';
 import '../../services/api_service.dart';
 import '../../services/error_logger.dart';
+import '../../widgets/phone_input.dart';
 
 class EditLeadModal extends StatefulWidget {
   final LeadModel lead;
@@ -90,21 +91,25 @@ class _EditLeadModalState extends State<EditLeadModal> {
       final channels = await _apiService.getChannels();
       final statuses = await _apiService.getStatuses();
       
-      setState(() {
-        _users = (usersData['results'] as List).cast<UserModel>();
-        _channels = channels;
-        _statuses = statuses;
-        _isLoadingData = false;
-      });
+      if (mounted) {
+        setState(() {
+          _users = (usersData['results'] as List).cast<UserModel>();
+          _channels = channels;
+          _statuses = statuses;
+          _isLoadingData = false;
+        });
+      }
     } catch (e) {
       ErrorLogger().logError(
         error: e.toString(),
         endpoint: '/users/',
         method: 'GET',
       );
-      setState(() {
-        _isLoadingData = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoadingData = false;
+        });
+      }
     }
   }
   
@@ -140,9 +145,10 @@ class _EditLeadModalState extends State<EditLeadModal> {
     if (!_formKey.currentState!.validate()) return;
     
     if (_phoneNumbers.isEmpty && _phoneController.text.trim().isEmpty) {
+      final localizations = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter at least one phone number'),
+        SnackBar(
+          content: Text(localizations?.translate('phoneNumberRequired') ?? 'Please enter at least one phone number'),
           backgroundColor: Colors.red,
         ),
       );
@@ -172,6 +178,26 @@ class _EditLeadModalState extends State<EditLeadModal> {
         orElse: () => phoneNumbers.first,
       )['phone_number'] as String;
       
+      // Convert channel name to ID
+      int? channelId;
+      if (_selectedChannel != null) {
+        final channel = _channels.firstWhere(
+          (c) => c.name == _selectedChannel,
+          orElse: () => _channels.first,
+        );
+        channelId = channel.id;
+      }
+      
+      // Convert status name to ID
+      int? statusId;
+      if (_selectedStatus != null) {
+        final status = _statuses.firstWhere(
+          (s) => s.name == _selectedStatus,
+          orElse: () => _statuses.first,
+        );
+        statusId = status.id;
+      }
+      
       final lead = await _apiService.updateLead(
         id: widget.lead.id,
         name: _nameController.text.trim(),
@@ -182,9 +208,9 @@ class _EditLeadModalState extends State<EditLeadModal> {
             : null,
         assignedTo: _selectedUserId,
         type: _selectedType,
-        communicationWay: _selectedChannel,
+        communicationWayId: channelId,
         priority: _selectedPriority,
-        status: _selectedStatus,
+        statusId: statusId,
       );
       
       if (mounted) {
@@ -226,8 +252,11 @@ class _EditLeadModalState extends State<EditLeadModal> {
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    final isRTL = localizations?.isRTL ?? false;
     
-    return DraggableScrollableSheet(
+    return Directionality(
+      textDirection: isRTL ? TextDirection.rtl : TextDirection.ltr,
+      child: DraggableScrollableSheet(
       initialChildSize: 0.9,
       minChildSize: 0.5,
       maxChildSize: 0.95,
@@ -331,18 +360,14 @@ class _EditLeadModalState extends State<EditLeadModal> {
                                   child: Row(
                                     children: [
                                       Expanded(
-                                        child: TextFormField(
-                                          initialValue: _phoneNumbers[index]['phone_number'] as String? ?? '',
-                                          decoration: InputDecoration(
-                                            hintText: localizations?.translate('enterPhoneNumber') ?? 'Phone',
-                                            border: OutlineInputBorder(
-                                              borderRadius: BorderRadius.circular(12),
-                                            ),
-                                          ),
-                                          keyboardType: TextInputType.phone,
+                                        child: PhoneInput(
+                                          value: _phoneNumbers[index]['phone_number'] as String? ?? '',
                                           onChanged: (value) {
-                                            _phoneNumbers[index]['phone_number'] = value;
+                                            setState(() {
+                                              _phoneNumbers[index]['phone_number'] = value;
+                                            });
                                           },
+                                          hintText: localizations?.translate('enterPhoneNumber') ?? 'Phone',
                                         ),
                                       ),
                                       const SizedBox(width: 8),
@@ -603,6 +628,7 @@ class _EditLeadModalState extends State<EditLeadModal> {
           ),
         );
       },
+      ),
     );
   }
 }

@@ -1,9 +1,18 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class AppConstants {
-  // API Base URL
-  // Use 10.0.2.2 for Android emulator (maps to host machine's localhost)
-  // Use 127.0.0.1 for iOS simulator or web
-  // For physical devices, use your computer's local IP address (e.g., http://192.168.1.x:8000/api)
-  static const String baseUrl = 'http://10.0.2.2:8000/api';
+  // API Base URL - Loaded from environment variables
+  // Make sure to create a .env file in the root directory with BASE_URL
+  // For Android emulator: BASE_URL=http://10.0.2.2:8000/api
+  // For iOS simulator: BASE_URL=http://127.0.0.1:8000/api
+  // For physical devices: BASE_URL=http://192.168.1.x:8000/api
+  // For production: BASE_URL=https://api.yourdomain.com/api
+  static String get baseUrl => dotenv.env['BASE_URL'] ?? 'http://10.0.2.2:8000/api';
+  
+  // API Key for application authentication
+  // This key identifies the mobile app to the backend
+  // Make sure to add API_KEY to your .env file
+  static String get apiKey => dotenv.env['API_KEY'] ?? '';
   
   // Storage Keys
   static const String themeKey = 'theme';

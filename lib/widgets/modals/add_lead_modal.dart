@@ -6,6 +6,7 @@ import '../../models/user_model.dart';
 import '../../models/settings_model.dart';
 import '../../services/api_service.dart';
 import '../../services/error_logger.dart';
+import '../../widgets/phone_input.dart';
 
 class AddLeadModal extends StatefulWidget {
   final Function(LeadModel)? onLeadCreated;
@@ -62,15 +63,16 @@ class _AddLeadModalState extends State<AddLeadModal> {
       final channels = await _apiService.getChannels();
       final statuses = await _apiService.getStatuses();
       
-      setState(() {
-        _users = (usersData['results'] as List).cast<UserModel>();
-        _channels = channels;
-        _statuses = statuses;
-        _isLoadingData = false;
-        
-        // Set defaults
-        if (_users.isNotEmpty && _selectedUserId == null) {
-          _selectedUserId = _users.first.id;
+      if (mounted) {
+        setState(() {
+          _users = (usersData['results'] as List).cast<UserModel>();
+          _channels = channels;
+          _statuses = statuses;
+          _isLoadingData = false;
+          
+          // Set defaults
+          if (_users.isNotEmpty && _selectedUserId == null) {
+            _selectedUserId = _users.first.id;
         }
         if (_channels.isNotEmpty && _selectedChannel == null) {
           _selectedChannel = _channels.first.name;
@@ -82,16 +84,19 @@ class _AddLeadModalState extends State<AddLeadModal> {
           );
           _selectedStatus = defaultStatus.name;
         }
-      });
+        });
+      }
     } catch (e) {
       ErrorLogger().logError(
         error: e.toString(),
         endpoint: '/users/',
         method: 'GET',
       );
-      setState(() {
-        _isLoadingData = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoadingData = false;
+        });
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -135,9 +140,10 @@ class _AddLeadModalState extends State<AddLeadModal> {
     if (!_formKey.currentState!.validate()) return;
     
     if (_phoneNumbers.isEmpty && _phoneController.text.trim().isEmpty) {
+      final localizations = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter at least one phone number'),
+        SnackBar(
+          content: Text(localizations?.translate('phoneNumberRequired') ?? 'Please enter at least one phone number'),
           backgroundColor: Colors.red,
         ),
       );
@@ -220,8 +226,11 @@ class _AddLeadModalState extends State<AddLeadModal> {
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    final isRTL = localizations?.isRTL ?? false;
     
-    return DraggableScrollableSheet(
+    return Directionality(
+      textDirection: isRTL ? TextDirection.rtl : TextDirection.ltr,
+      child: DraggableScrollableSheet(
       initialChildSize: 0.9,
       minChildSize: 0.5,
       maxChildSize: 0.95,
@@ -320,15 +329,14 @@ class _AddLeadModalState extends State<AddLeadModal> {
                               const SizedBox(height: 8),
                               
                               if (_phoneNumbers.isEmpty)
-                                TextFormField(
-                                  controller: _phoneController,
-                                  decoration: InputDecoration(
-                                    hintText: localizations?.translate('enterPhoneNumber') ?? 'Enter phone number',
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                  keyboardType: TextInputType.phone,
+                                PhoneInput(
+                                  value: _phoneController.text,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _phoneController.text = value;
+                                    });
+                                  },
+                                  hintText: localizations?.translate('enterPhoneNumber') ?? 'Enter phone number',
                                 ),
                               
                               if (_phoneNumbers.isNotEmpty)
@@ -338,18 +346,14 @@ class _AddLeadModalState extends State<AddLeadModal> {
                                     child: Row(
                                       children: [
                                         Expanded(
-                                          child: TextFormField(
-                                            initialValue: _phoneNumbers[index]['phone_number'] as String? ?? '',
-                                            decoration: InputDecoration(
-                                              hintText: localizations?.translate('enterPhoneNumber') ?? 'Phone',
-                                              border: OutlineInputBorder(
-                                                borderRadius: BorderRadius.circular(12),
-                                              ),
-                                            ),
-                                            keyboardType: TextInputType.phone,
+                                          child: PhoneInput(
+                                            value: _phoneNumbers[index]['phone_number'] as String? ?? '',
                                             onChanged: (value) {
-                                              _phoneNumbers[index]['phone_number'] = value;
+                                              setState(() {
+                                                _phoneNumbers[index]['phone_number'] = value;
+                                              });
                                             },
+                                            hintText: localizations?.translate('enterPhoneNumber') ?? 'Phone',
                                           ),
                                         ),
                                         const SizedBox(width: 8),
@@ -593,6 +597,7 @@ class _AddLeadModalState extends State<AddLeadModal> {
           ),
         );
       },
+      ),
     );
   }
 }

@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../core/theme/app_theme.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/inventory_card.dart';
+import '../../widgets/modals/add_service_modal.dart';
+import '../../widgets/modals/edit_service_modal.dart';
+import '../../widgets/modals/add_service_package_modal.dart';
+import '../../widgets/modals/edit_service_package_modal.dart';
+import '../../widgets/modals/add_service_provider_modal.dart';
+import '../../widgets/modals/edit_service_provider_modal.dart';
 
 class ServicesInventoryScreen extends StatefulWidget {
   const ServicesInventoryScreen({super.key});
@@ -15,6 +22,9 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
   final ApiService _apiService = ApiService();
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
+  
+  // User
+  bool _isAdmin = false;
   
   // Services
   List<Service> _services = [];
@@ -38,8 +48,20 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _loadUser();
     _loadData();
     _searchController.addListener(_filterData);
+  }
+  
+  Future<void> _loadUser() async {
+    try {
+      final user = await _apiService.getCurrentUser();
+      setState(() {
+        _isAdmin = user.isAdmin;
+      });
+    } catch (e) {
+      // User not loaded, but continue
+    }
   }
 
   @override
@@ -201,6 +223,16 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
           ),
         ],
       ),
+      floatingActionButton: _isAdmin
+          ? FloatingActionButton(
+              onPressed: () {
+                _showAddDialog(context, localizations, theme);
+              },
+              backgroundColor: AppTheme.primaryColor,
+              child: const Icon(Icons.add, color: Colors.white),
+            )
+          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
@@ -323,6 +355,25 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
                 alignment: Alignment.centerRight,
                 child: PriceDisplay(price: service.price),
               ),
+              // Admin actions
+              if (_isAdmin) ...[
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit, size: 20),
+                      onPressed: () => _showEditServiceDialog(context, localizations, theme, service),
+                      color: theme.colorScheme.primary,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, size: 20),
+                      onPressed: () => _showDeleteServiceDialog(context, localizations, theme, service),
+                      color: Colors.red,
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         );
@@ -450,6 +501,25 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
                 alignment: Alignment.centerRight,
                 child: PriceDisplay(price: pkg.price),
               ),
+              // Admin actions
+              if (_isAdmin) ...[
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit, size: 20),
+                      onPressed: () => _showEditPackageDialog(context, localizations, theme, pkg),
+                      color: theme.colorScheme.primary,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, size: 20),
+                      onPressed: () => _showDeletePackageDialog(context, localizations, theme, pkg),
+                      color: Colors.red,
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         );
@@ -597,10 +667,226 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
                   ],
                 ),
               ],
+              // Admin actions
+              if (_isAdmin) ...[
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit, size: 20),
+                      onPressed: () => _showEditProviderDialog(context, localizations, theme, provider),
+                      color: theme.colorScheme.primary,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, size: 20),
+                      onPressed: () => _showDeleteProviderDialog(context, localizations, theme, provider),
+                      color: Colors.red,
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         );
       },
+    );
+  }
+  
+  void _showAddDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme) {
+    final currentTab = _tabController.index;
+    if (currentTab == 0) {
+      _showAddServiceDialog(context, localizations, theme);
+    } else if (currentTab == 1) {
+      _showAddPackageDialog(context, localizations, theme);
+    } else if (currentTab == 2) {
+      _showAddProviderDialog(context, localizations, theme);
+    }
+  }
+  
+  void _showAddServiceDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme) {
+    showDialog(
+      context: context,
+      builder: (context) => AddServiceModal(
+        onServiceCreated: (service) {
+          _loadServices();
+        },
+      ),
+    );
+  }
+  
+  void _showAddPackageDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme) {
+    showDialog(
+      context: context,
+      builder: (context) => AddServicePackageModal(
+        onPackageCreated: (package) {
+          _loadPackages();
+        },
+      ),
+    );
+  }
+  
+  void _showAddProviderDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme) {
+    showDialog(
+      context: context,
+      builder: (context) => AddServiceProviderModal(
+        onProviderCreated: (provider) {
+          _loadProviders();
+        },
+      ),
+    );
+  }
+  
+  void _showEditServiceDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme, Service service) {
+    showDialog(
+      context: context,
+      builder: (context) => EditServiceModal(
+        service: service,
+        onServiceUpdated: (updatedService) {
+          _loadServices();
+        },
+      ),
+    );
+  }
+  
+  void _showDeleteServiceDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme, Service service) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(localizations?.translate('deleteService') ?? 'Delete Service'),
+        content: Text('${localizations?.translate('confirmDeleteService') ?? 'Are you sure you want to delete'} ${service.name}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(localizations?.translate('cancel') ?? 'Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final navigator = Navigator.of(context);
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              navigator.pop();
+              try {
+                await _apiService.deleteService(service.id);
+                if (mounted) {
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(content: Text(localizations?.translate('serviceDeleted') ?? 'Service deleted')),
+                  );
+                  _loadServices();
+                }
+              } catch (e) {
+                if (mounted) {
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(content: Text('${localizations?.translate('error') ?? 'Error'}: $e')),
+                  );
+                }
+              }
+            },
+            child: Text(localizations?.translate('delete') ?? 'Delete', style: const TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  void _showEditPackageDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme, ServicePackage pkg) {
+    showDialog(
+      context: context,
+      builder: (context) => EditServicePackageModal(
+        package: pkg,
+        onPackageUpdated: (updatedPackage) {
+          _loadPackages();
+        },
+      ),
+    );
+  }
+  
+  void _showDeletePackageDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme, ServicePackage pkg) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(localizations?.translate('deleteServicePackage') ?? 'Delete Service Package'),
+        content: Text('${localizations?.translate('confirmDeleteServicePackage') ?? 'Are you sure you want to delete'} ${pkg.name}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(localizations?.translate('cancel') ?? 'Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final navigator = Navigator.of(context);
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              navigator.pop();
+              try {
+                await _apiService.deleteServicePackage(pkg.id);
+                if (mounted) {
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(content: Text(localizations?.translate('packageDeleted') ?? 'Package deleted')),
+                  );
+                  _loadPackages();
+                }
+              } catch (e) {
+                if (mounted) {
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(content: Text('${localizations?.translate('error') ?? 'Error'}: $e')),
+                  );
+                }
+              }
+            },
+            child: Text(localizations?.translate('delete') ?? 'Delete', style: const TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  void _showEditProviderDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme, ServiceProvider provider) {
+    showDialog(
+      context: context,
+      builder: (context) => EditServiceProviderModal(
+        provider: provider,
+        onProviderUpdated: (updatedProvider) {
+          _loadProviders();
+        },
+      ),
+    );
+  }
+  
+  void _showDeleteProviderDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme, ServiceProvider provider) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(localizations?.translate('deleteServiceProvider') ?? 'Delete Service Provider'),
+        content: Text('${localizations?.translate('confirmDeleteServiceProvider') ?? 'Are you sure you want to delete'} ${provider.name}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(localizations?.translate('cancel') ?? 'Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final navigator = Navigator.of(context);
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              navigator.pop();
+              try {
+                await _apiService.deleteServiceProvider(provider.id);
+                if (mounted) {
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(content: Text(localizations?.translate('providerDeleted') ?? 'Provider deleted')),
+                  );
+                  _loadProviders();
+                }
+              } catch (e) {
+                if (mounted) {
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(content: Text('${localizations?.translate('error') ?? 'Error'}: $e')),
+                  );
+                }
+              }
+            },
+            child: Text(localizations?.translate('delete') ?? 'Delete', style: const TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
     );
   }
 }

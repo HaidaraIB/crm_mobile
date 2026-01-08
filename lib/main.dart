@@ -11,10 +11,33 @@ import 'screens/two_factor_auth/two_factor_auth_screen.dart';
 import 'screens/settings/settings_screen.dart';
 import 'screens/profile/profile_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'core/constants/app_constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Load environment variables
+  try {
+    await dotenv.load(fileName: ".env");
+    // Debug: Print loaded API key (first 10 chars only for security)
+    final apiKey = dotenv.env['API_KEY'] ?? '';
+    final baseUrl = dotenv.env['BASE_URL'] ?? '';
+    if (apiKey.isNotEmpty) {
+      debugPrint('✓ API Key loaded: ${apiKey.substring(0, 10)}...');
+    } else {
+      debugPrint('⚠ Warning: API_KEY is empty in .env file');
+    }
+    if(baseUrl.isNotEmpty) {
+      debugPrint('✓ Base URL loaded: $baseUrl');
+    } else {
+      debugPrint('⚠ Warning: BASE_URL is empty in .env file');
+    }
+  } catch (e) {
+    // If .env file doesn't exist, continue with default values
+    debugPrint('⚠ Warning: .env file not found. Using default values.');
+    debugPrint('Error: $e');
+  }
   
   // Load saved theme and language
   final prefs = await SharedPreferences.getInstance();

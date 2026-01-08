@@ -184,7 +184,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     try {
       final updatedLead = await _apiService.updateLead(
         id: lead.id,
-        status: newStatus.id.toString(),
+        statusId: newStatus.id,
       );
       
       // Update the lead in the list
@@ -332,11 +332,29 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
   }
   
   Future<void> _openWhatsApp(String phoneNumber) async {
+    try {
+      // Clean phone number - remove all non-digit characters
     final cleanPhone = phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
+      if (cleanPhone.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Invalid phone number')),
+          );
+        }
+        return;
+      }
+      
     final uri = Uri.parse('https://wa.me/$cleanPhone');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    } else {
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open WhatsApp')),
+        );
+      }
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Could not open WhatsApp')),
@@ -346,10 +364,18 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
   }
   
   Future<void> _makeCall(String phoneNumber) async {
+    try {
     final uri = Uri.parse('tel:$phoneNumber');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    } else {
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not make call')),
+        );
+      }
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Could not make call')),

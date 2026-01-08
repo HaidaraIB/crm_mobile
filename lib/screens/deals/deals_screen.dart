@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../core/theme/app_theme.dart';
 import '../../models/deal_model.dart';
 import '../../models/user_model.dart';
 import '../../models/inventory_model.dart';
@@ -8,7 +9,7 @@ import '../../services/api_service.dart';
 import '../../widgets/inventory_card.dart';
 import '../../core/utils/specialization_helper.dart';
 import 'view_deal_screen.dart';
-import 'edit_deal_screen.dart';
+import 'deal_form_screen.dart';
 
 class DealsScreen extends StatefulWidget {
   const DealsScreen({super.key});
@@ -361,6 +362,24 @@ class _DealsScreenState extends State<DealsScreen> {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => DealFormScreen(deal: null),
+            ),
+          ).then((result) {
+            if (result == true) {
+              _loadDeals();
+            }
+          });
+        },
+        backgroundColor: AppTheme.primaryColor,
+        tooltip: localizations?.translate('createDeal') ?? 'Create Deal',
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
@@ -525,7 +544,7 @@ class _DealsScreenState extends State<DealsScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => EditDealScreen(deal: deal),
+                            builder: (_) => DealFormScreen(deal: deal),
                           ),
                         ).then((_) {
                           // Reload deals after editing

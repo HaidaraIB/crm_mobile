@@ -10,9 +10,14 @@ class CallSelectionModal extends StatelessWidget {
   const CallSelectionModal({super.key, required this.lead});
 
   Future<void> _makeCall(String phoneNumber) async {
-    final uri = Uri.parse('tel:$phoneNumber');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
+    try {
+      final uri = Uri.parse('tel:$phoneNumber');
+      await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (e) {
+      // Error handled silently in modal
     }
   }
   

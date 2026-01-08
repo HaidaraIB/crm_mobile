@@ -43,3 +43,11 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Environment variables
+.env
+
+# Keystore files (DO NOT COMMIT THESE)
+**/key.properties
+**/*.jks
+**/*.keystore

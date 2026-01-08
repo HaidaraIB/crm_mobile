@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../core/theme/app_theme.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/inventory_card.dart';
+import '../../widgets/modals/add_developer_modal.dart';
+import '../../widgets/modals/edit_developer_modal.dart';
+import '../../widgets/modals/add_project_modal.dart';
+import '../../widgets/modals/edit_project_modal.dart';
+import '../../widgets/modals/add_unit_modal.dart';
+import '../../widgets/modals/edit_unit_modal.dart';
 
 class PropertiesInventoryScreen extends StatefulWidget {
   const PropertiesInventoryScreen({super.key});
@@ -15,6 +22,9 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
   final ApiService _apiService = ApiService();
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
+  
+  // User
+  bool _isAdmin = false;
   
   // Units
   List<Unit> _units = [];
@@ -38,8 +48,20 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _loadUser();
     _loadData();
     _searchController.addListener(_filterData);
+  }
+  
+  Future<void> _loadUser() async {
+    try {
+      final user = await _apiService.getCurrentUser();
+      setState(() {
+        _isAdmin = user.isAdmin;
+      });
+    } catch (e) {
+      // User not loaded, but continue
+    }
   }
 
   @override
@@ -199,6 +221,16 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
           ),
         ],
       ),
+      floatingActionButton: _isAdmin
+          ? FloatingActionButton(
+              onPressed: () {
+                _showAddDialog(context, localizations, theme);
+              },
+              backgroundColor: AppTheme.primaryColor,
+              child: const Icon(Icons.add, color: Colors.white),
+            )
+          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
@@ -340,6 +372,25 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
                 alignment: Alignment.centerRight,
                 child: PriceDisplay(price: unit.price),
               ),
+              // Admin actions
+              if (_isAdmin) ...[
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit, size: 20),
+                      onPressed: () => _showEditUnitDialog(context, localizations, theme, unit),
+                      color: theme.colorScheme.primary,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, size: 20),
+                      onPressed: () => _showDeleteUnitDialog(context, localizations, theme, unit),
+                      color: Colors.red,
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         );
@@ -436,6 +487,25 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
                   label: localizations?.translate('paymentMethod') ?? 'Payment Method',
                   value: project.paymentMethod!,
                 ),
+              // Admin actions
+              if (_isAdmin) ...[
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit, size: 20),
+                      onPressed: () => _showEditProjectDialog(context, localizations, theme, project),
+                      color: theme.colorScheme.primary,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, size: 20),
+                      onPressed: () => _showDeleteProjectDialog(context, localizations, theme, project),
+                      color: Colors.red,
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         );
@@ -527,10 +597,235 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
                   ],
                 ),
               ),
+              // Admin actions
+              if (_isAdmin) ...[
+                const SizedBox(width: 16),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit, size: 20),
+                      onPressed: () => _showEditDeveloperDialog(context, localizations, theme, developer),
+                      color: theme.colorScheme.primary,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, size: 20),
+                      onPressed: () => _showDeleteDeveloperDialog(context, localizations, theme, developer),
+                      color: Colors.red,
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         );
       },
+    );
+  }
+  
+  void _showAddDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme) {
+    final currentTab = _tabController.index;
+    if (currentTab == 0) {
+      _showAddUnitDialog(context, localizations, theme);
+    } else if (currentTab == 1) {
+      _showAddProjectDialog(context, localizations, theme);
+    } else if (currentTab == 2) {
+      _showAddDeveloperDialog(context, localizations, theme);
+    }
+  }
+  
+  void _showAddUnitDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme) {
+    showDialog(
+      context: context,
+      builder: (context) => AddUnitModal(
+        onUnitCreated: (unit) {
+          _loadUnits();
+        },
+      ),
+    );
+  }
+  
+  void _showAddProjectDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme) {
+    showDialog(
+      context: context,
+      builder: (context) => AddProjectModal(
+        onProjectCreated: (project) {
+          _loadProjects();
+        },
+      ),
+    );
+  }
+  
+  void _showAddDeveloperDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme) {
+    showDialog(
+      context: context,
+      builder: (context) => AddDeveloperModal(
+        onDeveloperCreated: (developer) {
+          _loadDevelopers();
+        },
+      ),
+    );
+  }
+  
+  void _showEditUnitDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme, Unit unit) {
+    showDialog(
+      context: context,
+      builder: (context) => EditUnitModal(
+        unit: unit,
+        onUnitUpdated: (updatedUnit) {
+          _loadUnits();
+        },
+      ),
+    );
+  }
+  
+  void _showDeleteUnitDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme, Unit unit) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(localizations?.translate('deleteUnit') ?? 'Delete Unit'),
+        content: Text('${localizations?.translate('confirmDeleteUnit') ?? 'Are you sure you want to delete'} ${unit.code}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(localizations?.translate('cancel') ?? 'Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final navigator = Navigator.of(context);
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              navigator.pop();
+              try {
+                await _apiService.deleteUnit(unit.id);
+                if (mounted) {
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(content: Text(localizations?.translate('unitDeleted') ?? 'Unit deleted')),
+                  );
+                  _loadUnits();
+                }
+              } catch (e) {
+                if (mounted) {
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(content: Text('${localizations?.translate('error') ?? 'Error'}: $e')),
+                  );
+                }
+              }
+            },
+            child: Text(localizations?.translate('delete') ?? 'Delete', style: const TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  void _showEditProjectDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme, Project project) {
+    showDialog(
+      context: context,
+      builder: (context) => EditProjectModal(
+        project: project,
+        onProjectUpdated: (updatedProject) {
+          _loadProjects();
+        },
+      ),
+    );
+  }
+  
+  void _showDeleteProjectDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme, Project project) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(localizations?.translate('deleteProject') ?? 'Delete Project'),
+        content: Text('${localizations?.translate('confirmDeleteProject') ?? 'Are you sure you want to delete'} ${project.name}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(localizations?.translate('cancel') ?? 'Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final navigator = Navigator.of(context);
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              navigator.pop();
+              try {
+                await _apiService.deleteProject(project.id);
+                if (mounted) {
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(content: Text(localizations?.translate('projectDeleted') ?? 'Project deleted')),
+                  );
+                  // Reload projects and units since deleting a project cascades to units
+                  await Future.wait([
+                    _loadProjects(),
+                    _loadUnits(),
+                  ]);
+                }
+              } catch (e) {
+                if (mounted) {
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(content: Text('${localizations?.translate('error') ?? 'Error'}: $e')),
+                  );
+                }
+              }
+            },
+            child: Text(localizations?.translate('delete') ?? 'Delete', style: const TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  void _showEditDeveloperDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme, Developer developer) {
+    showDialog(
+      context: context,
+      builder: (context) => EditDeveloperModal(
+        developer: developer,
+        onDeveloperUpdated: (updatedDeveloper) {
+          _loadDevelopers();
+        },
+      ),
+    );
+  }
+  
+  void _showDeleteDeveloperDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme, Developer developer) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(localizations?.translate('deleteDeveloper') ?? 'Delete Developer'),
+        content: Text('${localizations?.translate('confirmDeleteDeveloper') ?? 'Are you sure you want to delete'} ${developer.name}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(localizations?.translate('cancel') ?? 'Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final navigator = Navigator.of(context);
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              navigator.pop();
+              try {
+                await _apiService.deleteDeveloper(developer.id);
+                if (mounted) {
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(content: Text(localizations?.translate('developerDeleted') ?? 'Developer deleted')),
+                  );
+                  // Reload all related data since deleting a developer cascades to projects and units
+                  await Future.wait([
+                    _loadDevelopers(),
+                    _loadProjects(),
+                    _loadUnits(),
+                  ]);
+                }
+              } catch (e) {
+                if (mounted) {
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(content: Text('${localizations?.translate('error') ?? 'Error'}: $e')),
+                  );
+                }
+              }
+            },
+            child: Text(localizations?.translate('delete') ?? 'Delete', style: const TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
     );
   }
 }

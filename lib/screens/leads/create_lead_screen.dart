@@ -216,6 +216,26 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
       }
       final primaryPhone = primaryPhoneMap['phone_number'] as String;
       
+      // Convert channel name to ID
+      int? channelId;
+      if (_selectedChannel != null) {
+        final channel = _channels.firstWhere(
+          (c) => c.name == _selectedChannel,
+          orElse: () => _channels.first,
+        );
+        channelId = channel.id;
+      }
+      
+      // Convert status name to ID
+      int? statusId;
+      if (_selectedStatus != null) {
+        final status = _statuses.firstWhere(
+          (s) => s.name == _selectedStatus,
+          orElse: () => _statuses.first,
+        );
+        statusId = status.id;
+      }
+      
       final lead = await _apiService.createLead(
         name: _nameController.text.trim(),
         phone: primaryPhone,
@@ -225,9 +245,9 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
             : null,
         assignedTo: _selectedUserId,
         type: _selectedType ?? 'fresh',
-        communicationWay: _selectedChannel,
+        communicationWayId: channelId,
         priority: _selectedPriority,
-        status: _selectedStatus,
+        statusId: statusId,
       );
       
       if (mounted) {
@@ -272,8 +292,11 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    final isRTL = localizations?.isRTL ?? false;
     
-    return Scaffold(
+    return Directionality(
+      textDirection: isRTL ? TextDirection.rtl : TextDirection.ltr,
+      child: Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -530,6 +553,7 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
                 ),
               ),
             ),
+      ),
     );
   }
   

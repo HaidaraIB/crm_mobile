@@ -47,13 +47,29 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
       if (widget.deal.leadId != null || widget.deal.client != null) {
         try {
           final leadsResponse = await _apiService.getLeads();
-          final leads = leadsResponse['results'] as List<dynamic>? ?? [];
-          final leadData = leads.firstWhere(
-            (l) => l['id'] == (widget.deal.leadId ?? widget.deal.client),
-            orElse: () => null,
-          );
+          final leadsData = leadsResponse['results'] as List<dynamic>? ?? [];
+          final targetId = widget.deal.leadId ?? widget.deal.client;
+
+          dynamic leadData;
+          try {
+            leadData = leadsData.firstWhere((l) {
+              if (l is LeadModel) {
+                return l.id == targetId;
+              } else if (l is Map<String, dynamic>) {
+                return l['id'] == targetId;
+              }
+              return false;
+            });
+          } catch (_) {
+            leadData = null;
+          }
+
           if (leadData != null) {
-            _lead = LeadModel.fromJson(leadData as Map<String, dynamic>);
+            if (leadData is LeadModel) {
+              _lead = leadData;
+            } else if (leadData is Map<String, dynamic>) {
+              _lead = LeadModel.fromJson(leadData);
+            }
           }
         } catch (e) {
           debugPrint('Failed to load lead: $e');
@@ -63,35 +79,77 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
       // Load users
       try {
         final usersResponse = await _apiService.getUsers();
-        final users = usersResponse['results'] as List<dynamic>? ?? [];
-        
+        final usersData = usersResponse['results'] as List<dynamic>? ?? [];
+
         if (widget.deal.startedBy != null) {
-          final startedByData = users.firstWhere(
-            (u) => u['id'] == widget.deal.startedBy,
-            orElse: () => null,
-          );
+          dynamic startedByData;
+          try {
+            startedByData = usersData.firstWhere((u) {
+              if (u is UserModel) {
+                return u.id == widget.deal.startedBy;
+              } else if (u is Map<String, dynamic>) {
+                return u['id'] == widget.deal.startedBy;
+              }
+              return false;
+            });
+          } catch (_) {
+            startedByData = null;
+          }
+
           if (startedByData != null) {
-            _startedByUser = UserModel.fromJson(startedByData as Map<String, dynamic>);
+            if (startedByData is UserModel) {
+              _startedByUser = startedByData;
+            } else if (startedByData is Map<String, dynamic>) {
+              _startedByUser = UserModel.fromJson(startedByData);
+            }
           }
         }
-        
+
         if (widget.deal.closedBy != null) {
-          final closedByData = users.firstWhere(
-            (u) => u['id'] == widget.deal.closedBy,
-            orElse: () => null,
-          );
+          dynamic closedByData;
+          try {
+            closedByData = usersData.firstWhere((u) {
+              if (u is UserModel) {
+                return u.id == widget.deal.closedBy;
+              } else if (u is Map<String, dynamic>) {
+                return u['id'] == widget.deal.closedBy;
+              }
+              return false;
+            });
+          } catch (_) {
+            closedByData = null;
+          }
+
           if (closedByData != null) {
-            _closedByUser = UserModel.fromJson(closedByData as Map<String, dynamic>);
+            if (closedByData is UserModel) {
+              _closedByUser = closedByData;
+            } else if (closedByData is Map<String, dynamic>) {
+              _closedByUser = UserModel.fromJson(closedByData);
+            }
           }
         }
-        
+
         if (widget.deal.employee != null) {
-          final employeeData = users.firstWhere(
-            (u) => u['id'] == widget.deal.employee,
-            orElse: () => null,
-          );
+          dynamic employeeData;
+          try {
+            employeeData = usersData.firstWhere((u) {
+              if (u is UserModel) {
+                return u.id == widget.deal.employee;
+              } else if (u is Map<String, dynamic>) {
+                return u['id'] == widget.deal.employee;
+              }
+              return false;
+            });
+          } catch (_) {
+            employeeData = null;
+          }
+
           if (employeeData != null) {
-            _employee = UserModel.fromJson(employeeData as Map<String, dynamic>);
+            if (employeeData is UserModel) {
+              _employee = employeeData;
+            } else if (employeeData is Map<String, dynamic>) {
+              _employee = UserModel.fromJson(employeeData);
+            }
           }
         }
       } catch (e) {
@@ -121,7 +179,9 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
           } else if (widget.deal.project != null) {
             try {
               _project = projects.firstWhere(
-                (p) => p.id.toString() == widget.deal.project?.toString() || p.name == widget.deal.project?.toString(),
+                (p) =>
+                    p.id.toString() == widget.deal.project?.toString() ||
+                    p.name == widget.deal.project?.toString(),
               );
             } catch (_) {
               // Project not found
@@ -135,16 +195,16 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
           final units = await _apiService.getUnits();
           if (widget.deal.unitCode != null) {
             try {
-              _unit = units.firstWhere(
-                (u) => u.code == widget.deal.unitCode,
-              );
+              _unit = units.firstWhere((u) => u.code == widget.deal.unitCode);
             } catch (_) {
               // Unit not found
             }
           } else if (widget.deal.unit != null) {
             try {
               _unit = units.firstWhere(
-                (u) => u.id.toString() == widget.deal.unit?.toString() || u.code == widget.deal.unit?.toString(),
+                (u) =>
+                    u.id.toString() == widget.deal.unit?.toString() ||
+                    u.code == widget.deal.unit?.toString(),
               );
             } catch (_) {
               // Unit not found
@@ -249,11 +309,32 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
     }
   }
 
+  IconData _getStageIcon(String? stage) {
+    if (stage == null) return Icons.help_outline;
+    switch (stage.toLowerCase()) {
+      case 'in_progress':
+        return Icons.trending_up;
+      case 'on_hold':
+        return Icons.pause_circle;
+      case 'won':
+        return Icons.check_circle;
+      case 'lost':
+        return Icons.cancel;
+      case 'cancelled':
+        return Icons.block;
+      default:
+        return Icons.help_outline;
+    }
+  }
+
   String _getUserDisplayName(UserModel? user) {
     if (user == null) return '-';
     if (user.name != null && user.name!.isNotEmpty) return user.name!;
     if (user.firstName != null || user.lastName != null) {
-      return [user.firstName, user.lastName].where((n) => n != null && n.isNotEmpty).join(' ').trim();
+      return [
+        user.firstName,
+        user.lastName,
+      ].where((n) => n != null && n.isNotEmpty).join(' ').trim();
     }
     return user.username ?? user.email ?? '-';
   }
@@ -270,7 +351,7 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
     final discountPercentage = deal.discountPercentage ?? 0.0;
     final salesCommissionPercentage = deal.salesCommissionPercentage ?? 0.0;
     final salesCommissionAmount = deal.salesCommissionAmount ?? 0.0;
-    
+
     // Calculate original value (before discount)
     double originalValue = totalValue;
     if (discountAmount > 0) {
@@ -303,73 +384,137 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    localizations?.translate('dealInformation') ?? 'Deal Information',
+                    localizations?.translate('dealInformation') ??
+                        'Deal Information',
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 20),
-                  Wrap(
-                    spacing: 16,
-                    runSpacing: 16,
-                    children: [
-                      _buildInfoItem(
-                        theme,
-                        localizations?.translate('dealId') ?? 'Deal ID',
-                        '#${deal.id}',
-                      ),
-                      _buildInfoItem(
-                        theme,
+                  InfoRow(
+                    icon: Icons.tag,
+                    label: localizations?.translate('dealId') ?? 'Deal ID',
+                    value: '#${deal.id}',
+                  ),
+                  InfoRow(
+                    icon: Icons.person,
+                    label:
                         localizations?.translate('clientName') ?? 'Client Name',
-                        deal.clientName,
-                      ),
-                      if (_lead != null)
-                        _buildInfoItem(
-                          theme,
-                          localizations?.translate('lead') ?? 'Lead',
-                          _lead!.name,
+                    value: deal.clientName,
+                  ),
+                  if (_lead != null)
+                    InfoRow(
+                      icon: Icons.contacts,
+                      label: localizations?.translate('lead') ?? 'Lead',
+                      value: _lead!.name,
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.trending_up,
+                          size: 18,
+                          color: _getStageColor(deal.stage),
                         ),
-                      _buildInfoItemWithBadge(
-                        theme,
-                        localizations?.translate('stage') ?? 'Stage',
-                        _formatStage(deal.stage, localizations),
-                        _getStageColor(deal.stage),
-                      ),
-                      _buildInfoItemWithBadge(
-                        theme,
-                        localizations?.translate('status') ?? 'Status',
-                        _formatStatus(deal.status, localizations),
-                        _getStatusColor(deal.status),
-                      ),
-                      _buildInfoItem(
-                        theme,
-                        localizations?.translate('paymentMethod') ?? 'Payment Method',
-                        _formatPaymentMethod(deal.paymentMethod, localizations),
-                      ),
-                      _buildInfoItem(
-                        theme,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                localizations?.translate('stage') ?? 'Stage',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurface.withValues(
+                                    alpha: 0.6,
+                                  ),
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              StatusBadge(
+                                text: _formatStage(deal.stage, localizations),
+                                color: _getStageColor(deal.stage),
+                                icon: _getStageIcon(deal.stage),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.info,
+                          size: 18,
+                          color: _getStatusColor(deal.status),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                localizations?.translate('status') ?? 'Status',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurface.withValues(
+                                    alpha: 0.6,
+                                  ),
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              StatusBadge(
+                                text: _formatStatus(deal.status, localizations),
+                                color: _getStatusColor(deal.status),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  InfoRow(
+                    icon: Icons.payment,
+                    label:
+                        localizations?.translate('paymentMethod') ??
+                        'Payment Method',
+                    value: _formatPaymentMethod(
+                      deal.paymentMethod,
+                      localizations,
+                    ),
+                  ),
+                  InfoRow(
+                    icon: Icons.calendar_today,
+                    label:
                         localizations?.translate('startDate') ?? 'Start Date',
-                        _formatDate(deal.startDate),
-                      ),
-                      _buildInfoItem(
-                        theme,
+                    value: _formatDate(deal.startDate),
+                  ),
+                  InfoRow(
+                    icon: Icons.event,
+                    label:
                         localizations?.translate('closedDate') ?? 'Closed Date',
-                        _formatDate(deal.closedDate),
-                      ),
-                    ],
+                    value: _formatDate(deal.closedDate),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 16),
             // Real Estate Info
-            if (_currentUser != null && SpecializationHelper.isRealEstate(_currentUser))
+            if (_currentUser != null &&
+                SpecializationHelper.isRealEstate(_currentUser))
               InventoryCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      localizations?.translate('realEstateInformation') ?? 'Real Estate Information',
+                      localizations?.translate('realEstateInformation') ??
+                          'Real Estate Information',
                       style: theme.textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -397,7 +542,8 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    localizations?.translate('financialInformation') ?? 'Financial Information',
+                    localizations?.translate('financialInformation') ??
+                        'Financial Information',
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -405,20 +551,48 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
                   const SizedBox(height: 20),
                   InfoRow(
                     icon: Icons.attach_money,
-                    label: localizations?.translate('originalValue') ?? 'Original Value',
-                    value: originalValue > 0 ? NumberFormat('#,##0').format(originalValue) : '-',
+                    label:
+                        localizations?.translate('originalValue') ??
+                        'Original Value',
+                    value: originalValue > 0
+                        ? NumberFormat('#,##0').format(originalValue)
+                        : '-',
                   ),
                   if (discountPercentage > 0)
                     InfoRow(
                       icon: Icons.percent,
-                      label: localizations?.translate('discountPercentage') ?? 'Discount Percentage',
+                      label:
+                          localizations?.translate('discountPercentage') ??
+                          'Discount Percentage',
                       value: '${discountPercentage.toStringAsFixed(2)}%',
                     ),
                   if (discountAmount > 0)
                     InfoRow(
                       icon: Icons.remove_circle,
-                      label: localizations?.translate('discountAmount') ?? 'Discount Amount',
+                      label:
+                          localizations?.translate('discountAmount') ??
+                          'Discount Amount',
                       value: NumberFormat('#,##0').format(discountAmount),
+                    ),
+                  if (salesCommissionPercentage > 0)
+                    InfoRow(
+                      icon: Icons.percent,
+                      label:
+                          localizations?.translate(
+                            'salesCommissionPercentage',
+                          ) ??
+                          'Sales Commission %',
+                      value: '${salesCommissionPercentage.toStringAsFixed(2)}%',
+                    ),
+                  if (salesCommissionAmount > 0)
+                    InfoRow(
+                      icon: Icons.account_balance_wallet,
+                      label:
+                          localizations?.translate('salesCommissionAmount') ??
+                          'Sales Commission Amount',
+                      value: NumberFormat(
+                        '#,##0',
+                      ).format(salesCommissionAmount),
                     ),
                   const Divider(),
                   Row(
@@ -426,16 +600,25 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.payments, size: 20, color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
+                          Icon(
+                            Icons.payments,
+                            size: 20,
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.6,
+                            ),
+                          ),
                           const SizedBox(width: 8),
                           Text(
-                            localizations?.translate('totalValue') ?? 'Total Value',
+                            localizations?.translate('totalValue') ??
+                                'Total Value',
                             style: theme.textTheme.bodyMedium,
                           ),
                         ],
                       ),
                       Text(
-                        totalValue > 0 ? NumberFormat('#,##0').format(totalValue) : '-',
+                        totalValue > 0
+                            ? NumberFormat('#,##0').format(totalValue)
+                            : '-',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 18,
@@ -444,18 +627,6 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
                       ),
                     ],
                   ),
-                  if (salesCommissionPercentage > 0)
-                    InfoRow(
-                      icon: Icons.percent,
-                      label: localizations?.translate('salesCommissionPercentage') ?? 'Sales Commission %',
-                      value: '${salesCommissionPercentage.toStringAsFixed(2)}%',
-                    ),
-                  if (salesCommissionAmount > 0)
-                    InfoRow(
-                      icon: Icons.account_balance_wallet,
-                      label: localizations?.translate('salesCommissionAmount') ?? 'Sales Commission Amount',
-                      value: NumberFormat('#,##0').format(salesCommissionAmount),
-                    ),
                 ],
               ),
             ),
@@ -466,7 +637,8 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    localizations?.translate('personnelInformation') ?? 'Personnel Information',
+                    localizations?.translate('personnelInformation') ??
+                        'Personnel Information',
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -474,7 +646,8 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
                   const SizedBox(height: 20),
                   InfoRow(
                     icon: Icons.person,
-                    label: localizations?.translate('startedBy') ?? 'Started By',
+                    label:
+                        localizations?.translate('startedBy') ?? 'Started By',
                     value: _getUserDisplayName(_startedByUser),
                   ),
                   InfoRow(
@@ -503,10 +676,13 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      deal.description!,
-                      style: theme.textTheme.bodyMedium,
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: Text(
+                        deal.description!,
+                        style: theme.textTheme.bodyMedium,
+                      ),
                     ),
                   ],
                 ),
@@ -527,12 +703,14 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
                   const SizedBox(height: 20),
                   InfoRow(
                     icon: Icons.calendar_today,
-                    label: localizations?.translate('createdAt') ?? 'Created At',
+                    label:
+                        localizations?.translate('createdAt') ?? 'Created At',
                     value: _formatDate(deal.createdAt),
                   ),
                   InfoRow(
                     icon: Icons.update,
-                    label: localizations?.translate('updatedAt') ?? 'Updated At',
+                    label:
+                        localizations?.translate('updatedAt') ?? 'Updated At',
                     value: _formatDate(deal.updatedAt),
                   ),
                 ],
@@ -543,45 +721,4 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
       ),
     );
   }
-
-  Widget _buildInfoItem(ThemeData theme, String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: theme.textTheme.bodyLarge?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInfoItemWithBadge(ThemeData theme, String label, String value, Color color) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-          ),
-        ),
-        const SizedBox(height: 4),
-        StatusBadge(
-          text: value,
-          color: color,
-        ),
-      ],
-    );
-  }
 }
-

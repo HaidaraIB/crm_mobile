@@ -7,6 +7,7 @@ class DealModel {
   final double value;
   final int? leadId;
   final int? client; // API client ID
+  final int? company; // API company ID
   final int? employee; // API employee ID
   final int? startedBy; // user ID
   final int? closedBy; // user ID
@@ -33,6 +34,7 @@ class DealModel {
     required this.value,
     this.leadId,
     this.client,
+    this.company,
     this.employee,
     this.startedBy,
     this.closedBy,
@@ -115,6 +117,7 @@ class DealModel {
       value: parseToDouble(json['value']),
       leadId: json['lead_id'] as int? ?? json['leadId'] as int?,
       client: json['client'] is int ? json['client'] as int : null,
+      company: json['company'] is int ? json['company'] as int : (json['company'] is Map ? (json['company'] as Map<String, dynamic>)['id'] as int? : null),
       employee: json['employee'] as int?,
       startedBy: json['started_by'] as int? ?? json['startedBy'] as int?,
       closedBy: json['closed_by'] as int? ?? json['closedBy'] as int?,
@@ -144,6 +147,7 @@ class DealModel {
       'value': value,
       'lead_id': leadId,
       'client': client,
+      'company': company,
       'employee': employee,
       'started_by': startedBy,
       'closed_by': closedBy,

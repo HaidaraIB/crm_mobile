@@ -136,7 +136,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
     try {
       final updatedLead = await _apiService.updateLead(
         id: _lead!.id,
-        status: newStatus.id.toString(),
+        statusId: newStatus.id,
       );
       
       setState(() {
@@ -245,16 +245,59 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
   }
   
   Future<void> _makeCall(String phoneNumber) async {
-    final uri = Uri.parse('tel:$phoneNumber');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
+    try {
+      final uri = Uri.parse('tel:$phoneNumber');
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.of(context)?.translate('cannotMakeCall') ?? 'Could not make call'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.of(context)?.translate('cannotMakeCall') ?? 'Could not make call'),
+          ),
+        );
+      }
     }
   }
   
   Future<void> _openWhatsApp(String phoneNumber) async {
-    final uri = Uri.parse('https://wa.me/$phoneNumber');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
+    try {
+      // Clean phone number - remove all non-digit characters
+      final cleanPhone = phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
+      if (cleanPhone.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Invalid phone number')),
+          );
+        }
+        return;
+      }
+      
+      final uri = Uri.parse('https://wa.me/$cleanPhone');
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open WhatsApp')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open WhatsApp')),
+        );
+      }
     }
   }
   

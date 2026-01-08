@@ -8,6 +8,7 @@ import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
+import '../../widgets/phone_input.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -389,23 +390,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 16),
 
               // Phone Field
-              TextFormField(
-                controller: _phoneController,
-                decoration: InputDecoration(
-                  labelText: localizations?.translate('phone') ?? 'Phone',
-                  prefixIcon: const Icon(Icons.phone_outlined),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                keyboardType: TextInputType.phone,
-                textDirection: isRTL ? TextDirection.rtl : TextDirection.ltr,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return localizations?.translate('phoneRequired') ?? 'Phone is required';
-                  }
-                  return null;
+              PhoneInput(
+                value: _phoneController.text,
+                onChanged: (value) {
+                  setState(() {
+                    _phoneController.text = value;
+                  });
                 },
+                hintText: localizations?.translate('phone') ?? 'Phone',
               ),
               const SizedBox(height: 32),
 

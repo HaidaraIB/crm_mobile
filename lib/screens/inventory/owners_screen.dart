@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../core/theme/app_theme.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/inventory_card.dart';
+import '../../widgets/modals/add_owner_modal.dart';
+import '../../widgets/modals/edit_owner_modal.dart';
 
 class OwnersScreen extends StatefulWidget {
   const OwnersScreen({super.key});
@@ -19,12 +22,25 @@ class _OwnersScreenState extends State<OwnersScreen> {
   List<Owner> _filteredOwners = [];
   bool _isLoading = true;
   String? _errorMessage;
+  bool _isAdmin = false;
 
   @override
   void initState() {
     super.initState();
+    _loadUser();
     _loadOwners();
     _searchController.addListener(_filterOwners);
+  }
+  
+  Future<void> _loadUser() async {
+    try {
+      final user = await _apiService.getCurrentUser();
+      setState(() {
+        _isAdmin = user.isAdmin;
+      });
+    } catch (e) {
+      // User not loaded, but continue
+    }
   }
 
   @override
@@ -68,10 +84,22 @@ class _OwnersScreenState extends State<OwnersScreen> {
   }
 
   Future<void> _callOwner(String phone) async {
-    final uri = Uri.parse('tel:$phone');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    } else {
+    try {
+      final uri = Uri.parse('tel:$phone');
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)?.translate('cannotMakeCall') ?? 'Cannot make call',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -123,6 +151,16 @@ class _OwnersScreenState extends State<OwnersScreen> {
           ),
         ],
       ),
+      floatingActionButton: _isAdmin
+          ? FloatingActionButton(
+              onPressed: () {
+                _showAddOwnerDialog(context, localizations, theme);
+              },
+              backgroundColor: AppTheme.primaryColor,
+              child: const Icon(Icons.add, color: Colors.white),
+            )
+          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
@@ -263,10 +301,91 @@ class _OwnersScreenState extends State<OwnersScreen> {
                     ],
                   ),
                 ),
+                // Admin actions
+                if (_isAdmin) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit, size: 20),
+                        onPressed: () => _showEditOwnerDialog(context, localizations, theme, owner),
+                        color: theme.colorScheme.primary,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete, size: 20),
+                        onPressed: () => _showDeleteOwnerDialog(context, localizations, theme, owner),
+                        color: Colors.red,
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           );
         },
+      ),
+    );
+  }
+  
+  void _showAddOwnerDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme) {
+    showDialog(
+      context: context,
+      builder: (context) => AddOwnerModal(
+        onOwnerCreated: (owner) {
+          _loadOwners();
+        },
+      ),
+    );
+  }
+  
+  void _showEditOwnerDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme, Owner owner) {
+    showDialog(
+      context: context,
+      builder: (context) => EditOwnerModal(
+        owner: owner,
+        onOwnerUpdated: (updatedOwner) {
+          _loadOwners();
+        },
+      ),
+    );
+  }
+  
+  void _showDeleteOwnerDialog(BuildContext context, AppLocalizations? localizations, ThemeData theme, Owner owner) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(localizations?.translate('deleteOwner') ?? 'Delete Owner'),
+        content: Text('${localizations?.translate('confirmDeleteOwner') ?? 'Are you sure you want to delete'} ${owner.name}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(localizations?.translate('cancel') ?? 'Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final navigator = Navigator.of(context);
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              navigator.pop();
+              try {
+                await _apiService.deleteOwner(owner.id);
+                if (mounted) {
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(content: Text(localizations?.translate('ownerDeleted') ?? 'Owner deleted')),
+                  );
+                  _loadOwners();
+                }
+              } catch (e) {
+                if (mounted) {
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(content: Text('${localizations?.translate('error') ?? 'Error'}: $e')),
+                  );
+                }
+              }
+            },
+            child: Text(localizations?.translate('delete') ?? 'Delete', style: const TextStyle(color: Colors.red)),
+          ),
+        ],
       ),
     );
   }

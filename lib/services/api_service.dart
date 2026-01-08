@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/constants/app_constants.dart';
@@ -32,6 +33,12 @@ class ApiService {
     final headers = <String, String>{
       'Content-Type': 'application/json',
     };
+    
+    // Add API Key to all requests for application authentication
+    final apiKey = AppConstants.apiKey;
+    if (apiKey.isNotEmpty) {
+      headers['X-API-Key'] = apiKey;
+    }
     
     if (includeAuth) {
       final token = await _getAccessToken();
@@ -165,9 +172,16 @@ class ApiService {
       
       final cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
       final url = Uri.parse('$cleanBaseUrl/auth/refresh/');
+      final headers = <String, String>{
+        'Content-Type': 'application/json',
+      };
+      if (AppConstants.apiKey.isNotEmpty) {
+        headers['X-API-Key'] = AppConstants.apiKey;
+      }
+      
       final response = await http.post(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: headers,
         body: jsonEncode({'refresh': refreshToken}),
       );
       
@@ -206,9 +220,22 @@ class ApiService {
         'password': password,
       };
       
+      final headers = <String, String>{
+        'Content-Type': 'application/json',
+      };
+      
+      // Add API Key
+      final apiKey = AppConstants.apiKey;
+      if (apiKey.isNotEmpty) {
+        headers['X-API-Key'] = apiKey;
+        debugPrint('✓ API Key added to login request');
+      } else {
+        debugPrint('⚠ WARNING: API Key is empty! Check .env file');
+      }
+      
       final response = await http.post(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: headers,
         body: jsonEncode(requestBody),
       );
       
@@ -227,9 +254,17 @@ class ApiService {
         String errorMessage;
         try {
           final error = jsonDecode(response.body) as Map<String, dynamic>;
-          errorMessage = error['detail'] ?? error['message'] ?? 'Login failed';
-        } catch (_) {
+          // Check for API key errors first
+          if (error.containsKey('error') && error['error'] == 'Missing API key') {
+            errorMessage = 'Missing API key. Please check your .env file.';
+          } else {
+            errorMessage = error['detail'] ?? error['error'] ?? error['message'] ?? 'Login failed';
+          }
+          debugPrint('Login error: $errorMessage');
+          debugPrint('Response body: ${response.body}');
+        } catch (e) {
           errorMessage = 'Login failed with status ${response.statusCode}';
+          debugPrint('Failed to parse error response: $e');
         }
         
         ErrorLogger().logError(
@@ -267,12 +302,13 @@ class ApiService {
     final url = Uri.parse('$cleanBaseUrl$cleanEndpoint');
     
     try {
+      // Get headers with API Key (no auth token needed for 2FA request)
+      final headers = await _getHeaders(includeAuth: false);
+      headers['Accept-Language'] = language;
+      
       final response = await http.post(
         url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept-Language': language,
-        },
+        headers: headers,
         body: jsonEncode({
           'username': username,
           'password': password, // Include password to validate credentials
@@ -415,9 +451,12 @@ class ApiService {
         requestBody['token'] = token;
       }
       
+      // Get headers with API Key (no auth token needed for 2FA verification)
+      final headers = await _getHeaders(includeAuth: false);
+      
       final response = await http.post(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: headers,
         body: jsonEncode(requestBody),
       );
       
@@ -533,6 +572,12 @@ class ApiService {
     try {
       final request = http.MultipartRequest('PATCH', url);
       request.headers['Authorization'] = 'Bearer $token';
+      
+      // Add API Key to all requests for application authentication
+      final apiKey = AppConstants.apiKey;
+      if (apiKey.isNotEmpty) {
+        request.headers['X-API-Key'] = apiKey;
+      }
       
       if (firstName != null && firstName.isNotEmpty) {
         request.fields['first_name'] = firstName;
@@ -683,9 +728,11 @@ class ApiService {
     double? budget,
     int? assignedTo,
     required String type,
-    String? communicationWay,
+    String? communicationWay, // Deprecated: use communicationWayId instead
+    int? communicationWayId, // Preferred: channel ID
     String? priority,
-    String? status,
+    String? status, // Deprecated: use statusId instead
+    int? statusId, // Preferred: status ID
   }) async {
     final body = <String, dynamic>{
       'name': name,
@@ -699,9 +746,22 @@ class ApiService {
     
     if (budget != null) body['budget'] = budget;
     if (assignedTo != null && assignedTo > 0) body['assigned_to'] = assignedTo;
-    if (communicationWay != null) body['communication_way'] = communicationWay;
+    
+    // Use ID if provided, otherwise fall back to string (for backward compatibility)
+    if (communicationWayId != null) {
+      body['communication_way'] = communicationWayId;
+    } else if (communicationWay != null) {
+      body['communication_way'] = communicationWay;
+    }
+    
     if (priority != null) body['priority'] = priority.toLowerCase();
-    if (status != null) body['status'] = status;
+    
+    // Use ID if provided, otherwise fall back to string (for backward compatibility)
+    if (statusId != null) {
+      body['status'] = statusId;
+    } else if (status != null) {
+      body['status'] = status;
+    }
     
     final response = await _makeRequest('POST', '/clients/', body: body);
     
@@ -723,9 +783,11 @@ class ApiService {
     double? budget,
     int? assignedTo,
     String? type,
-    String? communicationWay,
+    String? communicationWay, // Deprecated: use communicationWayId instead
+    int? communicationWayId, // Preferred: channel ID
     String? priority,
-    String? status,
+    String? status, // Deprecated: use statusId instead
+    int? statusId, // Preferred: status ID
   }) async {
     final body = <String, dynamic>{};
     
@@ -735,9 +797,22 @@ class ApiService {
     if (budget != null) body['budget'] = budget;
     if (assignedTo != null) body['assigned_to'] = assignedTo > 0 ? assignedTo : null;
     if (type != null) body['type'] = type.toLowerCase();
-    if (communicationWay != null) body['communication_way'] = communicationWay;
+    
+    // Use ID if provided, otherwise fall back to string (for backward compatibility)
+    if (communicationWayId != null) {
+      body['communication_way'] = communicationWayId;
+    } else if (communicationWay != null) {
+      body['communication_way'] = communicationWay;
+    }
+    
     if (priority != null) body['priority'] = priority.toLowerCase();
-    if (status != null) body['status'] = status;
+    
+    // Use ID if provided, otherwise fall back to string (for backward compatibility)
+    if (statusId != null) {
+      body['status'] = statusId;
+    } else if (status != null) {
+      body['status'] = status;
+    }
     
     final response = await _makeRequest('PATCH', '/clients/$id/', body: body);
     
@@ -854,6 +929,23 @@ class ApiService {
   }
   
   // Update deal
+  Future<DealModel> createDeal(Map<String, dynamic> data) async {
+    final response = await _makeRequest('POST', '/deals/', body: data);
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      return DealModel.fromJson(json);
+    } else {
+      String errorMessage = 'Failed to create deal';
+      try {
+        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
+      } catch (_) {
+        errorMessage = 'Failed to create deal with status ${response.statusCode}';
+      }
+      throw Exception(errorMessage);
+    }
+  }
+  
   Future<DealModel> updateDeal(int dealId, Map<String, dynamic> data) async {
     final response = await _makeRequest('PUT', '/deals/$dealId/', body: data);
     if (response.statusCode == 200) {
@@ -1422,6 +1514,373 @@ class ApiService {
       return results.map((json) => Supplier.fromJson(json as Map<String, dynamic>)).toList();
     }
     throw Exception('Failed to load suppliers');
+  }
+  
+  // ==================== CRUD Operations for Inventory ====================
+  
+  // Products CRUD
+  Future<Product> createProduct(Map<String, dynamic> productData) async {
+    // Get current user to retrieve company ID
+    final currentUser = await getCurrentUser();
+    if (currentUser.company == null) {
+      throw Exception('User must be associated with a company');
+    }
+    
+    // Add company ID to the data
+    final dataWithCompany = Map<String, dynamic>.from(productData);
+    dataWithCompany['company'] = currentUser.company!.id;
+    
+    final response = await _makeRequest('POST', '/products/', body: dataWithCompany);
+    if (response.statusCode == 201) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return Product.fromJson(data);
+    }
+    throw Exception('Failed to create product');
+  }
+  
+  Future<Product> updateProduct(int id, Map<String, dynamic> productData) async {
+    final response = await _makeRequest('PATCH', '/products/$id/', body: productData);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return Product.fromJson(data);
+    }
+    throw Exception('Failed to update product');
+  }
+  
+  Future<void> deleteProduct(int id) async {
+    final response = await _makeRequest('DELETE', '/products/$id/');
+    if (response.statusCode != 204) {
+      throw Exception('Failed to delete product');
+    }
+  }
+  
+  // Product Categories CRUD
+  Future<ProductCategory> createProductCategory(Map<String, dynamic> categoryData) async {
+    // Get current user to retrieve company ID
+    final currentUser = await getCurrentUser();
+    if (currentUser.company == null) {
+      throw Exception('User must be associated with a company');
+    }
+    
+    // Add company ID to the data
+    final dataWithCompany = Map<String, dynamic>.from(categoryData);
+    dataWithCompany['company'] = currentUser.company!.id;
+    
+    final response = await _makeRequest('POST', '/product-categories/', body: dataWithCompany);
+    if (response.statusCode == 201) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return ProductCategory.fromJson(data);
+    }
+    throw Exception('Failed to create product category');
+  }
+  
+  Future<ProductCategory> updateProductCategory(int id, Map<String, dynamic> categoryData) async {
+    final response = await _makeRequest('PATCH', '/product-categories/$id/', body: categoryData);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return ProductCategory.fromJson(data);
+    }
+    throw Exception('Failed to update product category');
+  }
+  
+  Future<void> deleteProductCategory(int id) async {
+    final response = await _makeRequest('DELETE', '/product-categories/$id/');
+    if (response.statusCode != 204) {
+      throw Exception('Failed to delete product category');
+    }
+  }
+  
+  // Suppliers CRUD
+  Future<Supplier> createSupplier(Map<String, dynamic> supplierData) async {
+    // Get current user to retrieve company ID
+    final currentUser = await getCurrentUser();
+    if (currentUser.company == null) {
+      throw Exception('User must be associated with a company');
+    }
+    
+    // Add company ID to the data
+    final dataWithCompany = Map<String, dynamic>.from(supplierData);
+    dataWithCompany['company'] = currentUser.company!.id;
+    
+    final response = await _makeRequest('POST', '/suppliers/', body: dataWithCompany);
+    if (response.statusCode == 201) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return Supplier.fromJson(data);
+    }
+    throw Exception('Failed to create supplier');
+  }
+  
+  Future<Supplier> updateSupplier(int id, Map<String, dynamic> supplierData) async {
+    final response = await _makeRequest('PATCH', '/suppliers/$id/', body: supplierData);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return Supplier.fromJson(data);
+    }
+    throw Exception('Failed to update supplier');
+  }
+  
+  Future<void> deleteSupplier(int id) async {
+    final response = await _makeRequest('DELETE', '/suppliers/$id/');
+    if (response.statusCode != 204) {
+      throw Exception('Failed to delete supplier');
+    }
+  }
+  
+  // Services CRUD
+  Future<Service> createService(Map<String, dynamic> serviceData) async {
+    // Get current user to retrieve company ID
+    final currentUser = await getCurrentUser();
+    if (currentUser.company == null) {
+      throw Exception('User must be associated with a company');
+    }
+    
+    // Add company ID to the data
+    final dataWithCompany = Map<String, dynamic>.from(serviceData);
+    dataWithCompany['company'] = currentUser.company!.id;
+    
+    final response = await _makeRequest('POST', '/services/', body: dataWithCompany);
+    if (response.statusCode == 201) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return Service.fromJson(data);
+    }
+    throw Exception('Failed to create service');
+  }
+  
+  Future<Service> updateService(int id, Map<String, dynamic> serviceData) async {
+    final response = await _makeRequest('PATCH', '/services/$id/', body: serviceData);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return Service.fromJson(data);
+    }
+    throw Exception('Failed to update service');
+  }
+  
+  Future<void> deleteService(int id) async {
+    final response = await _makeRequest('DELETE', '/services/$id/');
+    if (response.statusCode != 204) {
+      throw Exception('Failed to delete service');
+    }
+  }
+  
+  // Service Packages CRUD
+  Future<ServicePackage> createServicePackage(Map<String, dynamic> packageData) async {
+    // Get current user to retrieve company ID
+    final currentUser = await getCurrentUser();
+    if (currentUser.company == null) {
+      throw Exception('User must be associated with a company');
+    }
+    
+    // Add company ID to the data
+    final dataWithCompany = Map<String, dynamic>.from(packageData);
+    dataWithCompany['company'] = currentUser.company!.id;
+    
+    final response = await _makeRequest('POST', '/service-packages/', body: dataWithCompany);
+    if (response.statusCode == 201) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return ServicePackage.fromJson(data);
+    }
+    throw Exception('Failed to create service package');
+  }
+  
+  Future<ServicePackage> updateServicePackage(int id, Map<String, dynamic> packageData) async {
+    final response = await _makeRequest('PATCH', '/service-packages/$id/', body: packageData);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return ServicePackage.fromJson(data);
+    }
+    throw Exception('Failed to update service package');
+  }
+  
+  Future<void> deleteServicePackage(int id) async {
+    final response = await _makeRequest('DELETE', '/service-packages/$id/');
+    if (response.statusCode != 204) {
+      throw Exception('Failed to delete service package');
+    }
+  }
+  
+  // Service Providers CRUD
+  Future<ServiceProvider> createServiceProvider(Map<String, dynamic> providerData) async {
+    // Get current user to retrieve company ID
+    final currentUser = await getCurrentUser();
+    if (currentUser.company == null) {
+      throw Exception('User must be associated with a company');
+    }
+    
+    // Add company ID to the data
+    final dataWithCompany = Map<String, dynamic>.from(providerData);
+    dataWithCompany['company'] = currentUser.company!.id;
+    
+    final response = await _makeRequest('POST', '/service-providers/', body: dataWithCompany);
+    if (response.statusCode == 201) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return ServiceProvider.fromJson(data);
+    }
+    throw Exception('Failed to create service provider');
+  }
+  
+  Future<ServiceProvider> updateServiceProvider(int id, Map<String, dynamic> providerData) async {
+    final response = await _makeRequest('PATCH', '/service-providers/$id/', body: providerData);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return ServiceProvider.fromJson(data);
+    }
+    throw Exception('Failed to update service provider');
+  }
+  
+  Future<void> deleteServiceProvider(int id) async {
+    final response = await _makeRequest('DELETE', '/service-providers/$id/');
+    if (response.statusCode != 204) {
+      throw Exception('Failed to delete service provider');
+    }
+  }
+  
+  // Developers CRUD
+  Future<Developer> createDeveloper(Map<String, dynamic> developerData) async {
+    // Get current user to retrieve company ID
+    final currentUser = await getCurrentUser();
+    if (currentUser.company == null) {
+      throw Exception('User must be associated with a company');
+    }
+    
+    // Add company ID to the data
+    final dataWithCompany = Map<String, dynamic>.from(developerData);
+    dataWithCompany['company'] = currentUser.company!.id;
+    
+    final response = await _makeRequest('POST', '/developers/', body: dataWithCompany);
+    if (response.statusCode == 201) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return Developer.fromJson(data);
+    }
+    throw Exception('Failed to create developer');
+  }
+  
+  Future<Developer> updateDeveloper(int id, Map<String, dynamic> developerData) async {
+    final response = await _makeRequest('PATCH', '/developers/$id/', body: developerData);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return Developer.fromJson(data);
+    }
+    throw Exception('Failed to update developer');
+  }
+  
+  Future<void> deleteDeveloper(int id) async {
+    final response = await _makeRequest('DELETE', '/developers/$id/');
+    if (response.statusCode != 204) {
+      throw Exception('Failed to delete developer');
+    }
+  }
+  
+  // Projects CRUD
+  Future<Project> createProject(Map<String, dynamic> projectData) async {
+    // Get current user to retrieve company ID
+    final currentUser = await getCurrentUser();
+    if (currentUser.company == null) {
+      throw Exception('User must be associated with a company');
+    }
+    
+    // Add company ID to the data
+    final dataWithCompany = Map<String, dynamic>.from(projectData);
+    dataWithCompany['company'] = currentUser.company!.id;
+    
+    final response = await _makeRequest('POST', '/projects/', body: dataWithCompany);
+    if (response.statusCode == 201) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return Project.fromJson(data);
+    }
+    throw Exception('Failed to create project');
+  }
+  
+  Future<Project> updateProject(int id, Map<String, dynamic> projectData) async {
+    debugPrint('updateProject - ID: $id, Data: $projectData');
+    final response = await _makeRequest('PATCH', '/projects/$id/', body: projectData);
+    debugPrint('updateProject - Status: ${response.statusCode}, Body: ${response.body}');
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return Project.fromJson(data);
+    } else {
+      final errorBody = response.body;
+      debugPrint('updateProject - Error: $errorBody');
+      throw Exception('Failed to update project: $errorBody');
+    }
+  }
+  
+  Future<void> deleteProject(int id) async {
+    final response = await _makeRequest('DELETE', '/projects/$id/');
+    if (response.statusCode != 204) {
+      throw Exception('Failed to delete project');
+    }
+  }
+  
+  // Units CRUD
+  Future<Unit> createUnit(Map<String, dynamic> unitData) async {
+    // Get current user to retrieve company ID
+    final currentUser = await getCurrentUser();
+    if (currentUser.company == null) {
+      throw Exception('User must be associated with a company');
+    }
+    
+    // Add company ID to the data
+    final dataWithCompany = Map<String, dynamic>.from(unitData);
+    dataWithCompany['company'] = currentUser.company!.id;
+    
+    final response = await _makeRequest('POST', '/units/', body: dataWithCompany);
+    if (response.statusCode == 201) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return Unit.fromJson(data);
+    }
+    throw Exception('Failed to create unit');
+  }
+  
+  Future<Unit> updateUnit(int id, Map<String, dynamic> unitData) async {
+    final response = await _makeRequest('PATCH', '/units/$id/', body: unitData);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return Unit.fromJson(data);
+    }
+    throw Exception('Failed to update unit');
+  }
+  
+  Future<void> deleteUnit(int id) async {
+    final response = await _makeRequest('DELETE', '/units/$id/');
+    if (response.statusCode != 204) {
+      throw Exception('Failed to delete unit');
+    }
+  }
+  
+  // Owners CRUD
+  Future<Owner> createOwner(Map<String, dynamic> ownerData) async {
+    // Get current user to retrieve company ID
+    final currentUser = await getCurrentUser();
+    if (currentUser.company == null) {
+      throw Exception('User must be associated with a company');
+    }
+    
+    // Add company ID to the data
+    final dataWithCompany = Map<String, dynamic>.from(ownerData);
+    dataWithCompany['company'] = currentUser.company!.id;
+    
+    final response = await _makeRequest('POST', '/owners/', body: dataWithCompany);
+    if (response.statusCode == 201) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return Owner.fromJson(data);
+    }
+    throw Exception('Failed to create owner');
+  }
+  
+  Future<Owner> updateOwner(int id, Map<String, dynamic> ownerData) async {
+    final response = await _makeRequest('PATCH', '/owners/$id/', body: ownerData);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return Owner.fromJson(data);
+    }
+    throw Exception('Failed to update owner');
+  }
+  
+  Future<void> deleteOwner(int id) async {
+    final response = await _makeRequest('DELETE', '/owners/$id/');
+    if (response.statusCode != 204) {
+      throw Exception('Failed to delete owner');
+    }
   }
 }
 
