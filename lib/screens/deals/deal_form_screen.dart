@@ -159,7 +159,7 @@ class _DealFormScreenState extends State<DealFormScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to load data: $e'),
+            content: Text('${AppLocalizations.of(context)?.translate('failedToLoadData') ?? 'Failed to load data'}: $e'),
             backgroundColor: Colors.red,
           ),
         );

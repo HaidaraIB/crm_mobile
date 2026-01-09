@@ -699,14 +699,20 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
                 await _apiService.deleteUnit(unit.id);
                 if (mounted) {
                   scaffoldMessenger.showSnackBar(
-                    SnackBar(content: Text(localizations?.translate('unitDeleted') ?? 'Unit deleted')),
+                    SnackBar(
+                      content: Text(localizations?.translate('unitDeleted') ?? 'Unit deleted'),
+                      backgroundColor: Colors.green,
+                    ),
                   );
                   _loadUnits();
                 }
               } catch (e) {
                 if (mounted) {
                   scaffoldMessenger.showSnackBar(
-                    SnackBar(content: Text('${localizations?.translate('error') ?? 'Error'}: $e')),
+                    SnackBar(
+                      content: Text('${localizations?.translate('error') ?? 'Error'}: $e'),
+                      backgroundColor: Colors.red,
+                    ),
                   );
                 }
               }
@@ -750,7 +756,10 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
                 await _apiService.deleteProject(project.id);
                 if (mounted) {
                   scaffoldMessenger.showSnackBar(
-                    SnackBar(content: Text(localizations?.translate('projectDeleted') ?? 'Project deleted')),
+                    SnackBar(
+                      content: Text(localizations?.translate('projectDeleted') ?? 'Project deleted'),
+                      backgroundColor: Colors.green,
+                    ),
                   );
                   // Reload projects and units since deleting a project cascades to units
                   await Future.wait([
@@ -761,7 +770,10 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
               } catch (e) {
                 if (mounted) {
                   scaffoldMessenger.showSnackBar(
-                    SnackBar(content: Text('${localizations?.translate('error') ?? 'Error'}: $e')),
+                    SnackBar(
+                      content: Text('${localizations?.translate('error') ?? 'Error'}: $e'),
+                      backgroundColor: Colors.red,
+                    ),
                   );
                 }
               }
@@ -805,7 +817,10 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
                 await _apiService.deleteDeveloper(developer.id);
                 if (mounted) {
                   scaffoldMessenger.showSnackBar(
-                    SnackBar(content: Text(localizations?.translate('developerDeleted') ?? 'Developer deleted')),
+                    SnackBar(
+                      content: Text(localizations?.translate('developerDeleted') ?? 'Developer deleted'),
+                      backgroundColor: Colors.green,
+                    ),
                   );
                   // Reload all related data since deleting a developer cascades to projects and units
                   await Future.wait([
@@ -817,7 +832,10 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
               } catch (e) {
                 if (mounted) {
                   scaffoldMessenger.showSnackBar(
-                    SnackBar(content: Text('${localizations?.translate('error') ?? 'Error'}: $e')),
+                    SnackBar(
+                      content: Text('${localizations?.translate('error') ?? 'Error'}: $e'),
+                      backgroundColor: Colors.red,
+                    ),
                   );
                 }
               }

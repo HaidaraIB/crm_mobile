@@ -20,6 +20,9 @@ class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final GlobalKey<DashboardScreenState> _dashboardKey = GlobalKey<DashboardScreenState>();
   final GlobalKey _calendarKey = GlobalKey();
+  final GlobalKey _allLeadsKey = GlobalKey();
+  VoidCallback? _showAllLeadsFilterCallback;
+  bool Function()? _checkAllLeadsFiltersCallback;
   
   @override
   Widget build(BuildContext context) {
@@ -43,7 +46,16 @@ class _HomeScreenState extends State<HomeScreen> {
         case 0:
           return DashboardScreen(key: _dashboardKey);
         case 1:
-          return const AllLeadsScreen(showAppBar: false);
+          return AllLeadsScreen(
+            key: _allLeadsKey,
+            showAppBar: false,
+            onFilterRequested: (callback) {
+              _showAllLeadsFilterCallback = callback;
+            },
+            onHasActiveFiltersRequested: (callback) {
+              _checkAllLeadsFiltersCallback = callback;
+            },
+          );
         case 2:
           return CalendarScreen(
             key: _calendarKey,
@@ -66,7 +78,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Text(getAppBarTitle()),
                   Text(
-                    DateFormat('MMMM yyyy').format(_selectedCalendarDate),
+                    DateFormat('MMMM yyyy', localizations?.locale.languageCode ?? 'en').format(_selectedCalendarDate),
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.normal,
@@ -127,6 +139,39 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               title: Text(getAppBarTitle()),
               actions: [
+                // Filter button for All Leads page
+                if (_currentIndex == 1)
+                  Builder(
+                    builder: (context) {
+                      // Check if filters are active
+                      final hasActiveFilters = _checkAllLeadsFiltersCallback?.call() ?? false;
+                      
+                      return IconButton(
+                        icon: Stack(
+                          children: [
+                            const Icon(Icons.filter_list),
+                            if (hasActiveFilters)
+                              Positioned(
+                                right: 0,
+                                top: 0,
+                                child: Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.primary,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        onPressed: () {
+                          _showAllLeadsFilterCallback?.call();
+                        },
+                        tooltip: localizations?.translate('filter') ?? 'Filter',
+                      );
+                    },
+                  ),
                 IconButton(
                   icon: const Icon(Icons.notifications_outlined),
                   onPressed: () {

@@ -769,14 +769,20 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
                 await _apiService.deleteService(service.id);
                 if (mounted) {
                   scaffoldMessenger.showSnackBar(
-                    SnackBar(content: Text(localizations?.translate('serviceDeleted') ?? 'Service deleted')),
+                    SnackBar(
+                      content: Text(localizations?.translate('serviceDeleted') ?? 'Service deleted'),
+                      backgroundColor: Colors.green,
+                    ),
                   );
                   _loadServices();
                 }
               } catch (e) {
                 if (mounted) {
                   scaffoldMessenger.showSnackBar(
-                    SnackBar(content: Text('${localizations?.translate('error') ?? 'Error'}: $e')),
+                    SnackBar(
+                      content: Text('${localizations?.translate('error') ?? 'Error'}: $e'),
+                      backgroundColor: Colors.red,
+                    ),
                   );
                 }
               }
@@ -820,14 +826,20 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
                 await _apiService.deleteServicePackage(pkg.id);
                 if (mounted) {
                   scaffoldMessenger.showSnackBar(
-                    SnackBar(content: Text(localizations?.translate('packageDeleted') ?? 'Package deleted')),
+                    SnackBar(
+                      content: Text(localizations?.translate('packageDeleted') ?? 'Package deleted'),
+                      backgroundColor: Colors.green,
+                    ),
                   );
                   _loadPackages();
                 }
               } catch (e) {
                 if (mounted) {
                   scaffoldMessenger.showSnackBar(
-                    SnackBar(content: Text('${localizations?.translate('error') ?? 'Error'}: $e')),
+                    SnackBar(
+                      content: Text('${localizations?.translate('error') ?? 'Error'}: $e'),
+                      backgroundColor: Colors.red,
+                    ),
                   );
                 }
               }
@@ -871,14 +883,20 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
                 await _apiService.deleteServiceProvider(provider.id);
                 if (mounted) {
                   scaffoldMessenger.showSnackBar(
-                    SnackBar(content: Text(localizations?.translate('providerDeleted') ?? 'Provider deleted')),
+                    SnackBar(
+                      content: Text(localizations?.translate('providerDeleted') ?? 'Provider deleted'),
+                      backgroundColor: Colors.green,
+                    ),
                   );
                   _loadProviders();
                 }
               } catch (e) {
                 if (mounted) {
                   scaffoldMessenger.showSnackBar(
-                    SnackBar(content: Text('${localizations?.translate('error') ?? 'Error'}: $e')),
+                    SnackBar(
+                      content: Text('${localizations?.translate('error') ?? 'Error'}: $e'),
+                      backgroundColor: Colors.red,
+                    ),
                   );
                 }
               }

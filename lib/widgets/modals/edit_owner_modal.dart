@@ -80,7 +80,7 @@ class _EditOwnerModalState extends State<EditOwnerModal> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: Text('${AppLocalizations.of(context)?.translate('error') ?? 'Error'}: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );

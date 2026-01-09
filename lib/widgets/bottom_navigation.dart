@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_theme.dart';
+import '../core/localization/app_localizations.dart';
 
 class BottomNavigation extends StatelessWidget {
   final int currentIndex;
@@ -14,6 +15,7 @@ class BottomNavigation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final localizations = AppLocalizations.of(context);
     final isDark = theme.brightness == Brightness.dark;
     
     return Container(
@@ -39,7 +41,7 @@ class BottomNavigation extends StatelessWidget {
                 icon: Icons.people,
                 isActive: currentIndex == 1,
                 onTap: () => onTap(1),
-                label: 'Leads',
+                label: localizations?.translate('leads') ?? 'Leads',
               ),
               
               // Home in the center (highlighted)
@@ -49,7 +51,7 @@ class BottomNavigation extends StatelessWidget {
                 isActive: currentIndex == 0,
                 onTap: () => onTap(0),
                 isCenter: true,
-                label: 'Home',
+                label: localizations?.translate('home') ?? 'Home',
               ),
               
               // Calendar on the right
@@ -58,7 +60,7 @@ class BottomNavigation extends StatelessWidget {
                 icon: Icons.calendar_today,
                 isActive: currentIndex == 2,
                 onTap: () => onTap(2),
-                label: 'Calendar',
+                label: localizations?.translate('calendar') ?? 'Calendar',
               ),
             ],
           ),

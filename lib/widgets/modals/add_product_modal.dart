@@ -76,7 +76,7 @@ class _AddProductModalState extends State<AddProductModal> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to load data: ${e.toString()}'),
+            content: Text('${AppLocalizations.of(context)?.translate('failedToLoadData') ?? 'Failed to load data'}: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -142,7 +142,7 @@ class _AddProductModalState extends State<AddProductModal> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: Text('${AppLocalizations.of(context)?.translate('error') ?? 'Error'}: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );

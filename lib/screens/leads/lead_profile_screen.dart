@@ -9,6 +9,7 @@ import '../../models/user_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/modals/assign_lead_modal.dart';
 import '../../widgets/modals/add_action_modal.dart';
+import '../../widgets/phone_input.dart';
 import 'edit_lead_screen.dart';
 
 class LeadProfileScreen extends StatefulWidget {
@@ -30,6 +31,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
   List<UserModel> _users = [];
   UserModel? _currentUser;
   bool _leadWasUpdated = false;
+  final Map<String, bool> _updatingPrimaryMap = {}; // Track which phone numbers are being set as primary
   
   @override
   void initState() {
@@ -146,10 +148,11 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
       });
       
       if (mounted) {
+        final localizations = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Status updated to ${newStatus.name}',
+              localizations?.translate('statusUpdatedSuccessfully') ?? 'Status updated successfully',
             ),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 2),
@@ -162,9 +165,10 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
       });
       
       if (mounted) {
+        final localizations = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to update status: ${e.toString()}'),
+            content: Text('${localizations?.translate('failedToUpdateStatus') ?? 'Failed to update status'}: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -200,6 +204,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                         localizations?.translate('leadDeletedSuccessfully') ?? 
                         'Lead deleted successfully',
                       ),
+                      backgroundColor: Colors.green,
                     ),
                   );
                 }
@@ -255,6 +260,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(AppLocalizations.of(context)?.translate('cannotMakeCall') ?? 'Could not make call'),
+            backgroundColor: Colors.red,
           ),
         );
       }
@@ -263,6 +269,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(AppLocalizations.of(context)?.translate('cannotMakeCall') ?? 'Could not make call'),
+            backgroundColor: Colors.red,
           ),
         );
       }
@@ -275,8 +282,12 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
       final cleanPhone = phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
       if (cleanPhone.isEmpty) {
         if (mounted) {
+          final localizations = AppLocalizations.of(context);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Invalid phone number')),
+            SnackBar(
+              content: Text(localizations?.translate('invalidPhoneNumber') ?? 'Invalid phone number'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
         return;
@@ -288,14 +299,22 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
         mode: LaunchMode.externalApplication,
       );
       if (!launched && mounted) {
+        final localizations = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open WhatsApp')),
+          SnackBar(
+            content: Text(localizations?.translate('couldNotOpenWhatsApp') ?? 'Could not open WhatsApp'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
+        final localizations = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open WhatsApp')),
+          SnackBar(
+            content: Text(localizations?.translate('couldNotOpenWhatsApp') ?? 'Could not open WhatsApp'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -364,21 +383,6 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
         appBar: AppBar(
           title: Text(localizations?.translate('leadProfile') ?? 'Lead Profile'),
           actions: [
-            // Filter Button
-            IconButton(
-              icon: const Icon(Icons.filter_list),
-              onPressed: () {
-                // Show filter options
-                showModalBottomSheet(
-                  context: context,
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                  ),
-                  builder: (context) => _buildFilterSheet(localizations),
-                );
-              },
-              tooltip: localizations?.translate('filter') ?? 'Filter',
-            ),
             PopupMenuButton<String>(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -477,9 +481,11 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
           child: Column(
             children: [
               // Combined Profile and Status Section
-            Container(
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(20),
+            Flexible(
+              child: SingleChildScrollView(
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: theme.cardColor,
                 borderRadius: BorderRadius.circular(16),
@@ -631,7 +637,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                     ],
                   ),
                   
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
                   
                   // Divider
                   Divider(
@@ -641,7 +647,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                     height: 1,
                   ),
                   
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
                   
                   // Status Dropdown with Color
                   if (_statuses.isNotEmpty && _lead!.statusName != null)
@@ -692,7 +698,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   
                   // Additional Info Row
                   Wrap(
@@ -721,6 +727,8 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                     ],
                   ),
                 ],
+              ),
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -751,40 +759,13 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
               ),
               child: ElevatedButton(
                 onPressed: () {
-                  showModalBottomSheet(
+                  showDialog(
                     context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
                     builder: (context) => AddActionModal(
                       leadId: _lead!.id,
-                      onSave: (stageId, notes, reminderDate) async {
-                        // Modal is already closed by AddActionModal
-                        try {
-                          await _apiService.addActionToLead(
-                            leadId: _lead!.id,
-                            stage: stageId,
-                            notes: notes,
-                            reminderDate: reminderDate,
-                          );
-                          if (!mounted) return;
-                          _loadLead();
-                          ScaffoldMessenger.of(this.context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                localizations?.translate('actionAdded') ?? 'Action added successfully',
-                              ),
-                              backgroundColor: Colors.green,
-                            ),
-                          );
-                        } catch (e) {
-                          if (!mounted) return;
-                          ScaffoldMessenger.of(this.context).showSnackBar(
-                            SnackBar(
-                              content: Text('Failed to add action: ${e.toString()}'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
+                      onSave: (stageId, notes, reminderDate) {
+                        // Refresh lead data after action is added
+                        _loadLead();
                       },
                     ),
                   );
@@ -947,15 +928,9 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
             value: lead.communicationWay ?? '--',
             iconColor: const Color(0xFFF59E0B),
           ),
-          if (lead.phoneNumbers != null && lead.phoneNumbers!.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            _buildDetailCard(
-              icon: Icons.phone,
-              label: localizations?.translate('phoneNumbers') ?? 'Phone Numbers',
-              value: lead.phoneNumbers!.map((p) => p.phoneNumber).join(', '),
-              iconColor: const Color(0xFF3B82F6),
-            ),
-          ],
+          // Phone Numbers Section with WhatsApp and Call buttons
+          const SizedBox(height: 12),
+          _buildPhoneNumbersSection(lead, localizations),
           if (lead.notes != null && lead.notes!.isNotEmpty) ...[
             const SizedBox(height: 12),
             _buildDetailCard(
@@ -971,6 +946,620 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
     );
   }
   
+  Widget _buildPhoneNumbersSection(LeadModel lead, AppLocalizations? localizations) {
+    final theme = Theme.of(context);
+    final List<PhoneNumber> allPhones = [];
+    
+    // Collect all phone numbers from phoneNumbers list
+    if (lead.phoneNumbers != null && lead.phoneNumbers!.isNotEmpty) {
+      allPhones.addAll(lead.phoneNumbers!);
+    }
+    
+    // Add primary phone only if it's not already in the phoneNumbers list
+    if (lead.phone.isNotEmpty) {
+      final isPrimaryPhoneInList = allPhones.any(
+        (phone) => phone.phoneNumber == lead.phone || 
+                   (phone.isPrimary && phone.phoneNumber == lead.phone),
+      );
+      
+      if (!isPrimaryPhoneInList) {
+        allPhones.insert(0, PhoneNumber(
+          id: 0,
+          phoneNumber: lead.phone,
+          phoneType: 'mobile',
+          isPrimary: true,
+        ));
+      }
+    }
+    
+    if (allPhones.isEmpty) {
+      return _buildDetailCard(
+        icon: Icons.phone,
+        label: localizations?.translate('phoneNumbers') ?? 'Phone Numbers',
+        value: localizations?.translate('noPhoneNumbers') ?? 'No phone numbers',
+        iconColor: const Color(0xFF3B82F6),
+      );
+    }
+    
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.brightness == Brightness.dark
+              ? Colors.white.withValues(alpha: 0.1)
+              : Colors.grey.withValues(alpha: 0.1),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: theme.brightness == Brightness.dark
+                ? Colors.black.withValues(alpha: 0.3)
+                : Colors.black.withValues(alpha: 0.03),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.phone, color: Color(0xFF3B82F6), size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  localizations?.translate('phoneNumbers') ?? 'Phone Numbers',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: theme.textTheme.titleLarge?.color ?? theme.colorScheme.onSurface,
+                  ),
+                ),
+              ),
+              if (_canModifyLead())
+                IconButton(
+                  icon: const Icon(Icons.add_circle_outline, size: 22),
+                  color: AppTheme.primaryColor,
+                  onPressed: () => _showAddPhoneNumberModal(lead, localizations),
+                  tooltip: localizations?.translate('addPhoneNumber') ?? 'Add Phone',
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ...allPhones.map((phone) => _buildPhoneNumberItem(phone, localizations)),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildPhoneNumberItem(PhoneNumber phone, AppLocalizations? localizations) {
+    final theme = Theme.of(context);
+    
+    String phoneTypeLabel;
+    if (phone.phoneType == 'mobile') {
+      phoneTypeLabel = localizations?.translate('phoneTypeMobile') ?? 'Mobile';
+    } else if (phone.phoneType == 'home') {
+      phoneTypeLabel = localizations?.translate('phoneTypeHome') ?? 'Home';
+    } else if (phone.phoneType == 'work') {
+      phoneTypeLabel = localizations?.translate('phoneTypeWork') ?? 'Work';
+    } else {
+      phoneTypeLabel = localizations?.translate('phoneTypeOther') ?? 'Other';
+    }
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.brightness == Brightness.dark
+            ? Colors.white.withValues(alpha: 0.05)
+            : Colors.grey.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: theme.brightness == Brightness.dark
+              ? Colors.white.withValues(alpha: 0.1)
+              : Colors.grey.withValues(alpha: 0.2),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      phone.phoneNumber,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: theme.textTheme.bodyLarge?.color ?? theme.colorScheme.onSurface,
+                      ),
+                    ),
+                    if (phone.isPrimary) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          localizations?.translate('primary') ?? 'Primary',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.primaryColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  phoneTypeLabel,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7) ??
+                        theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Set as Primary Button (only for non-primary numbers)
+          if (!phone.isPrimary && _canModifyLead())
+            _updatingPrimaryMap[phone.phoneNumber] == true
+                ? SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: Center(
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+                        ),
+                      ),
+                    ),
+                  )
+                : _buildPhoneActionButton(
+                    icon: Icons.star_outline,
+                    color: AppTheme.primaryColor,
+                    onPressed: () => _setPhoneAsPrimary(phone, localizations),
+                    tooltip: localizations?.translate('setAsPrimary') ?? 'Set as Primary',
+                  ),
+          if (!phone.isPrimary && _canModifyLead())
+            const SizedBox(width: 8),
+          // WhatsApp Button
+          _buildPhoneActionButton(
+            icon: Icons.chat_bubble,
+            color: const Color(0xFF25D366),
+            onPressed: () => _openWhatsApp(phone.phoneNumber),
+            isWhatsApp: true,
+          ),
+          const SizedBox(width: 8),
+          // Call Button
+          _buildPhoneActionButton(
+            icon: Icons.phone_outlined,
+            color: AppTheme.primaryColor,
+            onPressed: () => _makeCall(phone.phoneNumber),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Future<void> _setPhoneAsPrimary(PhoneNumber phone, AppLocalizations? localizations) async {
+    if (_lead == null) return;
+    
+    setState(() {
+      _updatingPrimaryMap[phone.phoneNumber] = true;
+    });
+    
+    try {
+      // Get current phone numbers
+      List<Map<String, Object>> phoneNumbers = [];
+      
+      // Add existing phone numbers
+      if (_lead!.phoneNumbers != null && _lead!.phoneNumbers!.isNotEmpty) {
+        phoneNumbers = _lead!.phoneNumbers!.map((pn) => <String, Object>{
+          'phone_number': pn.phoneNumber,
+          'phone_type': pn.phoneType,
+          'is_primary': pn.id == phone.id, // Set as primary only if it's the selected phone
+          'notes': pn.notes ?? '',
+        }).toList();
+      } else if (_lead!.phone.isNotEmpty) {
+        // If no phoneNumbers list but has primary phone, check if the selected phone matches
+        if (_lead!.phone == phone.phoneNumber) {
+          // The phone is already primary, no need to update
+          return;
+        }
+        // If no phoneNumbers list but has primary phone, add it
+        phoneNumbers = [
+          <String, Object>{
+            'phone_number': _lead!.phone,
+            'phone_type': 'mobile',
+            'is_primary': false, // Remove primary from old phone
+            'notes': '',
+          },
+        ];
+        // Add the new primary phone
+        phoneNumbers.add(<String, Object>{
+          'phone_number': phone.phoneNumber,
+          'phone_type': phone.phoneType,
+          'is_primary': true,
+          'notes': phone.notes ?? '',
+        });
+      }
+
+      // Update lead with new phone numbers
+      final updatedLead = await _apiService.updateLead(
+        id: _lead!.id,
+        phoneNumbers: phoneNumbers,
+      );
+
+      if (mounted) {
+        setState(() {
+          _lead = updatedLead;
+          _leadWasUpdated = true;
+          _updatingPrimaryMap[phone.phoneNumber] = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              localizations?.translate('phoneNumberSetAsPrimary') ?? 
+              'Phone number set as primary',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _updatingPrimaryMap[phone.phoneNumber] = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${localizations?.translate('error') ?? 'Error'}: ${e.toString()}',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+  
+  Future<void> _showAddPhoneNumberModal(LeadModel lead, AppLocalizations? localizations) async {
+    final theme = Theme.of(context);
+    final formKey = GlobalKey<FormState>();
+    final navigatorContext = context; // Save context before async operation
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) {
+        String phoneNumber = '';
+        String phoneType = 'mobile';
+        bool isPrimary = false;
+        bool isLoading = false;
+
+        return StatefulBuilder(
+          builder: (context, setModalState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.add_circle_outline, color: AppTheme.primaryColor),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  localizations?.translate('addPhoneNumber') ?? 'Add Phone Number',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: theme.textTheme.titleLarge?.color,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Phone Number Input
+                  Text(
+                    localizations?.translate('phoneNumber') ?? 'Phone Number',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: theme.textTheme.bodyMedium?.color,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  PhoneInput(
+                    value: phoneNumber,
+                    hintText: localizations?.translate('enterPhoneNumber') ?? 'Enter phone number',
+                    onChanged: (value) {
+                      setModalState(() {
+                        phoneNumber = value;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  // Phone Type Dropdown
+                  Text(
+                    localizations?.translate('phoneType') ?? 'Phone Type',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: theme.textTheme.bodyMedium?.color,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    initialValue: phoneType,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                    items: [
+                      DropdownMenuItem(
+                        value: 'mobile',
+                        child: Text(localizations?.translate('phoneTypeMobile') ?? 'Mobile'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'home',
+                        child: Text(localizations?.translate('phoneTypeHome') ?? 'Home'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'work',
+                        child: Text(localizations?.translate('phoneTypeWork') ?? 'Work'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'other',
+                        child: Text(localizations?.translate('phoneTypeOther') ?? 'Other'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        setModalState(() {
+                          phoneType = value;
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  // Primary Checkbox
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: isPrimary,
+                        onChanged: (value) {
+                          setModalState(() {
+                            isPrimary = value ?? false;
+                          });
+                        },
+                        activeColor: AppTheme.primaryColor,
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            setModalState(() {
+                              isPrimary = !isPrimary;
+                            });
+                          },
+                          child: Text(
+                            localizations?.translate('setAsPrimary') ?? 'Set as Primary',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: theme.textTheme.bodyMedium?.color,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isLoading ? null : () => Navigator.pop(context),
+              child: Text(
+                localizations?.translate('cancel') ?? 'Cancel',
+                style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: isLoading ? null : () async {
+                if (phoneNumber.trim().isEmpty) {
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        localizations?.translate('phoneNumberRequiredSingle') ?? 'Phone number is required',
+                      ),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                setModalState(() {
+                  isLoading = true;
+                });
+
+                try {
+                  // Get current phone numbers
+                  List<Map<String, Object>> phoneNumbers = [];
+                  
+                  // Add existing phone numbers
+                  if (lead.phoneNumbers != null && lead.phoneNumbers!.isNotEmpty) {
+                    phoneNumbers = lead.phoneNumbers!.map((pn) => <String, Object>{
+                      'phone_number': pn.phoneNumber,
+                      'phone_type': pn.phoneType,
+                      'is_primary': isPrimary ? false : pn.isPrimary, // Remove primary from existing if new is primary
+                      'notes': pn.notes ?? '',
+                    }).toList();
+                  } else if (lead.phone.isNotEmpty) {
+                    // If no phoneNumbers list but has primary phone, add it
+                    phoneNumbers = [
+                      <String, Object>{
+                        'phone_number': lead.phone,
+                        'phone_type': 'mobile',
+                        'is_primary': isPrimary ? false : true, // Remove primary if new is primary
+                        'notes': '',
+                      },
+                    ];
+                  }
+
+                  // Add new phone number
+                  phoneNumbers.add(<String, Object>{
+                    'phone_number': phoneNumber.trim(),
+                    'phone_type': phoneType,
+                    'is_primary': isPrimary,
+                    'notes': '',
+                  });
+
+                  // Update lead with new phone numbers
+                  final updatedLead = await _apiService.updateLead(
+                    id: lead.id,
+                    phoneNumbers: phoneNumbers,
+                  );
+
+                  if (mounted && navigatorContext.mounted) {
+                    Navigator.pop(dialogContext);
+                    setState(() {
+                      _lead = updatedLead;
+                      _leadWasUpdated = true;
+                    });
+                    ScaffoldMessenger.of(navigatorContext).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          localizations?.translate('phoneNumberAddedSuccessfully') ?? 
+                          'Phone number added successfully',
+                        ),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    setModalState(() {
+                      isLoading = false;
+                    });
+                    if (navigatorContext.mounted) {
+                      ScaffoldMessenger.of(navigatorContext).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            '${localizations?.translate('error') ?? 'Error'}: ${e.toString()}',
+                          ),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : Text(localizations?.translate('add') ?? 'Add'),
+            ),
+          ],
+        ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPhoneActionButton({
+    required IconData icon,
+    required Color color,
+    required VoidCallback onPressed,
+    bool isWhatsApp = false,
+    String? tooltip,
+  }) {
+    final button = Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: color.withValues(alpha: 0.3),
+              width: 1.5,
+            ),
+          ),
+          child: isWhatsApp
+              ? Image.asset(
+                  'assets/images/whatsapp_logo.png',
+                  width: 20,
+                  height: 20,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Icon(icon, color: color, size: 18);
+                  },
+                )
+              : Icon(icon, color: color, size: 18),
+        ),
+      ),
+    );
+    
+    if (tooltip != null) {
+      return Tooltip(
+        message: tooltip,
+        child: button,
+      );
+    }
+    return button;
+  }
+
   Widget _buildDetailCard({
     required IconData icon,
     required String label,
@@ -1180,75 +1769,6 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
     );
   }
   
-  Widget _buildFilterSheet(AppLocalizations? localizations) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.filter_list, size: 24, color: theme.iconTheme.color),
-              const SizedBox(width: 12),
-              Text(
-                localizations?.translate('filter') ?? 'Filter',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: theme.textTheme.titleLarge?.color,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          Text(
-            localizations?.translate('filterOptions') ?? 'Filter Options',
-            style: TextStyle(
-              fontSize: 14,
-              color: theme.textTheme.bodySmall?.color,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Filter options can be added here
-          ListTile(
-            leading: Icon(Icons.assignment, color: theme.iconTheme.color),
-            title: Text(localizations?.translate('byStatus') ?? 'By Status'),
-            trailing: Icon(Icons.chevron_right, color: theme.iconTheme.color),
-            onTap: () {
-              Navigator.pop(context);
-              // Implement status filter
-            },
-          ),
-          ListTile(
-            leading: Icon(Icons.category, color: theme.iconTheme.color),
-            title: Text(localizations?.translate('byType') ?? 'By Type'),
-            trailing: Icon(Icons.chevron_right, color: theme.iconTheme.color),
-            onTap: () {
-              Navigator.pop(context);
-              // Implement type filter
-            },
-          ),
-          ListTile(
-            leading: Icon(Icons.person, color: theme.iconTheme.color),
-            title: Text(localizations?.translate('byAssignee') ?? 'By Assignee'),
-            trailing: Icon(Icons.chevron_right, color: theme.iconTheme.color),
-            onTap: () {
-              Navigator.pop(context);
-              // Implement assignee filter
-            },
-          ),
-          const SizedBox(height: 16),
-        ],
-      ),
-    );
-  }
 }
 
 

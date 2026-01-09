@@ -82,9 +82,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } catch (e) {
       if (!mounted) return;
+      final localizations = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error picking image: ${e.toString()}'),
+          content: Text('${localizations?.translate('errorPickingImage') ?? 'Error picking image'}: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -107,9 +108,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } catch (e) {
       if (!mounted) return;
+      final localizations = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error taking photo: ${e.toString()}'),
+          content: Text('${localizations?.translate('errorTakingPhoto') ?? 'Error taking photo'}: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );

@@ -505,14 +505,20 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
                 await _apiService.deleteProduct(product.id);
                 if (mounted) {
                   scaffoldMessenger.showSnackBar(
-                    SnackBar(content: Text(localizations?.translate('productDeleted') ?? 'Product deleted')),
+                    SnackBar(
+                      content: Text(localizations?.translate('productDeleted') ?? 'Product deleted'),
+                      backgroundColor: Colors.green,
+                    ),
                   );
                   _loadProducts();
                 }
               } catch (e) {
                 if (mounted) {
                   scaffoldMessenger.showSnackBar(
-                    SnackBar(content: Text('${localizations?.translate('error') ?? 'Error'}: $e')),
+                    SnackBar(
+                      content: Text('${localizations?.translate('error') ?? 'Error'}: $e'),
+                      backgroundColor: Colors.red,
+                    ),
                   );
                 }
               }
@@ -677,7 +683,10 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
                 await _apiService.deleteProductCategory(category.id);
                 if (mounted) {
                   scaffoldMessenger.showSnackBar(
-                    SnackBar(content: Text(localizations?.translate('categoryDeleted') ?? 'Category deleted')),
+                    SnackBar(
+                      content: Text(localizations?.translate('categoryDeleted') ?? 'Category deleted'),
+                      backgroundColor: Colors.green,
+                    ),
                   );
                   // Reload categories and products since deleting a category cascades to products
                   await Future.wait([
@@ -688,7 +697,10 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
               } catch (e) {
                 if (mounted) {
                   scaffoldMessenger.showSnackBar(
-                    SnackBar(content: Text('${localizations?.translate('error') ?? 'Error'}: $e')),
+                    SnackBar(
+                      content: Text('${localizations?.translate('error') ?? 'Error'}: $e'),
+                      backgroundColor: Colors.red,
+                    ),
                   );
                 }
               }
@@ -877,14 +889,20 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
                 await _apiService.deleteSupplier(supplier.id);
                 if (mounted) {
                   scaffoldMessenger.showSnackBar(
-                    SnackBar(content: Text(localizations?.translate('supplierDeleted') ?? 'Supplier deleted')),
+                    SnackBar(
+                      content: Text(localizations?.translate('supplierDeleted') ?? 'Supplier deleted'),
+                      backgroundColor: Colors.green,
+                    ),
                   );
                   _loadSuppliers();
                 }
               } catch (e) {
                 if (mounted) {
                   scaffoldMessenger.showSnackBar(
-                    SnackBar(content: Text('${localizations?.translate('error') ?? 'Error'}: $e')),
+                    SnackBar(
+                      content: Text('${localizations?.translate('error') ?? 'Error'}: $e'),
+                      backgroundColor: Colors.red,
+                    ),
                   );
                 }
               }

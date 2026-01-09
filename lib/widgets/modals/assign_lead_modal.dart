@@ -103,6 +103,7 @@ class _AssignLeadModalState extends State<AssignLeadModal> {
                         )?.translate('leadsAssignedSuccessfully') ??
                         'Leads assigned successfully'),
             ),
+            backgroundColor: Colors.green,
           ),
         );
       }

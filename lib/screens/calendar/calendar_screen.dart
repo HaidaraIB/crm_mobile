@@ -49,33 +49,42 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
 
     try {
-      // Get all leads to extract reminders
+      // Get all stages to map stage IDs to names
+      final stages = await _apiService.getStages();
+      final stageMap = <int, String>{};
+      for (final stage in stages) {
+        stageMap[stage.id] = stage.name;
+      }
+      
+      // Get all leads to map lead IDs to names
       final leadsResponse = await _apiService.getLeads();
       final leads = leadsResponse['results'] as List<LeadModel>? ?? [];
+      final leadMap = <int, LeadModel>{};
+      for (final lead in leads) {
+        leadMap[lead.id] = lead;
+      }
+      
+      // Get all client tasks directly from API
+      final tasks = await _apiService.getAllClientTasks();
       
       final events = <CalendarEvent>[];
       
-      // Extract reminders from leads' actions
-      for (final lead in leads) {
-        // Get actions/tasks for this lead
-        try {
-          final tasks = await _apiService.getClientTasks(lead.id);
-          
-          for (final task in tasks) {
-            if (task.reminderDate != null) {
-              events.add(CalendarEvent(
-                id: task.id,
-                title: lead.name,
-                description: task.notes,
-                date: task.reminderDate!,
-                leadId: lead.id,
-                type: 'reminder',
-              ));
-            }
-          }
-        } catch (e) {
-          // Skip if we can't get tasks for this lead
-          debugPrint('Failed to load tasks for lead ${lead.id}: $e');
+      // Extract reminders from tasks
+      final localizations = mounted ? AppLocalizations.of(context) : null;
+      for (final task in tasks) {
+        // Only add events for tasks with reminder dates and valid leads
+        if (task.reminderDate != null && leadMap.containsKey(task.client)) {
+          final lead = leadMap[task.client]!;
+          final stageName = stageMap[task.stage] ?? (localizations?.translate('unknown') ?? 'Unknown');
+          events.add(CalendarEvent(
+            id: task.id,
+            title: stageName,
+            description: task.notes,
+            date: task.reminderDate!,
+            leadId: lead.id,
+            leadName: lead.name,
+            type: 'reminder',
+          ));
         }
       }
       
@@ -149,7 +158,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             children: [
                               // Weekday headers
                               Row(
-                                children: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+                                children: [
+                                  localizations?.translate('sunday') ?? 'Sun',
+                                  localizations?.translate('monday') ?? 'Mon',
+                                  localizations?.translate('tuesday') ?? 'Tue',
+                                  localizations?.translate('wednesday') ?? 'Wed',
+                                  localizations?.translate('thursday') ?? 'Thu',
+                                  localizations?.translate('friday') ?? 'Fri',
+                                  localizations?.translate('saturday') ?? 'Sat',
+                                ]
                                     .map((day) => Expanded(
                                           child: Center(
                                             child: Text(
@@ -173,7 +190,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               // Events for selected date
                               if (eventsForSelectedDate.isNotEmpty) ...[
                                 Text(
-                                  DateFormat('EEEE, MMMM d').format(_selectedDate),
+                                  DateFormat('EEEE, MMMM d', localizations?.locale.languageCode ?? 'en').format(_selectedDate),
                                   style: theme.textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -323,7 +340,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Widget _buildEventCard(CalendarEvent event, ThemeData theme) {
-    final timeFormat = DateFormat('h:mm a');
+    final localizations = AppLocalizations.of(context);
+    final timeFormat = DateFormat('h:mm a', localizations?.locale.languageCode ?? 'en');
     
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -350,6 +368,22 @@ class _CalendarScreenState extends State<CalendarScreen> {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.person,
+                  size: 14,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  event.leadName,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
+            ),
             if (event.description.isNotEmpty) ...[
               const SizedBox(height: 4),
               Text(
@@ -401,10 +435,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
 class CalendarEvent {
   final int id;
-  final String title;
+  final String title; // Stage name (action type)
   final String description;
   final DateTime date;
   final int leadId;
+  final String leadName;
   final String type;
 
   CalendarEvent({
@@ -413,6 +448,7 @@ class CalendarEvent {
     required this.description,
     required this.date,
     required this.leadId,
+    required this.leadName,
     required this.type,
   });
 }

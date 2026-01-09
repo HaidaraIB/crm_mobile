@@ -10,11 +10,8 @@ import '../../widgets/phone_input.dart';
 
 class CreateLeadScreen extends StatefulWidget {
   final Function(LeadModel)? onLeadCreated;
-  
-  const CreateLeadScreen({
-    super.key,
-    this.onLeadCreated,
-  });
+
+  const CreateLeadScreen({super.key, this.onLeadCreated});
 
   @override
   State<CreateLeadScreen> createState() => _CreateLeadScreenState();
@@ -26,22 +23,22 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
   final _phoneController = TextEditingController();
   final _budgetController = TextEditingController();
   final ApiService _apiService = ApiService();
-  
+
   String? _selectedType;
   String? _selectedPriority;
   String? _selectedStatus;
   String? _selectedChannel;
   int? _selectedUserId;
-  
+
   List<UserModel> _users = [];
   List<ChannelModel> _channels = [];
   List<StatusModel> _statuses = [];
   bool _isLoading = false;
   bool _isLoadingData = true;
-  
+
   final List<Map<String, dynamic>> _phoneNumbers = [];
   final Map<String, String> _errors = {};
-  
+
   @override
   void initState() {
     super.initState();
@@ -49,7 +46,7 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
     _selectedPriority = 'medium';
     _loadData();
   }
-  
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -57,19 +54,19 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
     _budgetController.dispose();
     super.dispose();
   }
-  
+
   Future<void> _loadData() async {
     try {
       final usersData = await _apiService.getUsers();
       final channels = await _apiService.getChannels();
       final statuses = await _apiService.getStatuses();
-      
+
       setState(() {
         _users = (usersData['results'] as List).cast<UserModel>();
         _channels = channels;
         _statuses = statuses;
         _isLoadingData = false;
-        
+
         // Set defaults
         if (_channels.isNotEmpty && _selectedChannel == null) {
           _selectedChannel = _channels.first.name;
@@ -92,65 +89,82 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
         _isLoadingData = false;
       });
       if (mounted) {
+        final localizations = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to load data: ${e.toString()}'),
+            content: Text('${localizations?.translate('failedToLoadData') ?? 'Failed to load data'}: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
       }
     }
   }
-  
+
   bool _validateForm() {
     _errors.clear();
     bool isValid = true;
-    
+
     if (_nameController.text.trim().isEmpty) {
-      _errors['name'] = AppLocalizations.of(context)?.translate('nameRequired') ?? 'Name is required';
+      _errors['name'] =
+          AppLocalizations.of(context)?.translate('nameRequired') ??
+          'Name is required';
       isValid = false;
     }
-    
+
     final finalPhoneNumbers = _phoneNumbers.isNotEmpty
-        ? _phoneNumbers.where((p) => p['phone_number'].toString().trim().isNotEmpty).toList()
+        ? _phoneNumbers
+              .where((p) => p['phone_number'].toString().trim().isNotEmpty)
+              .toList()
         : _phoneController.text.trim().isNotEmpty
-            ? [{
-                'phone_number': _phoneController.text.trim(),
-                'phone_type': 'mobile',
-                'is_primary': true,
-                'notes': '',
-              }]
-            : [];
-    
+        ? [
+            {
+              'phone_number': _phoneController.text.trim(),
+              'phone_type': 'mobile',
+              'is_primary': true,
+              'notes': '',
+            },
+          ]
+        : [];
+
     if (finalPhoneNumbers.isEmpty) {
-      _errors['phone'] = AppLocalizations.of(context)?.translate('phoneNumberRequired') ?? 'At least one phone number is required';
+      _errors['phone'] =
+          AppLocalizations.of(context)?.translate('phoneNumberRequired') ??
+          'At least one phone number is required';
       isValid = false;
     }
-    
+
     if (_selectedChannel == null || _selectedChannel!.isEmpty) {
-      _errors['communicationWay'] = AppLocalizations.of(context)?.translate('communicationWayRequired') ?? 'Communication channel is required';
+      _errors['communicationWay'] =
+          AppLocalizations.of(context)?.translate('communicationWayRequired') ??
+          'Communication channel is required';
       isValid = false;
     }
-    
+
     if (_selectedStatus == null || _selectedStatus!.isEmpty) {
-      _errors['status'] = AppLocalizations.of(context)?.translate('statusRequired') ?? 'Status is required';
+      _errors['status'] =
+          AppLocalizations.of(context)?.translate('statusRequired') ??
+          'Status is required';
       isValid = false;
     }
-    
+
     if (_selectedPriority == null || _selectedPriority!.isEmpty) {
-      _errors['priority'] = AppLocalizations.of(context)?.translate('priorityRequired') ?? 'Priority is required';
+      _errors['priority'] =
+          AppLocalizations.of(context)?.translate('priorityRequired') ??
+          'Priority is required';
       isValid = false;
     }
-    
+
     if (_selectedType == null || _selectedType!.isEmpty) {
-      _errors['type'] = AppLocalizations.of(context)?.translate('typeRequired') ?? 'Type is required';
+      _errors['type'] =
+          AppLocalizations.of(context)?.translate('typeRequired') ??
+          'Type is required';
       isValid = false;
     }
-    
+
     setState(() {});
     return isValid;
   }
-  
+
   void _clearError(String field) {
     if (_errors.containsKey(field)) {
       setState(() {
@@ -158,7 +172,7 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
       });
     }
   }
-  
+
   void _addPhoneNumber() {
     setState(() {
       _phoneNumbers.add({
@@ -169,16 +183,17 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
       });
     });
   }
-  
+
   void _removePhoneNumber(int index) {
     setState(() {
       _phoneNumbers.removeAt(index);
-      if (_phoneNumbers.isNotEmpty && !_phoneNumbers.any((p) => p['is_primary'] == true)) {
+      if (_phoneNumbers.isNotEmpty &&
+          !_phoneNumbers.any((p) => p['is_primary'] == true)) {
         _phoneNumbers[0]['is_primary'] = true;
       }
     });
   }
-  
+
   void _setPrimaryPhone(int index) {
     setState(() {
       for (int i = 0; i < _phoneNumbers.length; i++) {
@@ -186,26 +201,30 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
       }
     });
   }
-  
+
   Future<void> _submit() async {
     if (!_validateForm()) {
       return;
     }
-    
+
     setState(() {
       _isLoading = true;
     });
-    
+
     try {
       final phoneNumbers = _phoneNumbers.isNotEmpty
-          ? _phoneNumbers.where((p) => p['phone_number'].toString().trim().isNotEmpty).toList()
-          : [{
-              'phone_number': _phoneController.text.trim(),
-              'phone_type': 'mobile',
-              'is_primary': true,
-              'notes': '',
-            }];
-      
+          ? _phoneNumbers
+                .where((p) => p['phone_number'].toString().trim().isNotEmpty)
+                .toList()
+          : [
+              {
+                'phone_number': _phoneController.text.trim(),
+                'phone_type': 'mobile',
+                'is_primary': true,
+                'notes': '',
+              },
+            ];
+
       Map<String, dynamic> primaryPhoneMap;
       try {
         primaryPhoneMap = phoneNumbers.firstWhere(
@@ -215,7 +234,7 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
         primaryPhoneMap = phoneNumbers.first;
       }
       final primaryPhone = primaryPhoneMap['phone_number'] as String;
-      
+
       // Convert channel name to ID
       int? channelId;
       if (_selectedChannel != null) {
@@ -225,7 +244,7 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
         );
         channelId = channel.id;
       }
-      
+
       // Convert status name to ID
       int? statusId;
       if (_selectedStatus != null) {
@@ -235,7 +254,7 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
         );
         statusId = status.id;
       }
-      
+
       final lead = await _apiService.createLead(
         name: _nameController.text.trim(),
         phone: primaryPhone,
@@ -249,16 +268,19 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
         priority: _selectedPriority,
         statusId: statusId,
       );
-      
+
       if (mounted) {
         widget.onLeadCreated?.call(lead);
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              AppLocalizations.of(context)?.translate('leadCreatedSuccessfully') ?? 
-              'Lead created successfully',
+              AppLocalizations.of(
+                    context,
+                  )?.translate('leadCreatedSuccessfully') ??
+                  'Lead created successfully',
             ),
+            backgroundColor: Colors.green,
           ),
         );
       }
@@ -272,11 +294,9 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
         setState(() {
           _errors['general'] = e.toString();
         });
+        final localizations = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString()),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('${localizations?.translate('error') ?? 'Error'}: ${e.toString()}'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -287,276 +307,345 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
       }
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final isRTL = localizations?.isRTL ?? false;
-    
+
     return Directionality(
       textDirection: isRTL ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: Text(
+            localizations?.translate('createNewLead') ?? 'Create New Lead',
+          ),
         ),
-        title: Text(localizations?.translate('createNewLead') ?? 'Create New Lead'),
-      ),
-      body: _isLoadingData
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Form(
-                key: _formKey,
-                child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Title
-                        Text(
-                          localizations?.translate('leadInformation') ?? 'Lead Information',
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Divider(height: 32),
-                        
-                        // Errors
-                        if (_errors.isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            margin: const EdgeInsets.only(bottom: 16),
-                            decoration: BoxDecoration(
-                              color: Colors.red.withValues(alpha: 0.1),
-                              border: Border.all(color: Colors.red),
-                              borderRadius: BorderRadius.circular(8),
+        body: _isLoadingData
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Form(
+                  key: _formKey,
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Title
+                          Text(
+                            localizations?.translate('leadInformation') ??
+                                'Lead Information',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (_errors.containsKey('general'))
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 8),
-                                    child: Text(
-                                      _errors['general']!,
-                                      style: const TextStyle(
-                                        color: Colors.red,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                if (_errors.keys.where((k) => k != 'general').isNotEmpty) ...[
-                                  if (!_errors.containsKey('general'))
+                          ),
+                          const Divider(height: 32),
+
+                          // Errors
+                          if (_errors.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              margin: const EdgeInsets.only(bottom: 16),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withValues(alpha: 0.1),
+                                border: Border.all(color: Colors.red),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (_errors.containsKey('general'))
                                     Padding(
                                       padding: const EdgeInsets.only(bottom: 8),
                                       child: Text(
-                                        localizations?.translate('pleaseFixErrors') ?? 'Please fix the following errors:',
+                                        _errors['general']!,
                                         style: const TextStyle(
                                           color: Colors.red,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                     ),
-                                  ..._errors.entries
-                                      .where((e) => e.key != 'general')
-                                      .map((e) => Padding(
-                                            padding: const EdgeInsets.only(bottom: 4),
+                                  if (_errors.keys
+                                      .where((k) => k != 'general')
+                                      .isNotEmpty) ...[
+                                    if (!_errors.containsKey('general'))
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 8,
+                                        ),
+                                        child: Text(
+                                          localizations?.translate(
+                                                'pleaseFixErrors',
+                                              ) ??
+                                              'Please fix the following errors:',
+                                          style: const TextStyle(
+                                            color: Colors.red,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ..._errors.entries
+                                        .where((e) => e.key != 'general')
+                                        .map(
+                                          (e) => Padding(
+                                            padding: const EdgeInsets.only(
+                                              bottom: 4,
+                                            ),
                                             child: Text(
                                               '• ${e.value}',
-                                              style: const TextStyle(color: Colors.red),
+                                              style: const TextStyle(
+                                                color: Colors.red,
+                                              ),
                                             ),
-                                          )),
+                                          ),
+                                        ),
+                                  ],
                                 ],
-                              ],
+                              ),
                             ),
-                          ),
-                        
-                        // Form fields
-                        Column(
-                              children: [
-                                // Name
-                                _buildTextField(
-                                  label: '${localizations?.translate('clientName') ?? 'Client Name'} *',
-                                  controller: _nameController,
-                                  hint: localizations?.translate('enterClientName') ?? 'Enter client name',
-                                  error: _errors['name'],
-                                  onChanged: () => _clearError('name'),
-                                ),
-                                const SizedBox(height: 16),
-                                
-                                // Budget
-                                _buildTextField(
-                                  label: localizations?.translate('budget') ?? 'Budget',
-                                  controller: _budgetController,
-                                  hint: localizations?.translate('enterBudget') ?? 'Enter budget',
-                                  keyboardType: TextInputType.number,
-                                  error: _errors['budget'],
-                                  onChanged: () => _clearError('budget'),
-                                ),
-                                const SizedBox(height: 16),
-                                
-                                // Phone Numbers
-                                _buildPhoneNumbersSection(localizations, theme),
-                                const SizedBox(height: 16),
-                                
-                                // Assigned To
-                                _buildDropdown<int>(
-                                  label: localizations?.translate('assignedTo') ?? 'Assigned To',
-                                  value: _selectedUserId,
-                                  items: [
-                                    DropdownMenuItem(
-                                      value: null,
-                                      child: Text(localizations?.translate('unassigned') ?? 'Unassigned'),
+
+                          // Form fields
+                          Column(
+                            children: [
+                              // Name
+                              _buildTextField(
+                                label:
+                                    '${localizations?.translate('clientName') ?? 'Client Name'} *',
+                                controller: _nameController,
+                                hint:
+                                    localizations?.translate(
+                                      'enterClientName',
+                                    ) ??
+                                    'Enter client name',
+                                error: _errors['name'],
+                                onChanged: () => _clearError('name'),
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Budget
+                              _buildTextField(
+                                label:
+                                    localizations?.translate('budget') ??
+                                    'Budget',
+                                controller: _budgetController,
+                                hint:
+                                    localizations?.translate('enterBudget') ??
+                                    'Enter budget',
+                                keyboardType: TextInputType.number,
+                                error: _errors['budget'],
+                                onChanged: () => _clearError('budget'),
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Phone Numbers
+                              _buildPhoneNumbersSection(localizations, theme),
+                              const SizedBox(height: 16),
+
+                              // Assigned To
+                              _buildDropdown<int>(
+                                label:
+                                    localizations?.translate('assignedTo') ??
+                                    'Assigned To',
+                                value: _selectedUserId,
+                                items: [
+                                  DropdownMenuItem(
+                                    value: null,
+                                    child: Text(
+                                      localizations?.translate('unassigned') ??
+                                          'Unassigned',
                                     ),
-                                    ..._users.map((user) => DropdownMenuItem(
-                                          value: user.id,
-                                          child: Text(user.displayName),
-                                        )),
-                                  ],
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _selectedUserId = value;
-                                    });
-                                  },
-                                ),
-                                const SizedBox(height: 16),
-                                
-                                // Type
-                                _buildDropdown<String>(
-                                  label: '${localizations?.translate('type') ?? 'Type'} *',
-                                  value: _selectedType,
-                                  items: [
-                                    DropdownMenuItem(
-                                      value: 'fresh',
-                                      child: Text(localizations?.translate('fresh') ?? 'Fresh'),
+                                  ),
+                                  ..._users.map(
+                                    (user) => DropdownMenuItem(
+                                      value: user.id,
+                                      child: Text(user.displayName),
                                     ),
-                                    DropdownMenuItem(
-                                      value: 'cold',
-                                      child: Text(localizations?.translate('cold') ?? 'Cold'),
+                                  ),
+                                ],
+                                onChanged: (value) {
+                                  setState(() {
+                                    _selectedUserId = value;
+                                  });
+                                },
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Type
+                              _buildDropdown<String>(
+                                label:
+                                    '${localizations?.translate('type') ?? 'Type'} *',
+                                value: _selectedType,
+                                items: [
+                                  DropdownMenuItem(
+                                    value: 'fresh',
+                                    child: Text(
+                                      localizations?.translate('fresh') ??
+                                          'Fresh',
                                     ),
-                                  ],
-                                  error: _errors['type'],
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _selectedType = value;
-                                      _clearError('type');
-                                    });
-                                  },
-                                ),
-                                const SizedBox(height: 16),
-                                
-                                // Communication Way
-                                _buildDropdown<String>(
-                                  label: '${localizations?.translate('communicationWay') ?? 'Communication Way'} *',
-                                  value: _selectedChannel,
-                                  items: _channels.map((channel) => DropdownMenuItem(
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'cold',
+                                    child: Text(
+                                      localizations?.translate('cold') ??
+                                          'Cold',
+                                    ),
+                                  ),
+                                ],
+                                error: _errors['type'],
+                                onChanged: (value) {
+                                  setState(() {
+                                    _selectedType = value;
+                                    _clearError('type');
+                                  });
+                                },
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Communication Way
+                              _buildDropdown<String>(
+                                label:
+                                    '${localizations?.translate('communicationWay') ?? 'Communication Way'} *',
+                                value: _selectedChannel,
+                                items: _channels
+                                    .map(
+                                      (channel) => DropdownMenuItem(
                                         value: channel.name,
                                         child: Text(channel.name),
-                                      )).toList(),
-                                  error: _errors['communicationWay'],
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _selectedChannel = value;
-                                      _clearError('communicationWay');
-                                    });
-                                  },
-                                ),
-                                const SizedBox(height: 16),
-                                
-                                // Priority
-                                _buildDropdown<String>(
-                                  label: '${localizations?.translate('priority') ?? 'Priority'} *',
-                                  value: _selectedPriority,
-                                  items: [
-                                    DropdownMenuItem(
-                                      value: 'high',
-                                      child: Text(localizations?.translate('high') ?? 'High'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'medium',
-                                      child: Text(localizations?.translate('medium') ?? 'Medium'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'low',
-                                      child: Text(localizations?.translate('low') ?? 'Low'),
-                                    ),
-                                  ],
-                                  error: _errors['priority'],
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _selectedPriority = value;
-                                      _clearError('priority');
-                                    });
-                                  },
-                                ),
-                                const SizedBox(height: 16),
-                                
-                                // Status
-                                _buildDropdown<String>(
-                                  label: '${localizations?.translate('status') ?? 'Status'} *',
-                                  value: _selectedStatus,
-                                  items: _statuses
-                                      .where((s) => !s.isHidden)
-                                      .map((status) => DropdownMenuItem(
-                                            value: status.name,
-                                            child: Text(status.name),
-                                          ))
-                                      .toList(),
-                                  error: _errors['status'],
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _selectedStatus = value;
-                                      _clearError('status');
-                                    });
-                                  },
-                                ),
-                              ],
-                            ),
-                        
-                        const SizedBox(height: 24),
-                        
-                        // Buttons
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            TextButton(
-                              onPressed: _isLoading ? null : () => Navigator.pop(context),
-                              child: Text(localizations?.translate('cancel') ?? 'Cancel'),
-                            ),
-                            const SizedBox(width: 8),
-                            ElevatedButton(
-                              onPressed: _isLoading ? null : _submit,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.primaryColor,
-                                foregroundColor: Colors.white,
-                              ),
-                              child: _isLoading
-                                  ? const SizedBox(
-                                      height: 20,
-                                      width: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                                       ),
                                     )
-                                  : Text(localizations?.translate('createLead') ?? 'Create Lead'),
-                            ),
-                          ],
-                        ),
-                      ],
+                                    .toList(),
+                                error: _errors['communicationWay'],
+                                onChanged: (value) {
+                                  setState(() {
+                                    _selectedChannel = value;
+                                    _clearError('communicationWay');
+                                  });
+                                },
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Priority
+                              _buildDropdown<String>(
+                                label:
+                                    '${localizations?.translate('priority') ?? 'Priority'} *',
+                                value: _selectedPriority,
+                                items: [
+                                  DropdownMenuItem(
+                                    value: 'high',
+                                    child: Text(
+                                      localizations?.translate('high') ??
+                                          'High',
+                                    ),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'medium',
+                                    child: Text(
+                                      localizations?.translate('medium') ??
+                                          'Medium',
+                                    ),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'low',
+                                    child: Text(
+                                      localizations?.translate('low') ?? 'Low',
+                                    ),
+                                  ),
+                                ],
+                                error: _errors['priority'],
+                                onChanged: (value) {
+                                  setState(() {
+                                    _selectedPriority = value;
+                                    _clearError('priority');
+                                  });
+                                },
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Status
+                              _buildDropdown<String>(
+                                label:
+                                    '${localizations?.translate('status') ?? 'Status'} *',
+                                value: _selectedStatus,
+                                items: _statuses
+                                    .where((s) => !s.isHidden)
+                                    .map(
+                                      (status) => DropdownMenuItem(
+                                        value: status.name,
+                                        child: Text(status.name),
+                                      ),
+                                    )
+                                    .toList(),
+                                error: _errors['status'],
+                                onChanged: (value) {
+                                  setState(() {
+                                    _selectedStatus = value;
+                                    _clearError('status');
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 24),
+
+                          // Buttons
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              TextButton(
+                                onPressed: _isLoading
+                                    ? null
+                                    : () => Navigator.pop(context),
+                                child: Text(
+                                  localizations?.translate('cancel') ??
+                                      'Cancel',
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              ElevatedButton(
+                                onPressed: _isLoading ? null : _submit,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.primaryColor,
+                                  foregroundColor: Colors.white,
+                                ),
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                Colors.white,
+                                              ),
+                                        ),
+                                      )
+                                    : Text(
+                                        localizations?.translate(
+                                              'createLead',
+                                            ) ??
+                                            'Create Lead',
+                                      ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
       ),
     );
   }
-  
+
   Widget _buildTextField({
     required String label,
     required TextEditingController controller,
@@ -568,18 +657,13 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
+        Text(label, style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
           decoration: InputDecoration(
             hintText: hint,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             errorBorder: error != null
                 ? OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -601,7 +685,7 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
       ],
     );
   }
-  
+
   Widget _buildDropdown<T>({
     required String label,
     required T? value,
@@ -612,17 +696,12 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
+        Text(label, style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         DropdownButtonFormField<T>(
           initialValue: value,
           decoration: InputDecoration(
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             errorBorder: error != null
                 ? OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -644,8 +723,11 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
       ],
     );
   }
-  
-  Widget _buildPhoneNumbersSection(AppLocalizations? localizations, ThemeData theme) {
+
+  Widget _buildPhoneNumbersSection(
+    AppLocalizations? localizations,
+    ThemeData theme,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -672,7 +754,9 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
         if (_phoneNumbers.isEmpty)
           PhoneInput(
             value: _phoneController.text,
-            hintText: localizations?.translate('enterPhoneNumber') ?? 'Enter phone number',
+            hintText:
+                localizations?.translate('enterPhoneNumber') ??
+                'Enter phone number',
             onChanged: (value) {
               _phoneController.text = value;
               _clearError('phone');
@@ -694,8 +778,11 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
                   children: [
                     // Phone Number Input Row
                     PhoneInput(
-                      value: _phoneNumbers[index]['phone_number'] as String? ?? '',
-                      hintText: localizations?.translate('enterPhoneNumber') ?? 'Enter phone number',
+                      value:
+                          _phoneNumbers[index]['phone_number'] as String? ?? '',
+                      hintText:
+                          localizations?.translate('enterPhoneNumber') ??
+                          'Enter phone number',
                       onChanged: (value) {
                         setState(() {
                           _phoneNumbers[index]['phone_number'] = value;
@@ -710,40 +797,50 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
                         // Phone Type Dropdown
                         Expanded(
                           child: DropdownButtonFormField<String>(
-                            initialValue: _phoneNumbers[index]['phone_type'] as String? ?? 'mobile',
+                            initialValue:
+                                _phoneNumbers[index]['phone_type'] as String? ??
+                                'mobile',
                             decoration: InputDecoration(
-                              labelText: localizations?.translate('type') ?? 'Type',
+                              labelText:
+                                  localizations?.translate('type') ?? 'Type',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 12,
+                              ),
                             ),
                             items: [
                               DropdownMenuItem(
                                 value: 'mobile',
                                 child: Text(
-                                  localizations?.translate('phoneTypeMobile') ?? 'Mobile',
+                                  localizations?.translate('phoneTypeMobile') ??
+                                      'Mobile',
                                   style: const TextStyle(fontSize: 14),
                                 ),
                               ),
                               DropdownMenuItem(
                                 value: 'home',
                                 child: Text(
-                                  localizations?.translate('phoneTypeHome') ?? 'Home',
+                                  localizations?.translate('phoneTypeHome') ??
+                                      'Home',
                                   style: const TextStyle(fontSize: 14),
                                 ),
                               ),
                               DropdownMenuItem(
                                 value: 'work',
                                 child: Text(
-                                  localizations?.translate('phoneTypeWork') ?? 'Work',
+                                  localizations?.translate('phoneTypeWork') ??
+                                      'Work',
                                   style: const TextStyle(fontSize: 14),
                                 ),
                               ),
                               DropdownMenuItem(
                                 value: 'other',
                                 child: Text(
-                                  localizations?.translate('phoneTypeOther') ?? 'Other',
+                                  localizations?.translate('phoneTypeOther') ??
+                                      'Other',
                                   style: const TextStyle(fontSize: 14),
                                 ),
                               ),
@@ -761,7 +858,9 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
                         Row(
                           children: [
                             Checkbox(
-                              value: _phoneNumbers[index]['is_primary'] as bool? ?? false,
+                              value:
+                                  _phoneNumbers[index]['is_primary'] as bool? ??
+                                  false,
                               onChanged: (value) {
                                 setState(() {
                                   _setPrimaryPhone(index);
@@ -779,7 +878,8 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
                         IconButton(
                           icon: const Icon(Icons.delete, color: Colors.red),
                           onPressed: () => _removePhoneNumber(index),
-                          tooltip: localizations?.translate('delete') ?? 'Delete',
+                          tooltip:
+                              localizations?.translate('delete') ?? 'Delete',
                         ),
                       ],
                     ),
@@ -800,4 +900,3 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
     );
   }
 }
-

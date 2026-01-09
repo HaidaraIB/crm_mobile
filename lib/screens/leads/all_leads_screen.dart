@@ -17,12 +17,16 @@ class AllLeadsScreen extends StatefulWidget {
   final String? type; // 'fresh', 'cold', or null for all
   final String? status; // 'untouched', 'touched', 'following', or null for all
   final bool showAppBar;
-  
+  final Function(VoidCallback)? onFilterRequested; // Callback to register filter function
+  final Function(bool Function())? onHasActiveFiltersRequested; // Callback to register hasActiveFilters function
+
   const AllLeadsScreen({
     super.key,
     this.type,
     this.status,
     this.showAppBar = true,
+    this.onFilterRequested,
+    this.onHasActiveFiltersRequested,
   });
 
   @override
@@ -37,16 +41,19 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   List<StatusModel> _statuses = [];
-  final Map<int, bool> _updatingStatusMap = {}; // Track which leads are updating status
+  final Map<int, bool> _updatingStatusMap =
+      {}; // Track which leads are updating status
   List<UserModel> _users = [];
-  final Map<int, UserModel> _userCache = {}; // Cache for users fetched individually
+  final Map<int, UserModel> _userCache =
+      {}; // Cache for users fetched individually
   UserModel? _currentUser;
-  
+
   // Filter state
   String? _selectedType; // 'fresh', 'cold', or null for all
-  String? _selectedStatus; // 'untouched', 'touched', 'following', or null for all
+  String?
+  _selectedStatus; // 'untouched', 'touched', 'following', or null for all
   int? _selectedAssigneeId; // User ID or null for all
-  
+
   @override
   void initState() {
     super.initState();
@@ -59,7 +66,19 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     _loadUsers();
     _searchController.addListener(_filterLeads);
   }
-  
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Register callbacks after build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        widget.onFilterRequested?.call(showFilterModal);
+        widget.onHasActiveFiltersRequested?.call(hasActiveFilters);
+      }
+    });
+  }
+
   Future<void> _loadCurrentUser() async {
     try {
       final user = await _apiService.getCurrentUser();
@@ -70,7 +89,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       debugPrint('Failed to load current user: $e');
     }
   }
-  
+
   // Check if user can edit/delete this lead
   bool _canModifyLead(LeadModel lead) {
     if (_currentUser == null) return false;
@@ -79,7 +98,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     // Employee can only modify leads assigned to them
     return lead.assignedTo == _currentUser!.id;
   }
-  
+
   Future<void> _loadUsers() async {
     try {
       final usersData = await _apiService.getUsers();
@@ -90,22 +109,23 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       // Silently fail - users are optional for display
     }
   }
-  
-  String _getAssignedUserName(int? assignedToId, AppLocalizations? localizations) {
+
+  String _getAssignedUserName(
+    int? assignedToId,
+    AppLocalizations? localizations,
+  ) {
     if (assignedToId == null || assignedToId <= 0) {
       return localizations?.translate('notAssigned') ?? 'Not assigned';
     }
-    
+
     // Check cache first
     if (_userCache.containsKey(assignedToId)) {
       return _userCache[assignedToId]!.displayName;
     }
-    
+
     // Try to find user in the list
     try {
-      final user = _users.firstWhere(
-        (u) => u.id == assignedToId,
-      );
+      final user = _users.firstWhere((u) => u.id == assignedToId);
       // Cache it for future use
       _userCache[assignedToId] = user;
       return user.displayName;
@@ -120,11 +140,11 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       return localizations?.translate('assigned') ?? 'Assigned';
     }
   }
-  
+
   Future<void> _fetchUserById(int userId) async {
     // Don't fetch if already in cache or already fetching
     if (_userCache.containsKey(userId)) return;
-    
+
     try {
       final user = await _apiService.getUserById(userId);
       if (mounted) {
@@ -136,7 +156,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       debugPrint('Failed to fetch user $userId: $e');
     }
   }
-  
+
   Future<void> _loadStatuses() async {
     try {
       final statuses = await _apiService.getStatuses();
@@ -147,7 +167,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       // Silently fail - statuses are optional
     }
   }
-  
+
   Color _parseColor(String colorString) {
     try {
       // Remove # if present
@@ -165,7 +185,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       return AppTheme.primaryColor;
     }
   }
-  
+
   StatusModel? _getCurrentStatus(LeadModel lead) {
     if (lead.statusName == null || _statuses.isEmpty) return null;
     return _statuses.firstWhere(
@@ -173,20 +193,20 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       orElse: () => _statuses.first,
     );
   }
-  
+
   Future<void> _updateStatus(LeadModel lead, StatusModel? newStatus) async {
     if (newStatus == null) return;
-    
+
     setState(() {
       _updatingStatusMap[lead.id] = true;
     });
-    
+
     try {
       final updatedLead = await _apiService.updateLead(
         id: lead.id,
         statusId: newStatus.id,
       );
-      
+
       // Update the lead in the list
       setState(() {
         final index = _leads.indexWhere((l) => l.id == lead.id);
@@ -199,14 +219,14 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
         }
         _updatingStatusMap[lead.id] = false;
       });
-      
+
       if (mounted) {
         final localizations = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              localizations?.translate('statusUpdatedSuccessfully') ?? 
-              'Status updated to ${newStatus.name}',
+              localizations?.translate('statusUpdatedSuccessfully') ??
+                  'Status updated to ${newStatus.name}',
             ),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 2),
@@ -217,55 +237,59 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       setState(() {
         _updatingStatusMap[lead.id] = false;
       });
-      
+
       if (mounted) {
+        final localizations = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to update status: ${e.toString()}'),
+            content: Text(
+              '${localizations?.translate('failedToUpdateStatus') ?? 'Failed to update status'}: ${e.toString()}',
+            ),
             backgroundColor: Colors.red,
           ),
         );
       }
     }
   }
-  
+
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
   }
-  
+
   Future<void> _loadLeads() async {
     try {
       setState(() {
         _isLoading = true;
         _errorMessage = null;
       });
-      
+
       final result = await _apiService.getLeads(
         type: widget.type,
         status: widget.status,
       );
       final leads = (result['results'] as List).cast<LeadModel>();
-      
+
       // Apply client-side filtering to ensure accuracy
       List<LeadModel> filteredLeads = leads;
-      
+
       // Filter by type if provided
       if (widget.type != null) {
         filteredLeads = filteredLeads.where((lead) {
           return lead.type.toLowerCase() == widget.type!.toLowerCase();
         }).toList();
       }
-      
+
       // Filter by status if provided
       if (widget.status != null) {
         filteredLeads = filteredLeads.where((lead) {
-          final leadStatus = (lead.statusName ?? lead.status ?? '').toLowerCase();
+          final leadStatus = (lead.statusName ?? lead.status ?? '')
+              .toLowerCase();
           return leadStatus == widget.status!.toLowerCase();
         }).toList();
       }
-      
+
       setState(() {
         _leads = filteredLeads;
         _filteredLeads = filteredLeads;
@@ -278,12 +302,12 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       });
     }
   }
-  
+
   void _filterLeads() {
     final query = _searchController.text.toLowerCase();
     setState(() {
       var filtered = _leads;
-      
+
       // Apply search query
       if (query.isNotEmpty) {
         filtered = filtered.where((lead) {
@@ -291,138 +315,136 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
               lead.phone.contains(query);
         }).toList();
       }
-      
+
       // Apply type filter
       if (_selectedType != null) {
         filtered = filtered.where((lead) {
           return lead.type.toLowerCase() == _selectedType!.toLowerCase();
         }).toList();
       }
-      
+
       // Apply status filter
       if (_selectedStatus != null) {
         filtered = filtered.where((lead) {
-          final leadStatus = (lead.statusName ?? lead.status ?? '').toLowerCase();
+          final leadStatus = (lead.statusName ?? lead.status ?? '')
+              .toLowerCase();
           return leadStatus == _selectedStatus!.toLowerCase();
         }).toList();
       }
-      
+
       // Apply assignee filter
       if (_selectedAssigneeId != null) {
         filtered = filtered.where((lead) {
           return lead.assignedTo == _selectedAssigneeId;
         }).toList();
       }
-      
+
       _filteredLeads = filtered;
     });
   }
-  
+
   void _applyFilters() {
     _filterLeads();
+    setState(() {}); // Trigger rebuild to update filter indicator
   }
-  
-  void _clearFilters() {
-    setState(() {
-      _selectedType = null;
-      _selectedStatus = null;
-      _selectedAssigneeId = null;
-    });
-    _filterLeads();
-  }
-  
+
+
   Future<void> _openWhatsApp(String phoneNumber) async {
     try {
       // Clean phone number - remove all non-digit characters
-    final cleanPhone = phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
+      final cleanPhone = phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
       if (cleanPhone.isEmpty) {
         if (mounted) {
+          final localizations = AppLocalizations.of(context);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Invalid phone number')),
+            SnackBar(
+              content: Text(
+                localizations?.translate('invalidPhoneNumber') ??
+                    'Invalid phone number',
+              ),
+            ),
           );
         }
         return;
       }
-      
-    final uri = Uri.parse('https://wa.me/$cleanPhone');
+
+      final uri = Uri.parse('https://wa.me/$cleanPhone');
       final launched = await launchUrl(
         uri,
         mode: LaunchMode.externalApplication,
       );
       if (!launched && mounted) {
+        final localizations = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open WhatsApp')),
+          SnackBar(
+            content: Text(
+              localizations?.translate('couldNotOpenWhatsApp') ??
+                  'Could not open WhatsApp',
+            ),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
+        final localizations = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open WhatsApp')),
+          SnackBar(
+            content: Text(
+              localizations?.translate('couldNotOpenWhatsApp') ??
+                  'Could not open WhatsApp',
+            ),
+          ),
         );
       }
     }
   }
-  
+
   Future<void> _makeCall(String phoneNumber) async {
     try {
-    final uri = Uri.parse('tel:$phoneNumber');
+      final uri = Uri.parse('tel:$phoneNumber');
       final launched = await launchUrl(
         uri,
         mode: LaunchMode.externalApplication,
       );
       if (!launched && mounted) {
+        final localizations = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not make call')),
+          SnackBar(
+            content: Text(
+              localizations?.translate('couldNotMakeCall') ??
+                  'Could not make call',
+            ),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
+        final localizations = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not make call')),
+          SnackBar(
+            content: Text(
+              localizations?.translate('couldNotMakeCall') ??
+                  'Could not make call',
+            ),
+          ),
         );
       }
     }
   }
-  
+
   void _showAddActionModal(LeadModel lead) {
-    final localizations = AppLocalizations.of(context);
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (context) => AddActionModal(
         leadId: lead.id,
-        onSave: (stageId, notes, reminderDate) async {
-          try {
-            await _apiService.addActionToLead(
-              leadId: lead.id,
-              stage: stageId,
-              notes: notes,
-              reminderDate: reminderDate,
-            );
-            if (!mounted) return;
-            ScaffoldMessenger.of(this.context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  localizations?.translate('actionAdded') ?? 'Action added successfully',
-                ),
-              ),
-            );
-            _loadLeads();
-          } catch (e) {
-            if (!mounted) return;
-            ScaffoldMessenger.of(this.context).showSnackBar(
-              SnackBar(
-                content: Text(e.toString()),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
+        onSave: (stageId, notes, reminderDate) {
+          // Refresh leads list after action is added
+          _loadLeads();
         },
       ),
     );
   }
-  
+
   String _getErrorMessage(dynamic error) {
     final errorString = error.toString().toLowerCase();
     if (errorString.contains('socketexception') ||
@@ -445,7 +467,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
   ) {
     final isNoInternet = _errorMessage == 'NO_INTERNET';
     final isTimeout = _errorMessage == 'CONNECTION_TIMEOUT';
-    
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -460,10 +482,13 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
             const SizedBox(height: 16),
             Text(
               isNoInternet
-                  ? (localizations?.translate('noInternetConnection') ?? 'No Internet Connection')
+                  ? (localizations?.translate('noInternetConnection') ??
+                        'No Internet Connection')
                   : isTimeout
-                      ? (localizations?.translate('connectionError') ?? 'Connection Error')
-                      : (localizations?.translate('errorOccurred') ?? 'An error occurred'),
+                  ? (localizations?.translate('connectionError') ??
+                        'Connection Error')
+                  : (localizations?.translate('errorOccurred') ??
+                        'An error occurred'),
               style: theme.textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: theme.colorScheme.error,
@@ -473,10 +498,12 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
             const SizedBox(height: 8),
             Text(
               isNoInternet
-                  ? (localizations?.translate('noInternetMessage') ?? 'Please check your internet connection and try again')
+                  ? (localizations?.translate('noInternetMessage') ??
+                        'Please check your internet connection and try again')
                   : isTimeout
-                      ? (localizations?.translate('connectionErrorMessage') ?? 'Unable to connect to the server. Please try again later')
-                      : _errorMessage!,
+                  ? (localizations?.translate('connectionErrorMessage') ??
+                        'Unable to connect to the server. Please try again later')
+                  : _errorMessage!,
               style: theme.textTheme.bodyMedium,
               textAlign: TextAlign.center,
             ),
@@ -488,7 +515,10 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryColor,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
               ),
             ),
           ],
@@ -514,12 +544,12 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     }
     return localizations?.translate('allLeads') ?? 'All Leads';
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    
+
     return Scaffold(
       appBar: widget.showAppBar
           ? AppBar(
@@ -529,7 +559,9 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                   icon: Stack(
                     children: [
                       const Icon(Icons.filter_list),
-                      if (_selectedType != null || _selectedStatus != null || _selectedAssigneeId != null)
+                      if (_selectedType != null ||
+                          _selectedStatus != null ||
+                          _selectedAssigneeId != null)
                         Positioned(
                           right: 0,
                           top: 0,
@@ -555,51 +587,54 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
-              ? _buildErrorWidget(context, localizations, theme)
-              : Column(
-                  children: [
-                    // Search Bar
-                    Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: TextField(
-                        controller: _searchController,
-                        decoration: InputDecoration(
-                          hintText: localizations?.translate('typeToSearch') ?? 'Type to search...',
-                          prefixIcon: const Icon(Icons.search),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
+          ? _buildErrorWidget(context, localizations, theme)
+          : Column(
+              children: [
+                // Search Bar
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText:
+                          localizations?.translate('typeToSearch') ??
+                          'Type to search...',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    
-                    // Leads List
-                    Expanded(
-                      child: RefreshIndicator(
-                        onRefresh: _loadLeads,
-                        child: _filteredLeads.isEmpty
-                            ? Center(
-                                child: Text(
-                                  localizations?.translate('noLeadsFound') ?? 'No leads found',
-                                  style: theme.textTheme.bodyLarge,
-                                ),
-                              )
-                            : ListView.builder(
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
-                                itemCount: _filteredLeads.length,
-                                itemBuilder: (context, index) {
-                                  final lead = _filteredLeads[index];
-                                  return _buildLeadCard(
-                                    context,
-                                    lead,
-                                    localizations,
-                                  );
-                                },
-                              ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
+
+                // Leads List
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _loadLeads,
+                    child: _filteredLeads.isEmpty
+                        ? Center(
+                            child: Text(
+                              localizations?.translate('noLeadsFound') ??
+                                  'No leads found',
+                              style: theme.textTheme.bodyLarge,
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: _filteredLeads.length,
+                            itemBuilder: (context, index) {
+                              final lead = _filteredLeads[index];
+                              return _buildLeadCard(
+                                context,
+                                lead,
+                                localizations,
+                              );
+                            },
+                          ),
+                  ),
+                ),
+              ],
+            ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.push(
@@ -619,7 +654,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
-  
+
   void _showDeleteConfirmation(
     BuildContext context,
     LeadModel lead,
@@ -630,8 +665,8 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       builder: (context) => AlertDialog(
         title: Text(localizations?.translate('deleteLead') ?? 'Delete Lead'),
         content: Text(
-          localizations?.translate('deleteLeadConfirm') ?? 
-          'Are you sure you want to delete ${lead.name}?',
+          localizations?.translate('deleteLeadConfirm') ??
+              'Are you sure you want to delete ${lead.name}?',
         ),
         actions: [
           TextButton(
@@ -640,28 +675,31 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
           ),
           TextButton(
             onPressed: () async {
-            Navigator.pop(context);
-            try {
-              await _apiService.deleteLead(lead.id);
-              if (!mounted) return;
-              _loadLeads();
-              ScaffoldMessenger.of(this.context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    localizations?.translate('leadDeletedSuccessfully') ?? 
-                    'Lead deleted successfully',
+              Navigator.pop(context);
+              try {
+                await _apiService.deleteLead(lead.id);
+                if (!mounted) return;
+                _loadLeads();
+                ScaffoldMessenger.of(this.context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      localizations?.translate('leadDeletedSuccessfully') ??
+                          'Lead deleted successfully',
+                    ),
+                    backgroundColor: Colors.green,
                   ),
-                ),
-              );
-            } catch (e) {
-              if (!mounted) return;
-              ScaffoldMessenger.of(this.context).showSnackBar(
-                SnackBar(
-                  content: Text(e.toString()),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            }
+                );
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(this.context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      '${localizations?.translate('error') ?? 'Error'}: ${e.toString()}',
+                    ),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
             },
             child: Text(
               localizations?.translate('delete') ?? 'Delete',
@@ -672,7 +710,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       ),
     );
   }
-  
+
   Widget _buildLeadCard(
     BuildContext context,
     LeadModel lead,
@@ -680,7 +718,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
   ) {
     final theme = Theme.of(context);
     final isRTL = localizations?.isRTL ?? false;
-    
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 0,
@@ -714,7 +752,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
             children: [
               // Top Row: Avatar with Channel Badge, Name & Phone, Action Buttons, Menu
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                // crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Avatar Stack with Channel Badge
                   Stack(
@@ -735,7 +773,9 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                              color: AppTheme.primaryColor.withValues(
+                                alpha: 0.3,
+                              ),
                               blurRadius: 12,
                               offset: const Offset(0, 4),
                             ),
@@ -743,7 +783,9 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                         ),
                         child: Center(
                           child: Text(
-                            lead.name.isNotEmpty ? lead.name[0].toUpperCase() : '?',
+                            lead.name.isNotEmpty
+                                ? lead.name[0].toUpperCase()
+                                : '?',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 28,
@@ -764,7 +806,10 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                             decoration: BoxDecoration(
                               color: theme.cardColor,
                               shape: BoxShape.circle,
-                              border: Border.all(color: theme.cardColor, width: 2),
+                              border: Border.all(
+                                color: theme.cardColor,
+                                width: 2,
+                              ),
                               boxShadow: [
                                 BoxShadow(
                                   color: theme.brightness == Brightness.dark
@@ -785,45 +830,30 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                     ],
                   ),
                   const SizedBox(width: 16),
-                  
+
                   // Name and Phone Info
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
                           lead.name.isNotEmpty ? lead.name : 'Unnamed Lead',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: theme.textTheme.titleLarge?.color ?? theme.colorScheme.onSurface,
+                            color:
+                                theme.textTheme.titleLarge?.color ??
+                                theme.colorScheme.onSurface,
                             letterSpacing: -0.5,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            Icon(Icons.phone, size: 14, color: theme.iconTheme.color?.withValues(alpha: 0.7)),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                lead.phone,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
                       ],
                     ),
                   ),
-                  
+
                   // Quick Action Buttons
                   Column(
                     children: [
@@ -842,7 +872,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                     ],
                   ),
                   const SizedBox(width: 8),
-                  
+
                   // Menu Button
                   PopupMenuButton<String>(
                     icon: Icon(
@@ -858,7 +888,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                     itemBuilder: (context) {
                       final canModify = _canModifyLead(lead);
                       final isAdmin = _currentUser?.isAdmin ?? false;
-                      
+
                       return [
                         // Edit - only if can modify
                         if (canModify)
@@ -866,9 +896,15 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                             value: 'edit',
                             child: Row(
                               children: [
-                                Icon(Icons.edit, size: 18, color: theme.textTheme.bodyMedium?.color),
+                                Icon(
+                                  Icons.edit,
+                                  size: 18,
+                                  color: theme.textTheme.bodyMedium?.color,
+                                ),
                                 const SizedBox(width: 12),
-                                Text(localizations?.translate('edit') ?? 'Edit'),
+                                Text(
+                                  localizations?.translate('edit') ?? 'Edit',
+                                ),
                               ],
                             ),
                           ),
@@ -878,9 +914,16 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                             value: 'assign',
                             child: Row(
                               children: [
-                                Icon(Icons.person_add, size: 18, color: theme.textTheme.bodyMedium?.color),
+                                Icon(
+                                  Icons.person_add,
+                                  size: 18,
+                                  color: theme.textTheme.bodyMedium?.color,
+                                ),
                                 const SizedBox(width: 12),
-                                Text(localizations?.translate('assign') ?? 'Assign'),
+                                Text(
+                                  localizations?.translate('assign') ??
+                                      'Assign',
+                                ),
                               ],
                             ),
                           ),
@@ -890,10 +933,15 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                             value: 'delete',
                             child: Row(
                               children: [
-                                const Icon(Icons.delete, size: 18, color: Colors.red),
+                                const Icon(
+                                  Icons.delete,
+                                  size: 18,
+                                  color: Colors.red,
+                                ),
                                 const SizedBox(width: 12),
                                 Text(
-                                  localizations?.translate('delete') ?? 'Delete',
+                                  localizations?.translate('delete') ??
+                                      'Delete',
                                   style: const TextStyle(color: Colors.red),
                                 ),
                               ],
@@ -921,7 +969,9 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                             context: this.context,
                             builder: (context) => AssignLeadModal(
                               leadIds: [lead.id],
-                              currentAssignedUserId: lead.assignedTo > 0 ? lead.assignedTo : null,
+                              currentAssignedUserId: lead.assignedTo > 0
+                                  ? lead.assignedTo
+                                  : null,
                               onAssigned: () {
                                 _loadLeads();
                                 _loadUsers(); // Reload users in case assignment changed
@@ -936,23 +986,26 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 20),
-              
+
               // Status Dropdown with Color
               if (_statuses.isNotEmpty && lead.statusName != null)
                 _buildStatusDropdown(lead, localizations)
               else if (lead.statusName != null)
                 _buildStatusDisplay(lead, localizations),
-              
+
               const SizedBox(height: 16),
-              
+
               // Assignment Status
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
                     decoration: BoxDecoration(
                       color: lead.assignedTo > 0
                           ? AppTheme.primaryColor
@@ -963,7 +1016,9 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          lead.assignedTo > 0 ? Icons.person : Icons.person_outline,
+                          lead.assignedTo > 0
+                              ? Icons.person
+                              : Icons.person_outline,
                           color: Colors.white,
                           size: 16,
                         ),
@@ -989,9 +1044,9 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // Additional Info Row
               Wrap(
                 alignment: WrapAlignment.center,
@@ -1002,16 +1057,32 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                     _buildInfoChip(
                       icon: Icons.home_outlined,
                       label: lead.communicationWay!,
-                      color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7) ?? theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                      color:
+                          theme.textTheme.bodyMedium?.color?.withValues(
+                            alpha: 0.7,
+                          ) ??
+                          theme.colorScheme.onSurface.withValues(alpha: 0.7),
                     ),
                   _buildInfoChip(
                     icon: Icons.work_outline,
-                    label: lead.lastFeedback ?? 
-                           lead.lastStage ?? 
-                           (localizations?.translate('noFeedback') ?? 'No Feedback'),
+                    label:
+                        lead.lastFeedback ??
+                        lead.lastStage ??
+                        (localizations?.translate('noFeedback') ??
+                            'No Feedback'),
                     color: lead.lastFeedback != null || lead.lastStage != null
-                        ? (theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7) ?? theme.colorScheme.onSurface.withValues(alpha: 0.7))
-                        : (theme.textTheme.bodySmall?.color?.withValues(alpha: 0.5) ?? theme.colorScheme.onSurface.withValues(alpha: 0.5)),
+                        ? (theme.textTheme.bodyMedium?.color?.withValues(
+                                alpha: 0.7,
+                              ) ??
+                              theme.colorScheme.onSurface.withValues(
+                                alpha: 0.7,
+                              ))
+                        : (theme.textTheme.bodySmall?.color?.withValues(
+                                alpha: 0.5,
+                              ) ??
+                              theme.colorScheme.onSurface.withValues(
+                                alpha: 0.5,
+                              )),
                   ),
                   if (lead.budget > 0)
                     _buildInfoChip(
@@ -1021,9 +1092,9 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                     ),
                 ],
               ),
-              
+
               const SizedBox(height: 20),
-              
+
               // Add Action Button (Full Width)
               SizedBox(
                 width: double.infinity,
@@ -1061,7 +1132,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       ),
     );
   }
-  
+
   Widget _buildActionButton({
     required IconData icon,
     required Color color,
@@ -1079,10 +1150,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: color.withValues(alpha: 0.3),
-              width: 1.5,
-            ),
+            border: Border.all(color: color.withValues(alpha: 0.3), width: 1.5),
           ),
           child: isWhatsApp
               ? Image.asset(
@@ -1099,7 +1167,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       ),
     );
   }
-  
+
   Widget _buildInfoChip({
     required IconData icon,
     required String label,
@@ -1130,25 +1198,22 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       ),
     );
   }
-  
+
   Widget _buildStatusDropdown(LeadModel lead, AppLocalizations? localizations) {
     final theme = Theme.of(context);
     final currentStatus = _getCurrentStatus(lead);
-    final statusColor = currentStatus != null 
-        ? _parseColor(currentStatus.color) 
+    final statusColor = currentStatus != null
+        ? _parseColor(currentStatus.color)
         : AppTheme.primaryColor;
     final isUpdating = _updatingStatusMap[lead.id] ?? false;
-    
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: statusColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: statusColor.withValues(alpha: 0.3),
-          width: 2,
-        ),
+        border: Border.all(color: statusColor.withValues(alpha: 0.3), width: 2),
       ),
       child: isUpdating
           ? const Center(
@@ -1182,7 +1247,9 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                           child: Text(
                             status.name,
                             style: TextStyle(
-                              color: theme.textTheme.bodyLarge?.color ?? theme.colorScheme.onSurface,
+                              color:
+                                  theme.textTheme.bodyLarge?.color ??
+                                  theme.colorScheme.onSurface,
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
                             ),
@@ -1229,7 +1296,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
             ),
     );
   }
-  
+
   Widget _buildStatusDisplay(LeadModel lead, AppLocalizations? localizations) {
     final statusColor = AppTheme.primaryColor;
     return Container(
@@ -1238,10 +1305,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       decoration: BoxDecoration(
         color: statusColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: statusColor.withValues(alpha: 0.3),
-          width: 2,
-        ),
+        border: Border.all(color: statusColor.withValues(alpha: 0.3), width: 2),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -1267,34 +1331,48 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       ),
     );
   }
-  
+
+  // Public method to show filter modal (can be called from parent)
+  void showFilterModal() {
+    final localizations = AppLocalizations.of(context);
+    _showFilterModal(context, localizations);
+  }
+
+  // Public method to check if any filters are active
+  bool hasActiveFilters() {
+    return _selectedType != null ||
+        _selectedStatus != null ||
+        _selectedAssigneeId != null;
+  }
+
   void _showFilterModal(BuildContext context, AppLocalizations? localizations) {
     final theme = Theme.of(context);
-    
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: theme.cardColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: DraggableScrollableSheet(
-          initialChildSize: 0.6,
-          minChildSize: 0.4,
-          maxChildSize: 0.9,
-          builder: (context, scrollController) {
-            return SingleChildScrollView(
-              controller: scrollController,
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          decoration: BoxDecoration(
+            color: theme.cardColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: DraggableScrollableSheet(
+            initialChildSize: 0.6,
+            minChildSize: 0.4,
+            maxChildSize: 0.9,
+            builder: (context, scrollController) {
+              return SingleChildScrollView(
+                controller: scrollController,
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                   // Handle
                   Center(
                     child: Container(
@@ -1307,7 +1385,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                       ),
                     ),
                   ),
-                  
+
                   // Title
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1318,11 +1396,18 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      if (_selectedType != null || _selectedStatus != null || _selectedAssigneeId != null)
+                      if (_selectedType != null ||
+                          _selectedStatus != null ||
+                          _selectedAssigneeId != null)
                         TextButton(
                           onPressed: () {
-                            Navigator.pop(context);
-                            _clearFilters();
+                            setState(() {
+                              _selectedType = null;
+                              _selectedStatus = null;
+                              _selectedAssigneeId = null;
+                            });
+                            setModalState(() {}); // Update modal UI
+                            _filterLeads(); // Apply cleared filters immediately
                           },
                           child: Text(
                             localizations?.translate('clear') ?? 'Clear',
@@ -1332,7 +1417,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Type Filter
                   Text(
                     localizations?.translate('byType') ?? 'By Type',
@@ -1352,33 +1437,40 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                           setState(() {
                             _selectedType = null;
                           });
+                          setModalState(() {}); // Update modal UI
                         },
                         theme: theme,
                       ),
                       _buildFilterChip(
-                        label: localizations?.translate('freshLeads') ?? 'Fresh Leads',
+                        label:
+                            localizations?.translate('freshLeads') ??
+                            'Fresh Leads',
                         isSelected: _selectedType == 'fresh',
                         onTap: () {
                           setState(() {
                             _selectedType = 'fresh';
                           });
+                          setModalState(() {}); // Update modal UI
                         },
                         theme: theme,
                       ),
                       _buildFilterChip(
-                        label: localizations?.translate('coldLeads') ?? 'Cold Leads',
+                        label:
+                            localizations?.translate('coldLeads') ??
+                            'Cold Leads',
                         isSelected: _selectedType == 'cold',
                         onTap: () {
                           setState(() {
                             _selectedType = 'cold';
                           });
+                          setModalState(() {}); // Update modal UI
                         },
                         theme: theme,
                       ),
                     ],
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Status Filter
                   Text(
                     localizations?.translate('byStatus') ?? 'By Status',
@@ -1408,18 +1500,24 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                                 setState(() {
                                   _selectedStatus = null;
                                 });
+                                setModalState(() {}); // Update modal UI
                               },
                               theme: theme,
                             ),
                             ..._statuses.map((status) {
                               final statusName = status.name.toLowerCase();
                               return _buildFilterChip(
-                                label: localizations?.translate(statusName) ?? status.name,
-                                isSelected: _selectedStatus?.toLowerCase() == statusName,
+                                label:
+                                    localizations?.translate(statusName) ??
+                                    status.name,
+                                isSelected:
+                                    _selectedStatus?.toLowerCase() ==
+                                    statusName,
                                 onTap: () {
                                   setState(() {
                                     _selectedStatus = statusName;
                                   });
+                                  setModalState(() {}); // Update modal UI
                                 },
                                 theme: theme,
                                 color: _parseColor(status.color),
@@ -1428,7 +1526,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                           ],
                         ),
                   const SizedBox(height: 24),
-                  
+
                   // Assignee Filter - only for admin
                   if (_currentUser?.isAdmin == true) ...[
                     Text(
@@ -1451,7 +1549,8 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                         : DropdownButtonFormField<int?>(
                             initialValue: _selectedAssigneeId,
                             decoration: InputDecoration(
-                              hintText: localizations?.translate('all') ?? 'All',
+                              hintText:
+                                  localizations?.translate('all') ?? 'All',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
@@ -1461,7 +1560,9 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                             items: [
                               DropdownMenuItem<int?>(
                                 value: null,
-                                child: Text(localizations?.translate('all') ?? 'All'),
+                                child: Text(
+                                  localizations?.translate('all') ?? 'All',
+                                ),
                               ),
                               ..._users.map((user) {
                                 return DropdownMenuItem<int?>(
@@ -1474,12 +1575,13 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                               setState(() {
                                 _selectedAssigneeId = value;
                               });
+                              setModalState(() {}); // Update modal UI
                             },
                           ),
                     const SizedBox(height: 24),
                   ],
                   const SizedBox(height: 32),
-                  
+
                   // Apply Button
                   SizedBox(
                     width: double.infinity,
@@ -1506,15 +1608,16 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                ],
-              ),
-            );
-          },
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
   }
-  
+
   Widget _buildFilterChip({
     required String label,
     required bool isSelected,
@@ -1526,7 +1629,9 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       label: Text(label),
       selected: isSelected,
       onSelected: (_) => onTap(),
-      selectedColor: color?.withValues(alpha: 0.2) ?? AppTheme.primaryColor.withValues(alpha: 0.2),
+      selectedColor:
+          color?.withValues(alpha: 0.2) ??
+          AppTheme.primaryColor.withValues(alpha: 0.2),
       checkmarkColor: color ?? AppTheme.primaryColor,
       labelStyle: TextStyle(
         color: isSelected
@@ -1538,11 +1643,10 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
         color: isSelected
             ? (color ?? AppTheme.primaryColor)
             : (theme.brightness == Brightness.dark
-                ? Colors.white.withValues(alpha: 0.2)
-                : Colors.grey.withValues(alpha: 0.3)),
+                  ? Colors.white.withValues(alpha: 0.2)
+                  : Colors.grey.withValues(alpha: 0.3)),
         width: isSelected ? 2 : 1,
       ),
     );
   }
 }
-

@@ -26,6 +26,7 @@ class _AddActionModalState extends State<AddActionModal> {
   List<StageModel> _stages = [];
   bool _isLoadingStages = true;
   String? _stagesError;
+  bool _isSaving = false;
   
   @override
   void initState() {
@@ -112,29 +113,77 @@ class _AddActionModalState extends State<AddActionModal> {
     }
   }
   
-  void _save() {
+  Future<void> _save() async {
+    final localizations = AppLocalizations.of(context);
     if (_selectedStageId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select an action type')),
+        SnackBar(
+          content: Text(localizations?.translate('pleaseSelectActionType') ?? 'Please select an action type'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
     
     if (_notesController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter notes')),
+        SnackBar(
+          content: Text(localizations?.translate('pleaseEnterNotes') ?? 'Please enter notes'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
     
-    // Close modal first, then call onSave
-    Navigator.pop(context);
+    setState(() {
+      _isSaving = true;
+    });
     
-    widget.onSave?.call(
-      _selectedStageId!,
-      _notesController.text.trim(),
-      _reminderDate,
-    );
+    try {
+      await _apiService.addActionToLead(
+        leadId: widget.leadId,
+        stage: _selectedStageId!,
+        notes: _notesController.text.trim(),
+        reminderDate: _reminderDate,
+      );
+      
+      if (!mounted) return;
+      
+      // Close dialog first
+      Navigator.pop(context);
+      
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            localizations?.translate('actionAdded') ?? 'Action added successfully',
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+      
+      // Call onSave callback for refresh
+      widget.onSave?.call(
+        _selectedStageId!,
+        _notesController.text.trim(),
+        _reminderDate,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      
+      setState(() {
+        _isSaving = false;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${localizations?.translate('failedToAddAction') ?? 'Failed to add action'}: ${e.toString()}',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
   
   @override
@@ -142,208 +191,199 @@ class _AddActionModalState extends State<AddActionModal> {
     final localizations = AppLocalizations.of(context);
     final theme = Theme.of(context);
     
-    return DraggableScrollableSheet(
-      initialChildSize: 0.5,
-      minChildSize: 0.3,
-      maxChildSize: 0.95,
-      builder: (context, scrollController) {
-        final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
-        return Material(
-          color: theme.scaffoldBackgroundColor,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Container(
-            decoration: BoxDecoration(
-              color: theme.scaffoldBackgroundColor,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+    return Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+          maxWidth: MediaQuery.of(context).size.width * 0.9,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Title Bar
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    localizations?.translate('addAction') ?? 'Add Action',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
             ),
-            child: Column(
-            children: [
-              // Handle
-              Container(
-                margin: const EdgeInsets.symmetric(vertical: 12),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[400],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              
-              // Title
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text(
-                  localizations?.translate('addAction') ?? 'Add Action',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // Content
-              Expanded(
-                child: SingleChildScrollView(
-                  controller: scrollController,
-                  padding: EdgeInsets.only(
-                    left: 16,
-                    right: 16,
-                    bottom: keyboardHeight > 0 ? keyboardHeight + 8 : 0,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Action Type Dropdown
-                      Text(
-                        localizations?.translate('actionType') ?? 'Action type',
-                        style: theme.textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      _isLoadingStages
-                          ? const Center(child: Padding(
-                              padding: EdgeInsets.all(16.0),
-                              child: CircularProgressIndicator(),
-                            ))
-                          : _stagesError != null
-                              ? Column(
-                                  children: [
-                                    Text(
-                                      'Failed to load stages: $_stagesError',
-                                      style: TextStyle(color: Colors.red[700]),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    TextButton.icon(
-                                      onPressed: _loadStages,
-                                      icon: const Icon(Icons.refresh),
-                                      label: const Text('Retry'),
-                                    ),
-                                  ],
-                                )
-                              : _stages.isEmpty
-                                  ? Text(
-                                      localizations?.translate('noStagesFound') ?? 'No stages found',
-                                      style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color),
-                                    )
-                                  : DropdownButtonFormField<int>(
-                                      initialValue: _selectedStageId,
-                                      decoration: InputDecoration(
-                                        hintText: localizations?.translate('selectItem') ?? 'Select item',
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                        suffixIcon: const Icon(Icons.arrow_drop_down),
+            
+            const Divider(height: 1),
+            
+            // Content
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Action Type Dropdown
+                    Text(
+                      localizations?.translate('actionType') ?? 'Action type',
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    _isLoadingStages
+                        ? const Center(child: Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: CircularProgressIndicator(),
+                          ))
+                        : _stagesError != null
+                            ? Column(
+                                children: [
+                                  Text(
+                                    'Failed to load stages: $_stagesError',
+                                    style: TextStyle(color: Colors.red[700]),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  TextButton.icon(
+                                    onPressed: _loadStages,
+                                    icon: const Icon(Icons.refresh),
+                                    label: const Text('Retry'),
+                                  ),
+                                ],
+                              )
+                            : _stages.isEmpty
+                                ? Text(
+                                    localizations?.translate('noStagesFound') ?? 'No stages found',
+                                    style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color),
+                                  )
+                                : DropdownButtonFormField<int>(
+                                    initialValue: _selectedStageId,
+                                    decoration: InputDecoration(
+                                      hintText: localizations?.translate('selectItem') ?? 'Select item',
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
                                       ),
-                                      items: _stages.map((stage) {
-                                        return DropdownMenuItem<int>(
-                                          value: stage.id,
-                                          child: Text(_getStageLocalizedName(stage.name, localizations)),
-                                        );
-                                      }).toList(),
-                                      onChanged: (value) {
-                                        setState(() {
-                                          _selectedStageId = value;
-                                        });
-                                      },
+                                      suffixIcon: const Icon(Icons.arrow_drop_down),
                                     ),
-                      const SizedBox(height: 24),
-                      
-                      // Notes
-                      Text(
-                        localizations?.translate('notes') ?? 'Notes',
-                        style: theme.textTheme.titleMedium,
+                                    items: _stages.map((stage) {
+                                      return DropdownMenuItem<int>(
+                                        value: stage.id,
+                                        child: Text(_getStageLocalizedName(stage.name, localizations)),
+                                      );
+                                    }).toList(),
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _selectedStageId = value;
+                                      });
+                                    },
+                                  ),
+                    const SizedBox(height: 24),
+                    
+                    // Notes
+                    Text(
+                      localizations?.translate('notes') ?? 'Notes',
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _notesController,
+                      maxLines: 5,
+                      decoration: InputDecoration(
+                        hintText: localizations?.translate('notes') ?? 'Notes',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _notesController,
-                        maxLines: 5,
-                        decoration: InputDecoration(
-                          hintText: localizations?.translate('notes') ?? 'Notes',
-                          border: OutlineInputBorder(
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    // Reminder Date
+                    Text(
+                      localizations?.translate('reminder') ?? 'Reminder',
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _selectReminderDate,
+                        icon: const Icon(Icons.calendar_today),
+                        label: Text(
+                          _reminderDate != null
+                              ? _reminderDate!.toString().substring(0, 16)
+                              : localizations?.translate('selectReminder') ?? 'Select Reminder',
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
+                          alignment: Alignment.center,
                         ),
-                      ),
-                      const SizedBox(height: 24),
-                      
-                      // Reminder Date
-                      Text(
-                        localizations?.translate('reminder') ?? 'Reminder',
-                        style: theme.textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: _selectReminderDate,
-                          icon: const Icon(Icons.calendar_today),
-                          label: Text(
-                            _reminderDate != null
-                                ? _reminderDate!.toString().substring(0, 16)
-                                : localizations?.translate('selectReminder') ?? 'Select Reminder',
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            alignment: Alignment.center,
-                          ),
-                        ),
-                      ),
-                      if (_reminderDate != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: TextButton(
-                            onPressed: () {
-                              setState(() {
-                                _reminderDate = null;
-                              });
-                            },
-                            child: Text(
-                              localizations?.translate('removeReminder') ?? 'Remove Reminder',
-                              style: const TextStyle(color: Colors.red),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-              
-              // Save Button
-              Padding(
-                padding: EdgeInsets.only(
-                  left: 16,
-                  right: 16,
-                  top: 16,
-                  bottom: 16 + keyboardHeight,
-                ),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _save,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: Text(
-                      localizations?.translate('save') ?? 'Save',
+                    if (_reminderDate != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: TextButton(
+                          onPressed: () {
+                            setState(() {
+                              _reminderDate = null;
+                            });
+                          },
+                          child: Text(
+                            localizations?.translate('removeReminder') ?? 'Remove Reminder',
+                            style: const TextStyle(color: Colors.red),
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 24),
+                    
+                    // Save Button
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _isSaving ? null : _save,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          disabledBackgroundColor: AppTheme.primaryColor.withValues(alpha: 0.6),
+                        ),
+                        child: _isSaving
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : Text(
+                                localizations?.translate('save') ?? 'Save',
+                              ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-        );
-      },
+      ),
     );
   }
 }

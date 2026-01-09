@@ -720,6 +720,22 @@ class ApiService {
     }
   }
   
+  // Get all client tasks (actions) for calendar
+  Future<List<ClientTaskModel>> getAllClientTasks() async {
+    final response = await _makeRequest('GET', '/client-tasks/');
+    
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final resultsList = data['results'] as List?;
+      final results = resultsList != null
+          ? resultsList.map((e) => ClientTaskModel.fromJson(e as Map<String, dynamic>)).toList()
+          : <ClientTaskModel>[];
+      return results;
+    } else {
+      throw Exception('Failed to get all client tasks');
+    }
+  }
+  
   // Create lead
   Future<LeadModel> createLead({
     required String name,
@@ -734,10 +750,17 @@ class ApiService {
     String? status, // Deprecated: use statusId instead
     int? statusId, // Preferred: status ID
   }) async {
+    // Get current user to retrieve company ID
+    final currentUser = await getCurrentUser();
+    if (currentUser.company == null) {
+      throw Exception('User must be associated with a company');
+    }
+    
     final body = <String, dynamic>{
       'name': name,
       'phone_number': phone,
       'type': type.toLowerCase(),
+      'company': currentUser.company!.id, // Include company ID
     };
     
     if (phoneNumbers != null && phoneNumbers.isNotEmpty) {
@@ -769,8 +792,23 @@ class ApiService {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       return LeadModel.fromJson(data);
     } else {
-      final error = jsonDecode(response.body) as Map<String, dynamic>;
-      throw Exception(error['detail'] ?? error['message'] ?? 'Failed to create lead');
+      String errorMessage = 'Failed to create lead';
+      try {
+        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        if (error.containsKey('company')) {
+          final companyErrors = error['company'] as List?;
+          if (companyErrors != null && companyErrors.isNotEmpty) {
+            errorMessage = companyErrors.first.toString();
+          } else {
+            errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
+          }
+        } else {
+          errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
+        }
+      } catch (e) {
+        // If error parsing fails, use default message
+      }
+      throw Exception(errorMessage);
     }
   }
   

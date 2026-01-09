@@ -371,14 +371,20 @@ class _OwnersScreenState extends State<OwnersScreen> {
                 await _apiService.deleteOwner(owner.id);
                 if (mounted) {
                   scaffoldMessenger.showSnackBar(
-                    SnackBar(content: Text(localizations?.translate('ownerDeleted') ?? 'Owner deleted')),
+                    SnackBar(
+                      content: Text(localizations?.translate('ownerDeleted') ?? 'Owner deleted'),
+                      backgroundColor: Colors.green,
+                    ),
                   );
                   _loadOwners();
                 }
               } catch (e) {
                 if (mounted) {
                   scaffoldMessenger.showSnackBar(
-                    SnackBar(content: Text('${localizations?.translate('error') ?? 'Error'}: $e')),
+                    SnackBar(
+                      content: Text('${localizations?.translate('error') ?? 'Error'}: $e'),
+                      backgroundColor: Colors.red,
+                    ),
                   );
                 }
               }

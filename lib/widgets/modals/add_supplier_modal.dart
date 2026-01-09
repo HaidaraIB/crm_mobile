@@ -64,7 +64,7 @@ class _AddSupplierModalState extends State<AddSupplierModal> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: Text('${AppLocalizations.of(context)?.translate('error') ?? 'Error'}: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
