@@ -197,6 +197,17 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: BottomNavigation(
         currentIndex: _currentIndex,
         onTap: (index) {
+          // Refresh data when switching tabs
+          if (index == 0 && _currentIndex != 0) {
+            // Switching to dashboard - refresh dashboard data
+            _dashboardKey.currentState?.refreshDashboardData();
+          } else if (index == 1 && _currentIndex != 1) {
+            // Switching to all leads - refresh leads data
+            // The AllLeadsScreen will handle its own refresh via PopScope
+          } else if (index == 2 && _currentIndex != 2) {
+            // Switching to calendar - refresh calendar events
+            (_calendarKey.currentState as dynamic)?.refreshEvents();
+          }
           setState(() {
             _currentIndex = index;
           });

@@ -197,7 +197,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                 if (_lead != null) {
                   await _apiService.deleteLead(_lead!.id);
                   if (!mounted) return;
-                  Navigator.pop(this.context);
+                  Navigator.pop(this.context, true); // Pass true to indicate deletion
                   ScaffoldMessenger.of(this.context).showSnackBar(
                     SnackBar(
                       content: Text(
@@ -373,8 +373,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop) {
-          result = _leadWasUpdated;
-          Navigator.of(context).pop(result);
+          Navigator.of(context).pop(_leadWasUpdated);
         }
       },
       child: Scaffold(

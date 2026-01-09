@@ -82,6 +82,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
   Future<void> _loadCurrentUser() async {
     try {
       final user = await _apiService.getCurrentUser();
+      if (!mounted) return;
       setState(() {
         _currentUser = user;
       });
@@ -102,6 +103,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
   Future<void> _loadUsers() async {
     try {
       final usersData = await _apiService.getUsers();
+      if (!mounted) return;
       setState(() {
         _users = (usersData['results'] as List).cast<UserModel>();
       });
@@ -160,6 +162,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
   Future<void> _loadStatuses() async {
     try {
       final statuses = await _apiService.getStatuses();
+      if (!mounted) return;
       setState(() {
         _statuses = statuses.where((s) => !s.isHidden).toList();
       });
@@ -197,6 +200,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
   Future<void> _updateStatus(LeadModel lead, StatusModel? newStatus) async {
     if (newStatus == null) return;
 
+    if (!mounted) return;
     setState(() {
       _updatingStatusMap[lead.id] = true;
     });
@@ -207,6 +211,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
         statusId: newStatus.id,
       );
 
+      if (!mounted) return;
       // Update the lead in the list
       setState(() {
         final index = _leads.indexWhere((l) => l.id == lead.id);
@@ -234,6 +239,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
         );
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _updatingStatusMap[lead.id] = false;
       });
@@ -260,6 +266,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
 
   Future<void> _loadLeads() async {
     try {
+      if (!mounted) return;
       setState(() {
         _isLoading = true;
         _errorMessage = null;
@@ -269,6 +276,9 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
         type: widget.type,
         status: widget.status,
       );
+      
+      if (!mounted) return;
+      
       final leads = (result['results'] as List).cast<LeadModel>();
 
       // Apply client-side filtering to ensure accuracy
@@ -290,12 +300,14 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
         }).toList();
       }
 
+      if (!mounted) return;
       setState(() {
         _leads = filteredLeads;
         _filteredLeads = filteredLeads;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = _getErrorMessage(e);
         _isLoading = false;
@@ -550,7 +562,20 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     final localizations = AppLocalizations.of(context);
     final theme = Theme.of(context);
 
-    return Scaffold(
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop && mounted) {
+          // Refresh data when popping (going back)
+          // Use microtask to ensure widget is still mounted
+          Future.microtask(() {
+            if (mounted) {
+              _loadLeads();
+            }
+          });
+        }
+      },
+      child: Scaffold(
       appBar: widget.showAppBar
           ? AppBar(
               title: Text(_getTitle(localizations)),
@@ -652,6 +677,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
         child: const Icon(Icons.add, color: Colors.white),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      ),
     );
   }
 

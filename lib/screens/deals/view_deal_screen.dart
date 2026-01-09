@@ -369,11 +369,18 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(localizations?.translate('viewDeal') ?? 'View Deal'),
-      ),
-      body: SingleChildScrollView(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          Navigator.of(context).pop(false);
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(localizations?.translate('viewDeal') ?? 'View Deal'),
+        ),
+        body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -718,6 +725,7 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

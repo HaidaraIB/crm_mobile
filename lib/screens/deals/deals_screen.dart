@@ -80,6 +80,7 @@ class _DealsScreenState extends State<DealsScreen> {
   }
 
   Future<void> _loadDeals() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -87,13 +88,17 @@ class _DealsScreenState extends State<DealsScreen> {
     
     try {
       final deals = await _apiService.getDealsList();
+      if (!mounted) return;
       setState(() {
         _deals = deals;
         _filteredDeals = deals;
         _isLoading = false;
       });
-      _filterDeals();
+      if (mounted) {
+        _filterDeals();
+      }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = e.toString();
         _isLoading = false;
@@ -321,7 +326,20 @@ class _DealsScreenState extends State<DealsScreen> {
     final theme = Theme.of(context);
     final isRealEstate = SpecializationHelper.isRealEstate(_currentUser);
     
-    return Scaffold(
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop && mounted) {
+          // Refresh data when popping (going back)
+          // Use microtask to ensure widget is still mounted
+          Future.microtask(() {
+            if (mounted) {
+              _loadDeals();
+            }
+          });
+        }
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: Text(localizations?.translate('deals') ?? 'Deals'),
         actions: [
@@ -380,6 +398,7 @@ class _DealsScreenState extends State<DealsScreen> {
         child: const Icon(Icons.add, color: Colors.white),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      ),
     );
   }
 
@@ -527,29 +546,34 @@ class _DealsScreenState extends State<DealsScreen> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.visibility),
-                      onPressed: () {
-                        Navigator.push(
+                      onPressed: () async {
+                        final result = await Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (_) => ViewDealScreen(deal: deal),
                           ),
                         );
+                        // Refresh deals if deal was updated
+                        if (result == true) {
+                          _loadDeals();
+                        }
                       },
                       tooltip: localizations?.translate('view') ?? 'View',
                       color: Colors.green,
                     ),
                     IconButton(
                       icon: const Icon(Icons.edit),
-                      onPressed: () {
-                        Navigator.push(
+                      onPressed: () async {
+                        final result = await Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (_) => DealFormScreen(deal: deal),
                           ),
-                        ).then((_) {
-                          // Reload deals after editing
+                        );
+                        // Reload deals after editing
+                        if (result == true) {
                           _loadDeals();
-                        });
+                        }
                       },
                       tooltip: localizations?.translate('edit') ?? 'Edit',
                       color: Colors.blue,

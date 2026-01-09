@@ -56,6 +56,11 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
     _loadUser();
   }
   
+  // This method will be called to refresh all dashboard data
+  void refreshDashboardData() {
+    _loadLeads();
+  }
+  
   Future<void> _loadUser() async {
     try {
       final user = await _apiService.getCurrentUser();
@@ -407,8 +412,8 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
         borderRadius: BorderRadius.circular(12),
       ),
       child: InkWell(
-        onTap: () {
-          Navigator.push(
+        onTap: () async {
+          final result = await Navigator.push(
             context,
             MaterialPageRoute(
               builder: (_) => AllLeadsScreen(
@@ -417,6 +422,10 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
               ),
             ),
           );
+          // Refresh leads data when returning from AllLeadsScreen
+          if (result == true || mounted) {
+            _loadLeads();
+          }
         },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
