@@ -1,6 +1,9 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'notification_model.dart';
+import '../services/api_service.dart';
+import '../core/constants/app_constants.dart';
 
 /// نموذج إعدادات الإشعارات
 class NotificationSettings {
@@ -95,8 +98,8 @@ class NotificationSettings {
     notificationTypes[type] = enabled;
   }
 
-  /// حفظ الإعدادات محلياً
-  Future<void> save() async {
+  /// حفظ الإعدادات محلياً وعلى الخادم
+  Future<void> save({bool syncToServer = true}) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('notifications_enabled', enabled);
     
@@ -115,6 +118,100 @@ class NotificationSettings {
     
     // حفظ إعدادات الأدوار
     await prefs.setString('notification_user_roles', jsonEncode(userRoleSettings));
+    
+    // مزامنة مع الخادم إذا كان المستخدم مسجل دخول
+    if (syncToServer) {
+      try {
+        final isLoggedIn = prefs.getBool(AppConstants.isLoggedInKey) ?? false;
+        if (isLoggedIn) {
+          debugPrint('Syncing notification settings to server...');
+          await _syncToServer();
+          debugPrint('Notification settings synced to server successfully');
+        } else {
+          debugPrint('User not logged in, skipping server sync');
+        }
+      } catch (e) {
+        // لا نعرض خطأ للمستخدم لأن الإعدادات المحلية تم حفظها
+        debugPrint('Warning: Failed to sync notification settings to server: $e');
+      }
+    }
+  }
+  
+  /// مزامنة الإعدادات مع الخادم
+  Future<void> _syncToServer() async {
+    try {
+      final apiService = ApiService();
+      final settingsMap = toServerMap();
+      debugPrint('Syncing notification settings to server: ${settingsMap.keys}');
+      await apiService.updateNotificationSettings(settingsMap);
+      debugPrint('✓ Notification settings synced successfully');
+    } catch (e, stackTrace) {
+      debugPrint('Error syncing notification settings to server: $e');
+      debugPrint('Stack trace: $stackTrace');
+      // لا نرمي exception لأن الإعدادات المحلية تم حفظها
+    }
+  }
+  
+  /// تحويل الإعدادات إلى خريطة للخادم
+  Map<String, dynamic> toServerMap() {
+    final typesMap = <String, bool>{};
+    notificationTypes.forEach((key, value) {
+      typesMap[key.name] = value;
+    });
+    
+    return {
+      'enabled': enabled,
+      'notification_types': typesMap,
+      'restrict_time': timeSettings.restrictTime,
+      'start_hour': timeSettings.startHour,
+      'end_hour': timeSettings.endHour,
+      'enabled_days': timeSettings.enabledDays,
+      'source_settings': sourceSettings,
+      'user_role_settings': userRoleSettings,
+    };
+  }
+  
+  /// تحميل الإعدادات من خريطة الخادم
+  static NotificationSettings fromServerMap(Map<String, dynamic> map) {
+    // تحويل notification_types من Map<String, bool> إلى Map<NotificationType, bool>
+    Map<NotificationType, bool> types = {};
+    if (map['notification_types'] != null) {
+      final typesMap = map['notification_types'] as Map<String, dynamic>;
+      typesMap.forEach((key, value) {
+        final type = NotificationType.values.firstWhere(
+          (e) => e.name == key,
+          orElse: () => NotificationType.unknown,
+        );
+        if (type != NotificationType.unknown) {
+          types[type] = value as bool;
+        }
+      });
+    }
+    
+    // تحميل إعدادات الوقت
+    NotificationTimeSettings timeSettings = NotificationTimeSettings();
+    if (map['restrict_time'] != null) {
+      timeSettings = NotificationTimeSettings(
+        restrictTime: map['restrict_time'] as bool? ?? false,
+        startHour: map['start_hour'] as int? ?? 9,
+        endHour: map['end_hour'] as int? ?? 18,
+        enabledDays: map['enabled_days'] != null
+            ? List<bool>.from(map['enabled_days'] as List)
+            : List.filled(7, true),
+      );
+    }
+    
+    return NotificationSettings(
+      enabled: map['enabled'] as bool? ?? true,
+      notificationTypes: types.isEmpty ? null : types,
+      timeSettings: timeSettings,
+      sourceSettings: map['source_settings'] != null
+          ? Map<String, bool>.from(map['source_settings'] as Map)
+          : {},
+      userRoleSettings: map['user_role_settings'] != null
+          ? Map<String, bool>.from(map['user_role_settings'] as Map)
+          : {},
+    );
   }
 
   /// تحميل الإعدادات من التخزين المحلي

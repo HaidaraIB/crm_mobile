@@ -487,7 +487,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               child: ListTile(
                                 leading: CircleAvatar(
                                   backgroundColor: isRead
-                                      ? theme.colorScheme.surfaceVariant
+                                      ? theme.colorScheme.surfaceContainerHighest
                                       : AppTheme.primaryColor.withValues(alpha: 0.2),
                                   child: Icon(
                                     NotificationRouter.getIconForType(type),

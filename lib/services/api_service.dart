@@ -2036,6 +2036,65 @@ class ApiService {
   
   // ==================== Notifications Management ====================
   
+  /// جلب إعدادات الإشعارات من الخادم
+  Future<Map<String, dynamic>?> getNotificationSettings() async {
+    try {
+      final response = await _makeRequest('GET', '/notifications/settings/');
+      
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      } else {
+        debugPrint('Warning: Failed to load notification settings from server');
+        return null;
+      }
+    } catch (e, stackTrace) {
+      ErrorLogger().logError(
+        error: e.toString(),
+        stackTrace: stackTrace.toString(),
+        endpoint: '/notifications/settings/',
+        method: 'GET',
+      );
+      debugPrint('Warning: Error loading notification settings from server: $e');
+      // لا نرمي exception هنا لأن الإعدادات المحلية تعمل حتى بدون الخادم
+      return null;
+    }
+  }
+  
+  /// تحديث إعدادات الإشعارات على الخادم
+  Future<void> updateNotificationSettings(Map<String, dynamic> settings) async {
+    try {
+      debugPrint('Sending notification settings to server: $settings');
+      final response = await _makeRequest(
+        'PUT',
+        '/notifications/settings/',
+        body: settings,
+      );
+      
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        debugPrint('✓ Notification settings updated on server successfully');
+      } else {
+        String errorMessage = 'Failed to update notification settings';
+        try {
+          final error = jsonDecode(response.body) as Map<String, dynamic>;
+          errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
+        } catch (_) {
+          errorMessage = 'Failed to update notification settings with status ${response.statusCode}';
+        }
+        debugPrint('Warning: $errorMessage');
+        debugPrint('Response body: ${response.body}');
+      }
+    } catch (e, stackTrace) {
+      ErrorLogger().logError(
+        error: e.toString(),
+        stackTrace: stackTrace.toString(),
+        endpoint: '/notifications/settings/',
+        method: 'PUT',
+      );
+      debugPrint('Error updating notification settings on server: $e');
+      rethrow; // نرمي exception هنا لنرى الخطأ في السجلات
+    }
+  }
+  
   /// جلب جميع الإشعارات للمستخدم الحالي
   Future<List<Map<String, dynamic>>> getNotifications({
     bool? read,

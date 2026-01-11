@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/notification_settings_model.dart' as app_settings;
 import '../../models/notification_model.dart';
 import '../../services/notification_router.dart';
-import '../../services/notification_helper.dart';
+import '../../services/api_service.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../core/constants/app_constants.dart';
 
 class NotificationSettingsScreen extends StatefulWidget {
   const NotificationSettingsScreen({super.key});
@@ -26,6 +28,36 @@ class _NotificationSettingsScreenState
 
   Future<void> _loadSettings() async {
     setState(() => _isLoading = true);
+
+    // محاولة تحميل الإعدادات من الخادم أولاً
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final isLoggedIn = prefs.getBool(AppConstants.isLoggedInKey) ?? false;
+
+      if (isLoggedIn) {
+        final apiService = ApiService();
+        final serverSettings = await apiService.getNotificationSettings();
+
+        if (serverSettings != null) {
+          // استخدام الإعدادات من الخادم
+          final settings = app_settings.NotificationSettings.fromServerMap(
+            serverSettings,
+          );
+          // حفظها محلياً أيضاً
+          await settings.save(syncToServer: false);
+          setState(() {
+            _settings = settings;
+            _isLoading = false;
+          });
+          return;
+        }
+      }
+    } catch (e) {
+      // في حالة فشل التحميل من الخادم، نستخدم الإعدادات المحلية
+      debugPrint('Warning: Failed to load settings from server: $e');
+    }
+
+    // تحميل الإعدادات المحلية كبديل
     final settings = await app_settings.NotificationSettings.load();
     setState(() {
       _settings = settings;
@@ -38,7 +70,10 @@ class _NotificationSettingsScreenState
       await _settings!.save();
       if (mounted) {
         final localizations = AppLocalizations.of(context);
-        _showSuccessSnackBar(localizations?.translate('settingsSavedSuccessfully') ?? 'Settings saved successfully');
+        _showSuccessSnackBar(
+          localizations?.translate('settingsSavedSuccessfully') ??
+              'Settings saved successfully',
+        );
       }
     }
   }
@@ -84,26 +119,6 @@ class _NotificationSettingsScreenState
           localizations?.translate('notificationSettings') ??
               'Notification Settings',
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_active),
-            onPressed: () => _testNotification(),
-            tooltip:
-                localizations?.translate('testNotification') ??
-                'Test Notification',
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              _settings!.resetToDefaults();
-              _saveSettings();
-              setState(() {});
-            },
-            tooltip:
-                localizations?.translate('resetToDefaults') ??
-                'Reset to Defaults',
-          ),
-        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -449,25 +464,4 @@ class _NotificationSettingsScreenState
     }
   }
 
-  /// اختبار إرسال إشعار تجريبي
-  Future<void> _testNotification() async {
-    final localizations = AppLocalizations.of(context);
-
-    // إرسال إشعار تجريبي بسيط
-    await NotificationHelper.notifyGeneral(
-      title:
-          localizations?.translate('testNotification') ?? 'Test Notification',
-      body:
-          localizations?.translate('testNotificationBody') ??
-          'This is a test notification to verify the notification system is working correctly.',
-      data: {'test': true},
-    );
-
-    if (mounted) {
-      _showSuccessSnackBar(
-        localizations?.translate('testNotificationSent') ??
-            'Test notification sent!',
-      );
-    }
-  }
 }
