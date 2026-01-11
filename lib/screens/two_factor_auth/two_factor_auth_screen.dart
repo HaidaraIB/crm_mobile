@@ -10,6 +10,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/bloc/theme/theme_bloc.dart';
 import '../../core/bloc/language/language_bloc.dart';
 import '../../services/api_service.dart';
+import '../../services/notification_service.dart';
 import '../home/home_screen.dart';
 import '../login/login_screen.dart';
 
@@ -174,11 +175,13 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
 
     try {
       // Step 1: Verify 2FA code (backend also checks subscription during verification)
+      final languageBloc = context.read<LanguageBloc>();
       await _apiService.verifyTwoFactorAuth(
         username: widget.username,
         password: widget.password,
         code: code,
         token: widget.token,
+        locale: languageBloc.state.locale,
       );
       
       // Step 2: Get user data
@@ -207,6 +210,16 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
       
       // Clear cooldown
       await prefs.remove('2fa_resend_cooldown');
+      
+      // Send FCM token to server after successful login
+      try {
+        final notificationService = NotificationService();
+        await notificationService.sendTokenToServerIfLoggedIn();
+        debugPrint('FCM Token sent to server after login');
+      } catch (e) {
+        debugPrint('Warning: Failed to send FCM token after login: $e');
+        // Don't block login if FCM token sending fails
+      }
       
       if (mounted) {
         Navigator.of(context).pushReplacement(

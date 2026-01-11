@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/constants/app_constants.dart';
+import '../core/localization/app_localizations.dart';
 import '../models/lead_model.dart';
 import '../models/user_model.dart';
 import '../models/settings_model.dart';
@@ -18,6 +19,31 @@ class ApiService {
   ApiService._internal();
   
   String get baseUrl => AppConstants.baseUrl;
+  
+  // Helper function to translate error messages
+  // If locale is provided, it will use localization, otherwise returns English message
+  String _translateError(String key, {Locale? locale}) {
+    if (locale == null) {
+      // Return English default if no locale provided
+      return _getEnglishError(key);
+    }
+    
+    final localizations = AppLocalizations(locale);
+    final translated = localizations.translate(key);
+    
+    // If translation not found, return English
+    if (translated == key) {
+      return _getEnglishError(key);
+    }
+    
+    return translated;
+  }
+  
+  // Get English error message as fallback
+  String _getEnglishError(String key) {
+    final englishLocalizations = AppLocalizations(const Locale('en'));
+    return englishLocalizations.translate(key);
+  }
   
   Future<String?> _getAccessToken() async {
     final prefs = await SharedPreferences.getInstance();
@@ -100,14 +126,14 @@ class ApiService {
           requestFuture = http.delete(url, headers: headers);
           break;
         default:
-          throw Exception('Unsupported HTTP method: $method');
+          throw Exception(_translateError('unsupportedHttpMethod', locale: null));
       }
       
       // Apply timeout to the request
       response = await requestFuture.timeout(
         requestTimeout,
         onTimeout: () {
-          throw TimeoutException('Request timed out after ${requestTimeout.inSeconds} seconds');
+          throw TimeoutException('${_translateError('requestTimedOut', locale: null)} after ${requestTimeout.inSeconds} seconds');
         },
       );
     } on TimeoutException catch (e, stackTrace) {
@@ -158,7 +184,7 @@ class ApiService {
       } else {
         // Refresh failed, clear tokens and logout
         await _clearTokens();
-        throw Exception('Session expired. Please login again.');
+        throw Exception(_translateError('sessionExpired', locale: null)); // Use English for system errors
       }
     }
     
@@ -211,7 +237,7 @@ class ApiService {
   }
   
   // Authentication
-  Future<Map<String, dynamic>> login(String username, String password) async {
+  Future<Map<String, dynamic>> login(String username, String password, {Locale? locale}) async {
     try {
       final cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
       final url = Uri.parse('$cleanBaseUrl/auth/login/');
@@ -256,14 +282,15 @@ class ApiService {
           final error = jsonDecode(response.body) as Map<String, dynamic>;
           // Check for API key errors first
           if (error.containsKey('error') && error['error'] == 'Missing API key') {
-            errorMessage = 'Missing API key. Please check your .env file.';
+            errorMessage = _translateError('missingApiKey', locale: locale ?? const Locale('en'));
           } else {
-            errorMessage = error['detail'] ?? error['error'] ?? error['message'] ?? 'Login failed';
+            final backendError = error['detail'] ?? error['error'] ?? error['message'] ?? '';
+            errorMessage = backendError.isNotEmpty ? backendError : _translateError('loginFailed', locale: locale ?? const Locale('en'));
           }
           debugPrint('Login error: $errorMessage');
           debugPrint('Response body: ${response.body}');
         } catch (e) {
-          errorMessage = 'Login failed with status ${response.statusCode}';
+          errorMessage = '${_translateError('loginFailedWithStatus', locale: locale ?? const Locale('en'))} ${response.statusCode}';
           debugPrint('Failed to parse error response: $e');
         }
         
@@ -301,6 +328,9 @@ class ApiService {
     final cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
     final url = Uri.parse('$cleanBaseUrl$cleanEndpoint');
     
+    // Convert language string to Locale
+    final locale = language == 'ar' ? const Locale('ar') : const Locale('en');
+    
     try {
       // Get headers with API Key (no auth token needed for 2FA request)
       final headers = await _getHeaders(includeAuth: false);
@@ -319,7 +349,7 @@ class ApiService {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         return data;
       } else {
-        String errorMessage = 'Failed to request 2FA code';
+        String errorMessage = _translateError('failedToRequest2FACode', locale: locale);
         Exception? customException;
         
         try {
@@ -339,7 +369,7 @@ class ApiService {
           
           // If we still don't have a message, use default
           if (backendErrorMessage.isEmpty) {
-            backendErrorMessage = 'Failed to request 2FA code with status ${response.statusCode}';
+            backendErrorMessage = '${_translateError('failedToRequest2FACodeWithStatus', locale: locale)} ${response.statusCode}';
           }
           
           // Handle special error codes FIRST - before setting generic error message
@@ -369,7 +399,7 @@ class ApiService {
           }
         } catch (e) {
           // If parsing failed, use generic message
-          errorMessage = 'Failed to request 2FA code with status ${response.statusCode}';
+          errorMessage = '${_translateError('failedToRequest2FACodeWithStatus', locale: locale)} ${response.statusCode}';
         }
         
         // Log the error
@@ -436,6 +466,7 @@ class ApiService {
     required String password,
     required String code,
     String? token,
+    Locale? locale,
   }) async {
     final cleanEndpoint = '/auth/verify-2fa/';
     final cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
@@ -472,7 +503,7 @@ class ApiService {
         
         return data;
       } else {
-        String errorMessage = 'Failed to verify 2FA code';
+        String errorMessage = _translateError('failedToVerify2FACode', locale: locale ?? const Locale('en'));
         try {
           final error = jsonDecode(response.body) as Map<String, dynamic>;
           errorMessage = error['detail'] ?? error['error'] ?? error['message'] ?? errorMessage;
@@ -503,7 +534,7 @@ class ApiService {
           } catch (_) {
             // Not a custom error, continue with default error message
           }
-          errorMessage = 'Failed to verify 2FA code with status ${response.statusCode}';
+          errorMessage = '${_translateError('failedToVerify2FACodeWithStatus', locale: locale ?? const Locale('en'))} ${response.statusCode}';
         }
         
         ErrorLogger().logError(
@@ -548,7 +579,7 @@ class ApiService {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       return UserModel.fromJson(data);
     } else {
-      throw Exception('Failed to get current user');
+      throw Exception(_translateError('failedToGetCurrentUser', locale: null));
     }
   }
   
@@ -566,7 +597,7 @@ class ApiService {
     
     final token = await _getAccessToken();
     if (token == null) {
-      throw Exception('Not authenticated');
+      throw Exception(_translateError('notAuthenticated', locale: null));
     }
     
     try {
@@ -601,12 +632,13 @@ class ApiService {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         return UserModel.fromJson(data);
       } else {
-        String errorMessage = 'Failed to update profile';
+        String errorMessage = _translateError('failedToUpdateProfile', locale: null);
         try {
           final error = jsonDecode(response.body) as Map<String, dynamic>;
-          errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
+          final backendError = error['detail'] ?? error['message'] ?? '';
+          errorMessage = backendError.isNotEmpty ? backendError : errorMessage;
         } catch (_) {
-          errorMessage = 'Failed to update profile with status ${response.statusCode}';
+          errorMessage = '${_translateError('failedToUpdateProfileWithStatus', locale: null)} ${response.statusCode}';
         }
         throw Exception(errorMessage);
       }
@@ -663,7 +695,7 @@ class ApiService {
         'previous': data['previous'] as String?,
       };
     } else {
-      throw Exception('Failed to get leads');
+      throw Exception(_translateError('failedToGetLeads', locale: null));
     }
   }
   
@@ -675,7 +707,7 @@ class ApiService {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       return LeadModel.fromJson(data);
     } else {
-      throw Exception('Failed to get lead');
+      throw Exception(_translateError('failedToGetLead', locale: null));
     }
   }
   
@@ -700,7 +732,7 @@ class ApiService {
     
     if (response.statusCode != 201) {
       final error = jsonDecode(response.body) as Map<String, dynamic>;
-      throw Exception(error['detail'] ?? error['message'] ?? 'Failed to add action');
+      throw Exception(error['detail'] ?? error['message'] ?? _translateError('failedToAddAction', locale: null));
     }
   }
   
@@ -716,7 +748,7 @@ class ApiService {
           : <ClientTaskModel>[];
       return results;
     } else {
-      throw Exception('Failed to get client tasks');
+      throw Exception(_translateError('failedToGetClientTasks', locale: null));
     }
   }
   
@@ -732,7 +764,7 @@ class ApiService {
           : <ClientTaskModel>[];
       return results;
     } else {
-      throw Exception('Failed to get all client tasks');
+      throw Exception(_translateError('failedToGetAllClientTasks', locale: null));
     }
   }
   
@@ -753,7 +785,7 @@ class ApiService {
     // Get current user to retrieve company ID
     final currentUser = await getCurrentUser();
     if (currentUser.company == null) {
-      throw Exception('User must be associated with a company');
+      throw Exception(_translateError('userMustBeAssociatedWithCompany', locale: null));
     }
     
     final body = <String, dynamic>{
@@ -859,7 +891,7 @@ class ApiService {
       return LeadModel.fromJson(data);
     } else {
       final error = jsonDecode(response.body) as Map<String, dynamic>;
-      throw Exception(error['detail'] ?? error['message'] ?? 'Failed to update lead');
+      throw Exception(error['detail'] ?? error['message'] ?? _translateError('failedToUpdateLead', locale: null));
     }
   }
   
@@ -869,7 +901,7 @@ class ApiService {
     
     if (response.statusCode != 204) {
       final error = jsonDecode(response.body) as Map<String, dynamic>;
-      throw Exception(error['detail'] ?? error['message'] ?? 'Failed to delete lead');
+      throw Exception(error['detail'] ?? error['message'] ?? _translateError('failedToDeleteLead', locale: null));
     }
   }
   
@@ -887,7 +919,7 @@ class ApiService {
     
     if (response.statusCode != 200) {
       final error = jsonDecode(response.body) as Map<String, dynamic>;
-      throw Exception(error['detail'] ?? error['message'] ?? 'Failed to assign leads');
+      throw Exception(error['detail'] ?? error['message'] ?? _translateError('failedToAssignLeads', locale: null));
     }
   }
   
@@ -921,7 +953,7 @@ class ApiService {
         'count': (data['count'] as num?)?.toInt() ?? 0,
       };
     } else {
-      throw Exception('Failed to get users');
+      throw Exception(_translateError('failedToGetUsers', locale: null));
     }
   }
   
@@ -933,7 +965,7 @@ class ApiService {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       return UserModel.fromJson(data);
     } else {
-      throw Exception('Failed to get user');
+      throw Exception(_translateError('failedToGetUser', locale: null));
     }
   }
   
@@ -951,7 +983,7 @@ class ApiService {
         'count': (data['count'] as num?)?.toInt() ?? 0,
       };
     } else {
-      throw Exception('Failed to get deals');
+      throw Exception(_translateError('failedToGetDeals', locale: null));
     }
   }
   
@@ -963,7 +995,7 @@ class ApiService {
       final results = data['results'] as List<dynamic>? ?? [];
       return results.map((json) => DealModel.fromJson(json as Map<String, dynamic>)).toList();
     }
-    throw Exception('Failed to load deals');
+    throw Exception(_translateError('failedToLoadDeals', locale: null));
   }
   
   // Update deal
@@ -1032,7 +1064,7 @@ class ApiService {
       }
       return [];
     } else {
-      throw Exception('Failed to get channels');
+      throw Exception(_translateError('failedToGetChannels', locale: null));
     }
   }
   
@@ -1044,7 +1076,7 @@ class ApiService {
     // Get current user to retrieve company ID
     final currentUser = await getCurrentUser();
     if (currentUser.company == null) {
-      throw Exception('User must be associated with a company');
+      throw Exception(_translateError('userMustBeAssociatedWithCompany', locale: null));
     }
     
     final response = await _makeRequest(
@@ -1095,7 +1127,7 @@ class ApiService {
     // Get current user to retrieve company ID
     final currentUser = await getCurrentUser();
     if (currentUser.company == null) {
-      throw Exception('User must be associated with a company');
+      throw Exception(_translateError('userMustBeAssociatedWithCompany', locale: null));
     }
     
     final response = await _makeRequest(
@@ -1166,7 +1198,7 @@ class ApiService {
       }
       return [];
     } else {
-      throw Exception('Failed to get stages');
+      throw Exception(_translateError('failedToGetStages', locale: null));
     }
   }
   
@@ -1180,7 +1212,7 @@ class ApiService {
     // Get current user to retrieve company ID
     final currentUser = await getCurrentUser();
     if (currentUser.company == null) {
-      throw Exception('User must be associated with a company');
+      throw Exception(_translateError('userMustBeAssociatedWithCompany', locale: null));
     }
     
     final response = await _makeRequest(
@@ -1229,7 +1261,7 @@ class ApiService {
     // Get current user to retrieve company ID
     final currentUser = await getCurrentUser();
     if (currentUser.company == null) {
-      throw Exception('User must be associated with a company');
+      throw Exception(_translateError('userMustBeAssociatedWithCompany', locale: null));
     }
     
     final response = await _makeRequest(
@@ -1296,7 +1328,7 @@ class ApiService {
       }
       return [];
     } else {
-      throw Exception('Failed to get statuses');
+      throw Exception(_translateError('failedToGetStatuses', locale: null));
     }
   }
   
@@ -1311,7 +1343,7 @@ class ApiService {
     // Get current user to retrieve company ID
     final currentUser = await getCurrentUser();
     if (currentUser.company == null) {
-      throw Exception('User must be associated with a company');
+      throw Exception(_translateError('userMustBeAssociatedWithCompany', locale: null));
     }
     
     // Normalize category to lowercase and handle "Follow Up" variations
@@ -1373,7 +1405,7 @@ class ApiService {
     // Get current user to retrieve company ID
     final currentUser = await getCurrentUser();
     if (currentUser.company == null) {
-      throw Exception('User must be associated with a company');
+      throw Exception(_translateError('userMustBeAssociatedWithCompany', locale: null));
     }
     
     // Normalize category to lowercase and handle "Follow Up" variations
@@ -1448,7 +1480,7 @@ class ApiService {
       final results = data['results'] as List<dynamic>? ?? [];
       return results.map((json) => Developer.fromJson(json as Map<String, dynamic>)).toList();
     }
-    throw Exception('Failed to load developers');
+    throw Exception(_translateError('failedToLoadDevelopers', locale: null));
   }
   
   // Projects
@@ -1459,7 +1491,7 @@ class ApiService {
       final results = data['results'] as List<dynamic>? ?? [];
       return results.map((json) => Project.fromJson(json as Map<String, dynamic>)).toList();
     }
-    throw Exception('Failed to load projects');
+    throw Exception(_translateError('failedToLoadProjects', locale: null));
   }
   
   // Units
@@ -1470,7 +1502,7 @@ class ApiService {
       final results = data['results'] as List<dynamic>? ?? [];
       return results.map((json) => Unit.fromJson(json as Map<String, dynamic>)).toList();
     }
-    throw Exception('Failed to load units');
+    throw Exception(_translateError('failedToLoadUnits', locale: null));
   }
   
   // Owners
@@ -1481,7 +1513,7 @@ class ApiService {
       final results = data['results'] as List<dynamic>? ?? [];
       return results.map((json) => Owner.fromJson(json as Map<String, dynamic>)).toList();
     }
-    throw Exception('Failed to load owners');
+    throw Exception(_translateError('failedToLoadOwners', locale: null));
   }
   
   // ==================== Services Inventory APIs ====================
@@ -1494,7 +1526,7 @@ class ApiService {
       final results = data['results'] as List<dynamic>? ?? [];
       return results.map((json) => Service.fromJson(json as Map<String, dynamic>)).toList();
     }
-    throw Exception('Failed to load services');
+    throw Exception(_translateError('failedToLoadServices', locale: null));
   }
   
   // Service Packages
@@ -1505,7 +1537,7 @@ class ApiService {
       final results = data['results'] as List<dynamic>? ?? [];
       return results.map((json) => ServicePackage.fromJson(json as Map<String, dynamic>)).toList();
     }
-    throw Exception('Failed to load service packages');
+    throw Exception(_translateError('failedToLoadServicePackages', locale: null));
   }
   
   // Service Providers
@@ -1516,7 +1548,7 @@ class ApiService {
       final results = data['results'] as List<dynamic>? ?? [];
       return results.map((json) => ServiceProvider.fromJson(json as Map<String, dynamic>)).toList();
     }
-    throw Exception('Failed to load service providers');
+    throw Exception(_translateError('failedToLoadServiceProviders', locale: null));
   }
   
   // ==================== Products Inventory APIs ====================
@@ -1529,7 +1561,7 @@ class ApiService {
       final results = data['results'] as List<dynamic>? ?? [];
       return results.map((json) => Product.fromJson(json as Map<String, dynamic>)).toList();
     }
-    throw Exception('Failed to load products');
+    throw Exception(_translateError('failedToLoadProducts', locale: null));
   }
   
   // Product Categories
@@ -1540,7 +1572,7 @@ class ApiService {
       final results = data['results'] as List<dynamic>? ?? [];
       return results.map((json) => ProductCategory.fromJson(json as Map<String, dynamic>)).toList();
     }
-    throw Exception('Failed to load product categories');
+    throw Exception(_translateError('failedToLoadProductCategories', locale: null));
   }
   
   // Suppliers
@@ -1551,7 +1583,7 @@ class ApiService {
       final results = data['results'] as List<dynamic>? ?? [];
       return results.map((json) => Supplier.fromJson(json as Map<String, dynamic>)).toList();
     }
-    throw Exception('Failed to load suppliers');
+    throw Exception(_translateError('failedToLoadSuppliers', locale: null));
   }
   
   // ==================== CRUD Operations for Inventory ====================
@@ -1561,7 +1593,7 @@ class ApiService {
     // Get current user to retrieve company ID
     final currentUser = await getCurrentUser();
     if (currentUser.company == null) {
-      throw Exception('User must be associated with a company');
+      throw Exception(_translateError('userMustBeAssociatedWithCompany', locale: null));
     }
     
     // Add company ID to the data
@@ -1597,7 +1629,7 @@ class ApiService {
     // Get current user to retrieve company ID
     final currentUser = await getCurrentUser();
     if (currentUser.company == null) {
-      throw Exception('User must be associated with a company');
+      throw Exception(_translateError('userMustBeAssociatedWithCompany', locale: null));
     }
     
     // Add company ID to the data
@@ -1633,7 +1665,7 @@ class ApiService {
     // Get current user to retrieve company ID
     final currentUser = await getCurrentUser();
     if (currentUser.company == null) {
-      throw Exception('User must be associated with a company');
+      throw Exception(_translateError('userMustBeAssociatedWithCompany', locale: null));
     }
     
     // Add company ID to the data
@@ -1669,7 +1701,7 @@ class ApiService {
     // Get current user to retrieve company ID
     final currentUser = await getCurrentUser();
     if (currentUser.company == null) {
-      throw Exception('User must be associated with a company');
+      throw Exception(_translateError('userMustBeAssociatedWithCompany', locale: null));
     }
     
     // Add company ID to the data
@@ -1705,7 +1737,7 @@ class ApiService {
     // Get current user to retrieve company ID
     final currentUser = await getCurrentUser();
     if (currentUser.company == null) {
-      throw Exception('User must be associated with a company');
+      throw Exception(_translateError('userMustBeAssociatedWithCompany', locale: null));
     }
     
     // Add company ID to the data
@@ -1741,7 +1773,7 @@ class ApiService {
     // Get current user to retrieve company ID
     final currentUser = await getCurrentUser();
     if (currentUser.company == null) {
-      throw Exception('User must be associated with a company');
+      throw Exception(_translateError('userMustBeAssociatedWithCompany', locale: null));
     }
     
     // Add company ID to the data
@@ -1777,7 +1809,7 @@ class ApiService {
     // Get current user to retrieve company ID
     final currentUser = await getCurrentUser();
     if (currentUser.company == null) {
-      throw Exception('User must be associated with a company');
+      throw Exception(_translateError('userMustBeAssociatedWithCompany', locale: null));
     }
     
     // Add company ID to the data
@@ -1813,7 +1845,7 @@ class ApiService {
     // Get current user to retrieve company ID
     final currentUser = await getCurrentUser();
     if (currentUser.company == null) {
-      throw Exception('User must be associated with a company');
+      throw Exception(_translateError('userMustBeAssociatedWithCompany', locale: null));
     }
     
     // Add company ID to the data
@@ -1854,7 +1886,7 @@ class ApiService {
     // Get current user to retrieve company ID
     final currentUser = await getCurrentUser();
     if (currentUser.company == null) {
-      throw Exception('User must be associated with a company');
+      throw Exception(_translateError('userMustBeAssociatedWithCompany', locale: null));
     }
     
     // Add company ID to the data
@@ -1890,7 +1922,7 @@ class ApiService {
     // Get current user to retrieve company ID
     final currentUser = await getCurrentUser();
     if (currentUser.company == null) {
-      throw Exception('User must be associated with a company');
+      throw Exception(_translateError('userMustBeAssociatedWithCompany', locale: null));
     }
     
     // Add company ID to the data
@@ -1918,6 +1950,238 @@ class ApiService {
     final response = await _makeRequest('DELETE', '/owners/$id/');
     if (response.statusCode != 204) {
       throw Exception('Failed to delete owner');
+    }
+  }
+  
+  // ==================== FCM Token Management ====================
+  
+  /// تحديث FCM Token للمستخدم الحالي
+  Future<void> updateFCMToken(String fcmToken, {String? language}) async {
+    try {
+      final body = {
+        'fcm_token': fcmToken,
+      };
+      
+      // إضافة اللغة إذا كانت متوفرة
+      if (language != null) {
+        body['language'] = language;
+      }
+      
+      final response = await _makeRequest(
+        'POST',
+        '/users/update-fcm-token/',
+        body: body,
+      );
+      
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        debugPrint('✓ FCM Token sent to server successfully');
+      } else {
+        String errorMessage = 'Failed to update FCM token';
+        try {
+          final error = jsonDecode(response.body) as Map<String, dynamic>;
+          errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
+        } catch (_) {
+          errorMessage = 'Failed to update FCM token with status ${response.statusCode}';
+        }
+        debugPrint('⚠ Warning: $errorMessage');
+      }
+    } catch (e, stackTrace) {
+      ErrorLogger().logError(
+        error: e.toString(),
+        stackTrace: stackTrace.toString(),
+        endpoint: '/users/update-fcm-token/',
+        method: 'POST',
+      );
+      debugPrint('⚠ Error sending FCM token to server: $e');
+      // لا نرمي exception هنا لأن الإشعارات المحلية ستعمل حتى بدون إرسال Token
+    }
+  }
+  
+  // ==================== User Preferences ====================
+  
+  /// تحديث لغة المستخدم
+  Future<void> updateLanguage(String languageCode) async {
+    try {
+      final response = await _makeRequest(
+        'POST',
+        '/users/update-language/',
+        body: {
+          'language': languageCode,
+        },
+      );
+      
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        debugPrint('Language updated on server successfully');
+      } else {
+        String errorMessage = 'Failed to update language';
+        try {
+          final error = jsonDecode(response.body) as Map<String, dynamic>;
+          errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
+        } catch (_) {
+          errorMessage = 'Failed to update language with status ${response.statusCode}';
+        }
+        debugPrint('Warning: $errorMessage');
+      }
+    } catch (e, stackTrace) {
+      ErrorLogger().logError(
+        error: e.toString(),
+        stackTrace: stackTrace.toString(),
+        endpoint: '/users/update-language/',
+        method: 'POST',
+      );
+      debugPrint('Warning: Error updating language on server: $e');
+      // لا نرمي exception هنا لأن تغيير اللغة المحلي يعمل حتى بدون تحديث الخادم
+    }
+  }
+  
+  // ==================== Notifications Management ====================
+  
+  /// جلب جميع الإشعارات للمستخدم الحالي
+  Future<List<Map<String, dynamic>>> getNotifications({
+    bool? read,
+    String? type,
+  }) async {
+    try {
+      String endpoint = '/notifications/';
+      Map<String, String> queryParams = {};
+      
+      if (read != null) {
+        queryParams['read'] = read.toString();
+      }
+      if (type != null) {
+        queryParams['type'] = type;
+      }
+      
+      if (queryParams.isNotEmpty) {
+        final queryString = queryParams.entries
+            .map((e) => '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
+            .join('&');
+        endpoint += '?$queryString';
+      }
+      
+      final response = await _makeRequest('GET', endpoint);
+      
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final results = data['results'] as List<dynamic>? ?? data as List<dynamic>;
+        return results.cast<Map<String, dynamic>>();
+      } else {
+        throw Exception('Failed to load notifications');
+      }
+    } catch (e, stackTrace) {
+      ErrorLogger().logError(
+        error: e.toString(),
+        stackTrace: stackTrace.toString(),
+        endpoint: '/notifications/',
+        method: 'GET',
+      );
+      rethrow;
+    }
+  }
+  
+  /// جلب إشعار محدد
+  Future<Map<String, dynamic>> getNotification(int notificationId) async {
+    try {
+      final response = await _makeRequest('GET', '/notifications/$notificationId/');
+      
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      } else {
+        throw Exception('Failed to load notification');
+      }
+    } catch (e, stackTrace) {
+      ErrorLogger().logError(
+        error: e.toString(),
+        stackTrace: stackTrace.toString(),
+        endpoint: '/notifications/$notificationId/',
+        method: 'GET',
+      );
+      rethrow;
+    }
+  }
+  
+  /// تحديد إشعار كمقروء
+  Future<void> markNotificationAsRead(int notificationId) async {
+    try {
+      final response = await _makeRequest('POST', '/notifications/$notificationId/mark_read/');
+      
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        debugPrint('✓ Notification marked as read');
+      } else {
+        throw Exception('Failed to mark notification as read');
+      }
+    } catch (e, stackTrace) {
+      ErrorLogger().logError(
+        error: e.toString(),
+        stackTrace: stackTrace.toString(),
+        endpoint: '/notifications/$notificationId/mark_read/',
+        method: 'POST',
+      );
+      rethrow;
+    }
+  }
+  
+  /// تحديد جميع الإشعارات كمقروءة
+  Future<void> markAllNotificationsAsRead() async {
+    try {
+      final response = await _makeRequest('POST', '/notifications/mark_all_read/');
+      
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        debugPrint('✓ All notifications marked as read');
+      } else {
+        throw Exception('Failed to mark all notifications as read');
+      }
+    } catch (e, stackTrace) {
+      ErrorLogger().logError(
+        error: e.toString(),
+        stackTrace: stackTrace.toString(),
+        endpoint: '/notifications/mark_all_read/',
+        method: 'POST',
+      );
+      rethrow;
+    }
+  }
+  
+  /// جلب عدد الإشعارات غير المقروءة
+  Future<int> getUnreadNotificationsCount() async {
+    try {
+      final response = await _makeRequest('GET', '/notifications/unread_count/');
+      
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return data['unread_count'] as int? ?? 0;
+      } else {
+        throw Exception('Failed to get unread count');
+      }
+    } catch (e, stackTrace) {
+      ErrorLogger().logError(
+        error: e.toString(),
+        stackTrace: stackTrace.toString(),
+        endpoint: '/notifications/unread_count/',
+        method: 'GET',
+      );
+      return 0; // Return 0 on error to avoid breaking the UI
+    }
+  }
+  
+  /// حذف جميع الإشعارات المقروءة
+  Future<void> deleteAllReadNotifications() async {
+    try {
+      final response = await _makeRequest('DELETE', '/notifications/delete_all_read/');
+      
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        debugPrint('✓ All read notifications deleted');
+      } else {
+        throw Exception('Failed to delete read notifications');
+      }
+    } catch (e, stackTrace) {
+      ErrorLogger().logError(
+        error: e.toString(),
+        stackTrace: stackTrace.toString(),
+        endpoint: '/notifications/delete_all_read/',
+        method: 'DELETE',
+      );
+      rethrow;
     }
   }
 }

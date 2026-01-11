@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'core/bloc/theme/theme_bloc.dart';
 import 'core/bloc/language/language_bloc.dart';
 import 'core/theme/app_theme.dart';
@@ -13,9 +14,24 @@ import 'screens/profile/profile_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'core/constants/app_constants.dart';
+import 'services/notification_service.dart';
+import 'services/notification_router.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Firebase (optional - only if google-services.json exists)
+  bool firebaseInitialized = false;
+  try {
+    await Firebase.initializeApp();
+    firebaseInitialized = true;
+    debugPrint('✓ Firebase initialized successfully');
+  } catch (e) {
+    debugPrint('⚠ Warning: Firebase initialization failed: $e');
+    debugPrint('⚠ This is normal if google-services.json is not configured yet');
+    debugPrint('⚠ Local notifications will still work');
+    firebaseInitialized = false;
+  }
   
   // Load environment variables
   try {
@@ -39,6 +55,19 @@ void main() async {
     debugPrint('Error: $e');
   }
   
+  // Initialize Notification Service (works even without Firebase)
+  try {
+    await NotificationService().initialize();
+    if (firebaseInitialized) {
+      debugPrint('✓ Notification Service initialized with FCM support');
+    } else {
+      debugPrint('✓ Notification Service initialized (local notifications only)');
+    }
+  } catch (e, stackTrace) {
+    debugPrint('⚠ Warning: Notification Service initialization failed: $e');
+    debugPrint('Stack trace: $stackTrace');
+  }
+  
   // Load saved theme and language
   final prefs = await SharedPreferences.getInstance();
   final isLoggedIn = prefs.getBool(AppConstants.isLoggedInKey) ?? false;
@@ -46,10 +75,36 @@ void main() async {
   runApp(MyApp(isLoggedIn: isLoggedIn));
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   final bool isLoggedIn;
   
   const MyApp({super.key, required this.isLoggedIn});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  // GlobalKey للـ Navigator للوصول إليه من أي مكان
+  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  
+  @override
+  void initState() {
+    super.initState();
+    _setupNotificationListener();
+  }
+
+  /// إعداد مستمع الإشعارات
+  void _setupNotificationListener() {
+    NotificationService().notificationStream.listen((payload) {
+      // التنقل بناءً على نوع الإشعار
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (navigatorKey.currentState != null) {
+          NotificationRouter.navigateFromNotification(navigatorKey.currentState!.context, payload);
+        }
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,6 +122,7 @@ class MyApp extends StatelessWidget {
           return BlocBuilder<ThemeBloc, ThemeState>(
             builder: (context, themeState) {
               return MaterialApp(
+                navigatorKey: navigatorKey,
                 title: 'LOOP CRM',
                 debugShowCheckedModeBanner: false,
                 theme: AppTheme.lightTheme,
@@ -102,7 +158,7 @@ class MyApp extends StatelessWidget {
                     return const LoginScreen();
                   },
                 },
-                home: isLoggedIn ? const HomeScreen() : const LoginScreen(),
+                home: widget.isLoggedIn ? const HomeScreen() : const LoginScreen(),
               );
             },
           );

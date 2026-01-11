@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart' hide NavigationDrawer;
 import 'package:intl/intl.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../services/notification_service.dart';
+import '../../services/api_service.dart';
 import '../../widgets/navigation_drawer.dart';
 import '../../widgets/bottom_navigation.dart';
 import '../calendar/calendar_screen.dart';
 import '../leads/all_leads_screen.dart';
+import '../notifications/notifications_screen.dart';
 import 'dashboard_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -23,6 +26,43 @@ class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey _allLeadsKey = GlobalKey();
   VoidCallback? _showAllLeadsFilterCallback;
   bool Function()? _checkAllLeadsFiltersCallback;
+  final ApiService _apiService = ApiService();
+  int _unreadNotificationsCount = 0;
+  
+  @override
+  void initState() {
+    super.initState();
+    // إرسال FCM token للمستخدمين المسجلين دخول بالفعل
+    _sendFCMTokenIfLoggedIn();
+    // تحميل عدد الإشعارات غير المقروءة
+    _loadUnreadCount();
+  }
+  
+  /// تحميل عدد الإشعارات غير المقروءة
+  Future<void> _loadUnreadCount() async {
+    try {
+      final count = await _apiService.getUnreadNotificationsCount();
+      if (mounted) {
+        setState(() {
+          _unreadNotificationsCount = count;
+        });
+      }
+    } catch (e) {
+      debugPrint('Warning: Failed to load unread notifications count: $e');
+    }
+  }
+  
+  /// إرسال FCM token إذا كان المستخدم مسجل دخول
+  Future<void> _sendFCMTokenIfLoggedIn() async {
+    try {
+      final notificationService = NotificationService();
+      await notificationService.sendTokenToServerIfLoggedIn();
+      debugPrint('FCM Token sent to server (for already logged in user)');
+    } catch (e) {
+      debugPrint('Warning: Failed to send FCM token for logged in user: $e');
+      // لا نعرض خطأ للمستخدم لأن هذا ليس حرجاً
+    }
+  }
   
   @override
   Widget build(BuildContext context) {
@@ -117,18 +157,49 @@ class _HomeScreenState extends State<HomeScreen> {
                     (_calendarKey.currentState as dynamic)?.refreshEvents();
                   },
                 ),
-                IconButton(
-                  icon: const Icon(Icons.notifications_outlined),
-                  onPressed: () {
-                    // TODO: Open notifications - Show notifications screen
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          localizations?.translate('notificationsComingSoon') ?? 'Notifications feature coming soon',
+                Stack(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.notifications_outlined),
+                      onPressed: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const NotificationsScreen(),
+                          ),
+                        );
+                        // تحديث عدد الإشعارات بعد العودة
+                        if (mounted) {
+                          _loadUnreadCount();
+                        }
+                      },
+                    ),
+                    if (_unreadNotificationsCount > 0)
+                      Positioned(
+                        right: 8,
+                        top: 8,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 16,
+                            minHeight: 16,
+                          ),
+                          child: Text(
+                            _unreadNotificationsCount > 99 ? '99+' : '$_unreadNotificationsCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
                         ),
                       ),
-                    );
-                  },
+                  ],
                 ),
               ],
             )
@@ -172,18 +243,49 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     },
                   ),
-                IconButton(
-                  icon: const Icon(Icons.notifications_outlined),
-                  onPressed: () {
-                    // TODO: Open notifications - Show notifications screen
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          localizations?.translate('notificationsComingSoon') ?? 'Notifications feature coming soon',
+                Stack(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.notifications_outlined),
+                      onPressed: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const NotificationsScreen(),
+                          ),
+                        );
+                        // تحديث عدد الإشعارات بعد العودة
+                        if (mounted) {
+                          _loadUnreadCount();
+                        }
+                      },
+                    ),
+                    if (_unreadNotificationsCount > 0)
+                      Positioned(
+                        right: 8,
+                        top: 8,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 16,
+                            minHeight: 16,
+                          ),
+                          child: Text(
+                            _unreadNotificationsCount > 99 ? '99+' : '$_unreadNotificationsCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
                         ),
                       ),
-                    );
-                  },
+                  ],
                 ),
               ],
             ),

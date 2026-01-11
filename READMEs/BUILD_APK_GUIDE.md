@@ -44,7 +44,7 @@ API_KEY=your_production_api_key_here
 
 **Example:**
 ```env
-BASE_URL=https://haidaraib.pythonanywhere.com/api
+BASE_URL=https://api.yourdomain.com/api
 API_KEY=your_actual_production_api_key
 ```
 
