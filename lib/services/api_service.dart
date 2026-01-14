@@ -9,6 +9,8 @@ import '../models/lead_model.dart';
 import '../models/user_model.dart';
 import '../models/settings_model.dart';
 import '../models/client_task_model.dart';
+import '../models/client_call_model.dart';
+import '../models/task_model.dart';
 import '../models/inventory_model.dart';
 import '../models/deal_model.dart';
 import 'error_logger.dart';
@@ -768,6 +770,79 @@ class ApiService {
     }
   }
   
+  // Add call to lead
+  Future<void> addCallToLead({
+    required int leadId,
+    required int callMethod,
+    required String notes,
+    DateTime? followUpDate,
+  }) async {
+    final body = <String, dynamic>{
+      'client': leadId,
+      'call_method': callMethod,
+      'notes': notes,
+    };
+    
+    if (followUpDate != null) {
+      body['follow_up_date'] = followUpDate.toIso8601String();
+    }
+    
+    final response = await _makeRequest('POST', '/client-calls/', body: body);
+    
+    if (response.statusCode != 201) {
+      final error = jsonDecode(response.body) as Map<String, dynamic>;
+      throw Exception(error['detail'] ?? error['message'] ?? _translateError('failedToAddCall', locale: null));
+    }
+  }
+  
+  // Get client calls for a lead
+  Future<List<ClientCallModel>> getClientCalls(int leadId) async {
+    final response = await _makeRequest('GET', '/client-calls/?client=$leadId');
+    
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final resultsList = data['results'] as List?;
+      final results = resultsList != null
+          ? resultsList.map((e) => ClientCallModel.fromJson(e as Map<String, dynamic>)).toList()
+          : <ClientCallModel>[];
+      return results;
+    } else {
+      throw Exception(_translateError('failedToGetClientCalls', locale: null));
+    }
+  }
+  
+  // Get all client calls for calendar
+  Future<List<ClientCallModel>> getAllClientCalls() async {
+    final response = await _makeRequest('GET', '/client-calls/');
+    
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final resultsList = data['results'] as List?;
+      final results = resultsList != null
+          ? resultsList.map((e) => ClientCallModel.fromJson(e as Map<String, dynamic>)).toList()
+          : <ClientCallModel>[];
+      return results;
+    } else {
+      throw Exception(_translateError('failedToGetAllClientCalls', locale: null));
+    }
+  }
+  
+  // Get all tasks (deal tasks) for calendar
+  Future<List<TaskModel>> getAllTasks() async {
+    final response = await _makeRequest('GET', '/tasks/');
+    
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final resultsList = data['results'] as List?;
+      final results = resultsList != null
+          ? resultsList.map((e) => TaskModel.fromJson(e as Map<String, dynamic>)).toList()
+          : <TaskModel>[];
+      return results;
+    } else {
+      throw Exception(_translateError('failedToGetAllTasks', locale: null));
+    }
+  }
+  
   // Create lead
   Future<LeadModel> createLead({
     required String name,
@@ -1465,6 +1540,114 @@ class ApiService {
         errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
       } catch (_) {
         errorMessage = 'Failed to delete status with status ${response.statusCode}';
+      }
+      throw Exception(errorMessage);
+    }
+  }
+  
+  // Call Methods CRUD
+  Future<List<CallMethodModel>> getCallMethods() async {
+    final response = await _makeRequest('GET', '/settings/call-methods/');
+    
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data is List) {
+        return data.map((item) => CallMethodModel.fromJson(item as Map<String, dynamic>)).toList();
+      } else if (data is Map && data['results'] != null) {
+        final results = data['results'] as List;
+        return results.map((item) => CallMethodModel.fromJson(item as Map<String, dynamic>)).toList();
+      }
+      return [];
+    } else {
+      throw Exception(_translateError('failedToGetCallMethods', locale: null));
+    }
+  }
+  
+  Future<CallMethodModel> createCallMethod({
+    required String name,
+    String? description,
+    required String color,
+  }) async {
+    // Get current user to retrieve company ID
+    final currentUser = await getCurrentUser();
+    if (currentUser.company == null) {
+      throw Exception(_translateError('userMustBeAssociatedWithCompany', locale: null));
+    }
+    
+    final response = await _makeRequest(
+      'POST',
+      '/settings/call-methods/',
+      body: {
+        'name': name,
+        'description': description,
+        'color': color,
+        'company': currentUser.company!.id, // Include company ID
+      },
+    );
+    
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return CallMethodModel.fromJson(data);
+    } else {
+      String errorMessage = 'Failed to create call method';
+      try {
+        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
+      } catch (_) {
+        errorMessage = 'Failed to create call method with status ${response.statusCode}';
+      }
+      throw Exception(errorMessage);
+    }
+  }
+  
+  Future<CallMethodModel> updateCallMethod({
+    required int callMethodId,
+    required String name,
+    String? description,
+    required String color,
+  }) async {
+    // Get current user to retrieve company ID
+    final currentUser = await getCurrentUser();
+    if (currentUser.company == null) {
+      throw Exception(_translateError('userMustBeAssociatedWithCompany', locale: null));
+    }
+    
+    final response = await _makeRequest(
+      'PUT',
+      '/settings/call-methods/$callMethodId/',
+      body: {
+        'name': name,
+        'description': description,
+        'color': color,
+        'company': currentUser.company!.id, // Include company ID
+      },
+    );
+    
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return CallMethodModel.fromJson(data);
+    } else {
+      String errorMessage = 'Failed to update call method';
+      try {
+        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
+      } catch (_) {
+        errorMessage = 'Failed to update call method with status ${response.statusCode}';
+      }
+      throw Exception(errorMessage);
+    }
+  }
+  
+  Future<void> deleteCallMethod(int callMethodId) async {
+    final response = await _makeRequest('DELETE', '/settings/call-methods/$callMethodId/');
+    
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      String errorMessage = 'Failed to delete call method';
+      try {
+        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
+      } catch (_) {
+        errorMessage = 'Failed to delete call method with status ${response.statusCode}';
       }
       throw Exception(errorMessage);
     }

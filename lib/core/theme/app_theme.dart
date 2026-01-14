@@ -40,6 +40,9 @@ class AppTheme {
       labelMedium: TextStyle(color: Colors.black),
       labelSmall: TextStyle(color: Colors.black87),
     ),
+    snackBarTheme: const SnackBarThemeData(
+      contentTextStyle: TextStyle(color: Colors.black),
+    ),
   );
   
   // Dark Theme
@@ -144,6 +147,9 @@ class AppTheme {
     listTileTheme: const ListTileThemeData(
       textColor: Color(0xFFD1D5DB), // gray-300
       iconColor: Color(0xFFD1D5DB),
+    ),
+    snackBarTheme: const SnackBarThemeData(
+      contentTextStyle: TextStyle(color: Colors.white),
     ),
   );
 }

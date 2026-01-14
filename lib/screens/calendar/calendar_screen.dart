@@ -56,6 +56,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
         stageMap[stage.id] = stage.name;
       }
       
+      // Get all call methods to map call method IDs to names
+      final callMethods = await _apiService.getCallMethods();
+      final callMethodMap = <int, String>{};
+      for (final callMethod in callMethods) {
+        callMethodMap[callMethod.id] = callMethod.name;
+      }
+      
       // Get all leads to map lead IDs to names
       final leadsResponse = await _apiService.getLeads();
       final leads = leadsResponse['results'] as List<LeadModel>? ?? [];
@@ -64,14 +71,54 @@ class _CalendarScreenState extends State<CalendarScreen> {
         leadMap[lead.id] = lead;
       }
       
-      // Get all client tasks directly from API
-      final tasks = await _apiService.getAllClientTasks();
+      // Get all deals to map deal IDs to client names
+      final dealsResponse = await _apiService.getDeals();
+      final deals = dealsResponse['results'] as List? ?? [];
+      final dealMap = <int, Map<String, dynamic>>{};
+      for (final deal in deals) {
+        final dealData = deal as Map<String, dynamic>;
+        final dealId = dealData['id'] as int;
+        final clientId = dealData['client'] is int 
+            ? dealData['client'] as int 
+            : (dealData['client'] as Map<String, dynamic>)['id'] as int;
+        dealMap[dealId] = {
+          'clientId': clientId,
+          'clientName': dealData['deal_client_name'] as String? ?? '',
+        };
+      }
       
       final events = <CalendarEvent>[];
-      
-      // Extract reminders from tasks
       final localizations = mounted ? AppLocalizations.of(context) : null;
-      for (final task in tasks) {
+      
+      // 1. Get all deal tasks (Task model)
+      final dealTasks = await _apiService.getAllTasks();
+      for (final task in dealTasks) {
+        // Only add events for tasks with reminder dates
+        if (task.reminderDate != null && dealMap.containsKey(task.deal)) {
+          final dealInfo = dealMap[task.deal]!;
+          final clientId = dealInfo['clientId'] as int;
+          final clientName = dealInfo['clientName'] as String? ?? '';
+          
+          // Get stage name from serializer or stage map
+          final stageName = task.stageName ?? 
+              (task.stage != null ? stageMap[task.stage] : null) ?? 
+              (localizations?.translate('unknown') ?? 'Unknown');
+          
+          events.add(CalendarEvent(
+            id: task.id,
+            title: stageName,
+            description: task.notes,
+            date: task.reminderDate!,
+            leadId: clientId,
+            leadName: clientName,
+            type: 'deal_task',
+          ));
+        }
+      }
+      
+      // 2. Get all client tasks (ClientTask model)
+      final clientTasks = await _apiService.getAllClientTasks();
+      for (final task in clientTasks) {
         // Only add events for tasks with reminder dates and valid leads
         if (task.reminderDate != null && leadMap.containsKey(task.client)) {
           final lead = leadMap[task.client]!;
@@ -83,7 +130,30 @@ class _CalendarScreenState extends State<CalendarScreen> {
             date: task.reminderDate!,
             leadId: lead.id,
             leadName: lead.name,
-            type: 'reminder',
+            type: 'client_task',
+          ));
+        }
+      }
+      
+      // 3. Get all client calls (ClientCall model)
+      final clientCalls = await _apiService.getAllClientCalls();
+      for (final call in clientCalls) {
+        // Only add events for calls with follow-up dates and valid leads
+        if (call.followUpDate != null && leadMap.containsKey(call.client)) {
+          final lead = leadMap[call.client]!;
+          final callMethodName = call.callMethod != null 
+              ? callMethodMap[call.callMethod] 
+              : null;
+          final title = callMethodName ?? (localizations?.translate('call') ?? 'Call');
+          
+          events.add(CalendarEvent(
+            id: call.id,
+            title: title,
+            description: call.notes,
+            date: call.followUpDate!,
+            leadId: lead.id,
+            leadName: lead.name,
+            type: 'client_call',
           ));
         }
       }
@@ -343,6 +413,33 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final localizations = AppLocalizations.of(context);
     final timeFormat = DateFormat('h:mm a', localizations?.locale.languageCode ?? 'en');
     
+    // Determine icon and color based on event type
+    IconData eventIcon;
+    Color eventColor;
+    String typeLabel;
+    
+    switch (event.type) {
+      case 'deal_task':
+        eventIcon = Icons.task;
+        eventColor = Colors.blue;
+        typeLabel = localizations?.translate('deal') ?? localizations?.translate('deals') ?? 'Deal Task';
+        break;
+      case 'client_task':
+        eventIcon = Icons.check_circle;
+        eventColor = Colors.purple;
+        typeLabel = localizations?.translate('addAction') ?? localizations?.translate('action') ?? 'Action';
+        break;
+      case 'client_call':
+        eventIcon = Icons.phone;
+        eventColor = Colors.green;
+        typeLabel = localizations?.translate('call') ?? 'Call';
+        break;
+      default:
+        eventIcon = Icons.notifications;
+        eventColor = AppTheme.primaryColor;
+        typeLabel = localizations?.translate('reminder') ?? 'Reminder';
+    }
+    
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       color: theme.cardColor,
@@ -350,20 +447,45 @@ class _CalendarScreenState extends State<CalendarScreen> {
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: AppTheme.primaryColor.withValues(alpha: 0.1),
+            color: eventColor.withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
           child: Icon(
-            Icons.notifications,
-            color: AppTheme.primaryColor,
+            eventIcon,
+            color: eventColor,
             size: 20,
           ),
         ),
-        title: Text(
-          event.title,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                event.title,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: eventColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: eventColor.withValues(alpha: 0.3),
+                  width: 1,
+                ),
+              ),
+              child: Text(
+                typeLabel,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: eventColor,
+                ),
+              ),
+            ),
+          ],
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -435,12 +557,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
 class CalendarEvent {
   final int id;
-  final String title; // Stage name (action type)
+  final String title; // Stage name (action type) or call method name
   final String description;
   final DateTime date;
   final int leadId;
   final String leadName;
-  final String type;
+  final String type; // 'deal_task', 'client_task', 'client_call'
 
   CalendarEvent({
     required this.id,

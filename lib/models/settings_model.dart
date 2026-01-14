@@ -174,3 +174,51 @@ class StatusModel {
   }
 }
 
+class CallMethodModel {
+  final int id;
+  final String name;
+  final String? description;
+  final String color; // Hex color code
+  
+  CallMethodModel({
+    required this.id,
+    required this.name,
+    this.description,
+    required this.color,
+  });
+  
+  factory CallMethodModel.fromJson(Map<String, dynamic> json) {
+    return CallMethodModel(
+      id: json['id'] as int,
+      name: json['name'] as String,
+      description: json['description'] as String?,
+      color: json['color'] as String? ?? '#808080',
+    );
+  }
+  
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'description': description,
+      'color': color,
+    };
+  }
+  
+  Map<String, dynamic> toCreateJson() {
+    return {
+      'name': name,
+      'description': description,
+      'color': color,
+    };
+  }
+  
+  Map<String, dynamic> toUpdateJson() {
+    return {
+      'name': name,
+      'description': description,
+      'color': color,
+    };
+  }
+}
+

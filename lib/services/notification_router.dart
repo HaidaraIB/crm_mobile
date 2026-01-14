@@ -75,6 +75,7 @@ class NotificationRouter {
       case NotificationType.taskCreated:
       case NotificationType.taskCompleted:
       case NotificationType.taskReminder:
+      case NotificationType.callReminder:
         navigator.pushNamed('/calendar');
         break;
 
@@ -173,6 +174,8 @@ class NotificationRouter {
         return Icons.check_circle;
       case NotificationType.taskReminder:
         return Icons.alarm;
+      case NotificationType.callReminder:
+        return Icons.phone;
       
       // إشعارات الصفقات
       case NotificationType.dealCreated:
@@ -257,6 +260,8 @@ class NotificationRouter {
         return Colors.green;
       case NotificationType.taskReminder:
         return Colors.red;
+      case NotificationType.callReminder:
+        return Colors.green;
       
       // إشعارات الصفقات
       case NotificationType.dealCreated:
@@ -339,6 +344,8 @@ class NotificationRouter {
         return 'مهمة مكتملة';
       case NotificationType.taskReminder:
         return 'تذكير مهمة';
+      case NotificationType.callReminder:
+        return 'تذكير مكالمة';
       
       case NotificationType.dealCreated:
         return 'صفقة جديدة';

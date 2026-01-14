@@ -7,6 +7,7 @@ import 'channels_settings_screen.dart';
 import 'general_settings_screen.dart';
 import 'stages_settings_screen.dart';
 import 'statuses_settings_screen.dart';
+import 'call_methods_settings_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -40,7 +41,7 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
           _currentUser = user;
           // Initialize TabController after we know if user is admin
           final isAdmin = user.isAdmin;
-          final tabCount = isAdmin ? 4 : 1; // General + 3 admin tabs or just General
+          final tabCount = isAdmin ? 5 : 1; // General + 4 admin tabs or just General
           _tabController = TabController(length: tabCount, vsync: this);
         });
       }
@@ -80,6 +81,7 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
             if (isAdmin) Tab(text: localizations?.translate('channels') ?? 'Channels'),
             if (isAdmin) Tab(text: localizations?.translate('stages') ?? 'Stages'),
             if (isAdmin) Tab(text: localizations?.translate('statuses') ?? 'Statuses'),
+            if (isAdmin) Tab(text: localizations?.translate('callMethods') ?? 'Call Methods'),
           ],
         ),
       ),
@@ -90,6 +92,7 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
           if (isAdmin) const ChannelsSettingsScreen(),
           if (isAdmin) const StagesSettingsScreen(),
           if (isAdmin) const StatusesSettingsScreen(),
+          if (isAdmin) const CallMethodsSettingsScreen(),
         ],
       ),
     );

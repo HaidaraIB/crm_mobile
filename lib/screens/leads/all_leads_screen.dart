@@ -8,6 +8,7 @@ import '../../models/settings_model.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/modals/add_action_modal.dart';
+import '../../widgets/modals/add_call_modal.dart';
 import '../../widgets/modals/assign_lead_modal.dart';
 import 'create_lead_screen.dart';
 import 'edit_lead_screen.dart';
@@ -451,6 +452,19 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
         leadId: lead.id,
         onSave: (stageId, notes, reminderDate) {
           // Refresh leads list after action is added
+          _loadLeads();
+        },
+      ),
+    );
+  }
+  
+  void _showAddCallModal(LeadModel lead) {
+    showDialog(
+      context: context,
+      builder: (context) => AddCallModal(
+        leadId: lead.id,
+        onSave: (callMethodId, notes, followUpDate) {
+          // Refresh leads list after call is added
           _loadLeads();
         },
       ),
@@ -1121,36 +1135,69 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
 
               const SizedBox(height: 20),
 
-              // Add Action Button (Full Width)
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => _showAddActionModal(lead),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.add_circle_outline, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        localizations?.translate('addAction') ?? 'Add Action',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.5,
+              // Add Action and Add Call Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => _showAddActionModal(lead),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
                         ),
+                        elevation: 0,
                       ),
-                    ],
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.add_circle_outline, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            localizations?.translate('addAction') ?? 'Add Action',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => _showAddCallModal(lead),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.phone, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            localizations?.translate('addCall') ?? 'Add Call',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

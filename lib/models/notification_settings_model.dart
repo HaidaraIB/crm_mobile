@@ -63,6 +63,7 @@ class NotificationSettings {
       NotificationType.taskCreated: true,
       NotificationType.taskReminder: true,
       NotificationType.taskCompleted: true,
+      NotificationType.callReminder: true,
       
       // إشعارات الصفقات - مفعلة افتراضياً
       NotificationType.dealCreated: true,

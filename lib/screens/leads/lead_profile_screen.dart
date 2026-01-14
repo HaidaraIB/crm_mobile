@@ -9,6 +9,7 @@ import '../../models/user_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/modals/assign_lead_modal.dart';
 import '../../widgets/modals/add_action_modal.dart';
+import '../../widgets/modals/add_call_modal.dart';
 import '../../widgets/phone_input.dart';
 import 'edit_lead_screen.dart';
 
@@ -740,7 +741,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
               ),
             ),
             
-            // Add Action Button at Bottom
+            // Add Action and Add Call Buttons at Bottom
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
@@ -756,43 +757,90 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                   ),
                 ],
               ),
-              child: ElevatedButton(
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => AddActionModal(
-                      leadId: _lead!.id,
-                      onSave: (stageId, notes, reminderDate) {
-                        // Refresh lead data after action is added
-                        _loadLead();
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => AddActionModal(
+                            leadId: _lead!.id,
+                            onSave: (stageId, notes, reminderDate) {
+                              // Refresh lead data after action is added
+                              _loadLead();
+                            },
+                          ),
+                        );
                       },
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryColor,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 18),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  elevation: 0,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.add_circle_outline, size: 22),
-                    const SizedBox(width: 8),
-                    Text(
-                      localizations?.translate('addAction') ?? 'Add Action',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.5,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.add_circle_outline, size: 22),
+                          const SizedBox(width: 8),
+                          Text(
+                            localizations?.translate('addAction') ?? 'Add Action',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => AddCallModal(
+                            leadId: _lead!.id,
+                            onSave: (callMethodId, notes, followUpDate) {
+                              // Refresh lead data after call is added
+                              _loadLead();
+                            },
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.phone, size: 22),
+                          const SizedBox(width: 8),
+                          Text(
+                            localizations?.translate('addCall') ?? 'Add Call',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -1077,35 +1125,49 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Text(
-                      phone.phoneNumber,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: theme.textTheme.bodyLarge?.color ?? theme.colorScheme.onSurface,
+                // Primary Banner (if primary)
+                if (phone.isPrimary) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                        width: 1,
                       ),
                     ),
-                    if (phone.isPrimary) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.star,
+                          size: 12,
+                          color: AppTheme.primaryColor,
                         ),
-                        child: Text(
+                        const SizedBox(width: 4),
+                        Text(
                           localizations?.translate('primary') ?? 'Primary',
                           style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
                             color: AppTheme.primaryColor,
+                            letterSpacing: 0.3,
                           ),
                         ),
-                      ),
-                    ],
-                  ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                ],
+                // Phone Number (full width)
+                Text(
+                  phone.phoneNumber,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: theme.textTheme.bodyLarge?.color ?? theme.colorScheme.onSurface,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(

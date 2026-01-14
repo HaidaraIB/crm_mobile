@@ -215,6 +215,7 @@ class _NotificationSettingsScreenState
               NotificationType.taskCreated,
               NotificationType.taskReminder,
               NotificationType.taskCompleted,
+              NotificationType.callReminder,
             ],
           ),
 
@@ -410,6 +411,8 @@ class _NotificationSettingsScreenState
         return 'taskReminder';
       case NotificationType.taskCompleted:
         return 'taskCompleted';
+      case NotificationType.callReminder:
+        return 'callReminder';
       case NotificationType.dealCreated:
         return 'dealCreated';
       case NotificationType.dealUpdated:
