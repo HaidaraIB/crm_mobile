@@ -74,8 +74,26 @@ class _LoginScreenState extends State<LoginScreen> {
       // We don't access .code property to avoid NoSuchMethodError
       final lowerError = cleanError.toLowerCase();
       
+      // Check for network/offline errors first (ClientException, SocketException, host lookup, etc.)
+      if (lowerError.contains('socketexception') ||
+          lowerError.contains('failed host lookup') ||
+          lowerError.contains('host lookup') ||
+          lowerError.contains('no address associated with hostname') ||
+          lowerError.contains('socketfailed') ||
+          lowerError.contains('network is unreachable') ||
+          lowerError.contains('connection refused') ||
+          lowerError.contains('connection timed out') ||
+          lowerError.contains('connection reset') ||
+          lowerError.contains('timed out') ||
+          lowerError.contains('clientexception')) {
+        errorMsg = AppLocalizations.of(context)?.translate('noInternetConnection') ?? 
+            'No Internet Connection';
+        errorMsg += '. ';
+        errorMsg += AppLocalizations.of(context)?.translate('noInternetMessage') ?? 
+            'Please check your internet connection and try again.';
+      }
       // Check for subscription errors
-      if (lowerError.contains('subscription is not active') ||
+      else if (lowerError.contains('subscription is not active') ||
           lowerError.contains('subscription') && 
           (lowerError.contains('not active') || lowerError.contains('inactive'))) {
         // Use the actual backend error message if it's meaningful

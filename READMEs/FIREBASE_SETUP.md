@@ -38,10 +38,18 @@
 
 1. في Firebase Console، انقر على أيقونة iOS
 2. أدخل معلومات التطبيق:
-   - **Bundle ID**: يجب أن يطابق Bundle ID في Xcode
+   - **Bundle ID**: يجب أن يطابق Bundle ID في Xcode (افتراضي: `com.example.crmMobile`)
    - **App nickname**: (اختياري)
 3. انقر "Register app"
 4. **انسخ ملف `GoogleService-Info.plist`** إلى المجلد: `ios/Runner/`
+5. ✅ **تم إضافة الملف تلقائياً إلى project.pbxproj**
+6. ✅ **تم تحديث AppDelegate.swift لإضافة Firebase**
+
+**ملاحظات مهمة (تحتاج Xcode):**
+- يجب إضافة **Push Notifications** capability في Xcode
+- يجب إضافة **Background Modes → Remote notifications** في Xcode
+- يجب رفع **APNs Certificate/Key** في Firebase Console → Project Settings → Cloud Messaging
+- يجب تشغيل `pod install` في مجلد `ios/` بعد إضافة Podfile
 
 ### 5. تثبيت التبعيات
 

@@ -135,7 +135,23 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
       }));
     } catch (e) {
       final errorString = e.toString();
-      if (errorString.contains('ACCOUNT_TEMPORARILY_INACTIVE')) {
+      final lowerError = errorString.toLowerCase();
+      final isNetworkError = lowerError.contains('socketexception') ||
+          lowerError.contains('failed host lookup') ||
+          lowerError.contains('host lookup') ||
+          lowerError.contains('no address associated with hostname') ||
+          lowerError.contains('socketfailed') ||
+          lowerError.contains('network is unreachable') ||
+          lowerError.contains('connection refused') ||
+          lowerError.contains('connection timed out') ||
+          lowerError.contains('connection reset') ||
+          lowerError.contains('timed out') ||
+          lowerError.contains('clientexception');
+      if (isNetworkError) {
+        setState(() {
+          _errorMessage = '${AppLocalizations.of(context)?.translate('noInternetConnection') ?? 'No Internet Connection'}. ${AppLocalizations.of(context)?.translate('noInternetMessage') ?? 'Please check your internet connection and try again.'}';
+        });
+      } else if (errorString.contains('ACCOUNT_TEMPORARILY_INACTIVE')) {
         setState(() {
           _errorMessage = AppLocalizations.of(context)?.translate('accountTemporarilyInactive') ?? 
               'Your account is temporarily inactive';
@@ -229,23 +245,37 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
     } catch (e) {
       if (!mounted) return;
       final errorString = e.toString();
+      final lowerError = errorString.toLowerCase();
       String errorMsg;
       
-      if (errorString.contains('ACCOUNT_TEMPORARILY_INACTIVE')) {
+      final isNetworkError = lowerError.contains('socketexception') ||
+          lowerError.contains('failed host lookup') ||
+          lowerError.contains('host lookup') ||
+          lowerError.contains('no address associated with hostname') ||
+          lowerError.contains('socketfailed') ||
+          lowerError.contains('network is unreachable') ||
+          lowerError.contains('connection refused') ||
+          lowerError.contains('connection timed out') ||
+          lowerError.contains('connection reset') ||
+          lowerError.contains('timed out') ||
+          lowerError.contains('clientexception');
+      if (isNetworkError) {
+        errorMsg = '${AppLocalizations.of(context)?.translate('noInternetConnection') ?? 'No Internet Connection'}. ${AppLocalizations.of(context)?.translate('noInternetMessage') ?? 'Please check your internet connection and try again.'}';
+      } else if (errorString.contains('ACCOUNT_TEMPORARILY_INACTIVE')) {
         errorMsg = AppLocalizations.of(context)?.translate('accountTemporarilyInactive') ?? 
             'Your account is temporarily inactive';
       } else if (errorString.contains('SUBSCRIPTION_INACTIVE')) {
         errorMsg = AppLocalizations.of(context)?.translate('noActiveSubscription') ?? 
             'No active subscription found';
-      } else if (errorString.toLowerCase().contains('invalid credentials') || 
-                 errorString.toLowerCase().contains('invalid username') ||
-                 errorString.toLowerCase().contains('invalid password')) {
+      } else if (lowerError.contains('invalid credentials') || 
+                 lowerError.contains('invalid username') ||
+                 lowerError.contains('invalid password')) {
         errorMsg = AppLocalizations.of(context)?.translate('invalidCredentials') ?? 
             'Invalid credentials. Please go back and check your username and password.';
-      } else if (errorString.toLowerCase().contains('expired')) {
+      } else if (lowerError.contains('expired')) {
         errorMsg = AppLocalizations.of(context)?.translate('twoFactorCodeExpired') ?? 
             'Two-factor authentication code has expired. Please request a new one';
-      } else if (errorString.toLowerCase().contains('invalid')) {
+      } else if (lowerError.contains('invalid')) {
         errorMsg = AppLocalizations.of(context)?.translate('twoFactorCodeInvalid') ?? 
             'Invalid two-factor authentication code';
       } else {
