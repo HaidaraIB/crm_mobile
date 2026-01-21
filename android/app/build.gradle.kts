@@ -7,6 +7,8 @@ plugins {
     id("com.google.gms.google-services")
 }
 
+import java.io.File
+
 // Load keystore properties
 val keystorePropertiesFile = rootProject.file("key.properties")
 val keystoreProperties = if (keystorePropertiesFile.exists()) {
@@ -28,21 +30,20 @@ val keystoreProperties = if (keystorePropertiesFile.exists()) {
     null
 }
 
-// Check if keystore file exists (file() is relative to project root, which is android/ directory)
+// Check if keystore file exists.
+// NOTE: This script runs in the :app module (android/app). The keystore is typically stored in android/.
 val keystoreFileExists = keystoreProperties?.let { props ->
-    val storeFilePath = props["storeFile"] ?: ""
-    if (storeFilePath.isNotEmpty()) {
-        // Try app directory first (most common location)
-        val keystoreFile = file("app/$storeFilePath")
-        if (keystoreFile.exists()) {
-            true
-        } else {
-            // Try project root
-            file(storeFilePath).exists()
+    val storeFilePath = (props["storeFile"] ?: "").trim()
+    if (storeFilePath.isEmpty()) return@let false
+
+    val storeFileCandidate: File = run {
+        val f = File(storeFilePath)
+        when {
+            f.isAbsolute -> f
+            else -> rootProject.file(storeFilePath) // relative to android/
         }
-    } else {
-        false
     }
+    storeFileCandidate.exists()
 } ?: false
 
 android {
@@ -78,15 +79,16 @@ android {
                 keystoreProperties?.let { props ->
                     keyAlias = props["keyAlias"] ?: ""
                     keyPassword = props["keyPassword"] ?: ""
-                    val storeFilePath = props["storeFile"] ?: ""
+                    val storeFilePath = (props["storeFile"] ?: "").trim()
                     if (storeFilePath.isNotEmpty()) {
-                        // Try app directory first, then project root
-                        val keystoreFile = file("app/$storeFilePath")
-                        storeFile = if (keystoreFile.exists()) {
-                            keystoreFile
-                        } else {
-                            file(storeFilePath)
+                        val storeFileCandidate: File = run {
+                            val f = File(storeFilePath)
+                            when {
+                                f.isAbsolute -> f
+                                else -> rootProject.file(storeFilePath) // relative to android/
+                            }
                         }
+                        storeFile = storeFileCandidate
                     }
                     storePassword = props["storePassword"] ?: ""
                 }
@@ -96,11 +98,14 @@ android {
 
     buildTypes {
         release {
-            signingConfig = if (keystoreFileExists && keystoreProperties != null) {
-                signingConfigs.getByName("release")
-            } else {
-                signingConfigs.getByName("debug")
+            // Never fall back to debug signing for release builds.
+            if (!(keystoreFileExists && keystoreProperties != null)) {
+                throw GradleException(
+                    "Release signing is not configured. Ensure android/key.properties exists " +
+                        "and points to a valid keystore file (e.g. android/crm-release-key.jks)."
+                )
             }
+            signingConfig = signingConfigs.getByName("release")
             // Enable code shrinking and obfuscation for production
             isMinifyEnabled = true
             isShrinkResources = true
