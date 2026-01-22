@@ -127,9 +127,6 @@ dependencies {
     implementation("androidx.core:core:1.12.0")
     implementation("androidx.core:core-ktx:1.12.0")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
-    // Play Core library for Flutter deferred components
-    implementation("com.google.android.play:core:1.10.3")
-    implementation("com.google.android.play:core-ktx:1.8.1")
 }
 
 tasks.withType<JavaCompile>().configureEach {

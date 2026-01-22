@@ -65,11 +65,9 @@
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
 
-# Flutter Play Core (deferred components)
--keep class io.flutter.embedding.engine.deferredcomponents.** { *; }
--keep class io.flutter.embedding.android.FlutterPlayStoreSplitApplication { *; }
--keep class com.google.android.play.core.** { *; }
+# Flutter Play Core (deferred components) - ignore warnings if not used
 -dontwarn com.google.android.play.core.splitcompat.SplitCompatApplication
 -dontwarn com.google.android.play.core.splitinstall.**
 -dontwarn com.google.android.play.core.tasks.**
 -dontwarn com.google.android.play.core.**
+-dontwarn io.flutter.embedding.engine.deferredcomponents.**
