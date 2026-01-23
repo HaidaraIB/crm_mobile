@@ -775,6 +775,7 @@ class ApiService {
     required int leadId,
     required int callMethod,
     required String notes,
+    DateTime? callDatetime,
     DateTime? followUpDate,
   }) async {
     final body = <String, dynamic>{
@@ -782,6 +783,10 @@ class ApiService {
       'call_method': callMethod,
       'notes': notes,
     };
+    
+    if (callDatetime != null) {
+      body['call_datetime'] = callDatetime.toIso8601String();
+    }
     
     if (followUpDate != null) {
       body['follow_up_date'] = followUpDate.toIso8601String();

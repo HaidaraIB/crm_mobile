@@ -22,6 +22,7 @@ class _AddCallModalState extends State<AddCallModal> {
   final ApiService _apiService = ApiService();
   int? _selectedCallMethodId;
   final TextEditingController _notesController = TextEditingController();
+  DateTime? _callDatetime;
   DateTime? _followUpDate;
   List<CallMethodModel> _callMethods = [];
   bool _isLoadingCallMethods = true;
@@ -61,6 +62,46 @@ class _AddCallModalState extends State<AddCallModal> {
     super.dispose();
   }
   
+  Future<void> _selectCallDatetime() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _callDatetime ?? DateTime.now(),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    
+    if (!mounted) return;
+    
+    if (picked != null) {
+      final time = await showTimePicker(
+        context: context,
+        initialTime: _callDatetime != null
+            ? TimeOfDay.fromDateTime(_callDatetime!)
+            : TimeOfDay.now(),
+      );
+      
+      if (!mounted) return;
+      
+      if (time != null) {
+        setState(() {
+          _callDatetime = DateTime(
+            picked.year,
+            picked.month,
+            picked.day,
+            time.hour,
+            time.minute,
+          );
+        });
+      }
+    }
+  }
+
+  void _setCallDatetimeToNow() {
+    setState(() {
+      _callDatetime = DateTime.now();
+    });
+  }
+
   Future<void> _selectFollowUpDate() async {
     final picked = await showDatePicker(
       context: context,
@@ -134,6 +175,7 @@ class _AddCallModalState extends State<AddCallModal> {
         leadId: widget.leadId,
         callMethod: _selectedCallMethodId!,
         notes: _notesController.text.trim(),
+        callDatetime: _callDatetime,
         followUpDate: _followUpDate,
       );
       
@@ -294,6 +336,52 @@ class _AddCallModalState extends State<AddCallModal> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    // Call Datetime
+                    Row(
+                      children: [
+                        Text(
+                          localizations?.translate('callDatetime') ?? 'Call Datetime',
+                          style: theme.textTheme.titleMedium,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _selectCallDatetime,
+                            icon: const Icon(Icons.calendar_today),
+                            label: Text(
+                              _callDatetime != null
+                                  ? _callDatetime!.toString().substring(0, 16)
+                                  : localizations?.translate('selectCallDatetime') ?? 'Select Call Datetime',
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              alignment: Alignment.center,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        TextButton.icon(
+                          onPressed: _setCallDatetimeToNow,
+                          icon: const Icon(Icons.access_time),
+                          label: Text(localizations?.translate('now') ?? 'Now'),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 24),
                     

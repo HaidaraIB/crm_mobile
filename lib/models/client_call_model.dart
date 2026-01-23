@@ -3,6 +3,7 @@ class ClientCallModel {
   final int client;
   final int? callMethod;
   final String notes;
+  final DateTime? callDatetime;
   final DateTime? followUpDate;
   final int createdBy;
   final DateTime createdAt;
@@ -12,6 +13,7 @@ class ClientCallModel {
     required this.client,
     this.callMethod,
     required this.notes,
+    this.callDatetime,
     this.followUpDate,
     required this.createdBy,
     required this.createdAt,
@@ -27,6 +29,9 @@ class ClientCallModel {
               : (json['call_method'] as Map<String, dynamic>)['id'] as int)
           : null,
       notes: json['notes'] as String? ?? '',
+      callDatetime: json['call_datetime'] != null
+          ? DateTime.parse(json['call_datetime'] as String)
+          : null,
       followUpDate: json['follow_up_date'] != null
           ? DateTime.parse(json['follow_up_date'] as String)
           : null,
@@ -41,6 +46,7 @@ class ClientCallModel {
       'client': client,
       'call_method': callMethod,
       'notes': notes,
+      'call_datetime': callDatetime?.toIso8601String(),
       'follow_up_date': followUpDate?.toIso8601String(),
       'created_by': createdBy,
       'created_at': createdAt.toIso8601String(),
