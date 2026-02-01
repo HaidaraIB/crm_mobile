@@ -46,7 +46,21 @@ flutter pub get
 flutter run
 ```
 
+## النشر
+
+### iOS - App Store باستخدام Codemagic
+
+لنشر التطبيق على App Store باستخدام Codemagic:
+
+- 📖 [دليل سريع للنشر](./READMEs/CODEMAGIC_QUICK_START.md) - ابدأ هنا!
+- 📚 [دليل شامل للنشر](./READMEs/CODEMAGIC_IOS_GUIDE.md) - كل التفاصيل
+
+### Android - Google Play Store
+
+- 📱 [دليل نشر Google Play](./READMEs/PLAY_STORE_PUBLISH_GUIDE.md)
+
 ## ملاحظات
 
 - تأكد من تحديث `BASE_URL` في `lib/core/constants/app_constants.dart` ليشير إلى عنوان API الخاص بك
 - قم بتكوين الإشعارات في ملفات Android/iOS حسب الحاجة
+- تأكد من إعداد ملف `.env` مع `BASE_URL` و `API_KEY` قبل البناء للإنتاج

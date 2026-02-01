@@ -1,0 +1,68 @@
+workflows:
+  ios-workflow:
+    name: iOS Workflow
+    max_build_duration: 120
+    instance_type: mac_mini_m1
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      groups:
+        - app_store_credentials # App Store Connect API Key credentials
+        - ios_config # BASE_URL, API_KEY, and GOOGLE_SERVICE_INFO_PLIST environment variables
+      vars:
+        APP_ID: "com.loopcrm.mobile"
+        APP_STORE_ID: "6758578493" # سيتم ملؤه لاحقاً بعد إنشاء التطبيق في App Store Connect
+        BUNDLE_ID: "com.loopcrm.mobile"
+        XCODE_WORKSPACE: "ios/Runner.xcworkspace"
+        XCODE_SCHEME: "Runner"
+        FLUTTER_BUILD_MODE: "release"
+      scripts:
+        - name: Get Flutter dependencies
+          script: |
+            flutter pub get
+        - name: Install CocoaPods dependencies
+          script: |
+            cd ios && pod install
+        - name: Create .env file for production
+          script: |
+            echo "BASE_URL=$BASE_URL" > .env
+            echo "API_KEY=$API_KEY" >> .env
+            echo "✅ Created .env file with production settings"
+            cat .env
+        - name: Create GoogleService-Info.plist for Firebase
+          script: |
+            if [ -n "$GOOGLE_SERVICE_INFO_PLIST" ]; then
+              echo "$GOOGLE_SERVICE_INFO_PLIST" > ios/Runner/GoogleService-Info.plist
+              echo "✅ Created GoogleService-Info.plist from environment variable"
+            else
+              echo "⚠️ Warning: GOOGLE_SERVICE_INFO_PLIST not set. Firebase push notifications may not work."
+            fi
+        - name: Set up code signing settings on Xcode project
+          script: |
+            xcode-project use-profiles
+        - name: Flutter build ipa
+          script: |
+            flutter build ipa \
+              --release \
+              --build-name=$(FLUTTER_BUILD_NAME) \
+              --build-number=$(FLUTTER_BUILD_NUMBER)
+      artifacts:
+        - build/ios/ipa/*.ipa
+        - /tmp/xcodebuild_logs/*.log
+        - flutter_drive.log
+      publishing:
+        email:
+          recipients:
+            - hassan.alsaadi8@gmail.com # استبدل بريدك الإلكتروني
+          notify:
+            success: true
+            failure: true
+        app_store_connect:
+          auth: integration
+          # App Store Connect API Key credentials from app_store_credentials group
+          submit_to_testflight: true
+          beta_groups:
+            - Internal Testers
+            # أضف مجموعات TestFlight الخاصة بك هنا
+          submit_to_app_store: false # قم بتغييره إلى true عند الاستعداد للنشر على App Store
