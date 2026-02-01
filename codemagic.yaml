@@ -47,12 +47,34 @@ workflows:
       - name: Set up code signing settings on Xcode project
         script: |
           xcode-project use-profiles
+      - name: Create ExportOptions.plist with installed profile name
+        script: |
+          cd "$CM_BUILD_DIR"
+          PROFILE_NAME=""
+          for f in ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision; do
+            [ -f "$f" ] || continue
+            security cms -D -i "$f" > /tmp/profile_decoded.plist 2>/dev/null
+            APPID=$(plutil -extract Entitlements.application-identifier raw /tmp/profile_decoded.plist 2>/dev/null)
+            if echo "$APPID" | grep -q "com.loopcrm.mobile"; then
+              PROFILE_NAME=$(plutil -extract Name raw /tmp/profile_decoded.plist 2>/dev/null)
+              break
+            fi
+          done
+          if [ -z "$PROFILE_NAME" ]; then
+            echo "❌ No provisioning profile found for com.loopcrm.mobile"
+            ls -la ~/Library/MobileDevice/Provisioning\ Profiles/ 2>/dev/null || true
+            exit 1
+          fi
+          echo "✅ Using provisioning profile: $PROFILE_NAME"
+          echo '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict/></plist>' > /tmp/ExportOptions.plist
+          /usr/libexec/PlistBuddy /tmp/ExportOptions.plist -c "Add :method string app-store" -c "Add :signingStyle string automatic" -c "Add :provisioningProfiles dict" -c "Add :provisioningProfiles:com.loopcrm.mobile string \"$PROFILE_NAME\""
+          echo "✅ ExportOptions.plist created at /tmp/ExportOptions.plist"
       - name: Flutter build ipa
         script: |
           cd "$CM_BUILD_DIR"
           flutter build ipa \
             --release \
-            --export-method app-store \
+            --export-options-plist /tmp/ExportOptions.plist \
             --build-name="${FLUTTER_BUILD_NAME}" \
             --build-number="${FLUTTER_BUILD_NUMBER}"
           echo "=== After build: looking for IPA ==="
