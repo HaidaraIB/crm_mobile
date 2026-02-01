@@ -67,7 +67,7 @@ workflows:
           fi
           echo "✅ Using provisioning profile: $PROFILE_NAME"
           echo '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict/></plist>' > /tmp/ExportOptions.plist
-          /usr/libexec/PlistBuddy /tmp/ExportOptions.plist -c "Add :method string app-store" -c "Add :signingStyle string automatic" -c "Add :provisioningProfiles dict" -c "Add :provisioningProfiles:com.loopcrm.mobile string \"$PROFILE_NAME\""
+          /usr/libexec/PlistBuddy /tmp/ExportOptions.plist -c "Add :method string app-store" -c "Add :signingStyle string manual" -c "Add :signingCertificate string Apple Distribution" -c "Add :teamID string L588TH2TC3" -c "Add :provisioningProfiles dict" -c "Add :provisioningProfiles:com.loopcrm.mobile string \"$PROFILE_NAME\""
           echo "✅ ExportOptions.plist created at /tmp/ExportOptions.plist"
       - name: Flutter build ipa
         script: |
@@ -76,7 +76,15 @@ workflows:
             --release \
             --export-options-plist /tmp/ExportOptions.plist \
             --build-name="${FLUTTER_BUILD_NAME}" \
-            --build-number="${FLUTTER_BUILD_NUMBER}"
+            --build-number="${FLUTTER_BUILD_NUMBER}" || true
+          if [ ! -d build/ios/ipa ] || [ -z "$(ls -A build/ios/ipa 2>/dev/null)" ]; then
+            echo "=== Flutter export failed, running xcodebuild -exportArchive manually ==="
+            mkdir -p build/ios/ipa
+            xcodebuild -exportArchive \
+              -archivePath build/ios/archive/Runner.xcarchive \
+              -exportPath build/ios/ipa \
+              -exportOptionsPlist /tmp/ExportOptions.plist
+          fi
           echo "=== After build: looking for IPA ==="
           ls -la build/ios/ipa/ 2>/dev/null || true
           find . -name "*.ipa" -type f 2>/dev/null || true
