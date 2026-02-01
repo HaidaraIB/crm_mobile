@@ -50,9 +50,9 @@ workflows:
       - name: Flutter build ipa
         script: |
           cd "$CM_BUILD_DIR"
-          pwd
           flutter build ipa \
             --release \
+            --export-method app-store \
             --build-name="${FLUTTER_BUILD_NAME}" \
             --build-number="${FLUTTER_BUILD_NUMBER}"
           echo "=== After build: looking for IPA ==="
