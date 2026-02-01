@@ -50,21 +50,29 @@ workflows:
       - name: Flutter build ipa
         script: |
           cd "$CM_BUILD_DIR"
+          pwd
           flutter build ipa \
             --release \
             --build-name="${FLUTTER_BUILD_NAME}" \
             --build-number="${FLUTTER_BUILD_NUMBER}"
+          echo "=== After build: looking for IPA ==="
+          ls -la build/ios/ipa/ 2>/dev/null || true
+          find . -name "*.ipa" -type f 2>/dev/null || true
       - name: Copy IPA to export directory for artifacts
         script: |
           cd "$CM_BUILD_DIR"
+          ROOT="${CM_BUILD_DIR:-.}"
           mkdir -p "$CM_EXPORT_DIR"
-          IPA_PATH=$(find build/ios/ipa -name "*.ipa" -type f | head -1)
+          IPA_PATH=$(find "$ROOT" -name "*.ipa" -type f 2>/dev/null | head -1)
           if [ -n "$IPA_PATH" ]; then
             cp "$IPA_PATH" "$CM_EXPORT_DIR/"
-            echo "✅ IPA copied to $CM_EXPORT_DIR: $(ls -la $CM_EXPORT_DIR)"
+            echo "✅ IPA copied to $CM_EXPORT_DIR: $IPA_PATH"
+            ls -la "$CM_EXPORT_DIR"
           else
-            echo "⚠️ No .ipa found in build/ios/ipa/"
-            ls -la build/ios/ipa/ || true
+            echo "⚠️ No .ipa found under $ROOT"
+            echo "pwd=$(pwd) CM_BUILD_DIR=$CM_BUILD_DIR"
+            ls -la build/ios/ 2>/dev/null || true
+            find "$ROOT" -type d -name "ipa" 2>/dev/null || true
           fi
     artifacts:
       - build/ios/ipa/*.ipa
