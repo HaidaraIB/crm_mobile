@@ -18,6 +18,8 @@ workflows:
         XCODE_WORKSPACE: "ios/Runner.xcworkspace"
         XCODE_SCHEME: "Runner"
         FLUTTER_BUILD_MODE: "release"
+        FLUTTER_BUILD_NAME: "1.0.0"
+        FLUTTER_BUILD_NUMBER: "2"
     scripts:
       - name: Get Flutter dependencies
         script: |
@@ -46,8 +48,8 @@ workflows:
         script: |
           flutter build ipa \
             --release \
-            --build-name=$(FLUTTER_BUILD_NAME) \
-            --build-number=$(FLUTTER_BUILD_NUMBER)
+            --build-name="${FLUTTER_BUILD_NAME}" \
+            --build-number="${FLUTTER_BUILD_NUMBER}"
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
