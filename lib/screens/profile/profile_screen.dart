@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/app_constants.dart';
@@ -73,6 +74,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         maxWidth: 1024,
         maxHeight: 1024,
         imageQuality: 85,
+        requestFullMetadata: false, // Improve performance
       );
       
       if (image != null) {
@@ -99,6 +101,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         maxWidth: 1024,
         maxHeight: 1024,
         imageQuality: 85,
+        preferredCameraDevice: CameraDevice.rear,
       );
       
       if (image != null) {
@@ -109,10 +112,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (e) {
       if (!mounted) return;
       final localizations = AppLocalizations.of(context);
+      String errorMessage = e.toString();
+      
+      // Handle specific camera errors
+      if (errorMessage.contains('camera') || errorMessage.contains('Camera')) {
+        errorMessage = localizations?.translate('cameraNotAvailable') ?? 
+                       'Camera is not available or access was denied. Please check your device settings.';
+      }
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${localizations?.translate('errorTakingPhoto') ?? 'Error taking photo'}: ${e.toString()}'),
+          content: Text('${localizations?.translate('errorTakingPhoto') ?? 'Error taking photo'}: $errorMessage'),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
         ),
       );
     }
@@ -120,35 +132,85 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _showImageSourceDialog() async {
     final localizations = AppLocalizations.of(context);
+    final isIPad = Theme.of(context).platform == TargetPlatform.iOS && 
+                   MediaQuery.of(context).size.shortestSide >= 600;
     
-    showModalBottomSheet(
-      context: context,
-      builder: (BuildContext context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.photo_library),
-                title: Text(localizations?.translate('chooseFromGallery') ?? 'Choose from Gallery'),
-                onTap: () {
+    if (isIPad) {
+      // Use Cupertino action sheet on iPad for better compatibility
+      showCupertinoModalPopup(
+        context: context,
+        builder: (BuildContext context) {
+          return CupertinoActionSheet(
+            title: Text(localizations?.translate('selectImageSource') ?? 'Select Image Source'),
+            actions: [
+              CupertinoActionSheetAction(
+                onPressed: () {
                   Navigator.pop(context);
                   _pickImage();
                 },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.photo_library, color: CupertinoColors.activeBlue),
+                    const SizedBox(width: 8),
+                    Text(localizations?.translate('chooseFromGallery') ?? 'Choose from Gallery'),
+                  ],
+                ),
               ),
-              ListTile(
-                leading: const Icon(Icons.camera_alt),
-                title: Text(localizations?.translate('takePhoto') ?? 'Take Photo'),
-                onTap: () {
+              CupertinoActionSheetAction(
+                onPressed: () {
                   Navigator.pop(context);
                   _takePhoto();
                 },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.camera_alt, color: CupertinoColors.activeBlue),
+                    const SizedBox(width: 8),
+                    Text(localizations?.translate('takePhoto') ?? 'Take Photo'),
+                  ],
+                ),
               ),
             ],
-          ),
-        );
-      },
-    );
+            cancelButton: CupertinoActionSheetAction(
+              onPressed: () => Navigator.pop(context),
+              isDestructiveAction: true,
+              child: Text(localizations?.translate('cancel') ?? 'Cancel'),
+            ),
+          );
+        },
+      );
+    } else {
+      // Use bottom sheet on iPhone/Android
+      showModalBottomSheet(
+        context: context,
+        builder: (BuildContext context) {
+          return SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.photo_library),
+                  title: Text(localizations?.translate('chooseFromGallery') ?? 'Choose from Gallery'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickImage();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.camera_alt),
+                  title: Text(localizations?.translate('takePhoto') ?? 'Take Photo'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _takePhoto();
+                  },
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    }
   }
 
   Future<void> _saveProfile() async {
