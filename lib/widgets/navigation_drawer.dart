@@ -67,35 +67,24 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
       child: Column(
         children: [
           // Profile Header
-          InkWell(
-            onTap: () async {
-              Navigator.pop(context);
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const ProfileScreen(),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(24, 48, 24, 24),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor,
+            ),
+            child: Column(
+              children: [
+                // Profile Avatar - Clickable
+                GestureDetector(
+                  onTap: _navigateToProfile,
+                  child: _buildProfileAvatar(),
                 ),
-              );
-              // Refresh user data in drawer after returning from profile
-              _loadUser();
-              // If profile was updated, notify parent to refresh dashboard
-              if (result == true) {
-                widget.onProfileUpdated?.call();
-              }
-            },
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(24, 48, 24, 24),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor,
-              ),
-              child: Column(
-                children: [
-                  // Profile Avatar
-                  _buildProfileAvatar(),
-                  const SizedBox(height: 16),
-                  // User Name
-                  Text(
+                const SizedBox(height: 16),
+                // User Name - Clickable
+                GestureDetector(
+                  onTap: _navigateToProfile,
+                  child: Text(
                     _isLoadingUser
                         ? localizations?.translate('loading') ?? 'Loading...'
                         : _currentUser?.displayName ?? 'User',
@@ -106,22 +95,25 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 4),
-                  // User Email
-                  if (!_isLoadingUser && _currentUser?.email != null)
-                    Text(
-                      _currentUser!.email!,
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                // User Email
+                if (!_isLoadingUser && _currentUser?.email != null)
+                  Text(
+                    _currentUser!.email!,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
                     ),
-                  const SizedBox(height: 8),
-                  // Tap to view profile hint
-                  Row(
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                const SizedBox(height: 8),
+                // Tap to view profile hint - Clickable
+                GestureDetector(
+                  onTap: _navigateToProfile,
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Icon(
@@ -139,8 +131,8 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
           
@@ -402,6 +394,22 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
       '/login',
       (route) => false,
     );
+  }
+  
+  Future<void> _navigateToProfile() async {
+    Navigator.pop(context);
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const ProfileScreen(),
+      ),
+    );
+    // Refresh user data in drawer after returning from profile
+    _loadUser();
+    // If profile was updated, notify parent to refresh dashboard
+    if (result == true) {
+      widget.onProfileUpdated?.call();
+    }
   }
   
   Widget _buildMenuItem(
