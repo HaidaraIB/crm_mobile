@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/inventory_card.dart';
@@ -764,25 +765,24 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
             onPressed: () async {
               final navigator = Navigator.of(context);
               final scaffoldMessenger = ScaffoldMessenger.of(context);
+              final brightness = Theme.of(context).brightness;
               navigator.pop();
               try {
                 await _apiService.deleteService(service.id);
                 if (mounted) {
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text(localizations?.translate('serviceDeleted') ?? 'Service deleted'),
-                      backgroundColor: Colors.green,
-                    ),
+                  SnackbarHelper.showSuccessWithMessenger(
+                    scaffoldMessenger,
+                    localizations?.translate('serviceDeleted') ?? 'Service deleted',
+                    brightness: brightness,
                   );
                   _loadServices();
                 }
               } catch (e) {
                 if (mounted) {
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text('${localizations?.translate('error') ?? 'Error'}: $e'),
-                      backgroundColor: Colors.red,
-                    ),
+                  SnackbarHelper.showErrorWithMessenger(
+                    scaffoldMessenger,
+                    '${localizations?.translate('error') ?? 'Error'}: $e',
+                    brightness: brightness,
                   );
                 }
               }
@@ -821,25 +821,24 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
             onPressed: () async {
               final navigator = Navigator.of(context);
               final scaffoldMessenger = ScaffoldMessenger.of(context);
+              final brightness = Theme.of(context).brightness;
               navigator.pop();
               try {
                 await _apiService.deleteServicePackage(pkg.id);
                 if (mounted) {
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text(localizations?.translate('packageDeleted') ?? 'Package deleted'),
-                      backgroundColor: Colors.green,
-                    ),
+                  SnackbarHelper.showSuccessWithMessenger(
+                    scaffoldMessenger,
+                    localizations?.translate('packageDeleted') ?? 'Package deleted',
+                    brightness: brightness,
                   );
                   _loadPackages();
                 }
               } catch (e) {
                 if (mounted) {
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text('${localizations?.translate('error') ?? 'Error'}: $e'),
-                      backgroundColor: Colors.red,
-                    ),
+                  SnackbarHelper.showErrorWithMessenger(
+                    scaffoldMessenger,
+                    '${localizations?.translate('error') ?? 'Error'}: $e',
+                    brightness: brightness,
                   );
                 }
               }
@@ -878,25 +877,24 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
             onPressed: () async {
               final navigator = Navigator.of(context);
               final scaffoldMessenger = ScaffoldMessenger.of(context);
+              final brightness = Theme.of(context).brightness;
               navigator.pop();
               try {
                 await _apiService.deleteServiceProvider(provider.id);
                 if (mounted) {
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text(localizations?.translate('providerDeleted') ?? 'Provider deleted'),
-                      backgroundColor: Colors.green,
-                    ),
+                  SnackbarHelper.showSuccessWithMessenger(
+                    scaffoldMessenger,
+                    localizations?.translate('providerDeleted') ?? 'Provider deleted',
+                    brightness: brightness,
                   );
                   _loadProviders();
                 }
               } catch (e) {
                 if (mounted) {
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text('${localizations?.translate('error') ?? 'Error'}: $e'),
-                      backgroundColor: Colors.red,
-                    ),
+                  SnackbarHelper.showErrorWithMessenger(
+                    scaffoldMessenger,
+                    '${localizations?.translate('error') ?? 'Error'}: $e',
+                    brightness: brightness,
                   );
                 }
               }

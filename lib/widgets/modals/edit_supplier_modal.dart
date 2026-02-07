@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/phone_input.dart';
@@ -77,20 +78,16 @@ class _EditSupplierModalState extends State<EditSupplierModal> {
       if (mounted) {
         widget.onSupplierUpdated?.call(supplier);
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppLocalizations.of(context)?.translate('supplierUpdated') ?? 'Supplier updated successfully'),
-            backgroundColor: Colors.green,
-          ),
+        SnackbarHelper.showSuccess(
+          context,
+          AppLocalizations.of(context)?.translate('supplierUpdated') ?? 'Supplier updated successfully',
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${AppLocalizations.of(context)?.translate('error') ?? 'Error'}: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
+        SnackbarHelper.showError(
+          context,
+          '${AppLocalizations.of(context)?.translate('error') ?? 'Error'}: ${e.toString()}',
         );
       }
     } finally {

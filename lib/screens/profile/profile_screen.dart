@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/snackbar_helper.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/phone_input.dart';
@@ -85,11 +86,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (e) {
       if (!mounted) return;
       final localizations = AppLocalizations.of(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${localizations?.translate('errorPickingImage') ?? 'Error picking image'}: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
+      SnackbarHelper.showError(
+        context,
+        '${localizations?.translate('errorPickingImage') ?? 'Error picking image'}: ${e.toString()}',
       );
     }
   }
@@ -120,12 +119,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                        'Camera is not available or access was denied. Please check your device settings.';
       }
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${localizations?.translate('errorTakingPhoto') ?? 'Error taking photo'}: $errorMessage'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 4),
-        ),
+      SnackbarHelper.showError(
+        context,
+        '${localizations?.translate('errorTakingPhoto') ?? 'Error taking photo'}: $errorMessage',
+        duration: const Duration(seconds: 4),
       );
     }
   }
@@ -249,12 +246,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_successMessage!),
-            backgroundColor: Colors.green,
-          ),
-        );
+        SnackbarHelper.showSuccess(context, _successMessage!);
         // Pop the screen and return true to indicate profile was updated
         Navigator.pop(context, true);
       }

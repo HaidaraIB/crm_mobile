@@ -6,14 +6,14 @@ import 'core/bloc/theme/theme_bloc.dart';
 import 'core/bloc/language/language_bloc.dart';
 import 'core/theme/app_theme.dart';
 import 'core/localization/app_localizations.dart';
+import 'screens/splash/splash_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/login/login_screen.dart';
+import 'screens/register/register_screen.dart';
 import 'screens/two_factor_auth/two_factor_auth_screen.dart';
 import 'screens/settings/settings_screen.dart';
 import 'screens/profile/profile_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'core/constants/app_constants.dart';
 import 'services/notification_service.dart';
 import 'services/notification_router.dart';
 
@@ -68,17 +68,11 @@ void main() async {
     debugPrint('Stack trace: $stackTrace');
   }
   
-  // Load saved theme and language
-  final prefs = await SharedPreferences.getInstance();
-  final isLoggedIn = prefs.getBool(AppConstants.isLoggedInKey) ?? false;
-  
-  runApp(MyApp(isLoggedIn: isLoggedIn));
+  runApp(const MyApp());
 }
 
 class MyApp extends StatefulWidget {
-  final bool isLoggedIn;
-  
-  const MyApp({super.key, required this.isLoggedIn});
+  const MyApp({super.key});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -141,6 +135,7 @@ class _MyAppState extends State<MyApp> {
                 ],
                 routes: {
                   '/login': (context) => const LoginScreen(),
+                  '/register': (context) => const RegisterScreen(),
                   '/home': (context) => const HomeScreen(),
                   '/settings': (context) => const SettingsScreen(),
                   '/profile': (context) => const ProfileScreen(),
@@ -158,7 +153,7 @@ class _MyAppState extends State<MyApp> {
                     return const LoginScreen();
                   },
                 },
-                home: widget.isLoggedIn ? const HomeScreen() : const LoginScreen(),
+                home: const SplashScreen(),
               );
             },
           );

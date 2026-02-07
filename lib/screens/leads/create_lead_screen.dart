@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/snackbar_helper.dart';
 import '../../models/lead_model.dart';
 import '../../models/user_model.dart';
 import '../../models/settings_model.dart';
@@ -90,11 +91,9 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
       });
       if (mounted) {
         final localizations = AppLocalizations.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${localizations?.translate('failedToLoadData') ?? 'Failed to load data'}: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
+        SnackbarHelper.showError(
+          context,
+          '${localizations?.translate('failedToLoadData') ?? 'Failed to load data'}: ${e.toString()}',
         );
       }
     }
@@ -272,16 +271,9 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
       if (mounted) {
         widget.onLeadCreated?.call(lead);
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AppLocalizations.of(
-                    context,
-                  )?.translate('leadCreatedSuccessfully') ??
-                  'Lead created successfully',
-            ),
-            backgroundColor: Colors.green,
-          ),
+        SnackbarHelper.showSuccess(
+          context,
+          AppLocalizations.of(context)?.translate('leadCreatedSuccessfully') ?? 'Lead created successfully',
         );
       }
     } catch (e) {
@@ -295,8 +287,9 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
           _errors['general'] = e.toString();
         });
         final localizations = AppLocalizations.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${localizations?.translate('error') ?? 'Error'}: ${e.toString()}'), backgroundColor: Colors.red),
+        SnackbarHelper.showError(
+          context,
+          '${localizations?.translate('error') ?? 'Error'}: ${e.toString()}',
         );
       }
     } finally {

@@ -1,0 +1,3 @@
+# Place your splash logo here: logo.png (square, transparent PNG, e.g. 512x512 or 1024x1024)
+# Then in pubspec.yaml set flutter_native_splash.image and android_12.image to: assets/splash/logo.png
+# And add to flutter.assets: - assets/splash/

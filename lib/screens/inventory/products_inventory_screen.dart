@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/snackbar_helper.dart';
 import '../../core/utils/number_formatter.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
@@ -500,25 +501,24 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
             onPressed: () async {
               final navigator = Navigator.of(context);
               final scaffoldMessenger = ScaffoldMessenger.of(context);
+              final brightness = Theme.of(context).brightness;
               navigator.pop();
               try {
                 await _apiService.deleteProduct(product.id);
                 if (mounted) {
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text(localizations?.translate('productDeleted') ?? 'Product deleted'),
-                      backgroundColor: Colors.green,
-                    ),
+                  SnackbarHelper.showSuccessWithMessenger(
+                    scaffoldMessenger,
+                    localizations?.translate('productDeleted') ?? 'Product deleted',
+                    brightness: brightness,
                   );
                   _loadProducts();
                 }
               } catch (e) {
                 if (mounted) {
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text('${localizations?.translate('error') ?? 'Error'}: $e'),
-                      backgroundColor: Colors.red,
-                    ),
+                  SnackbarHelper.showErrorWithMessenger(
+                    scaffoldMessenger,
+                    '${localizations?.translate('error') ?? 'Error'}: $e',
+                    brightness: brightness,
                   );
                 }
               }
@@ -678,15 +678,15 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
             onPressed: () async {
               final navigator = Navigator.of(context);
               final scaffoldMessenger = ScaffoldMessenger.of(context);
+              final brightness = Theme.of(context).brightness;
               navigator.pop();
               try {
                 await _apiService.deleteProductCategory(category.id);
                 if (mounted) {
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text(localizations?.translate('categoryDeleted') ?? 'Category deleted'),
-                      backgroundColor: Colors.green,
-                    ),
+                  SnackbarHelper.showSuccessWithMessenger(
+                    scaffoldMessenger,
+                    localizations?.translate('categoryDeleted') ?? 'Category deleted',
+                    brightness: brightness,
                   );
                   // Reload categories and products since deleting a category cascades to products
                   await Future.wait([
@@ -696,11 +696,10 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
                 }
               } catch (e) {
                 if (mounted) {
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text('${localizations?.translate('error') ?? 'Error'}: $e'),
-                      backgroundColor: Colors.red,
-                    ),
+                  SnackbarHelper.showErrorWithMessenger(
+                    scaffoldMessenger,
+                    '${localizations?.translate('error') ?? 'Error'}: $e',
+                    brightness: brightness,
                   );
                 }
               }
@@ -884,25 +883,24 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
             onPressed: () async {
               final navigator = Navigator.of(context);
               final scaffoldMessenger = ScaffoldMessenger.of(context);
+              final brightness = Theme.of(context).brightness;
               navigator.pop();
               try {
                 await _apiService.deleteSupplier(supplier.id);
                 if (mounted) {
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text(localizations?.translate('supplierDeleted') ?? 'Supplier deleted'),
-                      backgroundColor: Colors.green,
-                    ),
+                  SnackbarHelper.showSuccessWithMessenger(
+                    scaffoldMessenger,
+                    localizations?.translate('supplierDeleted') ?? 'Supplier deleted',
+                    brightness: brightness,
                   );
                   _loadSuppliers();
                 }
               } catch (e) {
                 if (mounted) {
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text('${localizations?.translate('error') ?? 'Error'}: $e'),
-                      backgroundColor: Colors.red,
-                    ),
+                  SnackbarHelper.showErrorWithMessenger(
+                    scaffoldMessenger,
+                    '${localizations?.translate('error') ?? 'Error'}: $e',
+                    brightness: brightness,
                   );
                 }
               }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/snackbar_helper.dart';
 import '../../models/lead_model.dart';
 import '../../models/user_model.dart';
 import '../../models/settings_model.dart';
@@ -290,16 +291,9 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
       if (mounted) {
         widget.onLeadUpdated?.call(lead);
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AppLocalizations.of(
-                    context,
-                  )?.translate('leadUpdatedSuccessfully') ??
-                  'Lead updated successfully',
-            ),
-            backgroundColor: Colors.green,
-          ),
+        SnackbarHelper.showSuccess(
+          context,
+          AppLocalizations.of(context)?.translate('leadUpdatedSuccessfully') ?? 'Lead updated successfully',
         );
       }
     } catch (e) {
@@ -312,8 +306,9 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
         setState(() {
           _errors['general'] = e.toString();
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${AppLocalizations.of(context)?.translate('error') ?? 'Error'}: ${e.toString()}'), backgroundColor: Colors.red),
+        SnackbarHelper.showError(
+          context,
+          '${AppLocalizations.of(context)?.translate('error') ?? 'Error'}: ${e.toString()}',
         );
       }
     } finally {

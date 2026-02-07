@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/snackbar_helper.dart';
 import '../../core/utils/number_formatter.dart';
 import '../../models/lead_model.dart';
 import '../../models/settings_model.dart';
@@ -228,15 +229,11 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
 
       if (mounted) {
         final localizations = AppLocalizations.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              localizations?.translate('statusUpdatedSuccessfully') ??
-                  'Status updated to ${newStatus.name}',
-            ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
+        SnackbarHelper.showSuccess(
+          context,
+          localizations?.translate('statusUpdatedSuccessfully') ??
+              'Status updated to ${newStatus.name}',
+          duration: const Duration(seconds: 2),
         );
       }
     } catch (e) {
@@ -247,13 +244,9 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
 
       if (mounted) {
         final localizations = AppLocalizations.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${localizations?.translate('failedToUpdateStatus') ?? 'Failed to update status'}: ${e.toString()}',
-            ),
-            backgroundColor: Colors.red,
-          ),
+        SnackbarHelper.showError(
+          context,
+          '${localizations?.translate('failedToUpdateStatus') ?? 'Failed to update status'}: ${e.toString()}',
         );
       }
     }
@@ -369,13 +362,10 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       if (cleanPhone.isEmpty) {
         if (mounted) {
           final localizations = AppLocalizations.of(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                localizations?.translate('invalidPhoneNumber') ??
-                    'Invalid phone number',
-              ),
-            ),
+          SnackbarHelper.showError(
+            context,
+            localizations?.translate('invalidPhoneNumber') ??
+                'Invalid phone number',
           );
         }
         return;
@@ -388,25 +378,19 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       );
       if (!launched && mounted) {
         final localizations = AppLocalizations.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              localizations?.translate('couldNotOpenWhatsApp') ??
-                  'Could not open WhatsApp',
-            ),
-          ),
+        SnackbarHelper.showError(
+          context,
+          localizations?.translate('couldNotOpenWhatsApp') ??
+              'Could not open WhatsApp',
         );
       }
     } catch (e) {
       if (mounted) {
         final localizations = AppLocalizations.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              localizations?.translate('couldNotOpenWhatsApp') ??
-                  'Could not open WhatsApp',
-            ),
-          ),
+        SnackbarHelper.showError(
+          context,
+          localizations?.translate('couldNotOpenWhatsApp') ??
+              'Could not open WhatsApp',
         );
       }
     }
@@ -421,25 +405,19 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       );
       if (!launched && mounted) {
         final localizations = AppLocalizations.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              localizations?.translate('couldNotMakeCall') ??
-                  'Could not make call',
-            ),
-          ),
+        SnackbarHelper.showError(
+          context,
+          localizations?.translate('couldNotMakeCall') ??
+              'Could not make call',
         );
       }
     } catch (e) {
       if (mounted) {
         final localizations = AppLocalizations.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              localizations?.translate('couldNotMakeCall') ??
-                  'Could not make call',
-            ),
-          ),
+        SnackbarHelper.showError(
+          context,
+          localizations?.translate('couldNotMakeCall') ??
+              'Could not make call',
         );
       }
     }
@@ -720,24 +698,16 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                 await _apiService.deleteLead(lead.id);
                 if (!mounted) return;
                 _loadLeads();
-                ScaffoldMessenger.of(this.context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      localizations?.translate('leadDeletedSuccessfully') ??
-                          'Lead deleted successfully',
-                    ),
-                    backgroundColor: Colors.green,
-                  ),
+                SnackbarHelper.showSuccess(
+                  this.context,
+                  localizations?.translate('leadDeletedSuccessfully') ??
+                      'Lead deleted successfully',
                 );
               } catch (e) {
                 if (!mounted) return;
-                ScaffoldMessenger.of(this.context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      '${localizations?.translate('error') ?? 'Error'}: ${e.toString()}',
-                    ),
-                    backgroundColor: Colors.red,
-                  ),
+                SnackbarHelper.showError(
+                  this.context,
+                  '${localizations?.translate('error') ?? 'Error'}: ${e.toString()}',
                 );
               }
             },

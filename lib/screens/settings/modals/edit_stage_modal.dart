@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/snackbar_helper.dart';
 import '../../../models/settings_model.dart';
 import '../../../services/api_service.dart';
 import '../../../services/error_logger.dart';
@@ -70,14 +71,10 @@ class _EditStageModalState extends State<EditStageModal> {
 
       if (mounted) {
         widget.onStageUpdated?.call();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AppLocalizations.of(context)?.translate('stageUpdatedSuccessfully') ?? 
+        SnackbarHelper.showSuccess(
+          context,
+          AppLocalizations.of(context)?.translate('stageUpdatedSuccessfully') ?? 
               'Stage updated successfully',
-            ),
-            backgroundColor: Colors.green,
-          ),
         );
       }
     } catch (e) {

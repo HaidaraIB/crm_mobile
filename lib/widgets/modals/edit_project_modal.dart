@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
 
@@ -114,11 +115,9 @@ class _EditProjectModalState extends State<EditProjectModal> {
       if (developerId == null) {
         if (mounted) {
           final localizations = AppLocalizations.of(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(localizations?.translate('developerRequired') ?? 'Developer is required'),
-              backgroundColor: Colors.red,
-            ),
+          SnackbarHelper.showError(
+            context,
+            localizations?.translate('developerRequired') ?? 'Developer is required',
           );
         }
         setState(() {
@@ -156,20 +155,16 @@ class _EditProjectModalState extends State<EditProjectModal> {
       if (mounted) {
         widget.onProjectUpdated?.call(project);
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppLocalizations.of(context)?.translate('projectUpdated') ?? 'Project updated successfully'),
-            backgroundColor: Colors.green,
-          ),
+        SnackbarHelper.showSuccess(
+          context,
+          AppLocalizations.of(context)?.translate('projectUpdated') ?? 'Project updated successfully',
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${AppLocalizations.of(context)?.translate('error') ?? 'Error'}: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
+        SnackbarHelper.showError(
+          context,
+          '${AppLocalizations.of(context)?.translate('error') ?? 'Error'}: ${e.toString()}',
         );
       }
     } finally {

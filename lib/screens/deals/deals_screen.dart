@@ -8,6 +8,7 @@ import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/inventory_card.dart';
 import '../../core/utils/specialization_helper.dart';
+import '../../core/utils/snackbar_helper.dart';
 import 'view_deal_screen.dart';
 import 'deal_form_screen.dart';
 
@@ -296,24 +297,17 @@ class _DealsScreenState extends State<DealsScreen> {
       try {
         await _apiService.deleteDeal(deal.id);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                localizations?.translate('dealDeletedSuccessfully') ?? 'Deal deleted successfully',
-              ),
-            ),
+          SnackbarHelper.showSuccess(
+            context,
+            localizations?.translate('dealDeletedSuccessfully') ?? 'Deal deleted successfully',
           );
           _loadDeals();
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                localizations?.translate('failedToDeleteDeal') ?? 'Failed to delete deal',
-              ),
-              backgroundColor: Colors.red,
-            ),
+          SnackbarHelper.showError(
+            context,
+            localizations?.translate('failedToDeleteDeal') ?? 'Failed to delete deal',
           );
         }
       }

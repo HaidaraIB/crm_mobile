@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/bloc/theme/theme_bloc.dart';
 import '../../core/bloc/language/language_bloc.dart';
+import '../../core/utils/snackbar_helper.dart';
 import '../../services/api_service.dart';
 import '../two_factor_auth/two_factor_auth_screen.dart';
+import '../payment/subscription_payment_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -21,6 +24,25 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   String? _errorMessage;
+  bool _isSubscriptionError = false;
+
+  /// استخراج subscriptionId من استثناء الاشتراك غير المفعل (يرسله الـ API مع 403)
+  int? _getSubscriptionId(Object e) {
+    if (e is SubscriptionInactiveException) {
+      return e.subscriptionId;
+    }
+    try {
+      final dynamic err = e;
+      final v = err.subscriptionId;
+      if (v == null) return null;
+      if (v is int) return v;
+      if (v is num) return v.toInt();
+      if (v is String) return int.tryParse(v);
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
 
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
@@ -28,6 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _isSubscriptionError = false;
     });
     
     try {
@@ -73,6 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
       // Determine error type by checking the error message content
       // We don't access .code property to avoid NoSuchMethodError
       final lowerError = cleanError.toLowerCase();
+      bool isSubscriptionError = false;
       
       // Check for network/offline errors first (ClientException, SocketException, host lookup, etc.)
       if (lowerError.contains('socketexception') ||
@@ -92,11 +116,25 @@ class _LoginScreenState extends State<LoginScreen> {
         errorMsg += AppLocalizations.of(context)?.translate('noInternetMessage') ?? 
             'Please check your internet connection and try again.';
       }
-      // Check for subscription errors
+      // Check for subscription errors → redirect to complete payment
       else if (lowerError.contains('subscription is not active') ||
           lowerError.contains('subscription') && 
-          (lowerError.contains('not active') || lowerError.contains('inactive'))) {
-        // Use the actual backend error message if it's meaningful
+          (lowerError.contains('not active') || lowerError.contains('inactive')) ||
+          (e is Exception && _getSubscriptionId(e) != null)) {
+        final subscriptionId = _getSubscriptionId(e);
+        if (subscriptionId != null) {
+          setState(() => _isLoading = false);
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => SubscriptionPaymentScreen(
+                subscriptionId: subscriptionId,
+                loginUsername: _usernameController.text.trim(),
+                loginPassword: _passwordController.text,
+              ),
+            ),
+          );
+          return;
+        }
         if (cleanError.isNotEmpty && 
             !cleanError.toLowerCase().contains('failed to request') &&
             !cleanError.toLowerCase().contains('status 403') &&
@@ -106,6 +144,7 @@ class _LoginScreenState extends State<LoginScreen> {
           errorMsg = AppLocalizations.of(context)?.translate('subscriptionNotActive') ?? 
               'Your subscription is not active. Please contact support or complete your payment to access the system.';
         }
+        isSubscriptionError = true;
       } 
       // Check for account temporarily inactive errors
       else if (lowerError.contains('account is temporarily inactive') ||
@@ -146,9 +185,46 @@ class _LoginScreenState extends State<LoginScreen> {
       
       setState(() {
         _errorMessage = errorMsg;
+        _isSubscriptionError = isSubscriptionError;
         _isLoading = false;
       });
     }
+  }
+
+  /// فتح شاشة الدفع عند النقر على "إتمام الدفع" في رسالة الاشتراك
+  Future<void> _onCompletePaymentTap() async {
+    setState(() => _isLoading = true);
+    try {
+      final apiService = ApiService();
+      final languageBloc = context.read<LanguageBloc>();
+      final language = languageBloc.state.locale.languageCode;
+      await apiService.requestTwoFactorAuth(
+        _usernameController.text.trim(),
+        _passwordController.text,
+        language,
+      );
+    } catch (e) {
+      final subscriptionId = _getSubscriptionId(e);
+      if (mounted && subscriptionId != null) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => SubscriptionPaymentScreen(
+              subscriptionId: subscriptionId,
+              loginUsername: _usernameController.text.trim(),
+              loginPassword: _passwordController.text,
+            ),
+          ),
+        );
+        return;
+      }
+      if (mounted) {
+        SnackbarHelper.showError(
+          context,
+          AppLocalizations.of(context)?.translate('unableToOpenPayment') ?? 'Unable to open payment. Please try again.',
+        );
+      }
+    }
+    if (mounted) setState(() => _isLoading = false);
   }
   
   @override
@@ -245,6 +321,30 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 24),
                   
+                  // Register link
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        localizations?.translate('alreadyHaveAccount') == 'Already have an account?'
+                            ? (localizations?.translate('dontHaveAccount') ?? "Don't have an account?")
+                            : (localizations?.translate('dontHaveAccount') ?? "Don't have an account?"),
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pushNamed('/register');
+                        },
+                        child: Text(
+                          localizations?.translate('register') ?? 'Register',
+                          style: TextStyle(color: AppTheme.primaryColor),
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
                   // Error Message
                   if (_errorMessage != null)
                     Padding(
@@ -256,11 +356,40 @@ class _LoginScreenState extends State<LoginScreen> {
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
                         ),
-                        child: Text(
-                          _errorMessage!,
-                          style: const TextStyle(color: Colors.red),
-                          textAlign: TextAlign.center,
-                        ),
+                        child: _isSubscriptionError
+                            ? Text.rich(
+                                TextSpan(
+                                  style: const TextStyle(color: Colors.red, fontSize: 14),
+                                  children: [
+                                    TextSpan(
+                                      text: localizations?.translate('subscriptionNotActiveBeforeLink') ??
+                                          'Your subscription is not active. Please contact support or ',
+                                    ),
+                                    TextSpan(
+                                      text: localizations?.translate('subscriptionNotActiveLink') ??
+                                          'complete your payment',
+                                      style: TextStyle(
+                                        color: AppTheme.primaryColor,
+                                        decoration: TextDecoration.underline,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      recognizer: TapGestureRecognizer()
+                                        ..onTap = _onCompletePaymentTap,
+                                    ),
+                                    TextSpan(
+                                      text: localizations?.translate('subscriptionNotActiveAfterLink') ??
+                                          ' to access the system.',
+                                    ),
+                                  ],
+                                ),
+                                textAlign: TextAlign.center,
+                                textDirection: isRTL ? TextDirection.rtl : TextDirection.ltr,
+                              )
+                            : Text(
+                                _errorMessage!,
+                                style: const TextStyle(color: Colors.red),
+                                textAlign: TextAlign.center,
+                              ),
                       ),
                     ),
                   

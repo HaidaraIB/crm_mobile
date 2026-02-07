@@ -9,6 +9,7 @@ import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/inventory_card.dart';
 import '../../core/utils/specialization_helper.dart';
+import '../../core/utils/snackbar_helper.dart';
 
 class DealFormScreen extends StatefulWidget {
   final DealModel? deal;
@@ -157,11 +158,9 @@ class _DealFormScreenState extends State<DealFormScreen> {
     } catch (e) {
       debugPrint('Error loading data: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${AppLocalizations.of(context)?.translate('failedToLoadData') ?? 'Failed to load data'}: $e'),
-            backgroundColor: Colors.red,
-          ),
+        SnackbarHelper.showError(
+          context,
+          '${AppLocalizations.of(context)?.translate('failedToLoadData') ?? 'Failed to load data'}: $e',
         );
       }
     } finally {
@@ -368,11 +367,9 @@ class _DealFormScreenState extends State<DealFormScreen> {
         await _apiService.updateDeal(widget.deal!.id, payload);
         
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(localizations?.translate('dealUpdatedSuccessfully') ?? 'Deal updated successfully'),
-              backgroundColor: Colors.green,
-            ),
+          SnackbarHelper.showSuccess(
+            context,
+            localizations?.translate('dealUpdatedSuccessfully') ?? 'Deal updated successfully',
           );
           Navigator.pop(context, true);
         }
@@ -380,24 +377,20 @@ class _DealFormScreenState extends State<DealFormScreen> {
         await _apiService.createDeal(payload);
         
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(localizations?.translate('dealCreatedSuccessfully') ?? 'Deal created successfully'),
-              backgroundColor: Colors.green,
-            ),
+          SnackbarHelper.showSuccess(
+            context,
+            localizations?.translate('dealCreatedSuccessfully') ?? 'Deal created successfully',
           );
           Navigator.pop(context, true);
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(widget.deal != null 
+        SnackbarHelper.showError(
+          context,
+          widget.deal != null 
               ? (localizations?.translate('failedToUpdateDeal') ?? 'Failed to update deal: $e')
-              : (localizations?.translate('failedToCreateDeal') ?? 'Failed to create deal: $e')),
-            backgroundColor: Colors.red,
-          ),
+              : (localizations?.translate('failedToCreateDeal') ?? 'Failed to create deal: $e'),
         );
       }
     } finally {

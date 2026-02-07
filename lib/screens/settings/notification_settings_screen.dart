@@ -6,6 +6,7 @@ import '../../services/notification_router.dart';
 import '../../services/api_service.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/snackbar_helper.dart';
 
 class NotificationSettingsScreen extends StatefulWidget {
   const NotificationSettingsScreen({super.key});
@@ -70,27 +71,12 @@ class _NotificationSettingsScreenState
       await _settings!.save();
       if (mounted) {
         final localizations = AppLocalizations.of(context);
-        _showSuccessSnackBar(
+        SnackbarHelper.showSuccess(
+          context,
           localizations?.translate('settingsSavedSuccessfully') ??
               'Settings saved successfully',
         );
       }
-    }
-  }
-
-  void _showSuccessSnackBar(String message) {
-    if (mounted) {
-      final theme = Theme.of(context);
-      final isDarkMode = theme.brightness == Brightness.dark;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            message,
-            style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
-          ),
-          backgroundColor: Colors.green,
-        ),
-      );
     }
   }
 

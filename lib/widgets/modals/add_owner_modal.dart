@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/phone_input.dart';
@@ -49,20 +50,16 @@ class _AddOwnerModalState extends State<AddOwnerModal> {
       if (mounted) {
         widget.onOwnerCreated?.call(owner);
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppLocalizations.of(context)?.translate('ownerCreated') ?? 'Owner created successfully'),
-            backgroundColor: Colors.green,
-          ),
+        SnackbarHelper.showSuccess(
+          context,
+          AppLocalizations.of(context)?.translate('ownerCreated') ?? 'Owner created successfully',
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${AppLocalizations.of(context)?.translate('error') ?? 'Error'}: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
+        SnackbarHelper.showError(
+          context,
+          '${AppLocalizations.of(context)?.translate('error') ?? 'Error'}: ${e.toString()}',
         );
       }
     } finally {

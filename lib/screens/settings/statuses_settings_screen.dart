@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/snackbar_helper.dart';
 import '../../models/settings_model.dart';
 import '../../services/api_service.dart';
 import '../../services/error_logger.dart';
@@ -58,14 +59,10 @@ class _StatusesSettingsScreenState extends State<StatusesSettingsScreen> {
     final status = _statuses.firstWhere((s) => s.id == statusId);
     if (status.isDefault) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AppLocalizations.of(context)?.translate('cannotDeleteDefault') ?? 
+        SnackbarHelper.showError(
+          context,
+          AppLocalizations.of(context)?.translate('cannotDeleteDefault') ?? 
               'Cannot delete default status',
-            ),
-            backgroundColor: Colors.orange,
-          ),
         );
       }
       return;
@@ -99,25 +96,19 @@ class _StatusesSettingsScreenState extends State<StatusesSettingsScreen> {
     try {
       await _apiService.deleteStatus(statusId);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AppLocalizations.of(context)?.translate('statusDeletedSuccessfully') ?? 
+        SnackbarHelper.showSuccess(
+          context,
+          AppLocalizations.of(context)?.translate('statusDeletedSuccessfully') ?? 
               'Status deleted successfully',
-            ),
-            backgroundColor: Colors.green,
-          ),
         );
         _loadStatuses();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: Colors.red,
-        ),
-      );
+        SnackbarHelper.showError(
+          context,
+          e.toString().replaceAll('Exception: ', ''),
+        );
       }
     }
   }

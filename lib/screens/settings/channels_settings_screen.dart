@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/snackbar_helper.dart';
 import '../../models/settings_model.dart';
 import '../../services/api_service.dart';
 import '../../services/error_logger.dart';
@@ -83,24 +84,18 @@ class _ChannelsSettingsScreenState extends State<ChannelsSettingsScreen> {
     try {
       await _apiService.deleteChannel(channelId);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AppLocalizations.of(context)?.translate('channelDeletedSuccessfully') ?? 
+        SnackbarHelper.showSuccess(
+          context,
+          AppLocalizations.of(context)?.translate('channelDeletedSuccessfully') ?? 
               'Channel deleted successfully',
-            ),
-            backgroundColor: Colors.green,
-          ),
         );
         _loadChannels();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
-            backgroundColor: Colors.red,
-          ),
+        SnackbarHelper.showError(
+          context,
+          e.toString().replaceAll('Exception: ', ''),
         );
       }
     }

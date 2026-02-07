@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/snackbar_helper.dart';
 import '../../models/settings_model.dart';
 import '../../services/api_service.dart';
 
@@ -116,21 +117,17 @@ class _AddActionModalState extends State<AddActionModal> {
   Future<void> _save() async {
     final localizations = AppLocalizations.of(context);
     if (_selectedStageId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(localizations?.translate('pleaseSelectActionType') ?? 'Please select an action type'),
-          backgroundColor: Colors.red,
-        ),
+      SnackbarHelper.showError(
+        context,
+        localizations?.translate('pleaseSelectActionType') ?? 'Please select an action type',
       );
       return;
     }
     
     if (_notesController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(localizations?.translate('pleaseEnterNotes') ?? 'Please enter notes'),
-          backgroundColor: Colors.red,
-        ),
+      SnackbarHelper.showError(
+        context,
+        localizations?.translate('pleaseEnterNotes') ?? 'Please enter notes',
       );
       return;
     }
@@ -153,13 +150,9 @@ class _AddActionModalState extends State<AddActionModal> {
       Navigator.pop(context);
       
       // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            localizations?.translate('actionAdded') ?? 'Action added successfully',
-          ),
-          backgroundColor: Colors.green,
-        ),
+      SnackbarHelper.showSuccess(
+        context,
+        localizations?.translate('actionAdded') ?? 'Action added successfully',
       );
       
       // Call onSave callback for refresh
@@ -175,13 +168,9 @@ class _AddActionModalState extends State<AddActionModal> {
         _isSaving = false;
       });
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '${localizations?.translate('failedToAddAction') ?? 'Failed to add action'}: ${e.toString()}',
-          ),
-          backgroundColor: Colors.red,
-        ),
+      SnackbarHelper.showError(
+        context,
+        '${localizations?.translate('failedToAddAction') ?? 'Failed to add action'}: ${e.toString()}',
       );
     }
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/snackbar_helper.dart';
 import '../../core/utils/number_formatter.dart';
 import '../../models/lead_model.dart';
 import '../../models/settings_model.dart';
@@ -150,14 +151,10 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
       
       if (mounted) {
         final localizations = AppLocalizations.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              localizations?.translate('statusUpdatedSuccessfully') ?? 'Status updated successfully',
-            ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
+        SnackbarHelper.showSuccess(
+          context,
+          localizations?.translate('statusUpdatedSuccessfully') ?? 'Status updated successfully',
+          duration: const Duration(seconds: 2),
         );
       }
     } catch (e) {
@@ -167,11 +164,9 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
       
       if (mounted) {
         final localizations = AppLocalizations.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${localizations?.translate('failedToUpdateStatus') ?? 'Failed to update status'}: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
+        SnackbarHelper.showError(
+          context,
+          '${localizations?.translate('failedToUpdateStatus') ?? 'Failed to update status'}: ${e.toString()}',
         );
       }
     }
@@ -199,24 +194,15 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                   await _apiService.deleteLead(_lead!.id);
                   if (!mounted) return;
                   Navigator.pop(this.context, true); // Pass true to indicate deletion
-                  ScaffoldMessenger.of(this.context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        localizations?.translate('leadDeletedSuccessfully') ?? 
+                  SnackbarHelper.showSuccess(
+                    this.context,
+                    localizations?.translate('leadDeletedSuccessfully') ?? 
                         'Lead deleted successfully',
-                      ),
-                      backgroundColor: Colors.green,
-                    ),
                   );
                 }
               } catch (e) {
                 if (!mounted) return;
-                ScaffoldMessenger.of(this.context).showSnackBar(
-                  SnackBar(
-                    content: Text(e.toString()),
-                    backgroundColor: Colors.red,
-                  ),
-                );
+                SnackbarHelper.showError(this.context, e.toString());
               }
             },
             child: Text(
@@ -258,20 +244,16 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
         mode: LaunchMode.externalApplication,
       );
       if (!launched && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppLocalizations.of(context)?.translate('cannotMakeCall') ?? 'Could not make call'),
-            backgroundColor: Colors.red,
-          ),
+        SnackbarHelper.showError(
+          context,
+          AppLocalizations.of(context)?.translate('cannotMakeCall') ?? 'Could not make call',
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppLocalizations.of(context)?.translate('cannotMakeCall') ?? 'Could not make call'),
-            backgroundColor: Colors.red,
-          ),
+        SnackbarHelper.showError(
+          context,
+          AppLocalizations.of(context)?.translate('cannotMakeCall') ?? 'Could not make call',
         );
       }
     }
@@ -284,11 +266,9 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
       if (cleanPhone.isEmpty) {
         if (mounted) {
           final localizations = AppLocalizations.of(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(localizations?.translate('invalidPhoneNumber') ?? 'Invalid phone number'),
-              backgroundColor: Colors.red,
-            ),
+          SnackbarHelper.showError(
+            context,
+            localizations?.translate('invalidPhoneNumber') ?? 'Invalid phone number',
           );
         }
         return;
@@ -301,21 +281,17 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
       );
       if (!launched && mounted) {
         final localizations = AppLocalizations.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(localizations?.translate('couldNotOpenWhatsApp') ?? 'Could not open WhatsApp'),
-            backgroundColor: Colors.red,
-          ),
+        SnackbarHelper.showError(
+          context,
+          localizations?.translate('couldNotOpenWhatsApp') ?? 'Could not open WhatsApp',
         );
       }
     } catch (e) {
       if (mounted) {
         final localizations = AppLocalizations.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(localizations?.translate('couldNotOpenWhatsApp') ?? 'Could not open WhatsApp'),
-            backgroundColor: Colors.red,
-          ),
+        SnackbarHelper.showError(
+          context,
+          localizations?.translate('couldNotOpenWhatsApp') ?? 'Could not open WhatsApp',
         );
       }
     }
@@ -1282,14 +1258,10 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
           _leadWasUpdated = true;
           _updatingPrimaryMap[phone.phoneNumber] = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              localizations?.translate('phoneNumberSetAsPrimary') ?? 
+        SnackbarHelper.showSuccess(
+          context,
+          localizations?.translate('phoneNumberSetAsPrimary') ?? 
               'Phone number set as primary',
-            ),
-            backgroundColor: Colors.green,
-          ),
         );
       }
     } catch (e) {
@@ -1297,13 +1269,9 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
         setState(() {
           _updatingPrimaryMap[phone.phoneNumber] = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${localizations?.translate('error') ?? 'Error'}: ${e.toString()}',
-            ),
-            backgroundColor: Colors.red,
-          ),
+        SnackbarHelper.showError(
+          context,
+          '${localizations?.translate('error') ?? 'Error'}: ${e.toString()}',
         );
       }
     }
@@ -1461,13 +1429,9 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
             ElevatedButton(
               onPressed: isLoading ? null : () async {
                 if (phoneNumber.trim().isEmpty) {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        localizations?.translate('phoneNumberRequiredSingle') ?? 'Phone number is required',
-                      ),
-                      backgroundColor: Colors.red,
-                    ),
+                  SnackbarHelper.showError(
+                    dialogContext,
+                    localizations?.translate('phoneNumberRequiredSingle') ?? 'Phone number is required',
                   );
                   return;
                 }
@@ -1520,14 +1484,10 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                       _lead = updatedLead;
                       _leadWasUpdated = true;
                     });
-                    ScaffoldMessenger.of(navigatorContext).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          localizations?.translate('phoneNumberAddedSuccessfully') ?? 
+                    SnackbarHelper.showSuccess(
+                      navigatorContext,
+                      localizations?.translate('phoneNumberAddedSuccessfully') ?? 
                           'Phone number added successfully',
-                        ),
-                        backgroundColor: Colors.green,
-                      ),
                     );
                   }
                 } catch (e) {
@@ -1536,13 +1496,9 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                       isLoading = false;
                     });
                     if (navigatorContext.mounted) {
-                      ScaffoldMessenger.of(navigatorContext).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            '${localizations?.translate('error') ?? 'Error'}: ${e.toString()}',
-                          ),
-                          backgroundColor: Colors.red,
-                        ),
+                      SnackbarHelper.showError(
+                        navigatorContext,
+                        '${localizations?.translate('error') ?? 'Error'}: ${e.toString()}',
                       );
                     }
                   }

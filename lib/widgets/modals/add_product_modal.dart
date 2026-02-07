@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
 
@@ -74,11 +75,9 @@ class _AddProductModalState extends State<AddProductModal> {
         _isLoadingData = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${AppLocalizations.of(context)?.translate('failedToLoadData') ?? 'Failed to load data'}: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
+        SnackbarHelper.showError(
+          context,
+          '${AppLocalizations.of(context)?.translate('failedToLoadData') ?? 'Failed to load data'}: ${e.toString()}',
         );
       }
     }
@@ -131,20 +130,16 @@ class _AddProductModalState extends State<AddProductModal> {
       if (mounted) {
         widget.onProductCreated?.call(product);
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppLocalizations.of(context)?.translate('productCreated') ?? 'Product created successfully'),
-            backgroundColor: Colors.green,
-          ),
+        SnackbarHelper.showSuccess(
+          context,
+          AppLocalizations.of(context)?.translate('productCreated') ?? 'Product created successfully',
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${AppLocalizations.of(context)?.translate('error') ?? 'Error'}: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
+        SnackbarHelper.showError(
+          context,
+          '${AppLocalizations.of(context)?.translate('error') ?? 'Error'}: ${e.toString()}',
         );
       }
     } finally {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/inventory_card.dart';
@@ -91,22 +92,16 @@ class _OwnersScreenState extends State<OwnersScreen> {
         mode: LaunchMode.externalApplication,
       );
       if (!launched && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AppLocalizations.of(context)?.translate('cannotMakeCall') ?? 'Cannot make call',
-            ),
-          ),
+        SnackbarHelper.showError(
+          context,
+          AppLocalizations.of(context)?.translate('cannotMakeCall') ?? 'Cannot make call',
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AppLocalizations.of(context)?.translate('cannotMakeCall') ?? 'Cannot make call',
-            ),
-          ),
+        SnackbarHelper.showError(
+          context,
+          AppLocalizations.of(context)?.translate('cannotMakeCall') ?? 'Cannot make call',
         );
       }
     }
@@ -366,25 +361,24 @@ class _OwnersScreenState extends State<OwnersScreen> {
             onPressed: () async {
               final navigator = Navigator.of(context);
               final scaffoldMessenger = ScaffoldMessenger.of(context);
+              final brightness = Theme.of(context).brightness;
               navigator.pop();
               try {
                 await _apiService.deleteOwner(owner.id);
                 if (mounted) {
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text(localizations?.translate('ownerDeleted') ?? 'Owner deleted'),
-                      backgroundColor: Colors.green,
-                    ),
+                  SnackbarHelper.showSuccessWithMessenger(
+                    scaffoldMessenger,
+                    localizations?.translate('ownerDeleted') ?? 'Owner deleted',
+                    brightness: brightness,
                   );
                   _loadOwners();
                 }
               } catch (e) {
                 if (mounted) {
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text('${localizations?.translate('error') ?? 'Error'}: $e'),
-                      backgroundColor: Colors.red,
-                    ),
+                  SnackbarHelper.showErrorWithMessenger(
+                    scaffoldMessenger,
+                    '${localizations?.translate('error') ?? 'Error'}: $e',
+                    brightness: brightness,
                   );
                 }
               }

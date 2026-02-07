@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/snackbar_helper.dart';
 import '../../models/notification_model.dart';
 import '../../services/api_service.dart';
 import '../../services/notification_router.dart';
@@ -93,28 +94,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AppLocalizations.of(context)?.translate('notificationMarkedAsRead') ?? 
+        SnackbarHelper.showSuccess(
+          context,
+          AppLocalizations.of(context)?.translate('notificationMarkedAsRead') ?? 
               'Notification marked as read',
-            ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
+          duration: const Duration(seconds: 2),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AppLocalizations.of(context)?.translate('failedToMarkAsRead') ?? 
+        SnackbarHelper.showError(
+          context,
+          AppLocalizations.of(context)?.translate('failedToMarkAsRead') ?? 
               'Failed to mark as read',
-            ),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 2),
-          ),
+          duration: const Duration(seconds: 2),
         );
       }
     }
@@ -136,28 +129,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AppLocalizations.of(context)?.translate('allNotificationsMarkedAsRead') ?? 
+        SnackbarHelper.showSuccess(
+          context,
+          AppLocalizations.of(context)?.translate('allNotificationsMarkedAsRead') ?? 
               'All notifications marked as read',
-            ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
+          duration: const Duration(seconds: 2),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AppLocalizations.of(context)?.translate('failedToMarkAllAsRead') ?? 
+        SnackbarHelper.showError(
+          context,
+          AppLocalizations.of(context)?.translate('failedToMarkAllAsRead') ?? 
               'Failed to mark all as read',
-            ),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 2),
-          ),
+          duration: const Duration(seconds: 2),
         );
       }
     }
@@ -168,14 +153,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     
     if (readCount == 0) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AppLocalizations.of(context)?.translate('noReadNotifications') ?? 
+        SnackbarHelper.showError(
+          context,
+          AppLocalizations.of(context)?.translate('noReadNotifications') ?? 
               'No read notifications to delete',
-            ),
-            duration: const Duration(seconds: 2),
-          ),
+          duration: const Duration(seconds: 2),
         );
       }
       return;
@@ -220,28 +202,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AppLocalizations.of(context)?.translate('readNotificationsDeleted') ?? 
+        SnackbarHelper.showSuccess(
+          context,
+          AppLocalizations.of(context)?.translate('readNotificationsDeleted') ?? 
               'Read notifications deleted',
-            ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
+          duration: const Duration(seconds: 2),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AppLocalizations.of(context)?.translate('failedToDeleteReadNotifications') ?? 
+        SnackbarHelper.showError(
+          context,
+          AppLocalizations.of(context)?.translate('failedToDeleteReadNotifications') ?? 
               'Failed to delete read notifications',
-            ),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 2),
-          ),
+          duration: const Duration(seconds: 2),
         );
       }
     }

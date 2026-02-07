@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/snackbar_helper.dart';
 import '../../../models/settings_model.dart';
 import '../../../services/api_service.dart';
 import '../../../services/error_logger.dart';
@@ -141,14 +142,10 @@ class _EditChannelModalState extends State<EditChannelModal> {
 
       if (mounted) {
         widget.onChannelUpdated?.call();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AppLocalizations.of(context)?.translate('channelUpdatedSuccessfully') ?? 
+        SnackbarHelper.showSuccess(
+          context,
+          AppLocalizations.of(context)?.translate('channelUpdatedSuccessfully') ?? 
               'Channel updated successfully',
-            ),
-            backgroundColor: Colors.green,
-          ),
         );
       }
     } catch (e) {

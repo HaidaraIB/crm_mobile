@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../services/error_logger.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../core/utils/snackbar_helper.dart';
 import '../../core/theme/app_theme.dart';
 
 class ErrorLogsScreen extends StatefulWidget {
@@ -63,12 +64,9 @@ class _ErrorLogsScreenState extends State<ErrorLogsScreen> {
               onPressed: () {
                 final allLogs = _errorLogger.getAllLogsAsString();
                 Clipboard.setData(ClipboardData(text: allLogs));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      localizations?.translate('logsCopied') ?? 'All logs copied to clipboard',
-                    ),
-                  ),
+                SnackbarHelper.showSuccess(
+                  context,
+                  localizations?.translate('logsCopied') ?? 'All logs copied to clipboard',
                 );
               },
             ),
@@ -255,13 +253,10 @@ class _ErrorLogsScreenState extends State<ErrorLogsScreen> {
                                           Clipboard.setData(
                                             ClipboardData(text: log.toFormattedString()),
                                           );
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                localizations?.translate('logCopied') ?? 
+                                          SnackbarHelper.showSuccess(
+                                            context,
+                                            localizations?.translate('logCopied') ?? 
                                                 'Error log copied to clipboard',
-                                              ),
-                                            ),
                                           );
                                         },
                                         icon: const Icon(Icons.copy, size: 16),

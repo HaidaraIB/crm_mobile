@@ -21,6 +21,7 @@ class AppConstants {
   static const String refreshTokenKey = 'refreshToken';
   static const String currentUserKey = 'currentUser';
   static const String isLoggedInKey = 'isLoggedIn';
+  static const String hasSeenOnboardingKey = 'hasSeenOnboarding';
   
   // Primary Color (Purple)
   static const int primaryColorValue = 0xFF9333EA;

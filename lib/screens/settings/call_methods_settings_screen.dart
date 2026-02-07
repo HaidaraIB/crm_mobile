@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/snackbar_helper.dart';
 import '../../models/settings_model.dart';
 import '../../services/api_service.dart';
 import '../../services/error_logger.dart';
@@ -104,25 +105,17 @@ class _CallMethodsSettingsScreenState extends State<CallMethodsSettingsScreen> {
       try {
         await _apiService.deleteCallMethod(callMethod.id);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                localizations?.translate('callMethodDeleted') ?? 'Call method deleted successfully',
-              ),
-              backgroundColor: Colors.green,
-            ),
+          SnackbarHelper.showSuccess(
+            context,
+            localizations?.translate('callMethodDeleted') ?? 'Call method deleted successfully',
           );
           _loadCallMethods();
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '${localizations?.translate('failedToDeleteCallMethod') ?? 'Failed to delete call method'}: ${e.toString()}',
-              ),
-              backgroundColor: Colors.red,
-            ),
+          SnackbarHelper.showError(
+            context,
+            '${localizations?.translate('failedToDeleteCallMethod') ?? 'Failed to delete call method'}: ${e.toString()}',
           );
         }
       }

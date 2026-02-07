@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/snackbar_helper.dart';
 import '../../models/lead_model.dart';
 import '../../models/user_model.dart';
 import '../../models/settings_model.dart';
@@ -154,14 +155,10 @@ class _EditLeadModalState extends State<EditLeadModal> {
 
     if (_phoneNumbers.isEmpty && _phoneController.text.trim().isEmpty) {
       final localizations = AppLocalizations.of(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            localizations?.translate('phoneNumberRequired') ??
-                'Please enter at least one phone number',
-          ),
-          backgroundColor: Colors.red,
-        ),
+      SnackbarHelper.showError(
+        context,
+        localizations?.translate('phoneNumberRequired') ??
+            'Please enter at least one phone number',
       );
       return;
     }
@@ -233,16 +230,9 @@ class _EditLeadModalState extends State<EditLeadModal> {
       if (mounted) {
         Navigator.pop(context);
         widget.onLeadUpdated?.call(lead);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AppLocalizations.of(
-                    context,
-                  )?.translate('leadUpdatedSuccessfully') ??
-                  'Lead updated successfully',
-            ),
-            backgroundColor: Colors.green,
-          ),
+        SnackbarHelper.showSuccess(
+          context,
+          AppLocalizations.of(context)?.translate('leadUpdatedSuccessfully') ?? 'Lead updated successfully',
         );
       }
     } catch (e) {
@@ -252,8 +242,9 @@ class _EditLeadModalState extends State<EditLeadModal> {
         method: 'PATCH',
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${AppLocalizations.of(context)?.translate('error') ?? 'Error'}: ${e.toString()}'), backgroundColor: Colors.red),
+        SnackbarHelper.showError(
+          context,
+          '${AppLocalizations.of(context)?.translate('error') ?? 'Error'}: ${e.toString()}',
         );
       }
     } finally {

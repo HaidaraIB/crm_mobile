@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/inventory_card.dart';
@@ -694,25 +695,24 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
             onPressed: () async {
               final navigator = Navigator.of(context);
               final scaffoldMessenger = ScaffoldMessenger.of(context);
+              final brightness = Theme.of(context).brightness;
               navigator.pop();
               try {
                 await _apiService.deleteUnit(unit.id);
                 if (mounted) {
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text(localizations?.translate('unitDeleted') ?? 'Unit deleted'),
-                      backgroundColor: Colors.green,
-                    ),
+                  SnackbarHelper.showSuccessWithMessenger(
+                    scaffoldMessenger,
+                    localizations?.translate('unitDeleted') ?? 'Unit deleted',
+                    brightness: brightness,
                   );
                   _loadUnits();
                 }
               } catch (e) {
                 if (mounted) {
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text('${localizations?.translate('error') ?? 'Error'}: $e'),
-                      backgroundColor: Colors.red,
-                    ),
+                  SnackbarHelper.showErrorWithMessenger(
+                    scaffoldMessenger,
+                    '${localizations?.translate('error') ?? 'Error'}: $e',
+                    brightness: brightness,
                   );
                 }
               }
@@ -751,15 +751,15 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
             onPressed: () async {
               final navigator = Navigator.of(context);
               final scaffoldMessenger = ScaffoldMessenger.of(context);
+              final brightness = Theme.of(context).brightness;
               navigator.pop();
               try {
                 await _apiService.deleteProject(project.id);
                 if (mounted) {
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text(localizations?.translate('projectDeleted') ?? 'Project deleted'),
-                      backgroundColor: Colors.green,
-                    ),
+                  SnackbarHelper.showSuccessWithMessenger(
+                    scaffoldMessenger,
+                    localizations?.translate('projectDeleted') ?? 'Project deleted',
+                    brightness: brightness,
                   );
                   // Reload projects and units since deleting a project cascades to units
                   await Future.wait([
@@ -769,11 +769,10 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
                 }
               } catch (e) {
                 if (mounted) {
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text('${localizations?.translate('error') ?? 'Error'}: $e'),
-                      backgroundColor: Colors.red,
-                    ),
+                  SnackbarHelper.showErrorWithMessenger(
+                    scaffoldMessenger,
+                    '${localizations?.translate('error') ?? 'Error'}: $e',
+                    brightness: brightness,
                   );
                 }
               }
@@ -812,15 +811,15 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
             onPressed: () async {
               final navigator = Navigator.of(context);
               final scaffoldMessenger = ScaffoldMessenger.of(context);
+              final brightness = Theme.of(context).brightness;
               navigator.pop();
               try {
                 await _apiService.deleteDeveloper(developer.id);
                 if (mounted) {
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text(localizations?.translate('developerDeleted') ?? 'Developer deleted'),
-                      backgroundColor: Colors.green,
-                    ),
+                  SnackbarHelper.showSuccessWithMessenger(
+                    scaffoldMessenger,
+                    localizations?.translate('developerDeleted') ?? 'Developer deleted',
+                    brightness: brightness,
                   );
                   // Reload all related data since deleting a developer cascades to projects and units
                   await Future.wait([
@@ -831,11 +830,10 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
                 }
               } catch (e) {
                 if (mounted) {
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text('${localizations?.translate('error') ?? 'Error'}: $e'),
-                      backgroundColor: Colors.red,
-                    ),
+                  SnackbarHelper.showErrorWithMessenger(
+                    scaffoldMessenger,
+                    '${localizations?.translate('error') ?? 'Error'}: $e',
+                    brightness: brightness,
                   );
                 }
               }

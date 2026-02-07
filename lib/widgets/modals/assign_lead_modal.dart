@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/snackbar_helper.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
 import '../../services/error_logger.dart';
@@ -65,14 +66,10 @@ class _AssignLeadModalState extends State<AssignLeadModal> {
   Future<void> _submit() async {
     if (!_isUnassign && _selectedUserId == null) {
       final localizations = AppLocalizations.of(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            localizations?.translate('pleaseSelectEmployee') ??
-                'Please select an employee',
-          ),
-          backgroundColor: Colors.red,
-        ),
+      SnackbarHelper.showError(
+        context,
+        localizations?.translate('pleaseSelectEmployee') ??
+            'Please select an employee',
       );
       return;
     }
@@ -90,21 +87,11 @@ class _AssignLeadModalState extends State<AssignLeadModal> {
       if (mounted) {
         Navigator.pop(context);
         widget.onAssigned?.call();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _isUnassign
-                  ? (AppLocalizations.of(
-                          context,
-                        )?.translate('leadsUnassignedSuccessfully') ??
-                        'Leads unassigned successfully')
-                  : (AppLocalizations.of(
-                          context,
-                        )?.translate('leadsAssignedSuccessfully') ??
-                        'Leads assigned successfully'),
-            ),
-            backgroundColor: Colors.green,
-          ),
+        SnackbarHelper.showSuccess(
+          context,
+          _isUnassign
+              ? (AppLocalizations.of(context)?.translate('leadsUnassignedSuccessfully') ?? 'Leads unassigned successfully')
+              : (AppLocalizations.of(context)?.translate('leadsAssignedSuccessfully') ?? 'Leads assigned successfully'),
         );
       }
     } catch (e) {
@@ -114,9 +101,7 @@ class _AssignLeadModalState extends State<AssignLeadModal> {
         method: 'POST',
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
-        );
+        SnackbarHelper.showError(context, e.toString());
       }
     } finally {
       if (mounted) {

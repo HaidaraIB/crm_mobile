@@ -71,6 +71,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_native_splash: ^2.4.3
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -93,6 +94,8 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/images/whatsapp_logo.png
+    - assets/images/payment/
+    - assets/splash/
     - .env
 
   # An image asset can refer to one or more resolution-specific "variants", see
@@ -126,3 +129,14 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/icon/icon.png"
+
+# Native splash screen (dark background + centered logo).
+# Run: dart run flutter_native_splash:create
+flutter_native_splash:
+  color: "#1F2937"
+  image: assets/splash/logo.png
+  android: true
+  ios: true
+  android_12:
+    color: "#1F2937"
+    image: assets/splash/logo.png

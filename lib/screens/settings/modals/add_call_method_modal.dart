@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../services/api_service.dart';
+import '../../../core/utils/snackbar_helper.dart';
 
 class AddCallMethodModal extends StatefulWidget {
   const AddCallMethodModal({super.key});
@@ -53,11 +54,9 @@ class _AddCallMethodModalState extends State<AddCallMethodModal> {
       Navigator.pop(context, callMethod);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to create call method: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
+      SnackbarHelper.showError(
+        context,
+        'Failed to create call method: ${e.toString()}',
       );
       setState(() {
         _isSaving = false;

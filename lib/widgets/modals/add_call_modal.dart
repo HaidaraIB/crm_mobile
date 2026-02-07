@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/snackbar_helper.dart';
 import '../../models/settings_model.dart';
 import '../../services/api_service.dart';
 
@@ -137,31 +138,25 @@ class _AddCallModalState extends State<AddCallModal> {
   Future<void> _save() async {
     final localizations = AppLocalizations.of(context);
     if (_selectedCallMethodId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(localizations?.translate('pleaseSelectCallMethod') ?? 'Please select a call method'),
-          backgroundColor: Colors.red,
-        ),
+      SnackbarHelper.showError(
+        context,
+        localizations?.translate('pleaseSelectCallMethod') ?? 'Please select a call method',
       );
       return;
     }
     
     if (_notesController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(localizations?.translate('pleaseEnterNotes') ?? 'Please enter notes'),
-          backgroundColor: Colors.red,
-        ),
+      SnackbarHelper.showError(
+        context,
+        localizations?.translate('pleaseEnterNotes') ?? 'Please enter notes',
       );
       return;
     }
     
     if (_followUpDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(localizations?.translate('followUpDateRequired') ?? 'Follow up date is required'),
-          backgroundColor: Colors.red,
-        ),
+      SnackbarHelper.showError(
+        context,
+        localizations?.translate('followUpDateRequired') ?? 'Follow up date is required',
       );
       return;
     }
@@ -185,13 +180,9 @@ class _AddCallModalState extends State<AddCallModal> {
       Navigator.pop(context);
       
       // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            localizations?.translate('callAdded') ?? 'Call added successfully',
-          ),
-          backgroundColor: Colors.green,
-        ),
+      SnackbarHelper.showSuccess(
+        context,
+        localizations?.translate('callAdded') ?? 'Call added successfully',
       );
       
       // Call onSave callback for refresh
@@ -207,13 +198,9 @@ class _AddCallModalState extends State<AddCallModal> {
         _isSaving = false;
       });
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '${localizations?.translate('failedToAddCall') ?? 'Failed to add call'}: ${e.toString()}',
-          ),
-          backgroundColor: Colors.red,
-        ),
+      SnackbarHelper.showError(
+        context,
+        '${localizations?.translate('failedToAddCall') ?? 'Failed to add call'}: ${e.toString()}',
       );
     }
   }
