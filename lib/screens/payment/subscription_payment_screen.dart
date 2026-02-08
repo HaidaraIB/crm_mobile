@@ -294,6 +294,9 @@ class _SubscriptionPaymentScreenState extends State<SubscriptionPaymentScreen> {
     final isRTL = locale.languageCode == 'ar';
     final l10n = AppLocalizations(locale);
 
+    final currentTheme = themeBloc.state.themeMode;
+    final currentLocale = languageBloc.state.locale;
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -311,6 +314,33 @@ class _SubscriptionPaymentScreenState extends State<SubscriptionPaymentScreen> {
         ),
         title: Text(l10n.translate('paymentRequiredTitle')),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: Icon(
+              currentLocale.languageCode == 'ar' ? Icons.translate : Icons.language,
+            ),
+            tooltip: currentLocale.languageCode == 'ar'
+                ? l10n.translate('switchToEnglish')
+                : l10n.translate('switchToArabic'),
+            onPressed: () {
+              final newLocale = currentLocale.languageCode == 'ar'
+                  ? const Locale('en')
+                  : const Locale('ar');
+              context.read<LanguageBloc>().add(ChangeLanguage(newLocale));
+            },
+          ),
+          IconButton(
+            icon: Icon(
+              currentTheme == ThemeMode.dark ? Icons.light_mode : Icons.dark_mode,
+            ),
+            tooltip: currentTheme == ThemeMode.dark
+                ? l10n.translate('switchToLightMode')
+                : l10n.translate('switchToDarkMode'),
+            onPressed: () {
+              context.read<ThemeBloc>().add(const ToggleTheme());
+            },
+          ),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(

@@ -246,20 +246,52 @@ class _LoginScreenState extends State<LoginScreen> {
     final currentLocale = languageBloc.state.locale;
     
     return Scaffold(
+      appBar: AppBar(
+        actions: [
+          IconButton(
+            icon: Icon(
+              currentLocale.languageCode == 'ar'
+                  ? Icons.translate
+                  : Icons.language,
+              color: Theme.of(context).iconTheme.color,
+            ),
+            tooltip: currentLocale.languageCode == 'ar'
+                ? (localizations?.translate('switchToEnglish') ?? 'Switch to English')
+                : (localizations?.translate('switchToArabic') ?? 'Switch to Arabic'),
+            onPressed: () {
+              final newLocale = currentLocale.languageCode == 'ar'
+                  ? const Locale('en')
+                  : const Locale('ar');
+              languageBloc.add(ChangeLanguage(newLocale));
+            },
+          ),
+          IconButton(
+            icon: Icon(
+              currentTheme == ThemeMode.dark
+                  ? Icons.light_mode
+                  : Icons.dark_mode,
+              color: Theme.of(context).iconTheme.color,
+            ),
+            tooltip: currentTheme == ThemeMode.dark
+                ? (localizations?.translate('switchToLightMode') ?? 'Switch to Light Mode')
+                : (localizations?.translate('switchToDarkMode') ?? 'Switch to Dark Mode'),
+            onPressed: () {
+              themeBloc.add(const ToggleTheme());
+            },
+          ),
+        ],
+      ),
       body: SafeArea(
-        child: Stack(
-          children: [
-            Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24.0),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: 60), // Space for top buttons
-                      // Logo or App Name
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Logo or App Name
                       Text(
                         localizations?.translate('appName') ?? 'LOOP CRM',
                         style: Theme.of(context).textTheme.headlineLarge?.copyWith(
@@ -423,52 +455,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
-        // Top-right buttons for language, theme, etc.
-        Positioned(
-          top: 16,
-          right: isRTL ? null : 16,
-          left: isRTL ? 16 : null,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Language Toggle Button
-              IconButton(
-                icon: Icon(
-                  currentLocale.languageCode == 'ar' 
-                      ? Icons.translate 
-                      : Icons.language,
-                  color: Theme.of(context).iconTheme.color,
-                ),
-                tooltip: currentLocale.languageCode == 'ar' 
-                    ? (localizations?.translate('switchToEnglish') ?? 'Switch to English')
-                    : (localizations?.translate('switchToArabic') ?? 'Switch to Arabic'),
-                onPressed: () {
-                  final newLocale = currentLocale.languageCode == 'ar'
-                      ? const Locale('en')
-                      : const Locale('ar');
-                  languageBloc.add(ChangeLanguage(newLocale));
-                },
-              ),
-              // Theme Toggle Button
-              IconButton(
-                icon: Icon(
-                  currentTheme == ThemeMode.dark 
-                      ? Icons.light_mode 
-                      : Icons.dark_mode,
-                  color: Theme.of(context).iconTheme.color,
-                ),
-                tooltip: currentTheme == ThemeMode.dark
-                    ? (localizations?.translate('switchToLightMode') ?? 'Switch to Light Mode')
-                    : (localizations?.translate('switchToDarkMode') ?? 'Switch to Dark Mode'),
-                onPressed: () {
-                  themeBloc.add(const ToggleTheme());
-                },
-              ),
-            ],
-          ),
-        ),
-      ],
-    ),
       ),
     );
   }

@@ -490,7 +490,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
-    final isRTL = localizations?.isRTL ?? false;
     final themeBloc = context.read<ThemeBloc>();
     final languageBloc = context.read<LanguageBloc>();
     final currentTheme = Theme.of(context).brightness == Brightness.dark 
@@ -499,64 +498,100 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final currentLocale = languageBloc.state.locale;
     
     return Scaffold(
+      appBar: AppBar(
+        title: SizedBox(
+          width: 140,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildProgressStepCompact(0, '1'),
+              Expanded(
+                child: Container(
+                  height: 2,
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  color: _currentStep >= 1
+                      ? AppTheme.primaryColor
+                      : Colors.grey[300],
+                ),
+              ),
+              _buildProgressStepCompact(1, '2'),
+              Expanded(
+                child: Container(
+                  height: 2,
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  color: _currentStep >= 2
+                      ? AppTheme.primaryColor
+                      : Colors.grey[300],
+                ),
+              ),
+              _buildProgressStepCompact(2, '3'),
+            ],
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: Icon(
+              currentLocale.languageCode == 'ar'
+                  ? Icons.translate
+                  : Icons.language,
+              color: Theme.of(context).iconTheme.color,
+            ),
+            tooltip: currentLocale.languageCode == 'ar'
+                ? (localizations?.translate('switchToEnglish') ?? 'Switch to English')
+                : (localizations?.translate('switchToArabic') ?? 'Switch to Arabic'),
+            onPressed: () {
+              final newLocale = currentLocale.languageCode == 'ar'
+                  ? const Locale('en')
+                  : const Locale('ar');
+              languageBloc.add(ChangeLanguage(newLocale));
+            },
+          ),
+          IconButton(
+            icon: Icon(
+              currentTheme == ThemeMode.dark
+                  ? Icons.light_mode
+                  : Icons.dark_mode,
+              color: Theme.of(context).iconTheme.color,
+            ),
+            tooltip: currentTheme == ThemeMode.dark
+                ? (localizations?.translate('switchToLightMode') ?? 'Switch to Light Mode')
+                : (localizations?.translate('switchToDarkMode') ?? 'Switch to Dark Mode'),
+            onPressed: () {
+              themeBloc.add(const ToggleTheme());
+            },
+          ),
+        ],
+      ),
       body: SafeArea(
-        child: Stack(
-          children: [
-            Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24.0),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: 60), // Space for top buttons
-                      // Logo or App Name
-                      Text(
-                        localizations?.translate('register') ?? 'Register',
-                        style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                          color: AppTheme.primaryColor,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        localizations?.translate('createCompanyAccount') ?? 
-                            'Create your company account',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 32),
-                      
-                      // Progress indicator
-                      Row(
-                        children: [
-                          _buildProgressStep(0, '1'),
-                          Expanded(
-                            child: Container(
-                              height: 2,
-                              color: _currentStep >= 1 
-                                  ? AppTheme.primaryColor 
-                                  : Colors.grey[300],
-                            ),
-                          ),
-                          _buildProgressStep(1, '2'),
-                          Expanded(
-                            child: Container(
-                              height: 2,
-                              color: _currentStep >= 2 
-                                  ? AppTheme.primaryColor 
-                                  : Colors.grey[300],
-                            ),
-                          ),
-                          _buildProgressStep(2, '3'),
-                        ],
-                      ),
-                      const SizedBox(height: 32),
-                      
-                      // Error message
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Logo or App Name
+                  Text(
+                    localizations?.translate('register') ?? 'Register',
+                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                      color: AppTheme.primaryColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    localizations?.translate('createCompanyAccount') ??
+                        'Create your company account',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 32),
+
+                  // Error message
                       if (_generalError != null)
                         Container(
                           padding: const EdgeInsets.all(12),
@@ -665,61 +700,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ),
             ),
-            // Top-right buttons for language, theme, etc.
-            Positioned(
-              top: 16,
-              right: isRTL ? null : 16,
-              left: isRTL ? 16 : null,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Language Toggle Button
-                  IconButton(
-                    icon: Icon(
-                      currentLocale.languageCode == 'ar' 
-                          ? Icons.translate 
-                          : Icons.language,
-                      color: Theme.of(context).iconTheme.color,
-                    ),
-                    tooltip: currentLocale.languageCode == 'ar' 
-                        ? (localizations?.translate('switchToEnglish') ?? 'Switch to English')
-                        : (localizations?.translate('switchToArabic') ?? 'Switch to Arabic'),
-                    onPressed: () {
-                      final newLocale = currentLocale.languageCode == 'ar'
-                          ? const Locale('en')
-                          : const Locale('ar');
-                      languageBloc.add(ChangeLanguage(newLocale));
-                    },
-                  ),
-                  // Theme Toggle Button
-                  IconButton(
-                    icon: Icon(
-                      currentTheme == ThemeMode.dark 
-                          ? Icons.light_mode 
-                          : Icons.dark_mode,
-                      color: Theme.of(context).iconTheme.color,
-                    ),
-                    tooltip: currentTheme == ThemeMode.dark
-                        ? (localizations?.translate('switchToLightMode') ?? 'Switch to Light Mode')
-                        : (localizations?.translate('switchToDarkMode') ?? 'Switch to Dark Mode'),
-                    onPressed: () {
-                      themeBloc.add(const ToggleTheme());
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
     );
   }
-  
-  Widget _buildProgressStep(int step, String label) {
+
+  Widget _buildProgressStepCompact(int step, String label) {
     final isActive = _currentStep >= step;
     return Container(
-      width: 32,
-      height: 32,
+      width: 24,
+      height: 24,
       decoration: BoxDecoration(
         color: isActive ? AppTheme.primaryColor : Colors.grey[300],
         shape: BoxShape.circle,
@@ -728,6 +717,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         child: Text(
           label,
           style: TextStyle(
+            fontSize: 12,
             color: isActive ? Colors.white : Colors.grey[600],
             fontWeight: FontWeight.bold,
           ),

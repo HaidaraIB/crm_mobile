@@ -22,6 +22,20 @@ class AppLocalizations {
       "dontHaveAccount": "Don't have an account?",
       "back": "Back",
       "next": "Next",
+      "skip": "Skip",
+      "getStarted": "Get Started",
+      "onboardingTitle1": "Manage Customers Easily",
+      "onboardingDesc1":
+          "Organize all your customer information in one place and get a complete view of your business relationships",
+      "onboardingTitle2": "Track Performance",
+      "onboardingDesc2":
+          "Monitor your sales performance and key metrics in real time to make better decisions",
+      "onboardingTitle3": "Smart Notifications",
+      "onboardingDesc3":
+          "Get instant alerts about important tasks and new opportunities to always stay informed",
+      "onboardingTitle4": "Secure & Protected",
+      "onboardingDesc4":
+          "Your data is protected with the latest security technologies. Enjoy a safe and reliable experience",
       "companyInformation": "Company Information",
       "ownerInformation": "Owner Information",
       "selectPlan": "Select a Plan",
@@ -847,6 +861,20 @@ class AppLocalizations {
       "dontHaveAccount": "ليس لديك حساب؟",
       "back": "رجوع",
       "next": "التالي",
+      "skip": "تخطي",
+      "getStarted": "ابدأ الآن",
+      "onboardingTitle1": "إدارة العملاء بسهولة",
+      "onboardingDesc1":
+          "نظم جميع معلومات عملائك في مكان واحد واحصل على رؤية شاملة لعلاقاتك التجارية",
+      "onboardingTitle2": "تتبع الأداء",
+      "onboardingDesc2":
+          "راقب أداء مبيعاتك وإحصائياتك المهمة في الوقت الفعلي لاتخاذ قرارات أفضل",
+      "onboardingTitle3": "إشعارات ذكية",
+      "onboardingDesc3":
+          "احصل على تنبيهات فورية عن المهام المهمة والفرص الجديدة لتبقى دائماً على اطلاع",
+      "onboardingTitle4": "آمن ومحمي",
+      "onboardingDesc4":
+          "بياناتك محمية بأحدث تقنيات الأمان. استمتع بتجربة آمنة وموثوقة",
       "companyInformation": "معلومات الشركة",
       "ownerInformation": "معلومات المالك",
       "selectPlan": "اختر خطة",

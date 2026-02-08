@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/bloc/theme/theme_bloc.dart';
+import '../../core/bloc/language/language_bloc.dart';
+import '../../core/localization/app_localizations.dart';
 import '../login/login_screen.dart';
 import '../home/home_screen.dart';
 
@@ -19,30 +23,26 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final List<OnboardingPage> _pages = [
     OnboardingPage(
       icon: Icons.track_changes,
-      title: 'إدارة العملاء بسهولة',
-      description:
-          'نظم جميع معلومات عملائك في مكان واحد واحصل على رؤية شاملة لعلاقاتك التجارية',
+      titleKey: 'onboardingTitle1',
+      descriptionKey: 'onboardingDesc1',
       color: AppTheme.primaryColor,
     ),
     OnboardingPage(
       icon: Icons.analytics,
-      title: 'تتبع الأداء',
-      description:
-          'راقب أداء مبيعاتك وإحصائياتك المهمة في الوقت الفعلي لاتخاذ قرارات أفضل',
+      titleKey: 'onboardingTitle2',
+      descriptionKey: 'onboardingDesc2',
       color: AppTheme.primaryColor,
     ),
     OnboardingPage(
       icon: Icons.notifications_active,
-      title: 'إشعارات ذكية',
-      description:
-          'احصل على تنبيهات فورية عن المهام المهمة والفرص الجديدة لتبقى دائماً على اطلاع',
+      titleKey: 'onboardingTitle3',
+      descriptionKey: 'onboardingDesc3',
       color: AppTheme.primaryColor,
     ),
     OnboardingPage(
       icon: Icons.security,
-      title: 'آمن ومحمي',
-      description:
-          'بياناتك محمية بأحدث تقنيات الأمان. استمتع بتجربة آمنة وموثوقة',
+      titleKey: 'onboardingTitle4',
+      descriptionKey: 'onboardingDesc4',
       color: AppTheme.primaryColor,
     ),
   ];
@@ -101,8 +101,62 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final themeBloc = context.read<ThemeBloc>();
+    final languageBloc = context.read<LanguageBloc>();
+    final currentTheme = themeBloc.state.themeMode;
+    final currentLocale = languageBloc.state.locale;
+    final l10n = AppLocalizations(currentLocale);
 
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: isDark ? const Color(0xFF111827) : const Color(0xFFF9FAFB),
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        actions: [
+          IconButton(
+            icon: Icon(
+              currentLocale.languageCode == 'ar'
+                  ? Icons.translate
+                  : Icons.language,
+              color: isDark ? Colors.white70 : Colors.black87,
+            ),
+            tooltip: currentLocale.languageCode == 'ar'
+                ? l10n.translate('switchToEnglish')
+                : l10n.translate('switchToArabic'),
+            onPressed: () {
+              final newLocale = currentLocale.languageCode == 'ar'
+                  ? const Locale('en')
+                  : const Locale('ar');
+              languageBloc.add(ChangeLanguage(newLocale));
+            },
+          ),
+          IconButton(
+            icon: Icon(
+              currentTheme == ThemeMode.dark
+                  ? Icons.light_mode
+                  : Icons.dark_mode,
+              color: isDark ? Colors.white70 : Colors.black87,
+            ),
+            tooltip: currentTheme == ThemeMode.dark
+                ? l10n.translate('switchToLightMode')
+                : l10n.translate('switchToDarkMode'),
+            onPressed: () {
+              themeBloc.add(const ToggleTheme());
+            },
+          ),
+          TextButton(
+            onPressed: _skipOnboarding,
+            child: Text(
+              l10n.translate('skip'),
+              style: TextStyle(
+                fontSize: 16,
+                color: AppTheme.primaryColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -122,25 +176,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              // Skip Button
-              Align(
-                alignment: Alignment.topRight,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: TextButton(
-                    onPressed: _skipOnboarding,
-                    child: Text(
-                      'تخطي',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: AppTheme.primaryColor,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
               // Page View
               Expanded(
                 child: PageView.builder(
@@ -148,7 +183,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   onPageChanged: _onPageChanged,
                   itemCount: _pages.length,
                   itemBuilder: (context, index) {
-                    return _buildPage(_pages[index], isDark);
+                    return _buildPage(_pages[index], isDark, l10n);
                   },
                 ),
               ),
@@ -182,8 +217,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     ),
                     child: Text(
                       _currentPage == _pages.length - 1
-                          ? 'ابدأ الآن'
-                          : 'التالي',
+                          ? l10n.translate('getStarted')
+                          : l10n.translate('next'),
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -201,7 +236,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  Widget _buildPage(OnboardingPage page, bool isDark) {
+  Widget _buildPage(OnboardingPage page, bool isDark, AppLocalizations l10n) {
     return Padding(
       padding: const EdgeInsets.all(32.0),
       child: Column(
@@ -224,7 +259,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           const SizedBox(height: 48),
           // Title
           Text(
-            page.title,
+            l10n.translate(page.titleKey),
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
@@ -235,7 +270,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           const SizedBox(height: 24),
           // Description
           Text(
-            page.description,
+            l10n.translate(page.descriptionKey),
             style: TextStyle(
               fontSize: 16,
               color: isDark
@@ -270,14 +305,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
 class OnboardingPage {
   final IconData icon;
-  final String title;
-  final String description;
+  final String titleKey;
+  final String descriptionKey;
   final Color color;
 
   OnboardingPage({
     required this.icon,
-    required this.title,
-    required this.description,
+    required this.titleKey,
+    required this.descriptionKey,
     required this.color,
   });
 }
