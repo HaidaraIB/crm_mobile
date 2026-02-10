@@ -24,6 +24,15 @@ class SubscriptionInactiveException implements Exception {
   String toString() => message;
 }
 
+/// استثناء من الـ API مع رسالة وأخطاء حقول (لتسجيل الدخول/التوفر) — يحتوي على [fields] فعلياً ليتوافق مع iOS.
+class ApiFieldException implements Exception {
+  ApiFieldException(this.message, [this.fields]);
+  final String message;
+  final Map<String, dynamic>? fields;
+  @override
+  String toString() => message;
+}
+
 class ApiService {
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
@@ -332,9 +341,6 @@ class ApiService {
               '${_translateError('registrationFailedWithStatus', locale: locale)} ${response.statusCode}';
         }
 
-        final exception = Exception(errorMessage);
-        (exception as dynamic).fields = fieldErrors;
-
         ErrorLogger().logError(
           error: errorMessage,
           endpoint: cleanEndpoint,
@@ -343,7 +349,7 @@ class ApiService {
           responseBody: response.body,
         );
 
-        throw exception;
+        throw ApiFieldException(errorMessage, fieldErrors);
       }
     } catch (e, stackTrace) {
       if (e is Exception) {
@@ -417,10 +423,7 @@ class ApiService {
               'Availability check failed with status ${response.statusCode}';
         }
 
-        final exception = Exception(errorMessage);
-        (exception as dynamic).fields = fieldErrors;
-
-        throw exception;
+        throw ApiFieldException(errorMessage, fieldErrors);
       }
     } catch (e, stackTrace) {
       if (e is Exception) {

@@ -119,8 +119,8 @@ class _MyAppState extends State<MyApp> {
                 navigatorKey: navigatorKey,
                 title: 'LOOP CRM',
                 debugShowCheckedModeBanner: false,
-                theme: AppTheme.lightTheme,
-                darkTheme: AppTheme.darkTheme,
+                theme: AppTheme.lightThemeFor(languageState.locale),
+                darkTheme: AppTheme.darkThemeFor(languageState.locale),
                 themeMode: themeState.themeMode,
                 locale: languageState.locale,
                 supportedLocales: const [

@@ -94,16 +94,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _takePhoto() async {
+    if (!mounted) return;
     try {
+      // Don't force rear camera on iPhone (can cause crash on some devices/simulators)
       final XFile? image = await _picker.pickImage(
         source: ImageSource.camera,
         maxWidth: 1024,
         maxHeight: 1024,
         imageQuality: 85,
-        preferredCameraDevice: CameraDevice.rear,
       );
       
-      if (image != null) {
+      if (image != null && mounted) {
         setState(() {
           _selectedImage = File(image.path);
         });
@@ -114,9 +115,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       String errorMessage = e.toString();
       
       // Handle specific camera errors
-      if (errorMessage.contains('camera') || errorMessage.contains('Camera')) {
+      if (errorMessage.contains('camera') || errorMessage.contains('Camera') ||
+          errorMessage.contains('permission') || errorMessage.contains('denied')) {
         errorMessage = localizations?.translate('cameraNotAvailable') ?? 
-                       'Camera is not available or access was denied. Please check your device settings.';
+                       'Camera is not available or access was denied. Please enable it in Settings.';
       }
       
       SnackbarHelper.showError(
@@ -143,7 +145,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               CupertinoActionSheetAction(
                 onPressed: () {
                   Navigator.pop(context);
-                  _pickImage();
+                  Future.delayed(const Duration(milliseconds: 350), () {
+                    if (mounted) _pickImage();
+                  });
                 },
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -157,7 +161,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               CupertinoActionSheetAction(
                 onPressed: () {
                   Navigator.pop(context);
-                  _takePhoto();
+                  Future.delayed(const Duration(milliseconds: 350), () {
+                    if (mounted) _takePhoto();
+                  });
                 },
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -191,7 +197,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   title: Text(localizations?.translate('chooseFromGallery') ?? 'Choose from Gallery'),
                   onTap: () {
                     Navigator.pop(context);
-                    _pickImage();
+                    // Delay so the sheet is fully dismissed before presenting picker (avoids iOS crash)
+                    Future.delayed(const Duration(milliseconds: 350), () {
+                      if (mounted) _pickImage();
+                    });
                   },
                 ),
                 ListTile(
@@ -199,7 +208,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   title: Text(localizations?.translate('takePhoto') ?? 'Take Photo'),
                   onTap: () {
                     Navigator.pop(context);
-                    _takePhoto();
+                    // Delay so the sheet is fully dismissed before presenting camera (avoids iOS crash)
+                    Future.delayed(const Duration(milliseconds: 350), () {
+                      if (mounted) _takePhoto();
+                    });
                   },
                 ),
               ],
