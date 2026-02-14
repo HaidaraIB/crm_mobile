@@ -353,30 +353,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 24),
                   
-                  // Register link
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        localizations?.translate('alreadyHaveAccount') == 'Already have an account?'
-                            ? (localizations?.translate('dontHaveAccount') ?? "Don't have an account?")
-                            : (localizations?.translate('dontHaveAccount') ?? "Don't have an account?"),
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.of(context).pushNamed('/register');
-                        },
-                        child: Text(
-                          localizations?.translate('register') ?? 'Register',
-                          style: TextStyle(color: AppTheme.primaryColor),
-                        ),
-                      ),
-                    ],
-                  ),
-                  
-                  const SizedBox(height: 16),
-                  
                   // Error Message
                   if (_errorMessage != null)
                     Padding(

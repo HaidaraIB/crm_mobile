@@ -9,7 +9,6 @@ import 'core/localization/app_localizations.dart';
 import 'screens/splash/splash_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/login/login_screen.dart';
-import 'screens/register/register_screen.dart';
 import 'screens/two_factor_auth/two_factor_auth_screen.dart';
 import 'screens/settings/settings_screen.dart';
 import 'screens/profile/profile_screen.dart';
@@ -135,7 +134,9 @@ class _MyAppState extends State<MyApp> {
                 ],
                 routes: {
                   '/login': (context) => const LoginScreen(),
-                  '/register': (context) => const RegisterScreen(),
+                  // Registration for businesses/organizations removed for App Store compliance (Guideline 3.1.1).
+                  // Users must sign up via web; app is for existing account login only.
+                  '/register': (context) => const LoginScreen(),
                   '/home': (context) => const HomeScreen(),
                   '/settings': (context) => const SettingsScreen(),
                   '/profile': (context) => const ProfileScreen(),
