@@ -46,9 +46,21 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
     super.initState();
     // Load cooldown from SharedPreferences
     _loadCountdown();
-    // Auto-focus first input
+    // When any code field gains focus, place cursor at start (left) for both RTL and LTR
+    for (int i = 0; i < 6; i++) {
+      final idx = i;
+      _focusNodes[i].addListener(() {
+        if (_focusNodes[idx].hasFocus) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _codeControllers[idx].selection = TextSelection.collapsed(offset: 0);
+          });
+        }
+      });
+    }
+    // Auto-focus first input and place cursor at start
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNodes[0].requestFocus();
+      _codeControllers[0].selection = TextSelection.collapsed(offset: 0);
     });
   }
 
@@ -416,7 +428,7 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
                         ),
                       ),
                     
-                    // Code Input Fields
+                    // Code Input Fields - always LTR so first digit is on the left (no RTL flip)
                     LayoutBuilder(
                       builder: (context, constraints) {
                         // Calculate available width and adjust field size
@@ -425,10 +437,12 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
                         final totalSpacing = spacing * 10; // 5 gaps between 6 fields
                         final fieldWidth = ((availableWidth - totalSpacing) / 6).clamp(40.0, 50.0);
                         
-                        return Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min,
-                          children: List.generate(6, (index) {
+                        return Directionality(
+                          textDirection: TextDirection.ltr,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: List.generate(6, (index) {
                             return Container(
                               width: fieldWidth,
                               height: 60,
@@ -440,6 +454,7 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
                                 controller: _codeControllers[index],
                                 focusNode: _focusNodes[index],
                                 textAlign: TextAlign.center,
+                                textDirection: TextDirection.ltr,
                                 keyboardType: TextInputType.number,
                                 inputFormatters: [
                                   FilteringTextInputFormatter.digitsOnly,
@@ -466,6 +481,7 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
                               ),
                             );
                           }),
+                          ),
                         );
                       },
                     ),
