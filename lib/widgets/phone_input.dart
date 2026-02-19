@@ -139,7 +139,7 @@ class _PhoneInputState extends State<PhoneInput> {
   }
 
   void _initializeCountry() {
-    final defaultCode = widget.defaultCountry ?? 'SY';
+    final defaultCode = widget.defaultCountry ?? 'IQ';
     _selectedCountry = _countries.firstWhere(
       (c) => c.code == defaultCode,
       orElse: () => _countries.first,
