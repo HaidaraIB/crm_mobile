@@ -58,6 +58,20 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
     }
   }
 
+  /// True if user can see the Inventory section (admin always; supervisor only if they have the permission matching company specialization).
+  bool _canAccessInventory(UserModel? user) {
+    if (user == null || user.company == null) return false;
+    if (user.isAdmin) return true;
+    if (user.isSupervisor) {
+      final spec = user.company!.specialization;
+      if (spec == 'real_estate') return user.hasSupervisorPermission('can_manage_real_estate');
+      if (spec == 'products') return user.hasSupervisorPermission('can_manage_products');
+      if (spec == 'services') return user.hasSupervisorPermission('can_manage_services');
+      return false;
+    }
+    return true; // employees can see inventory (access controlled per screen)
+  }
+
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
@@ -195,8 +209,8 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
                     },
                   ),
                 ],
-                // Inventory menu - only show if user has a company with specialization
-                if (_currentUser?.company != null) ...[
+                // Inventory menu - show only if user has company and (is admin or has the inventory permission matching specialization)
+                if (_currentUser?.company != null && _canAccessInventory(_currentUser)) ...[
                   _buildMenuItem(
                     context,
                     icon: Icons.inventory,

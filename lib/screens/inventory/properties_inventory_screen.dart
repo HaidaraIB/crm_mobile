@@ -58,7 +58,7 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
     try {
       final user = await _apiService.getCurrentUser();
       setState(() {
-        _isAdmin = user.isAdmin;
+        _isAdmin = user.isAdmin || user.hasSupervisorPermission('can_manage_real_estate');
       });
     } catch (e) {
       // User not loaded, but continue

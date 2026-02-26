@@ -41,7 +41,8 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
           _currentUser = user;
           // Initialize TabController after we know if user is admin
           final isAdmin = user.isAdmin;
-          final tabCount = isAdmin ? 5 : 1; // General + 4 admin tabs or just General
+          final hasSettingsPerm = user.hasSupervisorPermission('can_manage_settings');
+          final tabCount = (isAdmin || hasSettingsPerm) ? 5 : 1; // General + 4 admin/supervisor tabs or just General
           _tabController = TabController(length: tabCount, vsync: this);
         });
       }
@@ -59,6 +60,8 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
     final isAdmin = _currentUser?.isAdmin == true;
+    final hasSettingsPerm = _currentUser?.hasSupervisorPermission('can_manage_settings') ?? false;
+    final canManageSettings = isAdmin || hasSettingsPerm;
 
     if (_tabController == null) {
       return const Scaffold(
@@ -78,10 +81,10 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
           unselectedLabelColor: Colors.white70,
           tabs: [
             Tab(text: localizations?.translate('general') ?? 'General'),
-            if (isAdmin) Tab(text: localizations?.translate('channels') ?? 'Channels'),
-            if (isAdmin) Tab(text: localizations?.translate('stages') ?? 'Stages'),
-            if (isAdmin) Tab(text: localizations?.translate('statuses') ?? 'Statuses'),
-            if (isAdmin) Tab(text: localizations?.translate('callMethods') ?? 'Call Methods'),
+            if (canManageSettings) Tab(text: localizations?.translate('channels') ?? 'Channels'),
+            if (canManageSettings) Tab(text: localizations?.translate('stages') ?? 'Stages'),
+            if (canManageSettings) Tab(text: localizations?.translate('statuses') ?? 'Statuses'),
+            if (canManageSettings) Tab(text: localizations?.translate('callMethods') ?? 'Call Methods'),
           ],
         ),
       ),
@@ -89,10 +92,10 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
         controller: _tabController,
         children: [
           const GeneralSettingsScreen(),
-          if (isAdmin) const ChannelsSettingsScreen(),
-          if (isAdmin) const StagesSettingsScreen(),
-          if (isAdmin) const StatusesSettingsScreen(),
-          if (isAdmin) const CallMethodsSettingsScreen(),
+          if (canManageSettings) const ChannelsSettingsScreen(),
+          if (canManageSettings) const StagesSettingsScreen(),
+          if (canManageSettings) const StatusesSettingsScreen(),
+          if (canManageSettings) const CallMethodsSettingsScreen(),
         ],
       ),
     );

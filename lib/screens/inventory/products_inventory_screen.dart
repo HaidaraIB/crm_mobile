@@ -59,7 +59,7 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
     try {
       final user = await _apiService.getCurrentUser();
       setState(() {
-        _isAdmin = user.isAdmin;
+        _isAdmin = user.isAdmin || user.hasSupervisorPermission('can_manage_products');
       });
     } catch (e) {
       // User not loaded, but continue

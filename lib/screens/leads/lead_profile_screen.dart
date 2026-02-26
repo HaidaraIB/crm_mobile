@@ -60,6 +60,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
     if (_currentUser == null || _lead == null) return false;
     // Admin can modify any lead
     if (_currentUser!.isAdmin) return true;
+    if (_currentUser!.hasSupervisorPermission('can_manage_leads')) return true;
     // Employee can only modify leads assigned to them
     return _lead!.assignedTo == _currentUser!.id;
   }
@@ -365,10 +366,8 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
               ),
               itemBuilder: (context) {
                 final canModify = _canModifyLead();
-                final isAdmin = _currentUser?.isAdmin ?? false;
-                
+                final canAssign = (_currentUser?.isAdmin ?? false) || (_currentUser?.hasSupervisorPermission('can_manage_leads') ?? false);
                 return [
-                  // Edit - only if can modify
                   if (canModify)
                     PopupMenuItem(
                       value: 'edit',
@@ -380,8 +379,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                         ],
                       ),
                     ),
-                  // Assign - only for admin
-                  if (isAdmin)
+                  if (canAssign)
                     PopupMenuItem(
                       value: 'assign',
                       child: Row(

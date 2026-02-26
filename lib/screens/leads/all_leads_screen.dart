@@ -96,9 +96,8 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
   // Check if user can edit/delete this lead
   bool _canModifyLead(LeadModel lead) {
     if (_currentUser == null) return false;
-    // Admin can modify any lead
     if (_currentUser!.isAdmin) return true;
-    // Employee can only modify leads assigned to them
+    if (_currentUser!.hasSupervisorPermission('can_manage_leads')) return true;
     return lead.assignedTo == _currentUser!.id;
   }
 
@@ -898,6 +897,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                     itemBuilder: (context) {
                       final canModify = _canModifyLead(lead);
                       final isAdmin = _currentUser?.isAdmin ?? false;
+                      final canAssign = isAdmin || (_currentUser?.hasSupervisorPermission('can_manage_leads') ?? false);
 
                       return [
                         // Edit - only if can modify
@@ -919,7 +919,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                             ),
                           ),
                         // Assign - only for admin
-                        if (isAdmin)
+                        if (canAssign)
                           PopupMenuItem(
                             value: 'assign',
                             child: Row(
@@ -1571,7 +1571,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                   const SizedBox(height: 24),
 
                   // Assignee Filter - only for admin
-                  if (_currentUser?.isAdmin == true) ...[
+                  if ((_currentUser?.isAdmin ?? false) || (_currentUser?.hasSupervisorPermission('can_manage_leads') ?? false)) ...[
                     Text(
                       localizations?.translate('byAssignee') ?? 'By Assignee',
                       style: theme.textTheme.titleMedium?.copyWith(

@@ -3,7 +3,7 @@ class UserModel {
   final String? firstName;
   final String? lastName;
   final String? name;
-  final String role; // 'ADMIN', 'EMPLOYEE', 'Owner', 'admin', 'Employee' (handles both formats)
+  final String role; // 'ADMIN', 'SUPERVISOR', 'EMPLOYEE', 'Owner', 'admin', 'supervisor', 'Employee'
   final String phone;
   final String? avatar;
   final String? profilePhoto;
@@ -11,7 +11,10 @@ class UserModel {
   final String? username;
   final CompanyModel? company;
   final bool? emailVerified;
-  
+  /// When role is supervisor, permissions from API (supervisor_permissions.permissions).
+  final Map<String, bool>? supervisorPermissions;
+  final bool? supervisorIsActive;
+
   UserModel({
     required this.id,
     this.firstName,
@@ -25,23 +28,41 @@ class UserModel {
     this.username,
     this.company,
     this.emailVerified,
+    this.supervisorPermissions,
+    this.supervisorIsActive,
   });
-  
+
   // Check if user is admin (handles multiple role formats)
   bool get isAdmin {
     final roleLower = role.toLowerCase();
     return roleLower == 'admin' || roleLower == 'owner';
   }
-  
+
+  // Check if user is supervisor
+  bool get isSupervisor {
+    final roleLower = role.toLowerCase();
+    return roleLower == 'supervisor';
+  }
+
   // Check if user is employee
   bool get isEmployee {
     final roleLower = role.toLowerCase();
     return roleLower == 'employee';
   }
-  
-  // Get normalized role (ADMIN or EMPLOYEE)
+
+  /// True if user is supervisor, active, and has the given permission.
+  bool hasSupervisorPermission(String key) {
+    if (!isSupervisor || supervisorIsActive != true) return false;
+    final perms = supervisorPermissions;
+    if (perms == null) return false;
+    return perms[key] == true;
+  }
+
+  // Get normalized role (ADMIN, SUPERVISOR, or EMPLOYEE)
   String get normalizedRole {
-    return isAdmin ? 'ADMIN' : 'EMPLOYEE';
+    if (isAdmin) return 'ADMIN';
+    if (isSupervisor) return 'SUPERVISOR';
+    return 'EMPLOYEE';
   }
   
   String get displayName {
@@ -59,12 +80,12 @@ class UserModel {
       if (json['company'] is Map<String, dynamic>) {
         // Full company object
         company = CompanyModel.fromJson(json['company'] as Map<String, dynamic>);
-      } else if (json['company'] is int) {
+      } else     if (json['company'] is int) {
         // Company ID only - create a minimal company object from available fields
         final companyId = json['company'] as int;
         final companyName = json['company_name'] as String? ?? '';
         final companySpecialization = json['company_specialization'] as String? ?? 'real_estate';
-        
+
         company = CompanyModel(
           id: companyId,
           name: companyName,
@@ -72,7 +93,18 @@ class UserModel {
         );
       }
     }
-    
+
+    Map<String, bool>? supervisorPermissions;
+    bool? supervisorIsActive;
+    if (json['supervisor_permissions'] != null) {
+      final sp = json['supervisor_permissions'] as Map<String, dynamic>;
+      supervisorIsActive = sp['is_active'] as bool?;
+      if (sp['permissions'] is Map<String, dynamic>) {
+        final p = sp['permissions'] as Map<String, dynamic>;
+        supervisorPermissions = p.map((k, v) => MapEntry(k, v == true));
+      }
+    }
+
     return UserModel(
       id: json['id'] as int,
       firstName: json['first_name'] as String? ?? json['firstName'] as String?,
@@ -86,6 +118,8 @@ class UserModel {
       username: json['username'] as String?,
       company: company,
       emailVerified: json['email_verified'] as bool? ?? json['emailVerified'] as bool?,
+      supervisorPermissions: supervisorPermissions,
+      supervisorIsActive: supervisorIsActive,
     );
   }
   
@@ -103,6 +137,7 @@ class UserModel {
       'username': username,
       'company': company?.toJson(),
       'email_verified': emailVerified,
+      if (supervisorPermissions != null) 'supervisor_permissions': {'is_active': supervisorIsActive, 'permissions': supervisorPermissions},
     };
   }
 }

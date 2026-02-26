@@ -37,7 +37,7 @@ class _OwnersScreenState extends State<OwnersScreen> {
     try {
       final user = await _apiService.getCurrentUser();
       setState(() {
-        _isAdmin = user.isAdmin;
+        _isAdmin = user.isAdmin || user.hasSupervisorPermission('can_manage_real_estate');
       });
     } catch (e) {
       // User not loaded, but continue
