@@ -115,6 +115,17 @@ flutter run
 - تحقق من أذونات الإشعارات في إعدادات الجهاز
 - تأكد من أن التطبيق يطلب الأذونات بشكل صحيح
 
+### المشكلة: الإشعارات لا تصل على أجهزة iOS
+**تحقق من التالي:**
+1. **مفتاح APNs في Firebase (ضروري):**
+   - Firebase Console → Project Settings → Cloud Messaging
+   - في قسم iOS: رفع **APNs Authentication Key** (ملف .p8) من Apple Developer، مع إدخال Key ID و Team ID. بدون هذا لا يصل أي إشعار إلى iOS.
+2. **بيئة APNs (aps-environment):**
+   - في `Runner.entitlements`: استخدام `development` عند التشغيل من Xcode (Debug)، و`production` عند التوزيع عبر TestFlight أو App Store.
+   - إذا كان الملف مضبوطاً على `production` فقط، الإشعارات قد لا تعمل في بناء Debug على الجهاز.
+3. **توكن FCM:** تأكد أن التطبيق يرسل التوكن للخادم بعد تسجيل الدخول (يتم تلقائياً عبر `NotificationService.sendTokenToServerIfLoggedIn()`).
+4. **Capabilities في Xcode:** Push Notifications و Background Modes → Remote notifications مفعلان لهدف Runner.
+
 ## 📚 الخطوات التالية
 
 بعد إكمال الخطوات في Xcode:

@@ -93,11 +93,12 @@ class NotificationService {
     // إعدادات Android
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    // إعدادات iOS
+    // إعدادات iOS: لا نطلب الإذن هنا لتجنب ظهور نافذة الإذن مرتين.
+    // طلب الإذن يتم مرة واحدة فقط عبر Firebase في requestPermissions().
     const iosSettings = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
     );
 
     // إعدادات التهيئة
