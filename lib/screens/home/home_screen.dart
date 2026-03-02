@@ -34,8 +34,22 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     // إرسال FCM token للمستخدمين المسجلين دخول بالفعل
     _sendFCMTokenIfLoggedIn();
+    // على iOS قد يتأخر استلام FCM token؛ إعادة المحاولة بعد 3 و 8 ثوانٍ لضمان حفظ التوكن في الخادم
+    _scheduleFCMTokenRetries();
     // تحميل عدد الإشعارات غير المقروءة
     _loadUnreadCount();
+  }
+
+  /// جدولة إعادة إرسال FCM token (لمعالجة التأخر على iOS)
+  void _scheduleFCMTokenRetries() {
+    Future.delayed(const Duration(seconds: 3), () {
+      if (!mounted) return;
+      NotificationService().sendTokenToServerIfLoggedIn();
+    });
+    Future.delayed(const Duration(seconds: 8), () {
+      if (!mounted) return;
+      NotificationService().sendTokenToServerIfLoggedIn();
+    });
   }
   
   /// تحميل عدد الإشعارات غير المقروءة

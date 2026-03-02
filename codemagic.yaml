@@ -38,11 +38,24 @@ workflows:
           cat .env
       - name: Create GoogleService-Info.plist for Firebase
         script: |
+          PLIST_PATH="ios/Runner/GoogleService-Info.plist"
           if [ -n "$GOOGLE_SERVICE_INFO_PLIST" ]; then
-            echo "$GOOGLE_SERVICE_INFO_PLIST" > ios/Runner/GoogleService-Info.plist
-            echo "✅ Created GoogleService-Info.plist from environment variable"
+            echo "$GOOGLE_SERVICE_INFO_PLIST" > "$PLIST_PATH"
+            echo "✅ Wrote GoogleService-Info.plist from GOOGLE_SERVICE_INFO_PLIST"
           else
-            echo "⚠️ Warning: GOOGLE_SERVICE_INFO_PLIST not set. Firebase push notifications may not work."
+            echo "⚠️ GOOGLE_SERVICE_INFO_PLIST is empty. Using repo file if present."
+            if [ ! -f "$PLIST_PATH" ] || ! grep -q "GOOGLE_APP_ID" "$PLIST_PATH" 2>/dev/null; then
+              echo "❌ No valid GoogleService-Info.plist found. Set GOOGLE_SERVICE_INFO_PLIST in Codemagic (Environment variables → ios_config)."
+              exit 1
+            fi
+          fi
+          if [ -f "$PLIST_PATH" ]; then
+            if grep -q "BUNDLE_ID" "$PLIST_PATH" && grep -q "GOOGLE_APP_ID" "$PLIST_PATH"; then
+              echo "✅ GoogleService-Info.plist validated (BUNDLE_ID and GOOGLE_APP_ID present)"
+            else
+              echo "❌ GoogleService-Info.plist invalid: missing BUNDLE_ID or GOOGLE_APP_ID"
+              exit 1
+            fi
           fi
       - name: Set up code signing settings on Xcode project
         script: |

@@ -375,6 +375,8 @@ class NotificationService {
       if (_fcmToken != null) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('fcm_token', _fcmToken!);
+        // إرسال التوكن فور الحصول عليه إذا كان المستخدم مسجل دخول (مهم خاصة على iOS حيث قد يتأخر التوكن)
+        _sendTokenToServer(_fcmToken);
       }
 
       // الاستماع لتحديثات Token
@@ -384,10 +386,6 @@ class NotificationService {
         _saveFCMToken(newToken);
         _sendTokenToServer(newToken);
       });
-
-      // إرسال Token إلى الخادم (سيتم إرساله بعد تسجيل الدخول)
-      // لا نرسله هنا لأن المستخدم قد لا يكون مسجل دخول بعد
-      // سيتم إرساله في two_factor_auth_screen بعد تسجيل الدخول الناجح
 
       return _fcmToken;
     } catch (e) {
@@ -429,9 +427,10 @@ class NotificationService {
   }
   
   /// إرسال FCM Token إلى الخادم (للاستخدام بعد تسجيل الدخول)
+  /// على iOS قد يتأخر استلام التوكن؛ استدعِ هذه الدالة عند الدخول للصفحة الرئيسية أو عند استئناف التطبيق.
   Future<void> sendTokenToServerIfLoggedIn() async {
     if (_fcmToken == null) {
-      // محاولة الحصول على Token إذا لم يكن موجوداً
+      // محاولة الحصول على Token إذا لم يكن موجوداً (مهم على iOS حيث قد يتأخر)
       try {
         final token = await getFCMToken();
         if (token != null) {

@@ -77,14 +77,30 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   // GlobalKey للـ Navigator للوصول إليه من أي مكان
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
   
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _setupNotificationListener();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // عند استئناف التطبيق من الخلفية، إعادة إرسال FCM token إن وُجد (لمستخدمي iOS الذين تأخر توكنهم)
+    if (state == AppLifecycleState.resumed) {
+      NotificationService().sendTokenToServerIfLoggedIn();
+    }
   }
 
   /// إعداد مستمع الإشعارات
