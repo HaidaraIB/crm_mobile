@@ -3011,6 +3011,52 @@ class ApiService {
     }
   }
 
+  /// تحديث FCM Token وإرجاع النتيجة للتشخيص (status_code, success, message)
+  Future<Map<String, dynamic>> updateFCMTokenAndGetResult(
+    String fcmToken, {
+    String? language,
+  }) async {
+    try {
+      final body = {'fcm_token': fcmToken};
+      if (language != null) body['language'] = language;
+      final response = await _makeRequest(
+        'POST',
+        '/users/update-fcm-token/',
+        body: body,
+      );
+      final success = response.statusCode >= 200 && response.statusCode < 300;
+      String message = response.body;
+      try {
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        message = (decoded['message'] ?? decoded['detail'] ?? decoded['error'] ?? response.body).toString();
+      } catch (_) {}
+      return {
+        'success': success,
+        'status_code': response.statusCode,
+        'message': message,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'status_code': null,
+        'message': e.toString(),
+      };
+    }
+  }
+
+  /// إرسال تقرير تشخيص FCM الكامل للخادم (جميع الخطوات)
+  Future<void> sendFcmDiagnosticsFull(Map<String, dynamic> payload) async {
+    try {
+      await _makeRequest(
+        'POST',
+        '/users/fcm-diagnostics-full/',
+        body: payload,
+      );
+    } catch (e) {
+      debugPrint('Failed to send FCM full diagnostics: $e');
+    }
+  }
+
   // ==================== User Preferences ====================
 
   /// تحديث لغة المستخدم

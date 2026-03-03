@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -426,6 +425,136 @@ class NotificationService {
     }
   }
   
+  /// تشغيل تشخيص FCM كامل (كل الخطوات) وإرجاع قائمة النتائج لإرسالها للخادم.
+  Future<List<Map<String, dynamic>>> runFullFcmDiagnostic() async {
+    final steps = <Map<String, dynamic>>[];
+    void addStep(String stepId, String stepName, bool success, String message, [String? detail]) {
+      steps.add({
+        'step_id': stepId,
+        'step_name': stepName,
+        'success': success,
+        'message': message,
+        if (detail != null && detail.isNotEmpty) 'detail': detail,
+      });
+    }
+
+    final platform = defaultTargetPlatform == TargetPlatform.iOS
+        ? 'ios'
+        : (defaultTargetPlatform == TargetPlatform.android ? 'android' : 'other');
+    addStep('1_platform', 'Platform', true, platform);
+
+    final firebaseOk = Firebase.apps.isNotEmpty;
+    addStep('2_firebase_init', 'Firebase initialized', firebaseOk,
+        firebaseOk ? 'Firebase.apps is not empty' : 'Firebase.apps is empty');
+
+    if (!_initialized) {
+      try {
+        await initialize();
+      } catch (e) {
+        addStep('3_service_init', 'NotificationService initialized', false, 'initialize() threw', e.toString());
+      }
+    }
+    addStep('3_service_init', 'NotificationService initialized', _initialized,
+        _initialized ? 'Service initialized' : 'Service not initialized');
+
+    final messaging = _messaging;
+    final messagingOk = messaging != null;
+    addStep('4_messaging_available', 'Firebase Messaging available', messagingOk,
+        messagingOk ? 'FirebaseMessaging instance exists' : 'FirebaseMessaging is null');
+
+    if (messaging != null) {
+      try {
+        final settings = await messaging.getNotificationSettings();
+        final status = settings.authorizationStatus;
+        final statusStr = status.toString().split('.').last;
+        final permissionOk = status == AuthorizationStatus.authorized ||
+            status == AuthorizationStatus.provisional;
+        addStep('5_permission', 'Notification permission', permissionOk,
+            'authorizationStatus=$statusStr',
+            'authorized=show notifications, denied=user denied, notDetermined=not asked yet');
+      } catch (e) {
+        addStep('5_permission', 'Notification permission', false, 'getNotificationSettings failed', e.toString());
+      }
+    } else {
+      addStep('5_permission', 'Notification permission', false, 'Skipped (no Messaging)', '');
+    }
+
+    String? tokenResult;
+    String? tokenDetail;
+    try {
+      final token = await getFCMToken();
+      if (token != null && token.isNotEmpty) {
+        tokenResult = 'Token received';
+        tokenDetail = 'length=${token.length} prefix=${token.length > 12 ? token.substring(0, 12) : token}';
+        addStep('6_get_token', 'FCM getToken()', true, tokenResult, tokenDetail);
+      } else {
+        tokenResult = 'Token is null or empty';
+        addStep('6_get_token', 'FCM getToken()', false, tokenResult, 'Common on iOS if APNs not configured or permission denied');
+      }
+    } catch (e) {
+      tokenResult = 'getToken threw';
+      tokenDetail = e.toString();
+      addStep('6_get_token', 'FCM getToken()', false, tokenResult, tokenDetail);
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final isLoggedIn = prefs.getBool(AppConstants.isLoggedInKey) ?? false;
+    addStep('7_logged_in', 'User logged in', isLoggedIn,
+        isLoggedIn ? 'isLoggedInKey=true' : 'isLoggedInKey=false or missing',
+        'Token is only sent to server when user is logged in');
+
+    if (_fcmToken != null && _fcmToken!.isNotEmpty && isLoggedIn) {
+      try {
+        final languageCode = prefs.getString(AppConstants.languageKey) ?? 'ar';
+        final result = await ApiService().updateFCMTokenAndGetResult(
+          _fcmToken!,
+          language: languageCode,
+        );
+        final ok = result['success'] == true;
+        final statusCode = result['status_code'];
+        final msg = result['message'] ?? '';
+        addStep('8_send_token_to_server', 'POST update-fcm-token', ok,
+            'status_code=$statusCode message=$msg',
+            ok ? 'Token accepted by server' : 'Check server logs and network');
+      } catch (e) {
+        addStep('8_send_token_to_server', 'POST update-fcm-token', false,
+            'Request threw', e.toString());
+      }
+    } else {
+      addStep('8_send_token_to_server', 'POST update-fcm-token', false,
+          'Skipped', _fcmToken == null || _fcmToken!.isEmpty
+              ? 'No token to send'
+              : 'User not logged in');
+    }
+
+    final storedToken = prefs.getString('fcm_token');
+    final hasStored = storedToken != null && storedToken.isNotEmpty;
+    addStep('9_token_in_prefs', 'Token in SharedPreferences', hasStored,
+        hasStored ? 'Stored (length=${storedToken.length})' : 'Not stored or empty',
+        'App uses this to resend on next launch if needed');
+
+    return steps;
+  }
+
+  /// تشغيل التشخيص الكامل وإرسال كل النتائج للخادم (زر واحد).
+  Future<void> runFullFcmDiagnosticAndSendToServer({String appVersion = ''}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final isLoggedIn = prefs.getBool(AppConstants.isLoggedInKey) ?? false;
+    if (!isLoggedIn) {
+      debugPrint('FCM diagnostic: user not logged in, cannot send to server');
+      return;
+    }
+    final platform = defaultTargetPlatform == TargetPlatform.iOS
+        ? 'ios'
+        : (defaultTargetPlatform == TargetPlatform.android ? 'android' : 'other');
+    final steps = await runFullFcmDiagnostic();
+    await ApiService().sendFcmDiagnosticsFull({
+      'platform': platform,
+      'app_version': appVersion,
+      'steps': steps,
+    });
+  }
+
   /// إرسال FCM Token إلى الخادم (للاستخدام بعد تسجيل الدخول)
   /// على iOS قد يتأخر استلام التوكن؛ استدعِ هذه الدالة عند الدخول للصفحة الرئيسية أو عند استئناف التطبيق.
   Future<void> sendTokenToServerIfLoggedIn() async {
