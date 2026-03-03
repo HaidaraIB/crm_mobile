@@ -446,8 +446,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               ),
                             ),
                             onDismissed: (direction) {
-                              if (notificationId != null) {
-                                _markAsRead(notificationId, index);
+                              final id = notificationId;
+                              final removed = _notifications[index];
+                              setState(() {
+                                _notifications.removeAt(index);
+                                if (_unreadCount > 0 &&
+                                    !(removed['read'] as bool? ?? false)) {
+                                  _unreadCount--;
+                                }
+                              });
+                              if (id != null) {
+                                _apiService.markNotificationAsRead(id);
                               }
                             },
                             child: Card(

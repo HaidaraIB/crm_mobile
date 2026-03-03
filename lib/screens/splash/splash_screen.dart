@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/api_service.dart';
 import '../onboarding/onboarding_screen.dart';
@@ -120,6 +121,7 @@ class _SplashScreenState extends State<SplashScreen>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final localizations = AppLocalizations.of(context);
 
     return Scaffold(
       body: Container(
@@ -175,7 +177,7 @@ class _SplashScreenState extends State<SplashScreen>
                       const SizedBox(height: 32),
                       // App Name
                       Text(
-                        'LOOP CRM',
+                        localizations?.translate('appName') ?? 'LOOP CRM',
                         style: TextStyle(
                           fontSize: 36,
                           fontWeight: FontWeight.bold,
@@ -186,7 +188,7 @@ class _SplashScreenState extends State<SplashScreen>
                       const SizedBox(height: 12),
                       // Tagline
                       Text(
-                        'إدارة علاقات العملاء بذكاء',
+                        localizations?.translate('splashTagline') ?? 'إدارة علاقات العملاء بذكاء',
                         style: TextStyle(
                           fontSize: 16,
                           color: Colors.white.withValues(alpha: 0.9),

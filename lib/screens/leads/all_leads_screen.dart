@@ -11,6 +11,7 @@ import '../../services/api_service.dart';
 import '../../widgets/modals/add_action_modal.dart';
 import '../../widgets/modals/add_call_modal.dart';
 import '../../widgets/modals/assign_lead_modal.dart';
+import '../../widgets/modals/send_sms_modal.dart';
 import 'create_lead_screen.dart';
 import 'edit_lead_screen.dart';
 import 'lead_profile_screen.dart';
@@ -448,6 +449,26 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     );
   }
 
+  void _showSendSMSModal(LeadModel lead) {
+    final phone = lead.phone.trim();
+    if (phone.isEmpty) {
+      final loc = AppLocalizations.of(context);
+      SnackbarHelper.showError(
+        context,
+        loc?.translate('enterPhone') ?? 'Enter phone number',
+      );
+      return;
+    }
+    showDialog(
+      context: context,
+      builder: (context) => SendSMSModal(
+        leadId: lead.id,
+        phoneNumber: phone,
+        onSent: _loadLeads,
+      ),
+    );
+  }
+
   String _getErrorMessage(dynamic error) {
     final errorString = error.toString().toLowerCase();
     if (errorString.contains('socketexception') ||
@@ -877,6 +898,12 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                         icon: Icons.phone_outlined,
                         color: AppTheme.primaryColor,
                         onPressed: () => _makeCall(lead.phone),
+                      ),
+                      const SizedBox(height: 8),
+                      _buildActionButton(
+                        icon: Icons.sms_outlined,
+                        color: AppTheme.smsButtonColor,
+                        onPressed: () => _showSendSMSModal(lead),
                       ),
                     ],
                   ),

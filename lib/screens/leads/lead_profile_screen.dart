@@ -11,6 +11,7 @@ import '../../services/api_service.dart';
 import '../../widgets/modals/assign_lead_modal.dart';
 import '../../widgets/modals/add_action_modal.dart';
 import '../../widgets/modals/add_call_modal.dart';
+import '../../widgets/modals/send_sms_modal.dart';
 import '../../widgets/phone_input.dart';
 import 'edit_lead_screen.dart';
 
@@ -296,6 +297,26 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
         );
       }
     }
+  }
+  
+  void _showSendSMSModal(LeadModel lead, [String? phoneNumber]) {
+    final phone = (phoneNumber ?? lead.phone).trim();
+    if (phone.isEmpty) {
+      final loc = AppLocalizations.of(context);
+      SnackbarHelper.showError(
+        context,
+        loc?.translate('enterPhone') ?? 'Enter phone number',
+      );
+      return;
+    }
+    showDialog(
+      context: context,
+      builder: (context) => SendSMSModal(
+        leadId: lead.id,
+        phoneNumber: phone,
+        onSent: _loadLead,
+      ),
+    );
   }
   
   @override
@@ -605,6 +626,12 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                             icon: Icons.phone_outlined,
                             color: AppTheme.primaryColor,
                             onPressed: () => _makeCall(_lead!.phone),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildActionButton(
+                            icon: Icons.sms_outlined,
+                            color: AppTheme.smsButtonColor,
+                            onPressed: () => _showSendSMSModal(_lead!),
                           ),
                         ],
                       ),
@@ -1195,6 +1222,13 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
             icon: Icons.phone_outlined,
             color: AppTheme.primaryColor,
             onPressed: () => _makeCall(phone.phoneNumber),
+          ),
+          const SizedBox(width: 8),
+          // SMS Button
+          _buildPhoneActionButton(
+            icon: Icons.sms_outlined,
+            color: AppTheme.smsButtonColor,
+            onPressed: () => _showSendSMSModal(_lead!, phone.phoneNumber),
           ),
         ],
       ),

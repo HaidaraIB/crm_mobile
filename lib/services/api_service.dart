@@ -24,6 +24,15 @@ class SubscriptionInactiveException implements Exception {
   String toString() => message;
 }
 
+/// استثناء إرسال SMS من التكامل (Twilio)؛ يحمل [errorKey] للترجمة في الواجهة
+class SmsException implements Exception {
+  SmsException(this.errorKey, this.fallbackMessage);
+  final String errorKey;
+  final String fallbackMessage;
+  @override
+  String toString() => fallbackMessage;
+}
+
 /// استثناء من الـ API مع رسالة وأخطاء حقول (لتسجيل الدخول/التوفر) — يحتوي على [fields] فعلياً ليتوافق مع iOS.
 class ApiFieldException implements Exception {
   ApiFieldException(this.message, [this.fields]);
@@ -1387,6 +1396,35 @@ class ApiService {
             error['message'] ??
             _translateError('failedToAddCall', locale: null),
       );
+    }
+  }
+
+  /// Send SMS to a lead via Twilio (CRM integration).
+  /// POST /integrations/twilio/send/
+  Future<void> sendLeadSMS({
+    required int leadId,
+    required String phoneNumber,
+    required String body,
+  }) async {
+    final response = await _makeRequest(
+      'POST',
+      '/integrations/twilio/send/',
+      body: <String, dynamic>{
+        'lead_id': leadId,
+        'phone_number': phoneNumber,
+        'body': body,
+      },
+      timeout: const Duration(seconds: 15),
+    );
+
+    if (response.statusCode != 201) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final errorKey = data['error_key'] as String?;
+      final errorMsg = data['error'] ?? data['detail'] ?? data['message'];
+      final fallback = errorMsg is String && errorMsg.toString().trim().isNotEmpty
+          ? errorMsg.toString()
+          : _translateError(errorKey ?? 'failedToSendSms', locale: null);
+      throw SmsException(errorKey ?? 'failedToSendSms', fallback);
     }
   }
 

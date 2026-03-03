@@ -5,6 +5,9 @@ class AppTheme {
   // Primary Purple Color
   static const Color primaryColor = Color(0xFF9333EA);
 
+  /// Blue color for SMS button (matches web app)
+  static const Color smsButtonColor = Color(0xFF2563EB);
+
   /// نفس CRM-project: الإنجليزية = Inter (font-sans)، العربية = Tajawal (font-arabic)
   static bool _isArabic(Locale locale) => locale.languageCode == 'ar';
 

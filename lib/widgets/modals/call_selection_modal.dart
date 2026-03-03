@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/lead_model.dart';
+import 'send_sms_modal.dart';
 
 class CallSelectionModal extends StatelessWidget {
   final LeadModel lead;
@@ -64,8 +65,12 @@ class CallSelectionModal extends StatelessWidget {
                 ),
                 title: Text(phone.phoneNumber),
                 subtitle: Text(phone.phoneType),
-                trailing: phone.isPrimary
-                    ? Container(
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (phone.isPrimary)
+                      Container(
+                        margin: const EdgeInsets.only(right: 8),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
                           vertical: 4,
@@ -75,18 +80,37 @@ class CallSelectionModal extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          'Primary',
+                          localizations?.translate('primary') ?? 'Primary',
                           style: TextStyle(
                             color: AppTheme.primaryColor,
                             fontSize: 12,
                           ),
                         ),
-                      )
-                    : null,
-                onTap: () {
-                  _makeCall(phone.phoneNumber);
-                  Navigator.pop(context);
-                },
+                      ),
+                    IconButton(
+                      icon: Icon(Icons.phone_outlined, color: AppTheme.primaryColor, size: 22),
+                      onPressed: () {
+                        _makeCall(phone.phoneNumber);
+                        Navigator.pop(context);
+                      },
+                      tooltip: localizations?.translate('call') ?? 'Call',
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.sms_outlined, color: AppTheme.smsButtonColor, size: 22),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => SendSMSModal(
+                            leadId: lead.id,
+                            phoneNumber: phone.phoneNumber,
+                          ),
+                        );
+                      },
+                      tooltip: localizations?.translate('sendSms') ?? 'Send SMS',
+                    ),
+                  ],
+                ),
               );
             }),
             
