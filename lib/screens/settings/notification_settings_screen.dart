@@ -3,7 +3,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/notification_settings_model.dart' as app_settings;
 import '../../models/notification_model.dart';
 import '../../services/notification_router.dart';
-import '../../services/notification_service.dart';
 import '../../services/api_service.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/constants/app_constants.dart';
@@ -21,7 +20,6 @@ class _NotificationSettingsScreenState
     extends State<NotificationSettingsScreen> {
   app_settings.NotificationSettings? _settings;
   bool _isLoading = true;
-  bool _isSendingDiagnostic = false;
 
   @override
   void initState() {
@@ -304,52 +302,6 @@ class _NotificationSettingsScreenState
             ),
           ),
 
-          const SizedBox(height: 24),
-
-          Card(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.medical_services, color: Colors.blue),
-                  title: const Text('Run full FCM diagnostic (iOS/Android)'),
-                  subtitle: const Text(
-                    'Tests every step (Firebase, permission, token, server) and sends all results to server in one click. Check django.log for [FCM_DIAG_FULL].',
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  child: ElevatedButton.icon(
-                    onPressed: _isSendingDiagnostic
-                        ? null
-                        : () async {
-                            setState(() => _isSendingDiagnostic = true);
-                            try {
-                              await NotificationService().runFullFcmDiagnosticAndSendToServer();
-                              if (!context.mounted) return;
-                              SnackbarHelper.showSuccess(
-                                context,
-                                'Full diagnostic sent. Check server logs: grep FCM_DIAG_FULL django.log',
-                              );
-                            } catch (e) {
-                              SnackbarHelper.showError(context, 'Diagnostic failed: $e');
-                            } finally {
-                              setState(() => _isSendingDiagnostic = false);
-                            }
-                          },
-                    icon: _isSendingDiagnostic
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.send),
-                    label: Text(_isSendingDiagnostic ? 'Sending…' : 'Send full diagnostic to server'),
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
