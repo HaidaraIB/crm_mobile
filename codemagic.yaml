@@ -64,7 +64,7 @@ workflows:
         script: |
           cd "$CM_BUILD_DIR"
           PROFILE_NAME=""
-          PREFERRED_NAME="loop"
+          PREFERRED_NAME="LOOP CRM"
           echo "=== Looking for com.loopcrm.mobile profile WITH Push Notifications (aps-environment) ==="
           for f in ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision; do
             [ -f "$f" ] || continue
