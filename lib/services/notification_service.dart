@@ -479,6 +479,20 @@ class NotificationService {
       addStep('5_permission', 'Notification permission', false, 'Skipped (no Messaging)', '');
     }
 
+    if (platform == 'ios' && messaging != null) {
+      try {
+        final apns = await FirebaseMessaging.instance.getAPNSToken();
+        final hasApns = apns != null && apns.isNotEmpty;
+        addStep('5b_apns_token', 'APNS token (iOS)', hasApns,
+            hasApns ? 'APNS token received' : 'APNS token is null or empty',
+            apns != null ? 'length=${apns.length}' : 'No APNS token — check entitlements & provisioning profile');
+      } catch (e) {
+        addStep('5b_apns_token', 'APNS token (iOS)', false, 'getAPNSToken() threw', e.toString());
+      }
+    } else if (platform != 'ios') {
+      addStep('5b_apns_token', 'APNS token (iOS)', true, 'N/A (Android)', '');
+    }
+
     String? tokenResult;
     String? tokenDetail;
     try {

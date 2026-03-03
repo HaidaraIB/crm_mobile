@@ -117,14 +117,38 @@
 
 مرجع: [Flutter FCM notifications not arriving on Codemagic iOS build (Stack Overflow)](https://stackoverflow.com/questions/66084863/flutter-fcm-notifications-not-arriving-on-codemagic-ios-build)
 
-### خطأ البناء: "doesn't include the Push Notifications capability" / "doesn't include the aps-environment entitlement"
-إذا ظهر هذا الخطأ فمعناه أن البروفايل الذي يُستخدم (مثل "loop crm ios app_store 1769965601") **لا يحتوي** على صلاحية Push. الإصلاح من Apple Developer:
+### خطأ البناء: "No provisioning profile for com.loopcrm.mobile WITH Push Notifications"
+هذا يظهر عندما يكون البروفايل الوحيد المتوفر لـ Codemagic (مثل "loop crm  ios_app_store 1769965601") **بدون** صلاحية Push. الإصلاح يكون من **Apple Developer** ثم **Codemagic**:
 
-1. **Identifiers** → **App IDs** → اختر `com.loopcrm.mobile` → تأكد أن **Push Notifications** مضاف في Capabilities (فعّله إن لم يكن).
-2. **Profiles** → ابحث عن البروفايل الذي يظهر في الخطأ (مثل "loop crm ios app_store 1769965601"):
-   - إما **احذفه** وأنشئ **Distribution** جديداً لنفس الـ App ID (بعد تفعيل Push في الخطوة 1)، ثم في Codemagic أعد ربط الحساب أو حدّث الـ profiles.
-   - أو عدّل الـ App ID أولاً (Push On)، ثم من صفحة البروفايل اختر **Edit** → **Generate** لإنشاء نسخة جديدة من البروفايل تحتوي Push، ونزّلها/فعّلها في Codemagic.
-3. السكربت في **codemagic.yaml** يختار فقط بروفايلات تحتوي على **aps-environment** (Push). إن وُجد بروفايل اسمه **"loop"** وفيه Push سيُفضَّل؛ وإلا يُستخدم أي بروفايل لـ `com.loopcrm.mobile` وفيه Push. إن لم يوجد أي بروفايل مع Push، البناء يفشل برسالة واضحة.
+#### الخطوة 1 — تفعيل Push على الـ App ID (Apple)
+1. ادخل [developer.apple.com](https://developer.apple.com) → **Account** → **Certificates, Identifiers & Profiles**.
+2. من القائمة الجانبية: **Identifiers** → **App IDs**.
+3. اختر **com.loopcrm.mobile** (إن لم يوجد أضف App ID جديد بنفس الـ Bundle ID).
+4. في **Capabilities** فعّل **Push Notifications** (checkbox).
+5. احفظ: **Save** → **Confirm**.
+
+#### الخطوة 2 — تحديث البروفايل ليشمل Push (Apple)
+1. من القائمة الجانبية: **Profiles**.
+2. ابحث عن البروفايل **"loop crm ios app_store 1769965601"** (أو الاسم الذي يظهر في خطأ البناء).
+3. **لا يمكن تعديل بروفايل قديم ليكون فيه Push**؛ يجب إنشاء نسخة جديدة:
+   - اضغط على اسم البروفايل.
+   - اضغط **Edit** (أعلى الصفحة).
+   - لا تحتاج تغيير App ID أو Certificates؛ فقط **Edit** ثم **Save** (أو **Generate** إن وُجد) حتى ينشئ Apple **نسخة جديدة** من البروفايل تعكس الـ App ID الحالي (الذي أصبح فيه Push مفعّل).
+4. بعد الحفظ، الصفحة تعرض البروفايل المحدّث. **Download** الملف `.mobileprovision` واحتفظ به (ستستخدمه في Codemagic إن لزم).
+
+#### الخطوة 3 — جعل Codemagic يستخدم البروفايل الجديد
+- إذا كان Codemagic يحصل على البروفايلات تلقائياً من تكامل **App Store Connect / Apple Developer**:
+  - أحياناً يُحمَّل البروفايل الجديد في التشغيل التالي. جرّب **إعادة تشغيل البناء** بعد 2–5 دقائق من حفظ البروفايل في Apple.
+  - إن استمر استخدام البروفايل القديم: في Codemagic → تطبيقك → **Settings** أو **Code signing** ابحث عن خيار **Refresh** / **Re-sync** للبروفايلات، أو أعد ربط تكامل Apple مرة واحدة.
+- إذا كان لديك **رفع يدوي** للبروفايل في Codemagic:
+  - ارفع ملف `.mobileprovision` الذي نزّلته من Apple (البروفايل المحدّث الذي فيه Push).
+
+بعد أن يصبح البروفايل المتوفر لـ Codemagic **يحتوي aps-environment**، السكربت سيتعرّف عليه والبناء سيكمل.
+
+---
+
+### خطأ قديم: "doesn't include the Push Notifications capability" (Xcode)
+إذا ظهر من Xcode أن البروفايل لا يتضمن `aps-environment`، نفس الإصلاح أعلاه (تفعيل Push على App ID ثم تحديث/إنشاء البروفايل).
 
 ### ما يجب التحقق منه
 1. **في Apple Developer Portal** → **Profiles**:
