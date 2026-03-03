@@ -22,7 +22,7 @@ workflows:
         XCODE_SCHEME: "Runner"
         FLUTTER_BUILD_MODE: "release"
         FLUTTER_BUILD_NAME: "1.0.2"
-        FLUTTER_BUILD_NUMBER: "11"
+        FLUTTER_BUILD_NUMBER: "12"
     scripts:
       - name: Get Flutter dependencies
         script: |
@@ -64,13 +64,18 @@ workflows:
         script: |
           cd "$CM_BUILD_DIR"
           PROFILE_NAME=""
+          PREFERRED_NAME="loop"
           for f in ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision; do
             [ -f "$f" ] || continue
             security cms -D -i "$f" > /tmp/profile_decoded.plist 2>/dev/null
             APPID=$(plutil -extract Entitlements.application-identifier raw /tmp/profile_decoded.plist 2>/dev/null)
             if echo "$APPID" | grep -q "com.loopcrm.mobile"; then
-              PROFILE_NAME=$(plutil -extract Name raw /tmp/profile_decoded.plist 2>/dev/null)
-              break
+              NAME=$(plutil -extract Name raw /tmp/profile_decoded.plist 2>/dev/null)
+              if [ "$NAME" = "$PREFERRED_NAME" ]; then
+                PROFILE_NAME="$NAME"
+                break
+              fi
+              [ -z "$PROFILE_NAME" ] && PROFILE_NAME="$NAME"
             fi
           done
           if [ -z "$PROFILE_NAME" ]; then
@@ -78,7 +83,7 @@ workflows:
             ls -la ~/Library/MobileDevice/Provisioning\ Profiles/ 2>/dev/null || true
             exit 1
           fi
-          echo "✅ Using provisioning profile: $PROFILE_NAME"
+          echo "✅ Using provisioning profile: $PROFILE_NAME (preferred: $PREFERRED_NAME)"
           echo '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict/></plist>' > /tmp/ExportOptions.plist
           /usr/libexec/PlistBuddy /tmp/ExportOptions.plist -c "Add :method string app-store" -c "Add :signingStyle string manual" -c "Add :signingCertificate string Apple Distribution" -c "Add :teamID string L588TH2TC3" -c "Add :provisioningProfiles dict" -c "Add :provisioningProfiles:com.loopcrm.mobile string \"$PROFILE_NAME\""
           echo "✅ ExportOptions.plist created at /tmp/ExportOptions.plist"

@@ -1,5 +1,30 @@
 # Firebase iOS + Codemagic — التحقق والإعداد
 
+## 0. Xcode Capabilities بدون Mac (Push Notifications)
+
+خطوة "تفعيل Push Notifications في Xcode → Signing & Capabilities" التي تراها في الفيديوه تعادل شيئين في المشروع:
+
+1. **ملف الصلاحيات (Entitlements)**  
+   الملف `ios/Runner/Runner.entitlements` يجب أن يحتوي على:
+   - `aps-environment` = `production` (للبناء Release/TestFlight) أو `development` (للبناء Debug).  
+   في هذا المشروع مضبوط على `production` لأن التوزيع عبر TestFlight.
+
+2. **ربط الملف بمشروع Xcode**  
+   في `ios/Runner.xcodeproj/project.pbxproj` يجب أن يكون للهدف Runner الإعداد:
+   - `CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements`  
+   في إعدادات البناء **Debug** و **Release** و **Profile**.
+
+بدون هذا الربط، الملف الموجود على القرص **لا يُضمَّن** في التطبيق عند البناء، فلا تحصل على صلاحية Push ولا يُولَّد توكن FCM.
+
+**لا تحتاج Mac أو Xcode محلياً:** التعديلات أعلاه تُجرى على الملفات النصية (`.entitlements` و `project.pbxproj`) وتُرفع إلى الـ repo. عند البناء على Codemagic (الذي يستخدم Xcode على سيرفراتهم)، Xcode يقرأ هذه الملفات ويطبّق الصلاحيات تلقائياً.
+
+ملخص ما هو مضبوط في هذا المشروع:
+- `Runner.entitlements`: فيه `aps-environment` = `production`.
+- `Info.plist`: فيه `UIBackgroundModes` → `remote-notification`.
+- `project.pbxproj`: `CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements` لجميع إعدادات Runner.
+
+---
+
 ## 1. التأكد من إعداد Firebase Console (لتوليد التوكنات على iOS)
 
 ### أ. تطبيق iOS مضاف في Firebase
@@ -83,3 +108,22 @@
 | توكن FCM يُولَّد على الجهاز | بعد تثبيت من TestFlight: فتح التطبيق وتسجيل الدخول ثم التحقق من حقل fcm_token في قاعدة البيانات |
 
 إذا اكتملت النقاط أعلاه، فإن Firebase يكون مضبوطاً وقادراً على توليد التوكنات لـ iOS، والنشر عبر Codemagic يستخدم تكوين التطبيق الصحيح.
+
+---
+
+## 5. بروفايل التوقيع (Provisioning Profile) و FCM على iOS
+
+إذا كانت الإشعارات تعمل عند التشغيل المحلي على جهازك لكن **لا تعمل على نسخة مبنية من Codemagic** (أو TestFlight)، فغالباً السبب أن البروفايل المستخدم في البناء **لا يحتوي على صلاحية Push Notifications**.
+
+مرجع: [Flutter FCM notifications not arriving on Codemagic iOS build (Stack Overflow)](https://stackoverflow.com/questions/66084863/flutter-fcm-notifications-not-arriving-on-codemagic-ios-build)
+
+### ما يجب التحقق منه
+1. **في Apple Developer Portal** → **Profiles**:
+   - البروفايل المستخدم للتوزيع (مثل **"loop"** لـ `com.loopcrm.mobile`) يجب أن يكون **Active** وأن تكون **Push Notifications** ضمن **Enabled Capabilities**.
+2. إذا أضفت FCM **بعد** أن كان Codemagic يوقّع تلقائياً، قد يكون البروفايل الذي أنشأه Codemagic سابقاً **بدون** Push:
+   - احذف ذلك البروفايل من Apple Developer حتى ينشئ Codemagic (أو تربط يدوياً) بروفايلاً جديداً بعد تفعيل Push في Xcode/App ID.
+3. في هذا المشروع، السكربت في **codemagic.yaml** يفضّل صراحة البروفايل الذي اسمه **"loop"** عند وجود أكثر من بروفايل لـ `com.loopcrm.mobile`، حتى تُستخدم النسخة التي فيها Push Notifications.
+
+### بيئة APNs (Sandbox vs Production)
+- بناء **Debug** يتصل بـ **Sandbox**؛ بناء **Release** (مثل TestFlight) يتصل بـ **Production**.
+- في Firebase → Cloud Messaging → Apple app configuration يجب رفع مفتاح APNs لكل من **Development** و **Production** (أو استخدام مفتاح .p8 واحد يعمل للاثنين).
