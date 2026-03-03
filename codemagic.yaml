@@ -60,30 +60,39 @@ workflows:
       - name: Set up code signing settings on Xcode project
         script: |
           xcode-project use-profiles
-      - name: Create ExportOptions.plist with installed profile name
+      - name: Create ExportOptions.plist with installed profile name (Push-capable only)
         script: |
           cd "$CM_BUILD_DIR"
           PROFILE_NAME=""
           PREFERRED_NAME="loop"
+          echo "=== Looking for com.loopcrm.mobile profile WITH Push Notifications (aps-environment) ==="
           for f in ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision; do
             [ -f "$f" ] || continue
             security cms -D -i "$f" > /tmp/profile_decoded.plist 2>/dev/null
             APPID=$(plutil -extract Entitlements.application-identifier raw /tmp/profile_decoded.plist 2>/dev/null)
             if echo "$APPID" | grep -q "com.loopcrm.mobile"; then
+              APS=$(plutil -extract Entitlements.aps-environment raw /tmp/profile_decoded.plist 2>/dev/null || true)
+              if [ -z "$APS" ]; then
+                NAME=$(plutil -extract Name raw /tmp/profile_decoded.plist 2>/dev/null)
+                echo "  ⏭️  Skipping '$NAME' (no aps-environment / Push Notifications)"
+                continue
+              fi
               NAME=$(plutil -extract Name raw /tmp/profile_decoded.plist 2>/dev/null)
               if [ "$NAME" = "$PREFERRED_NAME" ]; then
                 PROFILE_NAME="$NAME"
+                echo "  ✅ Found preferred: $PROFILE_NAME"
                 break
               fi
               [ -z "$PROFILE_NAME" ] && PROFILE_NAME="$NAME"
             fi
           done
           if [ -z "$PROFILE_NAME" ]; then
-            echo "❌ No provisioning profile found for com.loopcrm.mobile"
+            echo "❌ No provisioning profile for com.loopcrm.mobile WITH Push Notifications (aps-environment)."
+            echo "   Fix: In Apple Developer → Profiles, edit your App Store profile and ensure Push Notifications is enabled for the App ID, then regenerate the profile. Or use a profile named '$PREFERRED_NAME' that has Push."
             ls -la ~/Library/MobileDevice/Provisioning\ Profiles/ 2>/dev/null || true
             exit 1
           fi
-          echo "✅ Using provisioning profile: $PROFILE_NAME (preferred: $PREFERRED_NAME)"
+          echo "✅ Using provisioning profile: $PROFILE_NAME"
           echo '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict/></plist>' > /tmp/ExportOptions.plist
           /usr/libexec/PlistBuddy /tmp/ExportOptions.plist -c "Add :method string app-store" -c "Add :signingStyle string manual" -c "Add :signingCertificate string Apple Distribution" -c "Add :teamID string L588TH2TC3" -c "Add :provisioningProfiles dict" -c "Add :provisioningProfiles:com.loopcrm.mobile string \"$PROFILE_NAME\""
           echo "✅ ExportOptions.plist created at /tmp/ExportOptions.plist"

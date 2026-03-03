@@ -117,12 +117,21 @@
 
 مرجع: [Flutter FCM notifications not arriving on Codemagic iOS build (Stack Overflow)](https://stackoverflow.com/questions/66084863/flutter-fcm-notifications-not-arriving-on-codemagic-ios-build)
 
+### خطأ البناء: "doesn't include the Push Notifications capability" / "doesn't include the aps-environment entitlement"
+إذا ظهر هذا الخطأ فمعناه أن البروفايل الذي يُستخدم (مثل "loop crm ios app_store 1769965601") **لا يحتوي** على صلاحية Push. الإصلاح من Apple Developer:
+
+1. **Identifiers** → **App IDs** → اختر `com.loopcrm.mobile` → تأكد أن **Push Notifications** مضاف في Capabilities (فعّله إن لم يكن).
+2. **Profiles** → ابحث عن البروفايل الذي يظهر في الخطأ (مثل "loop crm ios app_store 1769965601"):
+   - إما **احذفه** وأنشئ **Distribution** جديداً لنفس الـ App ID (بعد تفعيل Push في الخطوة 1)، ثم في Codemagic أعد ربط الحساب أو حدّث الـ profiles.
+   - أو عدّل الـ App ID أولاً (Push On)، ثم من صفحة البروفايل اختر **Edit** → **Generate** لإنشاء نسخة جديدة من البروفايل تحتوي Push، ونزّلها/فعّلها في Codemagic.
+3. السكربت في **codemagic.yaml** يختار فقط بروفايلات تحتوي على **aps-environment** (Push). إن وُجد بروفايل اسمه **"loop"** وفيه Push سيُفضَّل؛ وإلا يُستخدم أي بروفايل لـ `com.loopcrm.mobile` وفيه Push. إن لم يوجد أي بروفايل مع Push، البناء يفشل برسالة واضحة.
+
 ### ما يجب التحقق منه
 1. **في Apple Developer Portal** → **Profiles**:
    - البروفايل المستخدم للتوزيع (مثل **"loop"** لـ `com.loopcrm.mobile`) يجب أن يكون **Active** وأن تكون **Push Notifications** ضمن **Enabled Capabilities**.
 2. إذا أضفت FCM **بعد** أن كان Codemagic يوقّع تلقائياً، قد يكون البروفايل الذي أنشأه Codemagic سابقاً **بدون** Push:
    - احذف ذلك البروفايل من Apple Developer حتى ينشئ Codemagic (أو تربط يدوياً) بروفايلاً جديداً بعد تفعيل Push في Xcode/App ID.
-3. في هذا المشروع، السكربت في **codemagic.yaml** يفضّل صراحة البروفايل الذي اسمه **"loop"** عند وجود أكثر من بروفايل لـ `com.loopcrm.mobile`، حتى تُستخدم النسخة التي فيها Push Notifications.
+3. في هذا المشروع، السكربت في **codemagic.yaml** يختار فقط بروفايلات تحتوي **aps-environment**، ويفضّل الذي اسمه **"loop"**.
 
 ### بيئة APNs (Sandbox vs Production)
 - بناء **Debug** يتصل بـ **Sandbox**؛ بناء **Release** (مثل TestFlight) يتصل بـ **Production**.
