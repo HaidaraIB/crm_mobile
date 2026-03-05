@@ -596,14 +596,17 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                                 Icon(Icons.phone, size: 16, color: theme.iconTheme.color?.withValues(alpha: 0.7)),
                                 const SizedBox(width: 6),
                                 Expanded(
-                                  child: Text(
-                                    _lead!.phone,
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
-                                      fontWeight: FontWeight.w500,
+                                  child: Directionality(
+                                    textDirection: TextDirection.ltr,
+                                    child: Text(
+                                      _lead!.phone,
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                               ],
@@ -1161,13 +1164,16 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                   ),
                   const SizedBox(height: 6),
                 ],
-                // Phone Number (full width)
-                Text(
-                  phone.phoneNumber,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: theme.textTheme.bodyLarge?.color ?? theme.colorScheme.onSurface,
+                // Phone Number (full width) - LTR so + stays at start in RTL locale
+                Directionality(
+                  textDirection: TextDirection.ltr,
+                  child: Text(
+                    phone.phoneNumber,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: theme.textTheme.bodyLarge?.color ?? theme.colorScheme.onSurface,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 4),

@@ -63,7 +63,10 @@ class CallSelectionModal extends StatelessWidget {
                   Icons.phone,
                   color: AppTheme.primaryColor,
                 ),
-                title: Text(phone.phoneNumber),
+                title: Directionality(
+                  textDirection: TextDirection.ltr,
+                  child: Text(phone.phoneNumber),
+                ),
                 subtitle: Text(phone.phoneType),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,

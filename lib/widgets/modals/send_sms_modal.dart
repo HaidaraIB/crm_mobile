@@ -133,10 +133,13 @@ class _SendSMSModalState extends State<SendSMSModal> {
                 style: theme.textTheme.bodySmall,
               ),
               const SizedBox(height: 4),
-              Text(
-                widget.phoneNumber,
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
+              Directionality(
+                textDirection: TextDirection.ltr,
+                child: Text(
+                  widget.phoneNumber,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
