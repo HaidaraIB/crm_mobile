@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/number_formatter.dart';
 import '../../models/lead_model.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
+import '../deals/deals_screen.dart';
 import '../leads/all_leads_screen.dart';
+import '../leads/create_lead_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -253,19 +256,45 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
     );
   }
   
+  /// Returns greeting key based on user's local time: night, morning, afternoon, evening.
+  String _getGreetingKey() {
+    final hour = DateTime.now().hour;
+    if (hour >= 0 && hour < 5) return 'goodNight';
+    if (hour >= 5 && hour < 12) return 'goodMorning';
+    if (hour >= 12 && hour < 17) return 'goodAfternoon';
+    if (hour >= 17 && hour < 22) return 'goodEvening';
+    return 'goodNight'; // 22-24
+  }
+
+  String _getGreetingFallback(String key) {
+    switch (key) {
+      case 'goodNight': return 'Good Night';
+      case 'goodMorning': return 'Good Morning';
+      case 'goodAfternoon': return 'Good Afternoon';
+      case 'goodEvening': return 'Good Evening';
+      default: return 'Good Morning';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+
+    if (_isLoading && _allLeadsCount == 0 && _errorMessage == null) {
+      return RefreshIndicator(
+        onRefresh: _refreshAll,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: _buildSkeleton(context, theme),
+        ),
+      );
     }
-    
+
     if (_errorMessage != null) {
       return _buildErrorWidget(context, localizations, theme);
     }
-    
+
     return RefreshIndicator(
       onRefresh: _refreshAll,
       child: SingleChildScrollView(
@@ -273,125 +302,337 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // User Welcome Section
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                children: [
-                  // Avatar
-                  _buildProfileAvatar(),
-                  const SizedBox(height: 12),
-                  Text(
-                    localizations?.translate('goodMorning') ?? 'Good Morning',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _currentUser?.displayName ?? 'User',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    localizations?.translate('readyForWork') ?? 'Ready for Work, Make customers happy!',
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
+            _buildWelcomeSection(context, localizations),
+            const SizedBox(height: 16),
+            _buildQuickActions(context, localizations),
             const SizedBox(height: 24),
-            
-            // Lead Categories Grid
             Text(
-              localizations?.translate('leads') ?? 'Leads',
+              localizations?.translate('leadsOverview') ?? localizations?.translate('leads') ?? 'Leads',
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 16),
-            
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              childAspectRatio: 1.4,
-              children: [
-                _buildLeadCategoryCard(
-                  context,
-                  localizations?.translate('allLeads') ?? 'All Leads',
-                  _allLeadsCount,
-                  _getProgress(_allLeadsCount, _allLeadsCount),
-                  localizations,
-                  type: null,
-                  status: null,
+            if (_allLeadsCount == 0)
+              _buildEmptyState(context, localizations, theme)
+            else
+              _buildLeadsGrid(context, localizations, theme),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWelcomeSection(BuildContext context, AppLocalizations? localizations) {
+    final greetingKey = _getGreetingKey();
+    final locale = localizations?.locale.languageCode ?? 'en';
+    final todayStr = DateFormat.yMMMEd(locale).format(DateTime.now());
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          _buildProfileAvatar(),
+          const SizedBox(height: 12),
+          Text(
+            localizations?.translate(greetingKey) ?? _getGreetingFallback(greetingKey),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _currentUser?.displayName ?? 'User',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            todayStr,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            localizations?.translate('readyForWork') ?? 'Ready for Work, Make customers happy!',
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 14,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActions(BuildContext context, AppLocalizations? localizations) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _buildQuickActionChip(
+            context,
+            label: localizations?.translate('allLeads') ?? 'All Leads',
+            icon: Icons.people_outline,
+            onTap: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AllLeadsScreen(),
                 ),
-                _buildLeadCategoryCard(
-                  context,
-                  localizations?.translate('freshLeads') ?? 'Fresh Leads',
-                  _freshLeadsCount,
-                  _getProgress(_freshLeadsCount, _allLeadsCount),
-                  localizations,
-                  type: 'fresh',
-                  status: null,
+              );
+              if (mounted) _loadLeads();
+            },
+          ),
+          const SizedBox(width: 8),
+          _buildQuickActionChip(
+            context,
+            label: localizations?.translate('createLead') ?? 'Create Lead',
+            icon: Icons.person_add_outlined,
+            onTap: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const CreateLeadScreen(),
                 ),
-                _buildLeadCategoryCard(
-                  context,
-                  localizations?.translate('coldLeads') ?? 'Cold Leads',
-                  _coldLeadsCount,
-                  _getProgress(_coldLeadsCount, _allLeadsCount),
-                  localizations,
-                  type: 'cold',
-                  status: null,
+              );
+              if (mounted) _loadLeads();
+            },
+          ),
+          const SizedBox(width: 8),
+          _buildQuickActionChip(
+            context,
+            label: localizations?.translate('deals') ?? 'Deals',
+            icon: Icons.handshake_outlined,
+            onTap: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const DealsScreen(),
                 ),
-                _buildLeadCategoryCard(
-                  context,
-                  localizations?.translate('untouched') ?? 'Untouched',
-                  _untouchedCount,
-                  _getProgress(_untouchedCount, _allLeadsCount),
-                  localizations,
-                  type: null,
-                  status: 'untouched',
+              );
+              if (mounted) _loadLeads();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActionChip(
+    BuildContext context, {
+    required String label,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 20, color: AppTheme.primaryColor),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
                 ),
-                _buildLeadCategoryCard(
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(
+    BuildContext context,
+    AppLocalizations? localizations,
+    ThemeData theme,
+  ) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 32),
+        child: Column(
+          children: [
+            Icon(
+              Icons.people_outline,
+              size: 64,
+              color: theme.colorScheme.outline,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              localizations?.translate('noLeadsYet') ?? 'No leads yet',
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: () async {
+                await Navigator.push(
                   context,
-                  localizations?.translate('touched') ?? 'Touched',
-                  _touchedCount,
-                  _getProgress(_touchedCount, _allLeadsCount),
-                  localizations,
-                  type: null,
-                  status: 'touched',
-                ),
-                _buildLeadCategoryCard(
-                  context,
-                  localizations?.translate('following') ?? 'Following',
-                  _followingCount,
-                  _getProgress(_followingCount, _allLeadsCount),
-                  localizations,
-                  type: null,
-                  status: 'following',
-                ),
-              ],
+                  MaterialPageRoute(
+                    builder: (_) => const CreateLeadScreen(),
+                  ),
+                );
+                if (mounted) _loadLeads();
+              },
+              icon: const Icon(Icons.person_add_outlined),
+              label: Text(
+                localizations?.translate('createYourFirstLead') ?? localizations?.translate('createLead') ?? 'Create Lead',
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                foregroundColor: Colors.white,
+              ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSkeleton(BuildContext context, ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          height: 200,
+          decoration: BoxDecoration(
+            color: Colors.grey[300],
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: List.generate(3, (_) => Container(
+            width: 100,
+            height: 40,
+            margin: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(20),
+            ),
+          )),
+        ),
+        const SizedBox(height: 24),
+        Container(
+          width: 140,
+          height: 24,
+          decoration: BoxDecoration(
+            color: Colors.grey[300],
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+        const SizedBox(height: 16),
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: 1.4,
+          children: List.generate(6, (_) => Container(
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(12),
+            ),
+          )),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLeadsGrid(
+    BuildContext context,
+    AppLocalizations? localizations,
+    ThemeData theme,
+  ) {
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisSpacing: 16,
+      mainAxisSpacing: 16,
+      childAspectRatio: 1.4,
+      children: [
+        _buildLeadCategoryCard(
+          context,
+          localizations?.translate('allLeads') ?? 'All Leads',
+          _allLeadsCount,
+          _getProgress(_allLeadsCount, _allLeadsCount),
+          localizations,
+          type: null,
+          status: null,
+        ),
+        _buildLeadCategoryCard(
+          context,
+          localizations?.translate('freshLeads') ?? 'Fresh Leads',
+          _freshLeadsCount,
+          _getProgress(_freshLeadsCount, _allLeadsCount),
+          localizations,
+          type: 'fresh',
+          status: null,
+        ),
+        _buildLeadCategoryCard(
+          context,
+          localizations?.translate('coldLeads') ?? 'Cold Leads',
+          _coldLeadsCount,
+          _getProgress(_coldLeadsCount, _allLeadsCount),
+          localizations,
+          type: 'cold',
+          status: null,
+        ),
+        _buildLeadCategoryCard(
+          context,
+          localizations?.translate('untouched') ?? 'Untouched',
+          _untouchedCount,
+          _getProgress(_untouchedCount, _allLeadsCount),
+          localizations,
+          type: null,
+          status: 'untouched',
+        ),
+        _buildLeadCategoryCard(
+          context,
+          localizations?.translate('touched') ?? 'Touched',
+          _touchedCount,
+          _getProgress(_touchedCount, _allLeadsCount),
+          localizations,
+          type: null,
+          status: 'touched',
+        ),
+        _buildLeadCategoryCard(
+          context,
+          localizations?.translate('following') ?? 'Following',
+          _followingCount,
+          _getProgress(_followingCount, _allLeadsCount),
+          localizations,
+          type: null,
+          status: 'following',
+        ),
+      ],
     );
   }
   
