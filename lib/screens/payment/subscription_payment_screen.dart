@@ -102,6 +102,9 @@ class _SubscriptionPaymentScreenState extends State<SubscriptionPaymentScreen> {
     if (n.contains('paytabs') || n.contains('stripe')) {
       return locale == 'ar' ? 'بطاقة الدفع' : 'Card Payment';
     }
+    if (n.contains('fib') || n.contains('first iraqi')) {
+      return locale == 'ar' ? 'FIB (البنك العراقي الأول)' : 'FIB (First Iraqi Bank)';
+    }
     return name;
   }
 
@@ -112,6 +115,7 @@ class _SubscriptionPaymentScreenState extends State<SubscriptionPaymentScreen> {
     if (n.contains('paytabs') || n.contains('stripe')) return 'assets/images/payment/visa_master_logo.png';
     if (n.contains('zaincash') || n.contains('zain cash')) return 'assets/images/payment/zain_cash_logo.png';
     if (n.contains('qicard') || n.contains('qi card') || n.contains('q_card')) return 'assets/images/payment/q_card_logo.svg';
+    if (n.contains('fib') || n.contains('first iraqi')) return 'assets/images/payment/fib_logo.png';
     return null;
   }
 
