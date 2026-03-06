@@ -142,7 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
           errorMsg = cleanError;
         } else {
           errorMsg = AppLocalizations.of(context)?.translate('subscriptionNotActive') ?? 
-              'Your subscription is not active. Please contact support or complete your payment to access the system.';
+              'Your subscription is not active. Please contact support or Complete Your Payment to access the system.';
         }
         isSubscriptionError = true;
       } 
@@ -375,7 +375,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ),
                                     TextSpan(
                                       text: localizations?.translate('subscriptionNotActiveLink') ??
-                                          'complete your payment',
+                                          'Complete Your Payment',
                                       style: TextStyle(
                                         color: AppTheme.primaryColor,
                                         decoration: TextDecoration.underline,

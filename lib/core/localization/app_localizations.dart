@@ -363,9 +363,9 @@ class AppLocalizations {
           'Invalid credentials. Please go back and check your username and password.',
       'userNotFound': 'User not found',
       'subscriptionNotActive':
-          'Your subscription is not active. Please contact support or complete your payment to access the system.',
+          'Your subscription is not active. Please contact support or Complete Your Payment to access the system.',
       'subscriptionNotActiveBeforeLink': 'Your subscription is not active. Please contact support or ',
-      'subscriptionNotActiveLink': 'complete your payment',
+      'subscriptionNotActiveLink': 'Complete Your Payment',
       'subscriptionNotActiveAfterLink': ' to access the system.',
       'unableToOpenPayment': 'Unable to open payment. Please try again.',
       'anErrorOccurred': 'An error occurred. Please try again.',
