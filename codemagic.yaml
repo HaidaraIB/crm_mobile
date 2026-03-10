@@ -22,7 +22,7 @@ workflows:
         XCODE_SCHEME: "Runner"
         FLUTTER_BUILD_MODE: "release"
         FLUTTER_BUILD_NAME: "1.1.2"
-        FLUTTER_BUILD_NUMBER: "14"
+        FLUTTER_BUILD_NUMBER: "15"
     scripts:
       - name: Get Flutter dependencies
         script: |
