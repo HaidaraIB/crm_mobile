@@ -8,12 +8,8 @@ import '../../services/api_service.dart';
 class EditUnitModal extends StatefulWidget {
   final Unit unit;
   final Function(Unit)? onUnitUpdated;
-  
-  const EditUnitModal({
-    super.key,
-    required this.unit,
-    this.onUnitUpdated,
-  });
+
+  const EditUnitModal({super.key, required this.unit, this.onUnitUpdated});
 
   @override
   State<EditUnitModal> createState() => _EditUnitModalState();
@@ -25,49 +21,69 @@ class _EditUnitModalState extends State<EditUnitModal> {
   late TextEditingController _bedroomsController;
   late TextEditingController _bathroomsController;
   late TextEditingController _priceController;
+  late TextEditingController _loungeController;
+  late TextEditingController _areaController;
   late TextEditingController _cityController;
   late TextEditingController _districtController;
   late TextEditingController _zoneController;
   final ApiService _apiService = ApiService();
-  
+
   String? _selectedProject;
   String? _selectedType;
   String? _selectedFinishing;
+  String? _selectedCurrency;
   bool _isSold = false;
   bool _isLoading = false;
   bool _isLoadingData = true;
-  
+
   List<Project> _projects = [];
-  
+
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.unit.name);
-    _bedroomsController = TextEditingController(text: widget.unit.bedrooms.toString());
-    _bathroomsController = TextEditingController(text: widget.unit.bathrooms.toString());
-    _priceController = TextEditingController(text: widget.unit.price.toString());
+    _bedroomsController = TextEditingController(
+      text: widget.unit.bedrooms.toString(),
+    );
+    _bathroomsController = TextEditingController(
+      text: widget.unit.bathrooms.toString(),
+    );
+    _priceController = TextEditingController(
+      text: widget.unit.price.toString(),
+    );
+    _loungeController = TextEditingController(
+      text: widget.unit.lounge?.toString() ?? '',
+    );
+    _areaController = TextEditingController(
+      text: widget.unit.area?.toString() ?? '',
+    );
     _cityController = TextEditingController(text: widget.unit.city ?? '');
-    _districtController = TextEditingController(text: widget.unit.district ?? '');
+    _districtController = TextEditingController(
+      text: widget.unit.district ?? '',
+    );
     _zoneController = TextEditingController(text: widget.unit.zone ?? '');
     _selectedProject = widget.unit.project;
     _selectedType = widget.unit.type;
     _selectedFinishing = widget.unit.finishing;
+    _selectedCurrency = widget.unit.currency ?? 'SAR';
     _isSold = widget.unit.isSold;
     _loadData();
   }
-  
+
   @override
   void dispose() {
     _nameController.dispose();
     _bedroomsController.dispose();
     _bathroomsController.dispose();
     _priceController.dispose();
+    _loungeController.dispose();
+    _areaController.dispose();
     _cityController.dispose();
     _districtController.dispose();
     _zoneController.dispose();
     super.dispose();
   }
-  
+
   Future<void> _loadData() async {
     try {
       final projects = await _apiService.getProjects();
@@ -97,16 +113,16 @@ class _EditUnitModalState extends State<EditUnitModal> {
       }
     }
   }
-  
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-    
+
     setState(() {
       _isLoading = true;
     });
-    
+
     try {
       // Find project ID
       int? projectId;
@@ -117,7 +133,7 @@ class _EditUnitModalState extends State<EditUnitModal> {
         );
         projectId = project.id;
       }
-      
+
       final unitData = {
         'name': _nameController.text.trim(),
         'project': projectId,
@@ -126,20 +142,34 @@ class _EditUnitModalState extends State<EditUnitModal> {
         'price': double.parse(_priceController.text.trim()),
         'type': _selectedType,
         'finishing': _selectedFinishing,
-        'city': _cityController.text.trim().isNotEmpty ? _cityController.text.trim() : null,
-        'district': _districtController.text.trim().isNotEmpty ? _districtController.text.trim() : null,
-        'zone': _zoneController.text.trim().isNotEmpty ? _zoneController.text.trim() : null,
+        'city': _cityController.text.trim().isNotEmpty
+            ? _cityController.text.trim()
+            : null,
+        'district': _districtController.text.trim().isNotEmpty
+            ? _districtController.text.trim()
+            : null,
+        'zone': _zoneController.text.trim().isNotEmpty
+            ? _zoneController.text.trim()
+            : null,
+        'lounge': _loungeController.text.trim().isNotEmpty
+            ? int.tryParse(_loungeController.text.trim())
+            : null,
+        'area': _areaController.text.trim().isNotEmpty
+            ? double.tryParse(_areaController.text.trim())
+            : null,
+        'currency': _selectedCurrency,
         'is_sold': _isSold,
       };
-      
+
       final unit = await _apiService.updateUnit(widget.unit.id, unitData);
-      
+
       if (mounted) {
         widget.onUnitUpdated?.call(unit);
         Navigator.pop(context);
         SnackbarHelper.showSuccess(
           context,
-          AppLocalizations.of(context)?.translate('unitUpdated') ?? 'Unit updated successfully',
+          AppLocalizations.of(context)?.translate('unitUpdated') ??
+              'Unit updated successfully',
         );
       }
     } catch (e) {
@@ -157,15 +187,13 @@ class _EditUnitModalState extends State<EditUnitModal> {
       }
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
-    
+
     return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         constraints: const BoxConstraints(maxWidth: 500, maxHeight: 700),
         child: Column(
@@ -217,14 +245,18 @@ class _EditUnitModalState extends State<EditUnitModal> {
                             TextFormField(
                               controller: _nameController,
                               decoration: InputDecoration(
-                                labelText: '${localizations?.translate('name') ?? 'Name'} *',
+                                labelText:
+                                    '${localizations?.translate('name') ?? 'Name'} *',
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
-                                  return localizations?.translate('nameRequired') ?? 'Name is required';
+                                  return localizations?.translate(
+                                        'nameRequired',
+                                      ) ??
+                                      'Name is required';
                                 }
                                 return null;
                               },
@@ -234,7 +266,8 @@ class _EditUnitModalState extends State<EditUnitModal> {
                             DropdownButtonFormField<String>(
                               initialValue: _selectedProject,
                               decoration: InputDecoration(
-                                labelText: '${localizations?.translate('project') ?? 'Project'} *',
+                                labelText:
+                                    '${localizations?.translate('project') ?? 'Project'} *',
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -252,7 +285,10 @@ class _EditUnitModalState extends State<EditUnitModal> {
                               },
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return localizations?.translate('projectRequired') ?? 'Project is required';
+                                  return localizations?.translate(
+                                        'projectRequired',
+                                      ) ??
+                                      'Project is required';
                                 }
                                 return null;
                               },
@@ -265,18 +301,26 @@ class _EditUnitModalState extends State<EditUnitModal> {
                                   child: TextFormField(
                                     controller: _bedroomsController,
                                     decoration: InputDecoration(
-                                      labelText: '${localizations?.translate('bedrooms') ?? 'Bedrooms'} *',
+                                      labelText:
+                                          '${localizations?.translate('bedrooms') ?? 'Bedrooms'} *',
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                     ),
                                     keyboardType: TextInputType.number,
                                     validator: (value) {
-                                      if (value == null || value.trim().isEmpty) {
-                                        return localizations?.translate('bedroomsRequired') ?? 'Bedrooms is required';
+                                      if (value == null ||
+                                          value.trim().isEmpty) {
+                                        return localizations?.translate(
+                                              'bedroomsRequired',
+                                            ) ??
+                                            'Bedrooms is required';
                                       }
                                       if (int.tryParse(value.trim()) == null) {
-                                        return localizations?.translate('invalidNumber') ?? 'Invalid number';
+                                        return localizations?.translate(
+                                              'invalidNumber',
+                                            ) ??
+                                            'Invalid number';
                                       }
                                       return null;
                                     },
@@ -287,18 +331,26 @@ class _EditUnitModalState extends State<EditUnitModal> {
                                   child: TextFormField(
                                     controller: _bathroomsController,
                                     decoration: InputDecoration(
-                                      labelText: '${localizations?.translate('bathrooms') ?? 'Bathrooms'} *',
+                                      labelText:
+                                          '${localizations?.translate('bathrooms') ?? 'Bathrooms'} *',
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                     ),
                                     keyboardType: TextInputType.number,
                                     validator: (value) {
-                                      if (value == null || value.trim().isEmpty) {
-                                        return localizations?.translate('bathroomsRequired') ?? 'Bathrooms is required';
+                                      if (value == null ||
+                                          value.trim().isEmpty) {
+                                        return localizations?.translate(
+                                              'bathroomsRequired',
+                                            ) ??
+                                            'Bathrooms is required';
                                       }
                                       if (int.tryParse(value.trim()) == null) {
-                                        return localizations?.translate('invalidNumber') ?? 'Invalid number';
+                                        return localizations?.translate(
+                                              'invalidNumber',
+                                            ) ??
+                                            'Invalid number';
                                       }
                                       return null;
                                     },
@@ -311,7 +363,8 @@ class _EditUnitModalState extends State<EditUnitModal> {
                             TextFormField(
                               controller: _priceController,
                               decoration: InputDecoration(
-                                labelText: '${localizations?.translate('price') ?? 'Price'} *',
+                                labelText:
+                                    '${localizations?.translate('price') ?? 'Price'} *',
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -319,13 +372,99 @@ class _EditUnitModalState extends State<EditUnitModal> {
                               keyboardType: TextInputType.number,
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
-                                  return localizations?.translate('priceRequired') ?? 'Price is required';
+                                  return localizations?.translate(
+                                        'priceRequired',
+                                      ) ??
+                                      'Price is required';
                                 }
                                 if (double.tryParse(value.trim()) == null) {
-                                  return localizations?.translate('invalidPrice') ?? 'Invalid price';
+                                  return localizations?.translate(
+                                        'invalidPrice',
+                                      ) ??
+                                      'Invalid price';
                                 }
                                 return null;
                               },
+                            ),
+                            const SizedBox(height: 16),
+                            // Lounge, Area, Currency in a row
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _loungeController,
+                                    decoration: InputDecoration(
+                                      labelText:
+                                          localizations?.translate('lounge') ??
+                                          'Lounge',
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    keyboardType: TextInputType.number,
+                                    textDirection: TextDirection.ltr,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _areaController,
+                                    decoration: InputDecoration(
+                                      labelText:
+                                          localizations?.translate('area') ??
+                                          'Area',
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    keyboardType:
+                                        const TextInputType.numberWithOptions(
+                                          decimal: true,
+                                        ),
+                                    textDirection: TextDirection.ltr,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: DropdownButtonFormField<String>(
+                                    initialValue: _selectedCurrency,
+                                    decoration: InputDecoration(
+                                      labelText:
+                                          localizations?.translate(
+                                            'currencyLabel',
+                                          ) ??
+                                          'Currency',
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    items:
+                                        [
+                                              'SAR',
+                                              'USD',
+                                              'IQD',
+                                              'AED',
+                                              'EGP',
+                                              'KWD',
+                                              'BHD',
+                                              'QAR',
+                                              'OMR',
+                                            ]
+                                            .map(
+                                              (c) => DropdownMenuItem(
+                                                value: c,
+                                                child: Text(c),
+                                              ),
+                                            )
+                                            .toList(),
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _selectedCurrency = value;
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 16),
                             // Type and Finishing in a row
@@ -335,7 +474,9 @@ class _EditUnitModalState extends State<EditUnitModal> {
                                   child: DropdownButtonFormField<String>(
                                     initialValue: _selectedType,
                                     decoration: InputDecoration(
-                                      labelText: localizations?.translate('type') ?? 'Type',
+                                      labelText:
+                                          localizations?.translate('type') ??
+                                          'Type',
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),
@@ -343,11 +484,19 @@ class _EditUnitModalState extends State<EditUnitModal> {
                                     items: [
                                       DropdownMenuItem(
                                         value: 'Apartment',
-                                        child: Text(localizations?.translate('apartment') ?? 'Apartment'),
+                                        child: Text(
+                                          localizations?.translate(
+                                                'apartment',
+                                              ) ??
+                                              'Apartment',
+                                        ),
                                       ),
                                       DropdownMenuItem(
                                         value: 'Villa',
-                                        child: Text(localizations?.translate('villa') ?? 'Villa'),
+                                        child: Text(
+                                          localizations?.translate('villa') ??
+                                              'Villa',
+                                        ),
                                       ),
                                     ],
                                     onChanged: (value) {
@@ -362,7 +511,11 @@ class _EditUnitModalState extends State<EditUnitModal> {
                                   child: DropdownButtonFormField<String>(
                                     initialValue: _selectedFinishing,
                                     decoration: InputDecoration(
-                                      labelText: localizations?.translate('finishing') ?? 'Finishing',
+                                      labelText:
+                                          localizations?.translate(
+                                            'finishing',
+                                          ) ??
+                                          'Finishing',
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),
@@ -370,11 +523,21 @@ class _EditUnitModalState extends State<EditUnitModal> {
                                     items: [
                                       DropdownMenuItem(
                                         value: 'Finished',
-                                        child: Text(localizations?.translate('finished') ?? 'Finished'),
+                                        child: Text(
+                                          localizations?.translate(
+                                                'finished',
+                                              ) ??
+                                              'Finished',
+                                        ),
                                       ),
                                       DropdownMenuItem(
                                         value: 'Semi-Finished',
-                                        child: Text(localizations?.translate('semiFinished') ?? 'Semi-Finished'),
+                                        child: Text(
+                                          localizations?.translate(
+                                                'semiFinished',
+                                              ) ??
+                                              'Semi-Finished',
+                                        ),
                                       ),
                                     ],
                                     onChanged: (value) {
@@ -394,7 +557,9 @@ class _EditUnitModalState extends State<EditUnitModal> {
                                   child: TextFormField(
                                     controller: _cityController,
                                     decoration: InputDecoration(
-                                      labelText: localizations?.translate('city') ?? 'City',
+                                      labelText:
+                                          localizations?.translate('city') ??
+                                          'City',
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),
@@ -406,7 +571,11 @@ class _EditUnitModalState extends State<EditUnitModal> {
                                   child: TextFormField(
                                     controller: _districtController,
                                     decoration: InputDecoration(
-                                      labelText: localizations?.translate('district') ?? 'District',
+                                      labelText:
+                                          localizations?.translate(
+                                            'district',
+                                          ) ??
+                                          'District',
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),
@@ -418,7 +587,9 @@ class _EditUnitModalState extends State<EditUnitModal> {
                                   child: TextFormField(
                                     controller: _zoneController,
                                     decoration: InputDecoration(
-                                      labelText: localizations?.translate('zone') ?? 'Zone',
+                                      labelText:
+                                          localizations?.translate('zone') ??
+                                          'Zone',
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),
@@ -430,7 +601,9 @@ class _EditUnitModalState extends State<EditUnitModal> {
                             const SizedBox(height: 16),
                             // Sold toggle
                             SwitchListTile(
-                              title: Text(localizations?.translate('sold') ?? 'Sold'),
+                              title: Text(
+                                localizations?.translate('sold') ?? 'Sold',
+                              ),
                               value: _isSold,
                               onChanged: (value) {
                                 setState(() {
@@ -445,7 +618,10 @@ class _EditUnitModalState extends State<EditUnitModal> {
                               children: [
                                 TextButton(
                                   onPressed: () => Navigator.pop(context),
-                                  child: Text(localizations?.translate('cancel') ?? 'Cancel'),
+                                  child: Text(
+                                    localizations?.translate('cancel') ??
+                                        'Cancel',
+                                  ),
                                 ),
                                 const SizedBox(width: 12),
                                 ElevatedButton(
@@ -453,15 +629,24 @@ class _EditUnitModalState extends State<EditUnitModal> {
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: AppTheme.primaryColor,
                                     foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 24,
+                                      vertical: 12,
+                                    ),
                                   ),
                                   child: _isLoading
                                       ? const SizedBox(
                                           width: 20,
                                           height: 20,
-                                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
                                         )
-                                      : Text(localizations?.translate('update') ?? 'Update'),
+                                      : Text(
+                                          localizations?.translate('update') ??
+                                              'Update',
+                                        ),
                                 ),
                               ],
                             ),
@@ -476,4 +661,3 @@ class _EditUnitModalState extends State<EditUnitModal> {
     );
   }
 }
-

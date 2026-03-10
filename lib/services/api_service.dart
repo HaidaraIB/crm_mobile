@@ -13,6 +13,7 @@ import '../models/client_call_model.dart';
 import '../models/task_model.dart';
 import '../models/inventory_model.dart';
 import '../models/deal_model.dart';
+import '../models/support_ticket_model.dart';
 import 'error_logger.dart';
 
 /// استثناء عند كون الاشتراك غير مفعّل؛ يحمل [subscriptionId] إن أرسله الـ API
@@ -221,15 +222,81 @@ class ApiService {
         // Retry the request with new token
         return _makeRequest(method, endpoint, body: body, retryOn401: false);
       } else {
-        // Refresh failed, clear tokens and logout
+        // Refresh failed: clear tokens and auto-logout to login screen (like web)
         await _clearTokens();
+        _navigateToLogin('session_expired');
         throw Exception(
           _translateError('sessionExpired', locale: null),
-        ); // Use English for system errors
+        );
+      }
+    }
+
+    // Handle 403 Forbidden - subscription inactive (like web: clear and redirect)
+    // Skip for /users/me/ which is used to check subscription status
+    if (response.statusCode == 403 && !cleanEndpoint.contains('users/me')) {
+      String? errorMessage;
+      try {
+        final data = jsonDecode(response.body) as Map<String, dynamic>?;
+        if (data != null) {
+          errorMessage = (data['detail'] ?? data['message'] ?? data['error'])?.toString() ?? '';
+        }
+      } catch (_) {}
+      final lower = (errorMessage ?? '').toLowerCase();
+      final isSubscriptionInactive = lower.contains('subscription') ||
+          lower.contains('اشتراك') ||
+          lower.contains('active') ||
+          lower.contains('not active');
+      if (isSubscriptionInactive) {
+        await _savePendingSubscriptionIdIfAny();
+        await _clearTokens();
+        _navigateToLogin('subscription_inactive');
+        throw SubscriptionInactiveException(
+          _translateError('subscriptionInactive', locale: null),
+          subscriptionId: await _getStoredPendingSubscriptionId(),
+        );
       }
     }
 
     return response;
+  }
+
+  /// Navigate to login and clear stack (auto-logout like web).
+  void _navigateToLogin(String reason) {
+    final key = AppConstants.navigatorKey;
+    if (key?.currentContext == null) return;
+    Navigator.of(key!.currentContext!).pushNamedAndRemoveUntil(
+      '/login',
+      (route) => false,
+      arguments: <String, String>{'reason': reason},
+    );
+  }
+
+  Future<void> _savePendingSubscriptionIdIfAny() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userJson = prefs.getString(AppConstants.currentUserKey);
+      if (userJson == null) return;
+      final user = jsonDecode(userJson) as Map<String, dynamic>?;
+      final company = user?['company'] as Map<String, dynamic>?;
+      final sub = company?['subscription'];
+      if (sub != null) {
+        final id = sub is Map ? sub['id'] : null;
+        if (id != null) {
+          await prefs.setString(AppConstants.pendingSubscriptionIdKey, id.toString());
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<int?> _getStoredPendingSubscriptionId() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final s = prefs.getString(AppConstants.pendingSubscriptionIdKey);
+      if (s == null) return null;
+      return int.tryParse(s);
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<bool> _refreshToken() async {
@@ -2957,6 +3024,112 @@ class ApiService {
     final response = await _makeRequest('DELETE', '/units/$id/');
     if (response.statusCode != 204) {
       throw Exception('Failed to delete unit');
+    }
+  }
+
+  // ==================== Support Tickets ====================
+
+  /// GET /api/support-tickets/ - list current user's support tickets (paginated).
+  Future<Map<String, dynamic>> getSupportTickets({
+    int? page,
+    int? pageSize,
+  }) async {
+    final queryParams = <String, String>{};
+    if (page != null) queryParams['page'] = page.toString();
+    if (pageSize != null) queryParams['page_size'] = pageSize.toString();
+    final queryString =
+        queryParams.isEmpty ? '' : '?${queryParams.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&')}';
+    final response = await _makeRequest(
+      'GET',
+      '/support-tickets/$queryString',
+      timeout: const Duration(seconds: 15),
+    );
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final results = data['results'] as List<dynamic>? ?? [];
+      final tickets = results
+          .map((e) => SupportTicket.fromJson(e as Map<String, dynamic>))
+          .toList();
+      return {
+        'count': data['count'] as int? ?? tickets.length,
+        'next': data['next'] as String?,
+        'previous': data['previous'] as String?,
+        'results': tickets,
+      };
+    }
+    throw Exception(
+      _translateError('failedToLoadSupportTickets', locale: null),
+    );
+  }
+
+  /// POST /api/support-tickets/ - create a support ticket (optionally with screenshot files).
+  /// [screenshotPaths] - list of file paths (e.g. from image_picker) to upload as screenshots.
+  Future<SupportTicket> createSupportTicket(
+    String title,
+    String description, {
+    List<String>? screenshotPaths,
+  }) async {
+    final hasFiles = screenshotPaths != null && screenshotPaths.isNotEmpty;
+    if (!hasFiles) {
+      final response = await _makeRequest(
+        'POST',
+        '/support-tickets/',
+        body: {'title': title, 'description': description},
+        timeout: const Duration(seconds: 15),
+      );
+      if (response.statusCode == 201) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return SupportTicket.fromJson(data);
+      }
+      throw Exception(
+        _translateError('failedToCreateSupportTicket', locale: null),
+      );
+    }
+
+    final cleanBaseUrl = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
+    final url = Uri.parse('$cleanBaseUrl/support-tickets/');
+    final token = await _getAccessToken();
+    if (token == null) {
+      throw Exception(_translateError('notAuthenticated', locale: null));
+    }
+
+    try {
+      final request = http.MultipartRequest('POST', url);
+      request.headers['Authorization'] = 'Bearer $token';
+      final apiKey = AppConstants.apiKey;
+      if (apiKey.isNotEmpty) {
+        request.headers['X-API-Key'] = apiKey;
+      }
+      request.fields['title'] = title;
+      request.fields['description'] = description;
+      for (final path in screenshotPaths) {
+        if (path.isEmpty) continue;
+        final file = await http.MultipartFile.fromPath('screenshots', path);
+        request.files.add(file);
+      }
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      if (response.statusCode == 201) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return SupportTicket.fromJson(data);
+      }
+      String msg = _translateError('failedToCreateSupportTicket', locale: null);
+      try {
+        final err = jsonDecode(response.body) as Map<String, dynamic>;
+        final detail = err['detail'] ?? err['message'];
+        if (detail != null) msg = detail.toString();
+      } catch (_) {}
+      throw Exception(msg);
+    } catch (e, stackTrace) {
+      ErrorLogger().logError(
+        error: e.toString(),
+        stackTrace: stackTrace.toString(),
+        endpoint: '/support-tickets/',
+        method: 'POST',
+      );
+      rethrow;
     }
   }
 

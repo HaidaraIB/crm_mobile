@@ -11,7 +11,10 @@ import '../two_factor_auth/two_factor_auth_screen.dart';
 import '../payment/subscription_payment_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  /// When set (e.g. after auto-logout), a message is shown to the user.
+  final String? logoutReason;
+
+  const LoginScreen({super.key, this.logoutReason});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -25,6 +28,26 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   String? _errorMessage;
   bool _isSubscriptionError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showLogoutReasonIfAny());
+  }
+
+  void _showLogoutReasonIfAny() {
+    final reason = widget.logoutReason;
+    if (reason == null || !mounted) return;
+    final t = AppLocalizations.of(context)?.translate;
+    final message = reason == 'session_expired'
+        ? (t?.call('sessionExpired') ?? 'Session expired. Please login again.')
+        : reason == 'subscription_inactive'
+            ? (t?.call('subscriptionInactive') ?? 'Your subscription is not active. Please contact support or renew.')
+            : null;
+    if (message != null) {
+      SnackbarHelper.showError(context, message);
+    }
+  }
 
   /// استخراج subscriptionId من استثناء الاشتراك غير المفعل (يرسله الـ API مع 403)
   int? _getSubscriptionId(Object e) {

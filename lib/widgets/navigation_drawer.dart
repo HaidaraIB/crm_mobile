@@ -13,13 +13,14 @@ import '../screens/inventory/owners_screen.dart';
 import '../screens/inventory/services_inventory_screen.dart';
 import '../screens/inventory/products_inventory_screen.dart';
 import '../screens/deals/deals_screen.dart';
+import '../screens/support/support_tickets_screen.dart';
 import '../models/user_model.dart';
 import '../services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class NavigationDrawer extends StatefulWidget {
   final VoidCallback? onProfileUpdated;
-  
+
   const NavigationDrawer({super.key, this.onProfileUpdated});
 
   @override
@@ -76,7 +77,7 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    
+
     return Drawer(
       child: Column(
         children: [
@@ -84,9 +85,7 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(24, 48, 24, 24),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor,
-            ),
+            decoration: BoxDecoration(color: AppTheme.primaryColor),
             child: Column(
               children: [
                 // Profile Avatar - Clickable
@@ -115,10 +114,7 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
                 if (!_isLoadingUser && _currentUser?.email != null)
                   Text(
                     _currentUser!.email!,
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                    ),
+                    style: const TextStyle(color: Colors.white70, fontSize: 14),
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -130,14 +126,11 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(
-                        Icons.edit,
-                        size: 16,
-                        color: Colors.white70,
-                      ),
+                      const Icon(Icons.edit, size: 16, color: Colors.white70),
                       const SizedBox(width: 4),
                       Text(
-                        localizations?.translate('tapToEditProfile') ?? 'Tap to edit profile',
+                        localizations?.translate('tapToEditProfile') ??
+                            'Tap to edit profile',
                         style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 12,
@@ -149,7 +142,7 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
               ],
             ),
           ),
-          
+
           // Menu Items
           Expanded(
             child: ListView(
@@ -184,7 +177,8 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
                   ),
                   _buildSubMenuItem(
                     context,
-                    title: localizations?.translate('freshLeads') ?? 'Fresh Leads',
+                    title:
+                        localizations?.translate('freshLeads') ?? 'Fresh Leads',
                     onTap: () {
                       Navigator.pop(context);
                       Navigator.push(
@@ -197,7 +191,8 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
                   ),
                   _buildSubMenuItem(
                     context,
-                    title: localizations?.translate('coldLeads') ?? 'Cold Leads',
+                    title:
+                        localizations?.translate('coldLeads') ?? 'Cold Leads',
                     onTap: () {
                       Navigator.pop(context);
                       Navigator.push(
@@ -210,7 +205,8 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
                   ),
                 ],
                 // Inventory menu - show only if user has company and (is admin or has the inventory permission matching specialization)
-                if (_currentUser?.company != null && _canAccessInventory(_currentUser)) ...[
+                if (_currentUser?.company != null &&
+                    _canAccessInventory(_currentUser)) ...[
                   _buildMenuItem(
                     context,
                     icon: Icons.inventory,
@@ -229,7 +225,9 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
                     if (SpecializationHelper.isRealEstate(_currentUser)) ...[
                       _buildSubMenuItem(
                         context,
-                        title: localizations?.translate('properties') ?? 'Properties',
+                        title:
+                            localizations?.translate('properties') ??
+                            'Properties',
                         onTap: () {
                           Navigator.pop(context);
                           Navigator.push(
@@ -258,7 +256,8 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
                     if (SpecializationHelper.isServices(_currentUser)) ...[
                       _buildSubMenuItem(
                         context,
-                        title: localizations?.translate('services') ?? 'Services',
+                        title:
+                            localizations?.translate('services') ?? 'Services',
                         onTap: () {
                           Navigator.pop(context);
                           Navigator.push(
@@ -274,7 +273,8 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
                     if (SpecializationHelper.isProducts(_currentUser)) ...[
                       _buildSubMenuItem(
                         context,
-                        title: localizations?.translate('products') ?? 'Products',
+                        title:
+                            localizations?.translate('products') ?? 'Products',
                         onTap: () {
                           Navigator.pop(context);
                           Navigator.push(
@@ -296,8 +296,22 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
                     Navigator.pop(context);
                     Navigator.push(
                       context,
+                      MaterialPageRoute(builder: (_) => const DealsScreen()),
+                    );
+                  },
+                ),
+                _buildMenuItem(
+                  context,
+                  icon: Icons.headset_mic,
+                  title:
+                      localizations?.translate('supportCenter') ??
+                      'Support Center',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
                       MaterialPageRoute(
-                        builder: (_) => const DealsScreen(),
+                        builder: (_) => const SupportTicketsScreen(),
                       ),
                     );
                   },
@@ -311,9 +325,7 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
                     Navigator.pop(context);
                     Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (_) => const SettingsScreen(),
-                      ),
+                      MaterialPageRoute(builder: (_) => const SettingsScreen()),
                     );
                   },
                 ),
@@ -325,10 +337,10 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
               ],
             ),
           ),
-          
+
           // Divider before logout
           const Divider(height: 1),
-          
+
           // Logout Button at Bottom
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
@@ -338,7 +350,7 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
             ),
             onTap: () => _showLogoutConfirmation(context, localizations),
           ),
-          
+
           // Version
           Padding(
             padding: const EdgeInsets.all(16),
@@ -351,7 +363,7 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
       ),
     );
   }
-  
+
   Future<void> _showLogoutConfirmation(
     BuildContext context,
     AppLocalizations? localizations,
@@ -365,58 +377,47 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
             textAlign: TextAlign.center,
           ),
           content: Text(
-            localizations?.translate('logoutConfirmMessage') ?? 
-            'Are you sure you want to logout?',
+            localizations?.translate('logoutConfirmMessage') ??
+                'Are you sure you want to logout?',
             textAlign: TextAlign.center,
           ),
           actionsAlignment: MainAxisAlignment.center,
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: Text(
-                localizations?.translate('cancel') ?? 'Cancel',
-              ),
+              child: Text(localizations?.translate('cancel') ?? 'Cancel'),
             ),
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.red,
-              ),
-              child: Text(
-                localizations?.translate('logout') ?? 'Logout',
-              ),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: Text(localizations?.translate('logout') ?? 'Logout'),
             ),
           ],
         );
       },
     );
-    
+
     if (confirmed == true && context.mounted) {
       await _performLogout();
     }
   }
-  
+
   Future<void> _performLogout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(AppConstants.accessTokenKey);
     await prefs.remove(AppConstants.refreshTokenKey);
     await prefs.remove(AppConstants.currentUserKey);
     await prefs.setBool(AppConstants.isLoggedInKey, false);
-    
+
     if (!mounted) return;
-    Navigator.of(context).pushNamedAndRemoveUntil(
-      '/login',
-      (route) => false,
-    );
+    Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
   }
-  
+
   Future<void> _navigateToProfile() async {
     Navigator.pop(context);
     final result = await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => const ProfileScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const ProfileScreen()),
     );
     // Refresh user data in drawer after returning from profile
     _loadUser();
@@ -425,7 +426,7 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
       widget.onProfileUpdated?.call();
     }
   }
-  
+
   Widget _buildMenuItem(
     BuildContext context, {
     required IconData icon,
@@ -436,11 +437,9 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
   }) {
     IconData? trailingIcon;
     if (hasSubItems) {
-      trailingIcon = isExpanded 
-          ? Icons.expand_less 
-          : Icons.expand_more;
+      trailingIcon = isExpanded ? Icons.expand_less : Icons.expand_more;
     }
-    
+
     return ListTile(
       leading: Icon(icon),
       title: Text(title),
@@ -448,7 +447,7 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
       onTap: onTap,
     );
   }
-  
+
   Widget _buildSubMenuItem(
     BuildContext context, {
     required String title,
@@ -457,7 +456,7 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
     final localizations = AppLocalizations.of(context);
     final isRTL = localizations?.isRTL ?? false;
     final theme = Theme.of(context);
-    
+
     return Padding(
       padding: EdgeInsets.only(left: isRTL ? 0 : 56, right: isRTL ? 56 : 0),
       child: ListTile(
@@ -475,19 +474,17 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
       ),
     );
   }
-  
+
   Widget _buildProfileAvatar() {
     final profilePhotoUrl = _currentUser?.profilePhoto ?? _currentUser?.avatar;
     final hasImage = profilePhotoUrl != null && profilePhotoUrl.isNotEmpty;
     final shouldShowImage = !_isLoadingUser && hasImage;
     final String? imageUrl = shouldShowImage ? profilePhotoUrl : null;
-    
+
     return CircleAvatar(
       radius: 40,
       backgroundColor: Colors.white,
-      backgroundImage: imageUrl != null
-          ? NetworkImage(imageUrl)
-          : null,
+      backgroundImage: imageUrl != null ? NetworkImage(imageUrl) : null,
       onBackgroundImageError: imageUrl != null
           ? (exception, stackTrace) {
               debugPrint('Error loading profile image in drawer: $exception');
@@ -499,19 +496,17 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
               valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
             )
           : !hasImage
-              ? Text(
-                  _currentUser?.displayName.isNotEmpty == true
-                      ? (_currentUser?.displayName ?? 'U')[0].toUpperCase()
-                      : 'U',
-                  style: TextStyle(
-                    fontSize: 32,
-                    color: AppTheme.primaryColor,
-                    fontWeight: FontWeight.bold,
-                  ),
-                )
-              : null,
+          ? Text(
+              _currentUser?.displayName.isNotEmpty == true
+                  ? (_currentUser?.displayName ?? 'U')[0].toUpperCase()
+                  : 'U',
+              style: TextStyle(
+                fontSize: 32,
+                color: AppTheme.primaryColor,
+                fontWeight: FontWeight.bold,
+              ),
+            )
+          : null,
     );
   }
 }
-
-

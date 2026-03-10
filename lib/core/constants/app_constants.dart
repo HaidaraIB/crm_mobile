@@ -1,6 +1,10 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AppConstants {
+  /// Global navigator key for app-wide navigation (e.g. auto-logout to login).
+  /// Set from [MyApp] in main.dart.
+  static GlobalKey<NavigatorState>? navigatorKey;
   // API Base URL - Loaded from environment variables
   // Make sure to create a .env file in the root directory with BASE_URL
   // For Android emulator: BASE_URL=http://10.0.2.2:8000/api
@@ -22,7 +26,8 @@ class AppConstants {
   static const String currentUserKey = 'currentUser';
   static const String isLoggedInKey = 'isLoggedIn';
   static const String hasSeenOnboardingKey = 'hasSeenOnboarding';
-  
+  static const String pendingSubscriptionIdKey = 'pendingSubscriptionId';
+
   // Primary Color (Purple)
   static const int primaryColorValue = 0xFF9333EA;
   

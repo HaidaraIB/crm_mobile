@@ -439,25 +439,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             background: Container(
                               alignment: Alignment.centerRight,
                               padding: const EdgeInsets.only(right: 20),
-                              color: Colors.red,
-                              child: const Icon(
-                                Icons.delete,
-                                color: Colors.white,
+                              color: theme.colorScheme.primary.withValues(alpha: 0.7),
+                              child: Icon(
+                                Icons.done_all,
+                                color: theme.colorScheme.onPrimary,
+                                size: 28,
                               ),
                             ),
-                            onDismissed: (direction) {
-                              final id = notificationId;
-                              final removed = _notifications[index];
-                              setState(() {
-                                _notifications.removeAt(index);
-                                if (_unreadCount > 0 &&
-                                    !(removed['read'] as bool? ?? false)) {
-                                  _unreadCount--;
-                                }
-                              });
-                              if (id != null) {
-                                _apiService.markNotificationAsRead(id);
-                              }
+                            confirmDismiss: (direction) async {
+                              if (notificationId == null || isRead) return false;
+                              await _markAsRead(notificationId, index);
+                              return false;
                             },
                             child: Card(
                               margin: const EdgeInsets.symmetric(

@@ -39,7 +39,8 @@ class AppLocalizations {
       "companyInformation": "Company Information",
       "ownerInformation": "Owner Information",
       "selectPlan": "Select a Plan",
-      "planSelectionHint": "Choose the plan that fits your team. You can switch later and no payment details are required now.",
+      "planSelectionHint":
+          "Choose the plan that fits your team. You can switch later and no payment details are required now.",
       "billingCycle": "Billing cycle",
       "monthly": "Monthly",
       "yearly": "Yearly",
@@ -50,8 +51,10 @@ class AppLocalizations {
       "clientsIncluded": "Clients",
       "storageIncluded": "Storage",
       "trialDaysLabel": "trial days",
-      "planNoteNoPayment": "We activate your chosen plan immediately—upgrade or downgrade anytime from settings.",
-      "noPlansAvailable": "No paid plans are published yet. You can continue with the free trial.",
+      "planNoteNoPayment":
+          "We activate your chosen plan immediately—upgrade or downgrade anytime from settings.",
+      "noPlansAvailable":
+          "No paid plans are published yet. You can continue with the free trial.",
       "planRequired": "Please select a plan to continue",
       "companyName": "Company Name",
       "companyNameRequired": "Company name is required",
@@ -87,17 +90,21 @@ class AppLocalizations {
       "registrationFailed": "Registration failed. Please try again.",
       "registrationFailedWithStatus": "Registration failed with status",
       "paymentRequiredTitle": "Complete Payment",
-      "paymentRequiredMessage": "Your subscription requires payment to activate. Open the payment page, complete the payment, then return here and tap \"I've completed payment\".",
+      "paymentRequiredMessage":
+          "Your subscription requires payment to activate. Open the payment page, complete the payment, then return here and tap \"I've completed payment\".",
       "openPaymentPage": "Open payment page",
       "iveCompletedPayment": "I've completed payment",
       "checkingPaymentStatus": "Checking payment status...",
-      "paymentNotActiveYet": "Payment not active yet. Please complete the payment or wait a moment and try again.",
-      "paymentSuccessGoingToApp": "Payment successful! Taking you to the app...",
+      "paymentNotActiveYet":
+          "Payment not active yet. Please complete the payment or wait a moment and try again.",
+      "paymentSuccessGoingToApp":
+          "Payment successful! Taking you to the app...",
       "paymentSessionError": "Could not open payment page. Please try again.",
       "loadingPaymentLink": "Loading payment link...",
       "selectPaymentMethod": "Select Payment Method",
       "noPaymentGatewaysAvailable": "No payment gateways available",
-      "paymentCompletePleaseLogin": "Payment completed. Please log in to continue.",
+      "paymentCompletePleaseLogin":
+          "Payment completed. Please log in to continue.",
       "changePlanOrBilling": "Change plan or billing cycle",
       "confirmPlanSelection": "Confirm selection",
       'appName': 'LOOP CRM',
@@ -221,6 +228,27 @@ class AppLocalizations {
       'logsCopied': 'All logs copied to clipboard',
       'copy': 'Copy',
       'noDealsFound': 'No deals found',
+      'supportCenter': 'Support Center',
+      'submitTicket': 'Submit a request',
+      'supportTicketTitle': 'Subject',
+      'supportTicketDescription': 'Description',
+      'screenshots': 'Screenshots (optional)',
+      'addScreenshots': 'Add screenshots',
+      'yourTickets': 'Your tickets',
+      'noSupportTickets': 'No support tickets yet.',
+      'ticketSubmittedSuccess': 'Your request has been submitted successfully.',
+      'failedToLoadSupportTickets': 'Failed to load support tickets',
+      'failedToCreateSupportTicket':
+          'Failed to submit ticket. Please try again.',
+      'subjectRequired': 'Subject is required',
+      'descriptionRequired': 'Description is required',
+      'statusOpen': 'Open',
+      'statusInProgress': 'In Progress',
+      'statusClosed': 'Closed',
+      'attachments': 'Attachments',
+      'lounge': 'Lounge',
+      'area': 'Area',
+      'currencyLabel': 'Currency',
       'pleaseEnterUsername': 'Please enter username',
       'pleaseEnterPassword': 'Please enter password',
       'selectReminder': 'Select Reminder',
@@ -364,7 +392,8 @@ class AppLocalizations {
       'userNotFound': 'User not found',
       'subscriptionNotActive':
           'Your subscription is not active. Please contact support or Complete Your Payment to access the system.',
-      'subscriptionNotActiveBeforeLink': 'Your subscription is not active. Please contact support or ',
+      'subscriptionNotActiveBeforeLink':
+          'Your subscription is not active. Please contact support or ',
       'subscriptionNotActiveLink': 'Complete Your Payment',
       'subscriptionNotActiveAfterLink': ' to access the system.',
       'unableToOpenPayment': 'Unable to open payment. Please try again.',
@@ -658,7 +687,8 @@ class AppLocalizations {
       // Notifications
       'notifications': 'Notifications',
       'notificationSettings': 'Notification Settings',
-      'customizeNotificationsByTypeAndTime': 'Customize notifications by type and time',
+      'customizeNotificationsByTypeAndTime':
+          'Customize notifications by type and time',
       'enableNotifications': 'Enable Notifications',
       'enableOrDisableAllNotifications': 'Enable or disable all notifications',
       'leadNotifications': 'Lead Notifications',
@@ -719,19 +749,23 @@ class AppLocalizations {
       'paymentFailed': 'Payment Failed',
       'subscriptionExpired': 'Subscription Expired',
       'testNotification': 'Test Notification',
-      'testNotificationBody': 'This is a test notification to verify the notification system is working correctly.',
+      'testNotificationBody':
+          'This is a test notification to verify the notification system is working correctly.',
       'testNotificationSent': 'Test notification sent!',
       // Error Messages
       'unsupportedHttpMethod': 'Unsupported HTTP method',
       'requestTimedOut': 'Request timed out',
       'sessionExpired': 'Session expired. Please login again.',
+      'subscriptionInactive': 'Your subscription is not active. Please contact support or renew.',
       'missingApiKey': 'Missing API key. Please check your .env file.',
       'loginFailed': 'Login failed',
       'loginFailedWithStatus': 'Login failed with status',
       'failedToRequest2FACode': 'Failed to request 2FA code',
-      'failedToRequest2FACodeWithStatus': 'Failed to request 2FA code with status',
+      'failedToRequest2FACodeWithStatus':
+          'Failed to request 2FA code with status',
       'failedToVerify2FACode': 'Failed to verify 2FA code',
-      'failedToVerify2FACodeWithStatus': 'Failed to verify 2FA code with status',
+      'failedToVerify2FACodeWithStatus':
+          'Failed to verify 2FA code with status',
       'failedToGetCurrentUser': 'Failed to get current user',
       'notAuthenticated': 'Not authenticated',
       'failedToUpdateProfile': 'Failed to update profile',
@@ -754,19 +788,32 @@ class AppLocalizations {
       'sending': 'Sending...',
       'couldNotOpenMessagingApp': 'Could not open messaging app',
       'to': 'To',
-      'sms_error_not_configured': 'SMS is not set up or not enabled. Please configure it in Integrations.',
-      'sms_error_credentials_incomplete': 'SMS credentials are incomplete. Please set Account SID, Auth Token, and sender number in Integrations.',
-      'sms_error_validation': 'Invalid request. Please check the message and phone number.',
-      'sms_error_lead_not_found': 'Lead not found or you don\'t have access to it.',
-      'sms_error_invalid_from_number': 'The sender number is not valid for this destination. Please use a valid sender number in Integrations.',
-      'sms_error_invalid_to_number': 'The recipient phone number is invalid. Please check the number.',
-      'sms_error_auth': 'SMS credentials are invalid. Please check Account SID and Auth Token in Integrations.',
-      'sms_error_account_inactive': 'SMS account is inactive. Activate it in the Twilio Console or use another account.',
-      'sms_error_rate_limit': 'Too many requests. Please try again in a few minutes.',
-      'sms_error_invalid_mobile': 'The recipient number is not a valid mobile number.',
-      'sms_error_permission': 'You cannot send to this number with your current account. Check your SMS plan or verify the number.',
-      'sms_error_blocked': 'This number cannot receive SMS (blocked or opted out).',
-      'sms_error_twilio_rejected': 'SMS was rejected. Please check your Integrations settings and try again.',
+      'sms_error_not_configured':
+          'SMS is not set up or not enabled. Please configure it in Integrations.',
+      'sms_error_credentials_incomplete':
+          'SMS credentials are incomplete. Please set Account SID, Auth Token, and sender number in Integrations.',
+      'sms_error_validation':
+          'Invalid request. Please check the message and phone number.',
+      'sms_error_lead_not_found':
+          'Lead not found or you don\'t have access to it.',
+      'sms_error_invalid_from_number':
+          'The sender number is not valid for this destination. Please use a valid sender number in Integrations.',
+      'sms_error_invalid_to_number':
+          'The recipient phone number is invalid. Please check the number.',
+      'sms_error_auth':
+          'SMS credentials are invalid. Please check Account SID and Auth Token in Integrations.',
+      'sms_error_account_inactive':
+          'SMS account is inactive. Activate it in the Twilio Console or use another account.',
+      'sms_error_rate_limit':
+          'Too many requests. Please try again in a few minutes.',
+      'sms_error_invalid_mobile':
+          'The recipient number is not a valid mobile number.',
+      'sms_error_permission':
+          'You cannot send to this number with your current account. Check your SMS plan or verify the number.',
+      'sms_error_blocked':
+          'This number cannot receive SMS (blocked or opted out).',
+      'sms_error_twilio_rejected':
+          'SMS was rejected. Please check your Integrations settings and try again.',
       'sms_error_send_failed': 'Failed to send SMS. Please try again later.',
       'addCall': 'Add Call',
       'callMethod': 'Call Method',
@@ -774,7 +821,8 @@ class AppLocalizations {
       'addCallMethod': 'Add Call Method',
       'editCallMethod': 'Edit Call Method',
       'deleteCallMethod': 'Delete Call Method',
-      'confirmDeleteCallMethod': 'Are you sure you want to delete this call method?',
+      'confirmDeleteCallMethod':
+          'Are you sure you want to delete this call method?',
       'callMethodDeleted': 'Call method deleted successfully',
       'failedToDeleteCallMethod': 'Failed to delete call method',
       'failedToGetCallMethods': 'Failed to get call methods',
@@ -794,7 +842,8 @@ class AppLocalizations {
       'enterCallMethodDescription': 'Enter call method description',
       'callMethodCreatedSuccessfully': 'Call method created successfully',
       'callMethodUpdatedSuccessfully': 'Call method updated successfully',
-      'userMustBeAssociatedWithCompany': 'User must be associated with a company',
+      'userMustBeAssociatedWithCompany':
+          'User must be associated with a company',
       'failedToCreateLead': 'Failed to create lead',
       'failedToUpdateLead': 'Failed to update lead',
       'failedToDeleteLead': 'Failed to delete lead',
@@ -860,11 +909,13 @@ class AppLocalizations {
       'failedToUpdateOwner': 'Failed to update owner',
       'failedToDeleteOwner': 'Failed to delete owner',
       'failedToUpdateFCMToken': 'Failed to update FCM token',
-      'failedToUpdateFCMTokenWithStatus': 'Failed to update FCM token with status',
+      'failedToUpdateFCMTokenWithStatus':
+          'Failed to update FCM token with status',
       'failedToLoadNotifications': 'Failed to load notifications',
       'failedToLoadNotification': 'Failed to load notification',
       'failedToMarkNotificationAsRead': 'Failed to mark notification as read',
-      'failedToMarkAllNotificationsAsRead': 'Failed to mark all notifications as read',
+      'failedToMarkAllNotificationsAsRead':
+          'Failed to mark all notifications as read',
       'failedToGetUnreadCount': 'Failed to get unread count',
       'failedToDeleteReadNotifications': 'Failed to delete read notifications',
       'notificationMarkedAsRead': 'Notification marked as read',
@@ -872,7 +923,8 @@ class AppLocalizations {
       'allNotificationsMarkedAsRead': 'All notifications marked as read',
       'noReadNotifications': 'No read notifications to delete',
       'deleteReadNotifications': 'Delete Read Notifications',
-      'deleteReadNotificationsConfirm': 'Are you sure you want to delete all read notifications?',
+      'deleteReadNotificationsConfirm':
+          'Are you sure you want to delete all read notifications?',
       'readNotificationsDeleted': 'Read notifications deleted',
       'noNotifications': 'No notifications',
       'unread': 'Unread',
@@ -910,7 +962,8 @@ class AppLocalizations {
       "companyInformation": "معلومات الشركة",
       "ownerInformation": "معلومات المالك",
       "selectPlan": "اختر خطة",
-      "planSelectionHint": "اختر الخطة التي تناسب فريقك. يمكنك التبديل لاحقاً ولا حاجة لتفاصيل الدفع الآن.",
+      "planSelectionHint":
+          "اختر الخطة التي تناسب فريقك. يمكنك التبديل لاحقاً ولا حاجة لتفاصيل الدفع الآن.",
       "billingCycle": "دورة الفوترة",
       "monthly": "شهري",
       "yearly": "سنوي",
@@ -921,8 +974,10 @@ class AppLocalizations {
       "clientsIncluded": "العملاء",
       "storageIncluded": "التخزين",
       "trialDaysLabel": "أيام تجريبية",
-      "planNoteNoPayment": "نقوم بتنشيط خطتك المختارة فوراً—يمكنك الترقية أو التخفيض في أي وقت من الإعدادات.",
-      "noPlansAvailable": "لا توجد خطط مدفوعة منشورة بعد. يمكنك المتابعة مع الفترة التجريبية المجانية.",
+      "planNoteNoPayment":
+          "نقوم بتنشيط خطتك المختارة فوراً—يمكنك الترقية أو التخفيض في أي وقت من الإعدادات.",
+      "noPlansAvailable":
+          "لا توجد خطط مدفوعة منشورة بعد. يمكنك المتابعة مع الفترة التجريبية المجانية.",
       "planRequired": "يرجى اختيار خطة للمتابعة",
       "companyName": "اسم الشركة",
       "companyNameRequired": "اسم الشركة مطلوب",
@@ -958,17 +1013,20 @@ class AppLocalizations {
       "registrationFailed": "فشل التسجيل. يرجى المحاولة مرة أخرى.",
       "registrationFailedWithStatus": "فشل التسجيل مع الحالة",
       "paymentRequiredTitle": "إتمام الدفع",
-      "paymentRequiredMessage": "اشتراكك يتطلب الدفع لتفعيله. افتح صفحة الدفع وأكمل الدفع، ثم ارجع هنا واضغط \"أكملت الدفع\".",
+      "paymentRequiredMessage":
+          "اشتراكك يتطلب الدفع لتفعيله. افتح صفحة الدفع وأكمل الدفع، ثم ارجع هنا واضغط \"أكملت الدفع\".",
       "openPaymentPage": "فتح صفحة الدفع",
       "iveCompletedPayment": "أكملت الدفع",
       "checkingPaymentStatus": "جاري التحقق من حالة الدفع...",
-      "paymentNotActiveYet": "الدفع غير مفعّل بعد. يرجى إتمام الدفع أو الانتظار قليلاً والمحاولة مرة أخرى.",
+      "paymentNotActiveYet":
+          "الدفع غير مفعّل بعد. يرجى إتمام الدفع أو الانتظار قليلاً والمحاولة مرة أخرى.",
       "paymentSuccessGoingToApp": "تم الدفع بنجاح! جاري نقلك إلى التطبيق...",
       "paymentSessionError": "تعذر فتح صفحة الدفع. يرجى المحاولة مرة أخرى.",
       "loadingPaymentLink": "جاري تحميل رابط الدفع...",
       "selectPaymentMethod": "اختر طريقة الدفع",
       "noPaymentGatewaysAvailable": "لا توجد بوابات دفع متاحة",
-      "paymentCompletePleaseLogin": "تم إتمام الدفع. يرجى تسجيل الدخول للمتابعة.",
+      "paymentCompletePleaseLogin":
+          "تم إتمام الدفع. يرجى تسجيل الدخول للمتابعة.",
       "changePlanOrBilling": "تغيير الخطة أو دورة الفوترة",
       "confirmPlanSelection": "تأكيد الاختيار",
       'appName': 'LOOP CRM',
@@ -1109,6 +1167,27 @@ class AppLocalizations {
       'logsCopied': 'تم نسخ جميع السجلات',
       'copy': 'نسخ',
       'noDealsFound': 'لا توجد صفقات',
+      'supportCenter': 'مركز الدعم',
+      'submitTicket': 'إرسال طلب',
+      'supportTicketTitle': 'الموضوع',
+      'supportTicketDescription': 'الوصف',
+      'screenshots': 'لقطات الشاشة (اختياري)',
+      'addScreenshots': 'إضافة لقطات شاشة',
+      'yourTickets': 'تذاكرك',
+      'noSupportTickets': 'لا توجد تذاكر دعم بعد.',
+      'ticketSubmittedSuccess': 'تم إرسال طلبك بنجاح.',
+      'failedToLoadSupportTickets': 'فشل تحميل تذاكر الدعم',
+      'failedToCreateSupportTicket':
+          'فشل إرسال التذكرة. يرجى المحاولة مرة أخرى.',
+      'subjectRequired': 'الموضوع مطلوب',
+      'descriptionRequired': 'الوصف مطلوب',
+      'statusOpen': 'مفتوح',
+      'statusInProgress': 'قيد المعالجة',
+      'statusClosed': 'مغلق',
+      'attachments': 'المرفقات',
+      'lounge': 'الصالة',
+      'area': 'المساحة',
+      'currencyLabel': 'العملة',
       'pleaseEnterUsername': 'الرجاء إدخال اسم المستخدم',
       'pleaseEnterPassword': 'الرجاء إدخال كلمة المرور',
       'selectReminder': 'اختر تذكير',
@@ -1235,7 +1314,8 @@ class AppLocalizations {
       'userNotFound': 'المستخدم غير موجود',
       'subscriptionNotActive':
           'اشتراكك غير نشط. يرجى الاتصال بالدعم أو إتمام الدفع للوصول إلى النظام.',
-      'subscriptionNotActiveBeforeLink': 'اشتراكك غير نشط. يرجى الاتصال بالدعم أو ',
+      'subscriptionNotActiveBeforeLink':
+          'اشتراكك غير نشط. يرجى الاتصال بالدعم أو ',
       'subscriptionNotActiveLink': 'إتمام الدفع',
       'subscriptionNotActiveAfterLink': ' للوصول إلى النظام.',
       'unableToOpenPayment': 'تعذر فتح صفحة الدفع. يرجى المحاولة مرة أخرى.',
@@ -1590,19 +1670,23 @@ class AppLocalizations {
       'paymentFailed': 'فشل الدفع',
       'subscriptionExpired': 'انتهاء الاشتراك',
       'testNotification': 'إشعار تجريبي',
-      'testNotificationBody': 'هذا إشعار تجريبي للتحقق من أن نظام الإشعارات يعمل بشكل صحيح.',
+      'testNotificationBody':
+          'هذا إشعار تجريبي للتحقق من أن نظام الإشعارات يعمل بشكل صحيح.',
       'testNotificationSent': 'تم إرسال الإشعار التجريبي!',
       // Error Messages
       'unsupportedHttpMethod': 'طريقة HTTP غير مدعومة',
       'requestTimedOut': 'انتهت مهلة الطلب',
       'sessionExpired': 'انتهت الجلسة. يرجى تسجيل الدخول مرة أخرى.',
+      'subscriptionInactive': 'اشتراكك غير نشط. يرجى التواصل مع الدعم أو التجديد.',
       'missingApiKey': 'مفتاح API مفقود. يرجى التحقق من ملف .env الخاص بك.',
       'loginFailed': 'فشل تسجيل الدخول',
       'loginFailedWithStatus': 'فشل تسجيل الدخول مع الحالة',
       'failedToRequest2FACode': 'فشل طلب رمز المصادقة الثنائية',
-      'failedToRequest2FACodeWithStatus': 'فشل طلب رمز المصادقة الثنائية مع الحالة',
+      'failedToRequest2FACodeWithStatus':
+          'فشل طلب رمز المصادقة الثنائية مع الحالة',
       'failedToVerify2FACode': 'فشل التحقق من رمز المصادقة الثنائية',
-      'failedToVerify2FACodeWithStatus': 'فشل التحقق من رمز المصادقة الثنائية مع الحالة',
+      'failedToVerify2FACodeWithStatus':
+          'فشل التحقق من رمز المصادقة الثنائية مع الحالة',
       'failedToGetCurrentUser': 'فشل الحصول على المستخدم الحالي',
       'notAuthenticated': 'غير مصادق عليه',
       'failedToUpdateProfile': 'فشل تحديث الملف الشخصي',
@@ -1625,19 +1709,29 @@ class AppLocalizations {
       'sending': 'جاري الإرسال...',
       'couldNotOpenMessagingApp': 'تعذر فتح تطبيق الرسائل',
       'to': 'إلى',
-      'sms_error_not_configured': 'إرسال الرسائل القصيرة غير مفعّل أو غير مضبوط. يرجى الإعداد من التكاملات.',
-      'sms_error_credentials_incomplete': 'بيانات إرسال الرسائل ناقصة. يرجى إدخال Account SID و Auth Token ورقم المرسل في التكاملات.',
-      'sms_error_validation': 'طلب غير صالح. يرجى التحقق من نص الرسالة ورقم الهاتف.',
-      'sms_error_lead_not_found': 'العميل غير موجود أو ليس لديك صلاحية للوصول إليه.',
-      'sms_error_invalid_from_number': 'رقم المرسل غير صالح لهذه الوجهة. يرجى استخدام رقم مرسل صالح من التكاملات.',
-      'sms_error_invalid_to_number': 'رقم المستلم غير صالح. يرجى التحقق من الرقم.',
-      'sms_error_auth': 'بيانات الدخول غير صحيحة. يرجى التحقق من Account SID و Auth Token في التكاملات.',
-      'sms_error_account_inactive': 'حساب الإرسال غير نشط. فعّله من لوحة Twilio أو استخدم حساباً آخر.',
+      'sms_error_not_configured':
+          'إرسال الرسائل القصيرة غير مفعّل أو غير مضبوط. يرجى الإعداد من التكاملات.',
+      'sms_error_credentials_incomplete':
+          'بيانات إرسال الرسائل ناقصة. يرجى إدخال Account SID و Auth Token ورقم المرسل في التكاملات.',
+      'sms_error_validation':
+          'طلب غير صالح. يرجى التحقق من نص الرسالة ورقم الهاتف.',
+      'sms_error_lead_not_found':
+          'العميل غير موجود أو ليس لديك صلاحية للوصول إليه.',
+      'sms_error_invalid_from_number':
+          'رقم المرسل غير صالح لهذه الوجهة. يرجى استخدام رقم مرسل صالح من التكاملات.',
+      'sms_error_invalid_to_number':
+          'رقم المستلم غير صالح. يرجى التحقق من الرقم.',
+      'sms_error_auth':
+          'بيانات الدخول غير صحيحة. يرجى التحقق من Account SID و Auth Token في التكاملات.',
+      'sms_error_account_inactive':
+          'حساب الإرسال غير نشط. فعّله من لوحة Twilio أو استخدم حساباً آخر.',
       'sms_error_rate_limit': 'طلبات كثيرة. يرجى المحاولة بعد دقائق.',
       'sms_error_invalid_mobile': 'رقم المستلم ليس رقماً جوّالاً صالحاً.',
-      'sms_error_permission': 'لا يمكن الإرسال إلى هذا الرقم بحسابك الحالي. تحقق من خطة الرسائل أو تفعيل الرقم.',
+      'sms_error_permission':
+          'لا يمكن الإرسال إلى هذا الرقم بحسابك الحالي. تحقق من خطة الرسائل أو تفعيل الرقم.',
       'sms_error_blocked': 'هذا الرقم لا يستقبل رسائل (محظور أو مغادر).',
-      'sms_error_twilio_rejected': 'تم رفض الإرسال. يرجى التحقق من إعدادات التكاملات والمحاولة مرة أخرى.',
+      'sms_error_twilio_rejected':
+          'تم رفض الإرسال. يرجى التحقق من إعدادات التكاملات والمحاولة مرة أخرى.',
       'sms_error_send_failed': 'فشل إرسال الرسالة. يرجى المحاولة لاحقاً.',
       'addCall': 'إضافة مكالمة',
       'callMethod': 'طريقة المكالمة',
@@ -1743,7 +1837,8 @@ class AppLocalizations {
       'allNotificationsMarkedAsRead': 'تم تحديد جميع الإشعارات كمقروءة',
       'noReadNotifications': 'لا توجد إشعارات مقروءة للحذف',
       'deleteReadNotifications': 'حذف الإشعارات المقروءة',
-      'deleteReadNotificationsConfirm': 'هل أنت متأكد من حذف جميع الإشعارات المقروءة؟',
+      'deleteReadNotificationsConfirm':
+          'هل أنت متأكد من حذف جميع الإشعارات المقروءة؟',
       'readNotificationsDeleted': 'تم حذف الإشعارات المقروءة',
       'noNotifications': 'لا توجد إشعارات',
       'unread': 'غير مقروء',

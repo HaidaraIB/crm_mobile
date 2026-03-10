@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'core/constants/app_constants.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'core/bloc/theme/theme_bloc.dart';
@@ -84,6 +85,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    AppConstants.navigatorKey = navigatorKey;
     WidgetsBinding.instance.addObserver(this);
     _setupNotificationListener();
   }
@@ -149,7 +151,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                   GlobalCupertinoLocalizations.delegate,
                 ],
                 routes: {
-                  '/login': (context) => const LoginScreen(),
+                  '/login': (context) {
+                    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+                    final reason = args?['reason'] as String?;
+                    return LoginScreen(logoutReason: reason);
+                  },
                   // Registration for businesses/organizations removed for App Store compliance (Guideline 3.1.1).
                   // Users must sign up via web; app is for existing account login only.
                   '/register': (context) => const LoginScreen(),

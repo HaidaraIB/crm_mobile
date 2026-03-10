@@ -96,6 +96,9 @@ class Unit {
   final String? city;
   final String? district;
   final String? zone;
+  final int? lounge;
+  final double? area;
+  final String? currency;
   final bool isSold;
 
   Unit({
@@ -111,6 +114,9 @@ class Unit {
     this.city,
     this.district,
     this.zone,
+    this.lounge,
+    this.area,
+    this.currency,
     required this.isSold,
   });
 
@@ -150,6 +156,28 @@ class Unit {
       return 0.0;
     }
     
+    int? parseToIntNullable(dynamic value) {
+      if (value == null) return null;
+      if (value is int) return value;
+      if (value is double) return value.toInt();
+      if (value is String) {
+        final parsed = int.tryParse(value);
+        return parsed;
+      }
+      return null;
+    }
+
+    double? parseToDoubleNullable(dynamic value) {
+      if (value == null) return null;
+      if (value is double) return value;
+      if (value is int) return value.toDouble();
+      if (value is String) {
+        final parsed = double.tryParse(value);
+        return parsed;
+      }
+      return null;
+    }
+
     return Unit(
       id: json['id'] as int,
       code: json['code'] as String? ?? '',
@@ -163,6 +191,9 @@ class Unit {
       city: json['city'] as String?,
       district: json['district'] as String?,
       zone: json['zone'] as String?,
+      lounge: parseToIntNullable(json['lounge']),
+      area: parseToDoubleNullable(json['area']),
+      currency: json['currency'] as String?,
       isSold: json['is_sold'] as bool? ?? json['isSold'] as bool? ?? false,
     );
   }
@@ -181,6 +212,9 @@ class Unit {
       'city': city,
       'district': district,
       'zone': zone,
+      'lounge': lounge,
+      'area': area,
+      'currency': currency,
       'is_sold': isSold,
     };
   }
