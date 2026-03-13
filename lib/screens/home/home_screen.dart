@@ -26,6 +26,8 @@ class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey _allLeadsKey = GlobalKey();
   VoidCallback? _showAllLeadsFilterCallback;
   bool Function()? _checkAllLeadsFiltersCallback;
+  VoidCallback? _importLeadsCallback;
+  VoidCallback? _exportLeadsCallback;
   final ApiService _apiService = ApiService();
   int _unreadNotificationsCount = 0;
   
@@ -108,6 +110,12 @@ class _HomeScreenState extends State<HomeScreen> {
             },
             onHasActiveFiltersRequested: (callback) {
               _checkAllLeadsFiltersCallback = callback;
+            },
+            onImportRequested: (callback) {
+              _importLeadsCallback = callback;
+            },
+            onExportRequested: (callback) {
+              _exportLeadsCallback = callback;
             },
           );
         case 2:
@@ -224,8 +232,18 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               title: Text(getAppBarTitle()),
               actions: [
-                // Filter button for All Leads page
-                if (_currentIndex == 1)
+                // Import / Export for All Leads page
+                if (_currentIndex == 1) ...[
+                  IconButton(
+                    icon: const Icon(Icons.file_upload_outlined),
+                    tooltip: localizations?.translate('importLeads') ?? 'Import from Excel',
+                    onPressed: () => _importLeadsCallback?.call(),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.file_download_outlined),
+                    tooltip: localizations?.translate('exportLeads') ?? 'Export to Excel',
+                    onPressed: () => _exportLeadsCallback?.call(),
+                  ),
                   Builder(
                     builder: (context) {
                       // Check if filters are active
@@ -257,6 +275,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     },
                   ),
+                ],
                 Stack(
                   children: [
                     IconButton(

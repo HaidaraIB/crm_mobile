@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/bloc/language/language_bloc.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/api_service.dart';
@@ -79,6 +81,10 @@ class _SplashScreenState extends State<SplashScreen>
       try {
         final user = await ApiService().getCurrentUser();
         if (!mounted) return;
+        // Sync user's preferred language from API so UI and requests use it
+        if ((user.language == 'ar' || user.language == 'en') && mounted) {
+          context.read<LanguageBloc>().add(ChangeLanguage(Locale(user.language!)));
+        }
         final subscription = user.company?.subscription;
         final subscriptionActive = subscription?.isActive == true;
         if (subscription != null && !subscriptionActive) {

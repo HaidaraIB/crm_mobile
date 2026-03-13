@@ -10,18 +10,33 @@ import '../../models/user_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/modals/add_action_modal.dart';
 import '../../widgets/modals/add_call_modal.dart';
-import '../../widgets/modals/assign_lead_modal.dart';
 import '../../widgets/modals/send_sms_modal.dart';
 import 'create_lead_screen.dart';
 import 'edit_lead_screen.dart';
+import 'import_leads_screen.dart';
 import 'lead_profile_screen.dart';
+import '../../services/leads_excel_service.dart';
+
+/// Formats phone for display so the plus sign always appears at the start (works in both LTR and RTL).
+String _formatPhoneForDisplay(String? raw) {
+  if (raw == null || raw.isEmpty) return '';
+  final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+  if (digits.isEmpty) return raw;
+  return '+$digits';
+}
 
 class AllLeadsScreen extends StatefulWidget {
   final String? type; // 'fresh', 'cold', or null for all
   final String? status; // 'untouched', 'touched', 'following', or null for all
   final bool showAppBar;
-  final Function(VoidCallback)? onFilterRequested; // Callback to register filter function
-  final Function(bool Function())? onHasActiveFiltersRequested; // Callback to register hasActiveFilters function
+  final Function(VoidCallback)?
+  onFilterRequested; // Callback to register filter function
+  final Function(bool Function())?
+  onHasActiveFiltersRequested; // Callback to register hasActiveFilters function
+  final Function(VoidCallback)?
+  onImportRequested; // Register import callback for parent app bar
+  final Function(VoidCallback)?
+  onExportRequested; // Register export callback for parent app bar
 
   const AllLeadsScreen({
     super.key,
@@ -30,6 +45,8 @@ class AllLeadsScreen extends StatefulWidget {
     this.showAppBar = true,
     this.onFilterRequested,
     this.onHasActiveFiltersRequested,
+    this.onImportRequested,
+    this.onExportRequested,
   });
 
   @override
@@ -78,6 +95,8 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       if (mounted) {
         widget.onFilterRequested?.call(showFilterModal);
         widget.onHasActiveFiltersRequested?.call(hasActiveFilters);
+        widget.onImportRequested?.call(_openImportLeads);
+        widget.onExportRequested?.call(_exportLeads);
       }
     });
   }
@@ -270,9 +289,9 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
         type: widget.type,
         status: widget.status,
       );
-      
+
       if (!mounted) return;
-      
+
       final leads = (result['results'] as List).cast<LeadModel>();
 
       // Apply client-side filtering to ensure accuracy
@@ -354,7 +373,6 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     setState(() {}); // Trigger rebuild to update filter indicator
   }
 
-
   Future<void> _openWhatsApp(String phoneNumber) async {
     try {
       // Clean phone number - remove all non-digit characters
@@ -407,8 +425,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
         final localizations = AppLocalizations.of(context);
         SnackbarHelper.showError(
           context,
-          localizations?.translate('couldNotMakeCall') ??
-              'Could not make call',
+          localizations?.translate('couldNotMakeCall') ?? 'Could not make call',
         );
       }
     } catch (e) {
@@ -416,8 +433,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
         final localizations = AppLocalizations.of(context);
         SnackbarHelper.showError(
           context,
-          localizations?.translate('couldNotMakeCall') ??
-              'Could not make call',
+          localizations?.translate('couldNotMakeCall') ?? 'Could not make call',
         );
       }
     }
@@ -435,7 +451,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       ),
     );
   }
-  
+
   void _showAddCallModal(LeadModel lead) {
     showDialog(
       context: context,
@@ -461,12 +477,52 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     }
     showDialog(
       context: context,
-      builder: (context) => SendSMSModal(
-        leadId: lead.id,
-        phoneNumber: phone,
-        onSent: _loadLeads,
+      builder: (context) =>
+          SendSMSModal(leadId: lead.id, phoneNumber: phone, onSent: _loadLeads),
+    );
+  }
+
+  Future<void> _openImportLeads() async {
+    if (!mounted) return;
+    final localizations = AppLocalizations.of(context);
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ImportLeadsScreen(
+          onImportDone: () {
+            _loadLeads();
+          },
+        ),
       ),
     );
+    if (!mounted) return;
+    SnackbarHelper.showSuccess(
+      context,
+      localizations?.translate('importLeadsComplete') ?? 'Import complete.',
+    );
+    _loadLeads();
+  }
+
+  Future<void> _exportLeads() async {
+    final localizations = AppLocalizations.of(context);
+    if (_leads.isEmpty) {
+      SnackbarHelper.showError(
+        context,
+        localizations?.translate('noLeadsFound') ?? 'No leads to export',
+      );
+      return;
+    }
+    try {
+      await LeadsExcelService.exportLeadsToExcelAndShare(_leads);
+      if (!mounted) return;
+      SnackbarHelper.showSuccess(
+        context,
+        localizations?.translate('exportLeads') ?? 'Export to Excel',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      SnackbarHelper.showError(context, e.toString());
+    }
   }
 
   String _getErrorMessage(dynamic error) {
@@ -588,107 +644,123 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
         }
       },
       child: Scaffold(
-      appBar: widget.showAppBar
-          ? AppBar(
-              title: Text(_getTitle(localizations)),
-              actions: [
-                IconButton(
-                  icon: Stack(
-                    children: [
-                      const Icon(Icons.filter_list),
-                      if (_selectedType != null ||
-                          _selectedStatus != null ||
-                          _selectedAssigneeId != null)
-                        Positioned(
-                          right: 0,
-                          top: 0,
-                          child: Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryColor,
-                              shape: BoxShape.circle,
+        appBar: widget.showAppBar
+            ? AppBar(
+                title: Text(_getTitle(localizations)),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.file_upload_outlined),
+                    tooltip:
+                        localizations?.translate('importLeads') ??
+                        'Import from Excel',
+                    onPressed: _openImportLeads,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.file_download_outlined),
+                    tooltip:
+                        localizations?.translate('exportLeads') ??
+                        'Export to Excel',
+                    onPressed: _exportLeads,
+                  ),
+                  IconButton(
+                    icon: Stack(
+                      children: [
+                        const Icon(Icons.filter_list),
+                        if (_selectedType != null ||
+                            _selectedStatus != null ||
+                            _selectedAssigneeId != null)
+                          Positioned(
+                            right: 0,
+                            top: 0,
+                            child: Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryColor,
+                                shape: BoxShape.circle,
+                              ),
                             ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
+                    onPressed: () {
+                      _showFilterModal(context, localizations);
+                    },
+                    tooltip: localizations?.translate('filter') ?? 'Filter',
                   ),
-                  onPressed: () {
-                    _showFilterModal(context, localizations);
-                  },
-                  tooltip: localizations?.translate('filter') ?? 'Filter',
-                ),
-              ],
-            )
-          : null,
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-          ? _buildErrorWidget(context, localizations, theme)
-          : Column(
-              children: [
-                // Search Bar
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText:
-                          localizations?.translate('typeToSearch') ??
-                          'Type to search...',
-                      prefixIcon: const Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                ],
+              )
+            : null,
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _errorMessage != null
+            ? _buildErrorWidget(context, localizations, theme)
+            : Column(
+                children: [
+                  // Search Bar
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText:
+                            localizations?.translate('typeToSearch') ??
+                            'Type to search...',
+                        prefixIcon: const Icon(Icons.search),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                   ),
-                ),
 
-                // Leads List
-                Expanded(
-                  child: RefreshIndicator(
-                    onRefresh: _loadLeads,
-                    child: _filteredLeads.isEmpty
-                        ? Center(
-                            child: Text(
-                              localizations?.translate('noLeadsFound') ??
-                                  'No leads found',
-                              style: theme.textTheme.bodyLarge,
+                  // Leads List
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: _loadLeads,
+                      child: _filteredLeads.isEmpty
+                          ? Center(
+                              child: Text(
+                                localizations?.translate('noLeadsFound') ??
+                                    'No leads found',
+                                style: theme.textTheme.bodyLarge,
+                              ),
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              itemCount: _filteredLeads.length,
+                              itemBuilder: (context, index) {
+                                final lead = _filteredLeads[index];
+                                return _buildLeadCard(
+                                  context,
+                                  lead,
+                                  localizations,
+                                );
+                              },
                             ),
-                          )
-                        : ListView.builder(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            itemCount: _filteredLeads.length,
-                            itemBuilder: (context, index) {
-                              final lead = _filteredLeads[index];
-                              return _buildLeadCard(
-                                context,
-                                lead,
-                                localizations,
-                              );
-                            },
-                          ),
+                    ),
                   ),
-                ),
-              ],
-            ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => CreateLeadScreen(
-                onLeadCreated: (lead) {
-                  _loadLeads();
-                },
+                ],
               ),
-            ),
-          );
-        },
-        backgroundColor: AppTheme.primaryColor,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+        floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => CreateLeadScreen(
+                  onLeadCreated: (lead) {
+                    _loadLeads();
+                  },
+                ),
+              ),
+            );
+          },
+          backgroundColor: AppTheme.primaryColor,
+          child: const Icon(Icons.add, color: Colors.white),
+        ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       ),
     );
   }
@@ -746,22 +818,12 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     LeadModel lead,
     AppLocalizations? localizations,
   ) {
-    final theme = Theme.of(context);
-    final isRTL = localizations?.isRTL ?? false;
-
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(
-          color: theme.brightness == Brightness.dark
-              ? Colors.white.withValues(alpha: 0.1)
-              : Colors.grey.withValues(alpha: 0.1),
-          width: 1,
-        ),
-      ),
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: InkWell(
+        borderRadius: BorderRadius.circular(18),
         onTap: () async {
           final result = await Navigator.push(
             context,
@@ -769,324 +831,149 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
               builder: (_) => LeadProfileScreen(leadId: lead.id),
             ),
           );
-          // Refresh leads if the lead was updated
+
           if (result == true) {
             _loadLeads();
           }
         },
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.all(20),
+        child: Padding(
+          padding: const EdgeInsets.all(18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Top Row: Avatar with Channel Badge, Name & Phone, Action Buttons, Menu
+              /// HEADER
               Row(
-                // crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Avatar Stack with Channel Badge
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Container(
-                        width: 64,
-                        height: 64,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(
-                            colors: [
-                              AppTheme.primaryColor,
-                              AppTheme.primaryColor.withValues(alpha: 0.8),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppTheme.primaryColor.withValues(
-                                alpha: 0.3,
-                              ),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: Text(
-                            lead.name.isNotEmpty
-                                ? lead.name[0].toUpperCase()
-                                : '?',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                      // Channel Badge
-                      if (lead.communicationWay != null)
-                        Positioned(
-                          bottom: -2,
-                          right: isRTL ? null : -2,
-                          left: isRTL ? -2 : null,
-                          child: Container(
-                            width: 24,
-                            height: 24,
-                            decoration: BoxDecoration(
-                              color: theme.cardColor,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: theme.cardColor,
-                                width: 2,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: theme.brightness == Brightness.dark
-                                      ? Colors.black.withValues(alpha: 0.5)
-                                      : Colors.black.withValues(alpha: 0.1),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Icon(
-                              Icons.folder,
-                              size: 14,
-                              color: theme.colorScheme.primary,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(width: 16),
+                  /// Avatar
+                  _LeadAvatar(lead: lead),
 
-                  // Name and Phone Info
+                  const SizedBox(width: 14),
+
+                  /// Name + Phone
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          lead.name.isNotEmpty ? lead.name : 'Unnamed Lead',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color:
-                                theme.textTheme.titleLarge?.color ??
-                                theme.colorScheme.onSurface,
-                            letterSpacing: -0.5,
-                          ),
+                          lead.name.isNotEmpty ? lead.name : "Unnamed Lead",
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+
+                        const SizedBox(height: 4),
+
+                        Directionality(
+                          textDirection: TextDirection.ltr,
+                          child: Text(
+                            _formatPhoneForDisplay(lead.phone),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
                         ),
                       ],
                     ),
                   ),
 
-                  // Quick Action Buttons
-                  Column(
-                    children: [
-                      _buildActionButton(
-                        icon: Icons.chat_bubble,
-                        color: const Color(0xFF25D366),
-                        onPressed: () => _openWhatsApp(lead.phone),
-                        isWhatsApp: true,
-                      ),
-                      const SizedBox(height: 8),
-                      _buildActionButton(
-                        icon: Icons.phone_outlined,
-                        color: AppTheme.primaryColor,
-                        onPressed: () => _makeCall(lead.phone),
-                      ),
-                      const SizedBox(height: 8),
-                      _buildActionButton(
-                        icon: Icons.sms_outlined,
-                        color: AppTheme.smsButtonColor,
-                        onPressed: () => _showSendSMSModal(lead),
-                      ),
-                    ],
+                  /// Quick actions
+                  _LeadQuickActions(
+                    lead: lead,
+                    onWhatsapp: () => _openWhatsApp(lead.phone),
+                    onCall: () => _makeCall(lead.phone),
+                    onSms: () => _showSendSMSModal(lead),
                   ),
-                  const SizedBox(width: 8),
 
-                  // Menu Button
-                  PopupMenuButton<String>(
-                    icon: Icon(
-                      Icons.more_vert,
-                      color: theme.iconTheme.color,
-                      size: 20,
-                    ),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    itemBuilder: (context) {
-                      final canModify = _canModifyLead(lead);
-                      final isAdmin = _currentUser?.isAdmin ?? false;
-                      final canAssign = isAdmin || (_currentUser?.hasSupervisorPermission('can_manage_leads') ?? false);
-
-                      return [
-                        // Edit - only if can modify
-                        if (canModify)
-                          PopupMenuItem(
-                            value: 'edit',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.edit,
-                                  size: 18,
-                                  color: theme.textTheme.bodyMedium?.color,
-                                ),
-                                const SizedBox(width: 12),
-                                Text(
-                                  localizations?.translate('edit') ?? 'Edit',
-                                ),
-                              ],
-                            ),
+                  /// Menu
+                  _LeadMenuButton(
+                    lead: lead,
+                    canModify: _canModifyLead(lead),
+                    onEdit: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => EditLeadScreen(
+                            lead: lead,
+                            onLeadUpdated: (updatedLead) {
+                              _loadLeads();
+                            },
                           ),
-                        // Assign - only for admin
-                        if (canAssign)
-                          PopupMenuItem(
-                            value: 'assign',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.person_add,
-                                  size: 18,
-                                  color: theme.textTheme.bodyMedium?.color,
-                                ),
-                                const SizedBox(width: 12),
-                                Text(
-                                  localizations?.translate('assign') ??
-                                      'Assign',
-                                ),
-                              ],
-                            ),
-                          ),
-                        // Delete - only if can modify
-                        if (canModify)
-                          PopupMenuItem(
-                            value: 'delete',
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.delete,
-                                  size: 18,
-                                  color: Colors.red,
-                                ),
-                                const SizedBox(width: 12),
-                                Text(
-                                  localizations?.translate('delete') ??
-                                      'Delete',
-                                  style: const TextStyle(color: Colors.red),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ];
+                        ),
+                      );
                     },
-                    onSelected: (value) {
-                      if (value == 'edit') {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => EditLeadScreen(
-                              lead: lead,
-                              onLeadUpdated: (updatedLead) {
-                                _loadLeads();
-                              },
-                            ),
-                          ),
-                        );
-                      } else if (value == 'assign') {
-                        Future.delayed(const Duration(milliseconds: 100), () {
-                          if (!mounted) return;
-                          showDialog(
-                            context: this.context,
-                            builder: (context) => AssignLeadModal(
-                              leadIds: [lead.id],
-                              currentAssignedUserId: lead.assignedTo > 0
-                                  ? lead.assignedTo
-                                  : null,
-                              onAssigned: () {
-                                _loadLeads();
-                                _loadUsers(); // Reload users in case assignment changed
-                              },
-                            ),
-                          );
-                        });
-                      } else if (value == 'delete') {
-                        _showDeleteConfirmation(context, lead, localizations);
-                      }
+                    onDelete: () {
+                      _showDeleteConfirmation(context, lead, localizations);
                     },
                   ),
                 ],
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 18),
 
-              // Status Dropdown with Color
+              /// STATUS
               if (_statuses.isNotEmpty && lead.statusName != null)
                 _buildStatusDropdown(lead, localizations)
               else if (lead.statusName != null)
                 _buildStatusDisplay(lead, localizations),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
-              // Assignment Status
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: lead.assignedTo > 0
-                          ? AppTheme.primaryColor
-                          : Colors.orange,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          lead.assignedTo > 0
-                              ? Icons.person
-                              : Icons.person_outline,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            _getAssignedUserName(
-                              lead.assignedTo > 0 ? lead.assignedTo : null,
-                              localizations,
-                            ),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.5,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
+              /// Assigned user
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
                   ),
-                ],
+                  decoration: BoxDecoration(
+                    color: lead.assignedTo > 0
+                        ? AppTheme.primaryColor.withValues(alpha: 0.1)
+                        : Colors.orange.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        lead.assignedTo > 0
+                            ? Icons.person
+                            : Icons.person_outline,
+                        size: 16,
+                        color: lead.assignedTo > 0
+                            ? AppTheme.primaryColor
+                            : Colors.orange,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _getAssignedUserName(
+                          lead.assignedTo > 0 ? lead.assignedTo : null,
+                          localizations,
+                        ),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          color: lead.assignedTo > 0
+                              ? AppTheme.primaryColor
+                              : Colors.orange,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
 
               const SizedBox(height: 16),
 
-              // Additional Info Row
+              /// INFO CHIPS
               Wrap(
-                alignment: WrapAlignment.center,
                 spacing: 8,
                 runSpacing: 8,
                 children: [
@@ -1094,12 +981,9 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                     _buildInfoChip(
                       icon: Icons.home_outlined,
                       label: lead.communicationWay!,
-                      color:
-                          theme.textTheme.bodyMedium?.color?.withValues(
-                            alpha: 0.7,
-                          ) ??
-                          theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                      color: Colors.grey.shade700,
                     ),
+
                   _buildInfoChip(
                     icon: Icons.work_outline,
                     label:
@@ -1107,90 +991,53 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                         lead.lastStage ??
                         (localizations?.translate('noFeedback') ??
                             'No Feedback'),
-                    color: lead.lastFeedback != null || lead.lastStage != null
-                        ? (theme.textTheme.bodyMedium?.color?.withValues(
-                                alpha: 0.7,
-                              ) ??
-                              theme.colorScheme.onSurface.withValues(
-                                alpha: 0.7,
-                              ))
-                        : (theme.textTheme.bodySmall?.color?.withValues(
-                                alpha: 0.5,
-                              ) ??
-                              theme.colorScheme.onSurface.withValues(
-                                alpha: 0.5,
-                              )),
+                    color: Colors.grey.shade700,
                   ),
+
                   if (lead.budget > 0)
                     _buildInfoChip(
-                      icon: Icons.attach_money_outlined,
+                      icon: Icons.attach_money,
                       label: NumberFormatter.formatCurrency(lead.budget),
-                      color: const Color(0xFF10B981),
+                      color: const Color(0xFF16A34A),
                     ),
                 ],
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 18),
 
-              // Add Action and Add Call Buttons
+              /// CTA
               Row(
                 children: [
                   Expanded(
-                    child: ElevatedButton(
+                    child: OutlinedButton.icon(
                       onPressed: () => _showAddActionModal(lead),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryColor,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        elevation: 0,
+                      icon: const Icon(Icons.bolt),
+                      label: Text(
+                        localizations?.translate('addAction') ?? "Action",
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.add_circle_outline, size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            localizations?.translate('addAction') ?? 'Add Action',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ],
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+
+                  const SizedBox(width: 10),
+
                   Expanded(
-                    child: ElevatedButton(
+                    child: ElevatedButton.icon(
                       onPressed: () => _showAddCallModal(lead),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        elevation: 0,
+                      icon: const Icon(Icons.phone),
+                      label: Text(
+                        localizations?.translate('addCall') ?? "Call",
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.phone, size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            localizations?.translate('addCall') ?? 'Add Call',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ],
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                       ),
                     ),
                   ),
@@ -1198,41 +1045,6 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionButton({
-    required IconData icon,
-    required Color color,
-    required VoidCallback onPressed,
-    bool isWhatsApp = false,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: color.withValues(alpha: 0.3), width: 1.5),
-          ),
-          child: isWhatsApp
-              ? Image.asset(
-                  'assets/images/whatsapp_logo.png',
-                  width: 22,
-                  height: 22,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Icon(icon, color: color, size: 20);
-                  },
-                )
-              : Icon(icon, color: color, size: 20),
         ),
       ),
     );
@@ -1443,170 +1255,113 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                  // Handle
-                  Center(
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 20),
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: theme.iconTheme.color?.withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-
-                  // Title
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        localizations?.translate('filter') ?? 'Filter',
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
+                    // Handle
+                    Center(
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 20),
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: theme.iconTheme.color?.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
-                      if (_selectedType != null ||
-                          _selectedStatus != null ||
-                          _selectedAssigneeId != null)
-                        TextButton(
-                          onPressed: () {
-                            setState(() {
-                              _selectedType = null;
-                              _selectedStatus = null;
-                              _selectedAssigneeId = null;
-                            });
-                            setModalState(() {}); // Update modal UI
-                            _filterLeads(); // Apply cleared filters immediately
-                          },
-                          child: Text(
-                            localizations?.translate('clear') ?? 'Clear',
-                            style: TextStyle(color: theme.colorScheme.error),
+                    ),
+
+                    // Title
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          localizations?.translate('filter') ?? 'Filter',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Type Filter
-                  Text(
-                    localizations?.translate('byType') ?? 'By Type',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _buildFilterChip(
-                        label: localizations?.translate('all') ?? 'All',
-                        isSelected: _selectedType == null,
-                        onTap: () {
-                          setState(() {
-                            _selectedType = null;
-                          });
-                          setModalState(() {}); // Update modal UI
-                        },
-                        theme: theme,
-                      ),
-                      _buildFilterChip(
-                        label:
-                            localizations?.translate('freshLeads') ??
-                            'Fresh Leads',
-                        isSelected: _selectedType == 'fresh',
-                        onTap: () {
-                          setState(() {
-                            _selectedType = 'fresh';
-                          });
-                          setModalState(() {}); // Update modal UI
-                        },
-                        theme: theme,
-                      ),
-                      _buildFilterChip(
-                        label:
-                            localizations?.translate('coldLeads') ??
-                            'Cold Leads',
-                        isSelected: _selectedType == 'cold',
-                        onTap: () {
-                          setState(() {
-                            _selectedType = 'cold';
-                          });
-                          setModalState(() {}); // Update modal UI
-                        },
-                        theme: theme,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Status Filter
-                  Text(
-                    localizations?.translate('byStatus') ?? 'By Status',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _statuses.isEmpty
-                      ? Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: theme.colorScheme.primary,
+                        if (_selectedType != null ||
+                            _selectedStatus != null ||
+                            _selectedAssigneeId != null)
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                _selectedType = null;
+                                _selectedStatus = null;
+                                _selectedAssigneeId = null;
+                              });
+                              setModalState(() {}); // Update modal UI
+                              _filterLeads(); // Apply cleared filters immediately
+                            },
+                            child: Text(
+                              localizations?.translate('clear') ?? 'Clear',
+                              style: TextStyle(color: theme.colorScheme.error),
                             ),
                           ),
-                        )
-                      : Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            _buildFilterChip(
-                              label: localizations?.translate('all') ?? 'All',
-                              isSelected: _selectedStatus == null,
-                              onTap: () {
-                                setState(() {
-                                  _selectedStatus = null;
-                                });
-                                setModalState(() {}); // Update modal UI
-                              },
-                              theme: theme,
-                            ),
-                            ..._statuses.map((status) {
-                              final statusName = status.name.toLowerCase();
-                              return _buildFilterChip(
-                                label:
-                                    localizations?.translate(statusName) ??
-                                    status.name,
-                                isSelected:
-                                    _selectedStatus?.toLowerCase() ==
-                                    statusName,
-                                onTap: () {
-                                  setState(() {
-                                    _selectedStatus = statusName;
-                                  });
-                                  setModalState(() {}); // Update modal UI
-                                },
-                                theme: theme,
-                                color: _parseColor(status.color),
-                              );
-                            }),
-                          ],
-                        ),
-                  const SizedBox(height: 24),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
 
-                  // Assignee Filter - only for admin
-                  if ((_currentUser?.isAdmin ?? false) || (_currentUser?.hasSupervisorPermission('can_manage_leads') ?? false)) ...[
+                    // Type Filter
                     Text(
-                      localizations?.translate('byAssignee') ?? 'By Assignee',
+                      localizations?.translate('byType') ?? 'By Type',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 12),
-                    _users.isEmpty
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildFilterChip(
+                          label: localizations?.translate('all') ?? 'All',
+                          isSelected: _selectedType == null,
+                          onTap: () {
+                            setState(() {
+                              _selectedType = null;
+                            });
+                            setModalState(() {}); // Update modal UI
+                          },
+                          theme: theme,
+                        ),
+                        _buildFilterChip(
+                          label:
+                              localizations?.translate('freshLeads') ??
+                              'Fresh Leads',
+                          isSelected: _selectedType == 'fresh',
+                          onTap: () {
+                            setState(() {
+                              _selectedType = 'fresh';
+                            });
+                            setModalState(() {}); // Update modal UI
+                          },
+                          theme: theme,
+                        ),
+                        _buildFilterChip(
+                          label:
+                              localizations?.translate('coldLeads') ??
+                              'Cold Leads',
+                          isSelected: _selectedType == 'cold',
+                          onTap: () {
+                            setState(() {
+                              _selectedType = 'cold';
+                            });
+                            setModalState(() {}); // Update modal UI
+                          },
+                          theme: theme,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Status Filter
+                    Text(
+                      localizations?.translate('byStatus') ?? 'By Status',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _statuses.isEmpty
                         ? Padding(
                             padding: const EdgeInsets.all(16.0),
                             child: Center(
@@ -1616,68 +1371,129 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                               ),
                             ),
                           )
-                        : DropdownButtonFormField<int?>(
-                            initialValue: _selectedAssigneeId,
-                            decoration: InputDecoration(
-                              hintText:
-                                  localizations?.translate('all') ?? 'All',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
+                        : Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              _buildFilterChip(
+                                label: localizations?.translate('all') ?? 'All',
+                                isSelected: _selectedStatus == null,
+                                onTap: () {
+                                  setState(() {
+                                    _selectedStatus = null;
+                                  });
+                                  setModalState(() {}); // Update modal UI
+                                },
+                                theme: theme,
                               ),
-                              filled: true,
-                              fillColor: theme.cardColor,
-                            ),
-                            items: [
-                              DropdownMenuItem<int?>(
-                                value: null,
-                                child: Text(
-                                  localizations?.translate('all') ?? 'All',
-                                ),
-                              ),
-                              ..._users.map((user) {
-                                return DropdownMenuItem<int?>(
-                                  value: user.id,
-                                  child: Text(user.displayName),
+                              ..._statuses.map((status) {
+                                final statusName = status.name.toLowerCase();
+                                return _buildFilterChip(
+                                  label:
+                                      localizations?.translate(statusName) ??
+                                      status.name,
+                                  isSelected:
+                                      _selectedStatus?.toLowerCase() ==
+                                      statusName,
+                                  onTap: () {
+                                    setState(() {
+                                      _selectedStatus = statusName;
+                                    });
+                                    setModalState(() {}); // Update modal UI
+                                  },
+                                  theme: theme,
+                                  color: _parseColor(status.color),
                                 );
                               }),
                             ],
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedAssigneeId = value;
-                              });
-                              setModalState(() {}); // Update modal UI
-                            },
                           ),
                     const SizedBox(height: 24),
-                  ],
-                  const SizedBox(height: 32),
 
-                  // Apply Button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _applyFilters();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryColor,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(
-                        localizations?.translate('apply') ?? 'Apply',
-                        style: const TextStyle(
-                          fontSize: 16,
+                    // Assignee Filter - only for admin
+                    if ((_currentUser?.isAdmin ?? false) ||
+                        (_currentUser?.hasSupervisorPermission(
+                              'can_manage_leads',
+                            ) ??
+                            false)) ...[
+                      Text(
+                        localizations?.translate('byAssignee') ?? 'By Assignee',
+                        style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
                       ),
+                      const SizedBox(height: 12),
+                      _users.isEmpty
+                          ? Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
+                            )
+                          : DropdownButtonFormField<int?>(
+                              initialValue: _selectedAssigneeId,
+                              decoration: InputDecoration(
+                                hintText:
+                                    localizations?.translate('all') ?? 'All',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                filled: true,
+                                fillColor: theme.cardColor,
+                              ),
+                              items: [
+                                DropdownMenuItem<int?>(
+                                  value: null,
+                                  child: Text(
+                                    localizations?.translate('all') ?? 'All',
+                                  ),
+                                ),
+                                ..._users.map((user) {
+                                  return DropdownMenuItem<int?>(
+                                    value: user.id,
+                                    child: Text(user.displayName),
+                                  );
+                                }),
+                              ],
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedAssigneeId = value;
+                                });
+                                setModalState(() {}); // Update modal UI
+                              },
+                            ),
+                      const SizedBox(height: 24),
+                    ],
+                    const SizedBox(height: 32),
+
+                    // Apply Button
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _applyFilters();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          localizations?.translate('apply') ?? 'Apply',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 16),
                   ],
                 ),
               );
@@ -1717,6 +1533,128 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                   : Colors.grey.withValues(alpha: 0.3)),
         width: isSelected ? 2 : 1,
       ),
+    );
+  }
+}
+
+class _LeadAvatar extends StatelessWidget {
+  final LeadModel lead;
+
+  const _LeadAvatar({required this.lead});
+
+  @override
+  Widget build(BuildContext context) {
+    return CircleAvatar(
+      radius: 28,
+      backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.15),
+      child: Text(
+        lead.name.isNotEmpty ? lead.name[0].toUpperCase() : "?",
+        style: TextStyle(
+          fontSize: 22,
+          fontWeight: FontWeight.bold,
+          color: AppTheme.primaryColor,
+        ),
+      ),
+    );
+  }
+}
+
+class _LeadMenuButton extends StatelessWidget {
+  final LeadModel lead;
+  final bool canModify;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _LeadMenuButton({
+    required this.lead,
+    required this.canModify,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.more_vert, size: 20),
+      itemBuilder: (context) {
+        return [
+          if (canModify)
+            const PopupMenuItem(value: 'edit', child: Text("Edit")),
+          if (canModify)
+            const PopupMenuItem(
+              value: 'delete',
+              child: Text("Delete", style: TextStyle(color: Colors.red)),
+            ),
+        ];
+      },
+      onSelected: (value) {
+        if (value == 'edit') onEdit();
+        if (value == 'delete') onDelete();
+      },
+    );
+  }
+}
+
+class _LeadQuickActions extends StatelessWidget {
+  final LeadModel lead;
+  final VoidCallback onWhatsapp;
+  final VoidCallback onCall;
+  final VoidCallback onSms;
+
+  static const Color _whatsappGreen = Color(0xFF25D366);
+
+  const _LeadQuickActions({
+    required this.lead,
+    required this.onWhatsapp,
+    required this.onCall,
+    required this.onSms,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
+    final whatsappLabel = loc?.translate('whatsapp') ?? 'WhatsApp';
+    final smsLabel = loc?.translate('channelTypeSMS') ?? 'SMS';
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Tooltip(
+          message: whatsappLabel,
+          child: IconButton(
+            iconSize: 24,
+            icon: Image.asset(
+              'assets/images/whatsapp_logo.png',
+              width: 24,
+              height: 24,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Icon(
+                Icons.chat_bubble_outline,
+                size: 24,
+                color: _whatsappGreen,
+              ),
+            ),
+            onPressed: onWhatsapp,
+          ),
+        ),
+        IconButton(
+          iconSize: 24,
+          icon: Icon(Icons.phone_outlined, size: 24),
+          onPressed: onCall,
+        ),
+        Tooltip(
+          message: smsLabel,
+          child: IconButton(
+            iconSize: 24,
+            icon: Icon(
+              Icons.sms_outlined,
+              size: 24,
+              color: AppTheme.smsButtonColor,
+            ),
+            onPressed: onSms,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -29,6 +29,7 @@ class _EditStageModalState extends State<EditStageModal> {
   late String _selectedColor;
   late bool _isRequired;
   late bool _autoAdvance;
+  late bool _isDefault;
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -40,6 +41,7 @@ class _EditStageModalState extends State<EditStageModal> {
     _selectedColor = widget.stage.color;
     _isRequired = widget.stage.required;
     _autoAdvance = widget.stage.autoAdvance;
+    _isDefault = widget.stage.isDefault;
   }
 
   @override
@@ -61,12 +63,13 @@ class _EditStageModalState extends State<EditStageModal> {
       await _apiService.updateStage(
         stageId: widget.stage.id,
         name: _nameController.text.trim(),
-        description: _descriptionController.text.trim().isEmpty 
-            ? null 
+        description: _descriptionController.text.trim().isEmpty
+            ? null
             : _descriptionController.text.trim(),
         color: _selectedColor,
         required: _isRequired,
         autoAdvance: _autoAdvance,
+        isDefault: _isDefault,
       );
 
       if (mounted) {
@@ -272,6 +275,16 @@ class _EditStageModalState extends State<EditStageModal> {
                           onChanged: (value) {
                             setState(() {
                               _autoAdvance = value;
+                            });
+                          },
+                        ),
+                        // Default
+                        SwitchListTile(
+                          title: Text(localizations?.translate('default') ?? 'Default'),
+                          value: _isDefault,
+                          onChanged: (value) {
+                            setState(() {
+                              _isDefault = value;
                             });
                           },
                         ),

@@ -73,7 +73,11 @@ class _AddLeadModalState extends State<AddLeadModal> {
             _selectedUserId = _users.first.id;
           }
           if (_channels.isNotEmpty && _selectedChannel == null) {
-            _selectedChannel = _channels.first.name;
+            final defaultChannel = _channels.firstWhere(
+              (c) => c.isDefault,
+              orElse: () => _channels.first,
+            );
+            _selectedChannel = defaultChannel.name;
           }
           if (_statuses.isNotEmpty && _selectedStatus == null) {
             final defaultStatus = _statuses.firstWhere(

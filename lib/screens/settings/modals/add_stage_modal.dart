@@ -26,6 +26,7 @@ class _AddStageModalState extends State<AddStageModal> {
   String _selectedColor = '#808080';
   bool _isRequired = false;
   bool _autoAdvance = false;
+  bool _isDefault = false;
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -47,12 +48,13 @@ class _AddStageModalState extends State<AddStageModal> {
     try {
       await _apiService.createStage(
         name: _nameController.text.trim(),
-        description: _descriptionController.text.trim().isEmpty 
-            ? null 
+        description: _descriptionController.text.trim().isEmpty
+            ? null
             : _descriptionController.text.trim(),
         color: _selectedColor,
         required: _isRequired,
         autoAdvance: _autoAdvance,
+        isDefault: _isDefault,
       );
 
       if (mounted) {
@@ -258,6 +260,16 @@ class _AddStageModalState extends State<AddStageModal> {
                           onChanged: (value) {
                             setState(() {
                               _autoAdvance = value;
+                            });
+                          },
+                        ),
+                        // Default
+                        SwitchListTile(
+                          title: Text(localizations?.translate('default') ?? 'Default'),
+                          value: _isDefault,
+                          onChanged: (value) {
+                            setState(() {
+                              _isDefault = value;
                             });
                           },
                         ),

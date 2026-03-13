@@ -77,6 +77,7 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
+          isScrollable: true,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
           tabs: [

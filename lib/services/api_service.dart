@@ -100,6 +100,11 @@ class ApiService {
       headers['X-API-Key'] = apiKey;
     }
 
+    // Send user language so backend can use it for emails and responses
+    final prefs = await SharedPreferences.getInstance();
+    final languageCode = prefs.getString(AppConstants.languageKey) ?? 'en';
+    headers['X-Language'] = (languageCode == 'ar' || languageCode == 'en') ? languageCode : 'en';
+
     if (includeAuth) {
       final token = await _getAccessToken();
       if (token != null) {
@@ -1877,6 +1882,7 @@ class ApiService {
     required String name,
     required String type,
     required String priority,
+    bool isDefault = false,
   }) async {
     // Get current user to retrieve company ID
     final currentUser = await getCurrentUser();
@@ -1894,6 +1900,7 @@ class ApiService {
         'type': type,
         'priority': priority.toLowerCase(), // Convert to lowercase
         'company': currentUser.company!.id, // Include company ID
+        'is_default': isDefault,
       },
     );
 
@@ -1931,6 +1938,7 @@ class ApiService {
     required String name,
     required String type,
     required String priority,
+    bool isDefault = false,
   }) async {
     // Get current user to retrieve company ID
     final currentUser = await getCurrentUser();
@@ -1948,6 +1956,7 @@ class ApiService {
         'type': type,
         'priority': priority.toLowerCase(), // Convert to lowercase
         'company': currentUser.company!.id, // Include company ID
+        'is_default': isDefault,
       },
     );
 
@@ -2027,6 +2036,7 @@ class ApiService {
     required String color,
     required bool required,
     required bool autoAdvance,
+    bool isDefault = false,
   }) async {
     // Get current user to retrieve company ID
     final currentUser = await getCurrentUser();
@@ -2046,6 +2056,7 @@ class ApiService {
         'required': required,
         'auto_advance': autoAdvance,
         'company': currentUser.company!.id, // Include company ID
+        'is_default': isDefault,
       },
     );
 
@@ -2079,6 +2090,7 @@ class ApiService {
     required String color,
     required bool required,
     required bool autoAdvance,
+    bool isDefault = false,
   }) async {
     // Get current user to retrieve company ID
     final currentUser = await getCurrentUser();
@@ -2098,6 +2110,7 @@ class ApiService {
         'required': required,
         'auto_advance': autoAdvance,
         'company': currentUser.company!.id, // Include company ID
+        'is_default': isDefault,
       },
     );
 
@@ -2340,6 +2353,7 @@ class ApiService {
     required String name,
     String? description,
     required String color,
+    bool isDefault = false,
   }) async {
     // Get current user to retrieve company ID
     final currentUser = await getCurrentUser();
@@ -2357,6 +2371,7 @@ class ApiService {
         'description': description,
         'color': color,
         'company': currentUser.company!.id, // Include company ID
+        'is_default': isDefault,
       },
     );
 
@@ -2381,6 +2396,7 @@ class ApiService {
     required String name,
     String? description,
     required String color,
+    bool isDefault = false,
   }) async {
     // Get current user to retrieve company ID
     final currentUser = await getCurrentUser();
@@ -2398,6 +2414,7 @@ class ApiService {
         'description': description,
         'color': color,
         'company': currentUser.company!.id, // Include company ID
+        'is_default': isDefault,
       },
     );
 

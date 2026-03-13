@@ -27,6 +27,7 @@ class _EditChannelModalState extends State<EditChannelModal> {
 
   String? _selectedType;
   String? _selectedPriority;
+  late bool _isDefault;
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -109,13 +110,14 @@ class _EditChannelModalState extends State<EditChannelModal> {
     _selectedType = widget.channel.type;
     // Normalize priority to match dropdown values (capitalize first letter)
     final priorityLower = widget.channel.priority.toLowerCase();
-    _selectedPriority = priorityLower == 'high' 
-        ? 'High' 
-        : priorityLower == 'medium' 
-            ? 'Medium' 
-            : priorityLower == 'low' 
-                ? 'Low' 
-                : widget.channel.priority; // Fallback to original if unknown
+    _selectedPriority = priorityLower == 'high'
+        ? 'High'
+        : priorityLower == 'medium'
+            ? 'Medium'
+            : priorityLower == 'low'
+                ? 'Low'
+                : widget.channel.priority;
+    _isDefault = widget.channel.isDefault;
   }
 
   @override
@@ -138,6 +140,7 @@ class _EditChannelModalState extends State<EditChannelModal> {
         name: _nameController.text.trim(),
         type: _selectedType!,
         priority: _selectedPriority!,
+        isDefault: _isDefault,
       );
 
       if (mounted) {
@@ -281,6 +284,16 @@ class _EditChannelModalState extends State<EditChannelModal> {
                           onChanged: (value) {
                             setState(() {
                               _selectedPriority = value;
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        SwitchListTile(
+                          title: Text(localizations?.translate('default') ?? 'Default'),
+                          value: _isDefault,
+                          onChanged: (value) {
+                            setState(() {
+                              _isDefault = value;
                             });
                           },
                         ),

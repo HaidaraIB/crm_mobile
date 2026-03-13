@@ -5,12 +5,14 @@ class ChannelModel {
   final String name;
   final String type; // 'Web', 'Social', 'Advertising', 'Email', 'Phone', 'SMS', 'WhatsApp', etc.
   final String priority; // 'High', 'Medium', 'Low'
+  final bool isDefault;
   
   ChannelModel({
     required this.id,
     required this.name,
     required this.type,
     required this.priority,
+    this.isDefault = false,
   });
   
   factory ChannelModel.fromJson(Map<String, dynamic> json) {
@@ -19,6 +21,7 @@ class ChannelModel {
       name: json['name'] as String,
       type: json['type'] as String,
       priority: json['priority'] as String? ?? 'Medium',
+      isDefault: json['is_default'] as bool? ?? json['isDefault'] as bool? ?? false,
     );
   }
   
@@ -36,6 +39,7 @@ class ChannelModel {
       'name': name,
       'type': type,
       'priority': priority,
+      'is_default': isDefault,
     };
   }
   
@@ -44,6 +48,7 @@ class ChannelModel {
       'name': name,
       'type': type,
       'priority': priority,
+      'is_default': isDefault,
     };
   }
 }
@@ -55,6 +60,7 @@ class StageModel {
   final String color; // Hex color code
   final bool required;
   final bool autoAdvance;
+  final bool isDefault;
   
   StageModel({
     required this.id,
@@ -63,6 +69,7 @@ class StageModel {
     required this.color,
     required this.required,
     required this.autoAdvance,
+    this.isDefault = false,
   });
   
   factory StageModel.fromJson(Map<String, dynamic> json) {
@@ -73,6 +80,7 @@ class StageModel {
       color: json['color'] as String? ?? '#808080',
       required: json['required'] as bool? ?? false,
       autoAdvance: json['auto_advance'] as bool? ?? json['autoAdvance'] as bool? ?? false,
+      isDefault: json['is_default'] as bool? ?? json['isDefault'] as bool? ?? false,
     );
   }
   
@@ -94,6 +102,7 @@ class StageModel {
       'color': color,
       'required': required,
       'auto_advance': autoAdvance,
+      'is_default': isDefault,
     };
   }
   
@@ -104,6 +113,7 @@ class StageModel {
       'color': color,
       'required': required,
       'auto_advance': autoAdvance,
+      'is_default': isDefault,
     };
   }
 }
@@ -179,12 +189,14 @@ class CallMethodModel {
   final String name;
   final String? description;
   final String color; // Hex color code
+  final bool isDefault;
   
   CallMethodModel({
     required this.id,
     required this.name,
     this.description,
     required this.color,
+    this.isDefault = false,
   });
   
   factory CallMethodModel.fromJson(Map<String, dynamic> json) {
@@ -193,6 +205,7 @@ class CallMethodModel {
       name: json['name'] as String,
       description: json['description'] as String?,
       color: json['color'] as String? ?? '#808080',
+      isDefault: json['is_default'] as bool? ?? json['isDefault'] as bool? ?? false,
     );
   }
   
@@ -202,6 +215,7 @@ class CallMethodModel {
       'name': name,
       'description': description,
       'color': color,
+      'is_default': isDefault,
     };
   }
   
@@ -210,6 +224,7 @@ class CallMethodModel {
       'name': name,
       'description': description,
       'color': color,
+      'is_default': isDefault,
     };
   }
   
@@ -218,6 +233,7 @@ class CallMethodModel {
       'name': name,
       'description': description,
       'color': color,
+      'is_default': isDefault,
     };
   }
 }

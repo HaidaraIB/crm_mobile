@@ -236,6 +236,11 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
         jsonEncode(user.toJson()),
       );
       
+      // Sync user's preferred language from API so UI and future requests use it
+      if (mounted && (user.language == 'ar' || user.language == 'en')) {
+        context.read<LanguageBloc>().add(ChangeLanguage(Locale(user.language!)));
+      }
+      
       // Clear cooldown
       await prefs.remove('2fa_resend_cooldown');
       

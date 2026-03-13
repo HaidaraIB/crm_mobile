@@ -7,6 +7,7 @@ import '../../services/api_service.dart';
 import '../../services/error_logger.dart';
 import 'modals/add_stage_modal.dart';
 import 'modals/edit_stage_modal.dart';
+import 'widgets/settings_list_card.dart';
 
 class StagesSettingsScreen extends StatefulWidget {
   const StagesSettingsScreen({super.key});
@@ -55,15 +56,50 @@ class _StagesSettingsScreenState extends State<StagesSettingsScreen> {
     }
   }
 
-  Future<void> _deleteStage(int stageId) async {
+  Future<void> _setDefaultStage(StageModel stage) async {
+    if (stage.isDefault) return;
+    try {
+      await _apiService.updateStage(
+        stageId: stage.id,
+        name: stage.name,
+        description: stage.description,
+        color: stage.color,
+        required: stage.required,
+        autoAdvance: stage.autoAdvance,
+        isDefault: true,
+      );
+      if (!mounted) return;
+      _loadStages();
+      SnackbarHelper.showSuccess(
+        context,
+        AppLocalizations.of(context)?.translate('stageUpdatedSuccessfully') ?? 'Stage updated',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      SnackbarHelper.showError(context, e.toString());
+    }
+  }
+
+  Future<void> _deleteStage(StageModel stage) async {
+    if (stage.isDefault) {
+      if (mounted) {
+        SnackbarHelper.showError(
+          context,
+          AppLocalizations.of(context)?.translate('cannotDeleteDefault') ??
+              'Cannot delete default stage',
+        );
+      }
+      return;
+    }
+
     final localizations = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(localizations?.translate('deleteStage') ?? 'Delete Stage'),
         content: Text(
-          localizations?.translate('confirmDeleteStage') ?? 
-          'Are you sure you want to delete this stage?',
+          localizations?.translate('confirmDeleteStage') ??
+              'Are you sure you want to delete this stage?',
         ),
         actions: [
           TextButton(
@@ -82,7 +118,7 @@ class _StagesSettingsScreenState extends State<StagesSettingsScreen> {
     if (confirmed != true) return;
 
     try {
-      await _apiService.deleteStage(stageId);
+      await _apiService.deleteStage(stage.id);
       if (mounted) {
         SnackbarHelper.showSuccess(
           context,
@@ -117,7 +153,7 @@ class _StagesSettingsScreenState extends State<StagesSettingsScreen> {
           children: [
             Text(
               _errorMessage!,
-              style: const TextStyle(color: Colors.red),
+              style: TextStyle(color: theme.colorScheme.error),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
@@ -170,49 +206,91 @@ class _StagesSettingsScreenState extends State<StagesSettingsScreen> {
         Expanded(
           child: _stages.isEmpty
               ? Center(
-                  child: Text(
-                    localizations?.translate('noStagesFound') ?? 'No stages found',
-                    style: theme.textTheme.bodyLarge,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.flag_outlined,
+                        size: 64,
+                        color: theme.colorScheme.outline,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        localizations?.translate('noStagesFound') ?? 'No stages found',
+                        style: theme.textTheme.bodyLarge,
+                      ),
+                    ],
                   ),
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   itemCount: _stages.length,
                   itemBuilder: (context, index) {
                     final stage = _stages[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 8),
+                    return SettingsListCard(
                       child: ListTile(
+                        contentPadding: SettingsListCard.listTilePadding,
                         leading: CircleAvatar(
                           backgroundColor: _parseColor(stage.color),
-                          radius: 20,
+                          radius: 22,
                         ),
-                        title: Text(stage.name),
-                        subtitle: stage.description != null && stage.description!.isNotEmpty
-                            ? Text(stage.description!)
-                            : null,
+                        title: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                stage.name,
+                                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            if (stage.isDefault) ...[
+                              const SizedBox(width: 8),
+                              SettingsDefaultChip(
+                                label: localizations?.translate('default') ?? 'Default',
+                              ),
+                            ],
+                          ],
+                        ),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (stage.description != null && stage.description!.isNotEmpty)
+                                Text(
+                                  stage.description!,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              if (stage.required) ...[
+                                if (stage.description != null && stage.description!.isNotEmpty) const SizedBox(height: 4),
+                                SettingsLabelChip(
+                                  label: localizations?.translate('required') ?? 'Required',
+                                  color: Colors.blue,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            if (stage.required)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.blue.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(4),
+                            if (!stage.isDefault)
+                              TextButton(
+                                onPressed: () => _setDefaultStage(stage),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                  minimumSize: const Size(48, 48),
                                 ),
                                 child: Text(
-                                  localizations?.translate('required') ?? 'Required',
-                                  style: const TextStyle(
-                                    color: Colors.blue,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                  localizations?.translate('setAsDefault') ?? 'Set as default',
+                                  style: theme.textTheme.labelSmall,
                                 ),
                               ),
-                            const SizedBox(width: 8),
                             IconButton(
-                              icon: const Icon(Icons.edit),
+                              icon: const Icon(Icons.edit_outlined),
                               onPressed: () {
                                 showModalBottomSheet(
                                   context: context,
@@ -228,10 +306,11 @@ class _StagesSettingsScreenState extends State<StagesSettingsScreen> {
                                 );
                               },
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () => _deleteStage(stage.id),
-                            ),
+                            if (!stage.isDefault)
+                              IconButton(
+                                icon: Icon(Icons.delete_outline, color: theme.colorScheme.error),
+                                onPressed: () => _deleteStage(stage),
+                              ),
                           ],
                         ),
                       ),

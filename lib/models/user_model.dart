@@ -14,6 +14,8 @@ class UserModel {
   /// When role is supervisor, permissions from API (supervisor_permissions.permissions).
   final Map<String, bool>? supervisorPermissions;
   final bool? supervisorIsActive;
+  /// User preferred language (ar/en), synced with API for emails and UI.
+  final String? language;
 
   UserModel({
     required this.id,
@@ -30,6 +32,7 @@ class UserModel {
     this.emailVerified,
     this.supervisorPermissions,
     this.supervisorIsActive,
+    this.language,
   });
 
   // Check if user is admin (handles multiple role formats)
@@ -120,6 +123,7 @@ class UserModel {
       emailVerified: json['email_verified'] as bool? ?? json['emailVerified'] as bool?,
       supervisorPermissions: supervisorPermissions,
       supervisorIsActive: supervisorIsActive,
+      language: (json['language'] as String?)?.isNotEmpty == true && (json['language'] == 'ar' || json['language'] == 'en') ? json['language'] as String : null,
     );
   }
   
@@ -138,6 +142,7 @@ class UserModel {
       'company': company?.toJson(),
       'email_verified': emailVerified,
       if (supervisorPermissions != null) 'supervisor_permissions': {'is_active': supervisorIsActive, 'permissions': supervisorPermissions},
+      if (language != null) 'language': language,
     };
   }
 }

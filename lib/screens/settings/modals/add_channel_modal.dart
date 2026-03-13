@@ -22,8 +22,9 @@ class _AddChannelModalState extends State<AddChannelModal> {
   final _nameController = TextEditingController();
   final ApiService _apiService = ApiService();
 
-  String? _selectedType;
+  String? _selectedType = 'Other'; // Default type so dropdown shows a valid initial value
   String? _selectedPriority = 'Medium';
+  bool _isDefault = false;
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -107,13 +108,7 @@ class _AddChannelModalState extends State<AddChannelModal> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-
-    if (_selectedType == null) {
-      setState(() {
-        _errorMessage = AppLocalizations.of(context)?.translate('typeRequired') ?? 'Type is required';
-      });
-      return;
-    }
+    final selectedType = _selectedType ?? 'Other';
 
     setState(() {
       _isLoading = true;
@@ -123,8 +118,9 @@ class _AddChannelModalState extends State<AddChannelModal> {
     try {
       await _apiService.createChannel(
         name: _nameController.text.trim(),
-        type: _selectedType!,
+        type: selectedType,
         priority: _selectedPriority!,
+        isDefault: _isDefault,
       );
 
       if (mounted) {
@@ -268,6 +264,16 @@ class _AddChannelModalState extends State<AddChannelModal> {
                           onChanged: (value) {
                             setState(() {
                               _selectedPriority = value;
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        SwitchListTile(
+                          title: Text(localizations?.translate('default') ?? 'Default'),
+                          value: _isDefault,
+                          onChanged: (value) {
+                            setState(() {
+                              _isDefault = value;
                             });
                           },
                         ),

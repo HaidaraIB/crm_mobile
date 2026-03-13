@@ -105,6 +105,21 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
         _channels = channels;
         _statuses = statuses;
         _isLoadingData = false;
+        // Fallback to default channel/status when lead has none
+        if (_channels.isNotEmpty && (_selectedChannel == null || _selectedChannel!.isEmpty)) {
+          final defaultChannel = _channels.firstWhere(
+            (c) => c.isDefault,
+            orElse: () => _channels.first,
+          );
+          _selectedChannel = defaultChannel.name;
+        }
+        if (_statuses.isNotEmpty && (_selectedStatus == null || _selectedStatus!.isEmpty)) {
+          final defaultStatus = _statuses.firstWhere(
+            (s) => s.isDefault && !s.isHidden,
+            orElse: () => _statuses.firstWhere((s) => !s.isHidden, orElse: () => _statuses.first),
+          );
+          _selectedStatus = defaultStatus.name;
+        }
       });
     } catch (e) {
       ErrorLogger().logError(

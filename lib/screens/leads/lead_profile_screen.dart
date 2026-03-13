@@ -15,6 +15,14 @@ import '../../widgets/modals/send_sms_modal.dart';
 import '../../widgets/phone_input.dart';
 import 'edit_lead_screen.dart';
 
+/// Formats phone for display so the plus sign always appears at the start (works in both LTR and RTL).
+String _formatPhoneForDisplay(String? raw) {
+  if (raw == null || raw.isEmpty) return '';
+  final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+  if (digits.isEmpty) return raw;
+  return '+$digits';
+}
+
 class LeadProfileScreen extends StatefulWidget {
   final int leadId;
   
@@ -480,233 +488,109 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
               child: SingleChildScrollView(
                 child: Container(
                   margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: theme.cardColor,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: theme.brightness == Brightness.dark
-                      ? Colors.white.withValues(alpha: 0.1)
-                      : Colors.grey.withValues(alpha: 0.1),
-                  width: 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: theme.brightness == Brightness.dark
-                        ? Colors.black.withValues(alpha: 0.3)
-                        : Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  // Profile Section with Avatar and Contact Info
-                  Row(
-                    children: [
-                      // Avatar Stack with Channel Badge
-                      Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Container(
-                            width: 72,
-                            height: 72,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: LinearGradient(
-                                colors: [
-                                  AppTheme.primaryColor,
-                                  AppTheme.primaryColor.withValues(alpha: 0.8),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppTheme.primaryColor.withValues(alpha: 0.3),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Center(
-                              child: Text(
-                                _lead!.name.isNotEmpty ? _lead!.name[0].toUpperCase() : '?',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                          // Channel Badge
-                          if (_lead!.communicationWay != null)
-                            Positioned(
-                              bottom: -2,
-                              right: -2,
-                              child: Container(
-                                width: 28,
-                                height: 28,
-                                decoration: BoxDecoration(
-                                  color: theme.cardColor,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: theme.cardColor, width: 2),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: theme.brightness == Brightness.dark
-                                          ? Colors.black.withValues(alpha: 0.5)
-                                          : Colors.black.withValues(alpha: 0.1),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Icon(
-                                  Icons.folder,
-                                  size: 16,
-                                  color: Colors.blue[700],
-                                ),
-                              ),
-                            ),
-                        ],
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: theme.cardColor,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: theme.brightness == Brightness.dark
+                          ? Colors.white.withValues(alpha: 0.1)
+                          : Colors.grey.withValues(alpha: 0.1),
+                      width: 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: theme.brightness == Brightness.dark
+                            ? Colors.black.withValues(alpha: 0.3)
+                            : Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
                       ),
-                      const SizedBox(width: 20),
-                      
-                      // Name and Phone Info
+                    ],
+                  ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header: same layout as lead card
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildProfileAvatar(theme),
+                      const SizedBox(width: 14),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               _lead!.name.isNotEmpty ? _lead!.name : 'Unnamed Lead',
-                              style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: theme.textTheme.titleLarge?.color ?? theme.colorScheme.onSurface,
-                                letterSpacing: -0.5,
-                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -0.2,
+                              ),
                             ),
-                            const SizedBox(height: 6),
-                            Row(
-                              children: [
-                                Icon(Icons.phone, size: 16, color: theme.iconTheme.color?.withValues(alpha: 0.7)),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Directionality(
-                                    textDirection: TextDirection.ltr,
-                                    child: Text(
-                                      _lead!.phone,
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
+                            const SizedBox(height: 4),
+                            Directionality(
+                              textDirection: TextDirection.ltr,
+                              child: Text(
+                                _formatPhoneForDisplay(_lead!.phone),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey.shade600,
                                 ),
-                              ],
+                              ),
                             ),
                           ],
                         ),
                       ),
-                      
-                      // Quick Action Buttons
-                      Column(
-                        children: [
-                          _buildActionButton(
-                            icon: Icons.chat_bubble,
-                            color: const Color(0xFF25D366),
-                            onPressed: () => _openWhatsApp(_lead!.phone),
-                            isWhatsApp: true,
-                          ),
-                          const SizedBox(height: 12),
-                          _buildActionButton(
-                            icon: Icons.phone_outlined,
-                            color: AppTheme.primaryColor,
-                            onPressed: () => _makeCall(_lead!.phone),
-                          ),
-                          const SizedBox(height: 12),
-                          _buildActionButton(
-                            icon: Icons.sms_outlined,
-                            color: AppTheme.smsButtonColor,
-                            onPressed: () => _showSendSMSModal(_lead!),
-                          ),
-                        ],
-                      ),
+                      _buildProfileQuickActions(localizations),
                     ],
                   ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  // Divider
-                  Divider(
-                    color: theme.brightness == Brightness.dark
-                        ? Colors.white.withValues(alpha: 0.1)
-                        : Colors.grey.withValues(alpha: 0.2),
-                    height: 1,
-                  ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  // Status Dropdown with Color
+                  const SizedBox(height: 18),
                   if (_statuses.isNotEmpty && _lead!.statusName != null)
                     _buildStatusDropdown(context, localizations)
                   else if (_lead!.statusName != null)
                     _buildStatusDisplay(localizations),
-                  const SizedBox(height: 16),
-                  
-                  // Assignment Status
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: _lead!.assignedTo > 0
-                              ? AppTheme.primaryColor
-                              : Colors.orange,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              _lead!.assignedTo > 0 ? Icons.person : Icons.person_outline,
-                              color: Colors.white,
-                              size: 16,
-                            ),
-                            const SizedBox(width: 6),
-                            Flexible(
-                              child: Text(
-                                _getAssignedUserName(
-                                  _lead!.assignedTo > 0 ? _lead!.assignedTo : null,
-                                  localizations,
-                                ),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.5,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
+                  const SizedBox(height: 14),
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _lead!.assignedTo > 0
+                            ? AppTheme.primaryColor.withValues(alpha: 0.1)
+                            : Colors.orange.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                    ],
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _lead!.assignedTo > 0 ? Icons.person : Icons.person_outline,
+                            size: 16,
+                            color: _lead!.assignedTo > 0 ? AppTheme.primaryColor : Colors.orange,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _getAssignedUserName(
+                              _lead!.assignedTo > 0 ? _lead!.assignedTo : null,
+                              localizations,
+                            ),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                              color: _lead!.assignedTo > 0 ? AppTheme.primaryColor : Colors.orange,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  
-                  // Additional Info Row
+                  const SizedBox(height: 16),
                   Wrap(
-                    alignment: WrapAlignment.center,
                     spacing: 8,
                     runSpacing: 8,
                     children: [
@@ -714,19 +598,20 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                         _buildInfoChip(
                           icon: Icons.home_outlined,
                           label: _lead!.communicationWay!,
-                          color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7) ?? theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                          color: Colors.grey.shade700,
                         ),
-                      if (_lead!.lastFeedback != null)
+                      _buildInfoChip(
+                        icon: Icons.work_outline,
+                        label: _lead!.lastFeedback ??
+                            _lead!.lastStage ??
+                            (localizations?.translate('noFeedback') ?? 'No Feedback'),
+                        color: Colors.grey.shade700,
+                      ),
+                      if (_lead!.budget > 0)
                         _buildInfoChip(
-                          icon: Icons.work_outline,
-                          label: _lead!.lastFeedback!,
-                          color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7) ?? theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                        )
-                      else
-                        _buildInfoChip(
-                          icon: Icons.work_outline,
-                          label: localizations?.translate('noFeedback') ?? 'No Feedback',
-                          color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.5) ?? theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                          icon: Icons.attach_money,
+                          label: NumberFormatter.formatCurrency(_lead!.budget),
+                          color: const Color(0xFF16A34A),
                         ),
                     ],
                   ),
@@ -745,7 +630,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
               ),
             ),
             
-            // Add Action and Add Call Buttons at Bottom
+            // Add Action and Add Call Buttons at Bottom (same style as lead card)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
@@ -764,83 +649,53 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
               child: Row(
                 children: [
                   Expanded(
-                    child: ElevatedButton(
+                    child: OutlinedButton.icon(
                       onPressed: () {
                         showDialog(
                           context: context,
                           builder: (context) => AddActionModal(
                             leadId: _lead!.id,
                             onSave: (stageId, notes, reminderDate) {
-                              // Refresh lead data after action is added
                               _loadLead();
                             },
                           ),
                         );
                       },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryColor,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 18),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        elevation: 0,
+                      icon: const Icon(Icons.bolt),
+                      label: Text(
+                        localizations?.translate('addAction') ?? 'Add Action',
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.add_circle_outline, size: 22),
-                          const SizedBox(width: 8),
-                          Text(
-                            localizations?.translate('addAction') ?? 'Add Action',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ],
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
-                    child: ElevatedButton(
+                    child: ElevatedButton.icon(
                       onPressed: () {
                         showDialog(
                           context: context,
                           builder: (context) => AddCallModal(
                             leadId: _lead!.id,
                             onSave: (callMethodId, notes, followUpDate) {
-                              // Refresh lead data after call is added
                               _loadLead();
                             },
                           ),
                         );
                       },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 18),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        elevation: 0,
+                      icon: const Icon(Icons.phone),
+                      label: Text(
+                        localizations?.translate('addCall') ?? 'Add Call',
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.phone, size: 22),
-                          const SizedBox(width: 8),
-                          Text(
-                            localizations?.translate('addCall') ?? 'Add Call',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ],
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                       ),
                     ),
                   ),
@@ -854,45 +709,97 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
     );
   }
   
-  Widget _buildActionButton({
-    required IconData icon,
-    required Color color,
-    required VoidCallback onPressed,
-    bool isWhatsApp = false,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: color.withValues(alpha: 0.3),
-              width: 1.5,
+  Widget _buildProfileAvatar(ThemeData theme) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        CircleAvatar(
+          radius: 28,
+          backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.15),
+          child: Text(
+            _lead!.name.isNotEmpty ? _lead!.name[0].toUpperCase() : '?',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.primaryColor,
             ),
           ),
-          child: isWhatsApp
-              ? Image.asset(
-                  'assets/images/whatsapp_logo.png',
-                  width: 24,
-                  height: 24,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    // Fallback to icon if image fails to load
-                    return Icon(icon, color: color, size: 22);
-                  },
-                )
-              : Icon(icon, color: color, size: 22),
         ),
-      ),
+        if (_lead!.communicationWay != null)
+          Positioned(
+            bottom: -2,
+            right: -2,
+            child: Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: theme.cardColor,
+                shape: BoxShape.circle,
+                border: Border.all(color: theme.cardColor, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: theme.brightness == Brightness.dark
+                        ? Colors.black.withValues(alpha: 0.5)
+                        : Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Icon(Icons.folder, size: 16, color: Colors.blue[700]),
+            ),
+          ),
+      ],
     );
   }
-  
+
+  static const Color _whatsappGreen = Color(0xFF25D366);
+
+  Widget _buildProfileQuickActions(AppLocalizations? localizations) {
+    final whatsappLabel = localizations?.translate('whatsapp') ?? 'WhatsApp';
+    final smsLabel = localizations?.translate('channelTypeSMS') ?? 'SMS';
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Tooltip(
+          message: whatsappLabel,
+          child: IconButton(
+            iconSize: 24,
+            icon: Image.asset(
+              'assets/images/whatsapp_logo.png',
+              width: 24,
+              height: 24,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Icon(
+                Icons.chat_bubble_outline,
+                size: 24,
+                color: _whatsappGreen,
+              ),
+            ),
+            onPressed: () => _openWhatsApp(_lead!.phone),
+          ),
+        ),
+        IconButton(
+          iconSize: 24,
+          icon: Icon(Icons.phone_outlined, size: 24),
+          onPressed: () => _makeCall(_lead!.phone),
+        ),
+        Tooltip(
+          message: smsLabel,
+          child: IconButton(
+            iconSize: 24,
+            icon: Icon(
+              Icons.sms_outlined,
+              size: 24,
+              color: AppTheme.smsButtonColor,
+            ),
+            onPressed: () => _showSendSMSModal(_lead!),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildInfoChip({
     required IconData icon,
     required String label,

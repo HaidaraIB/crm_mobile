@@ -7,6 +7,7 @@ import '../../services/api_service.dart';
 import '../../services/error_logger.dart';
 import 'modals/add_status_modal.dart';
 import 'modals/edit_status_modal.dart';
+import 'widgets/settings_list_card.dart';
 
 class StatusesSettingsScreen extends StatefulWidget {
   const StatusesSettingsScreen({super.key});
@@ -52,6 +53,31 @@ class _StatusesSettingsScreenState extends State<StatusesSettingsScreen> {
         _errorMessage = e.toString().replaceAll('Exception: ', '');
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _setDefaultStatus(StatusModel status) async {
+    if (status.isDefault) return;
+    try {
+      await _apiService.updateStatus(
+        statusId: status.id,
+        name: status.name,
+        description: status.description,
+        category: status.category,
+        color: status.color,
+        isDefault: true,
+        isHidden: status.isHidden,
+      );
+      if (!mounted) return;
+      _loadStatuses();
+      SnackbarHelper.showSuccess(
+        context,
+        AppLocalizations.of(context)?.translate('statusUpdatedSuccessfully') ??
+            'Status updated successfully',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      SnackbarHelper.showError(context, e.toString());
     }
   }
 
@@ -153,7 +179,7 @@ class _StatusesSettingsScreenState extends State<StatusesSettingsScreen> {
           children: [
             Text(
               _errorMessage!,
-              style: const TextStyle(color: Colors.red),
+              style: TextStyle(color: theme.colorScheme.error),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
@@ -207,72 +233,89 @@ class _StatusesSettingsScreenState extends State<StatusesSettingsScreen> {
         Expanded(
           child: _statuses.isEmpty
               ? Center(
-                  child: Text(
-                    localizations?.translate('noStatusesFound') ?? 'No statuses found',
-                    style: theme.textTheme.bodyLarge,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.label_outline,
+                        size: 64,
+                        color: theme.colorScheme.outline,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        localizations?.translate('noStatusesFound') ?? 'No statuses found',
+                        style: theme.textTheme.bodyLarge,
+                      ),
+                    ],
                   ),
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   itemCount: _statuses.length,
                   itemBuilder: (context, index) {
                     final status = _statuses[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 8),
+                    return SettingsListCard(
                       child: ListTile(
+                        contentPadding: SettingsListCard.listTilePadding,
                         leading: CircleAvatar(
                           backgroundColor: _parseColor(status.color),
-                          radius: 20,
+                          radius: 22,
                         ),
                         title: Row(
                           children: [
-                            Expanded(child: Text(status.name)),
-                            if (status.isDefault)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.primaryColor.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  localizations?.translate('default') ?? 'Default',
-                                  style: TextStyle(
-                                    color: AppTheme.primaryColor,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (status.description != null && status.description!.isNotEmpty)
-                              Text(status.description!),
-                            const SizedBox(height: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: _getCategoryColor(status.category).withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
+                            Expanded(
                               child: Text(
-                                _getCategoryLabel(status.category, localizations),
-                                style: TextStyle(
-                                  color: _getCategoryColor(status.category),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                                status.name,
+                                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
                               ),
                             ),
+                            if (status.isDefault) ...[
+                              const SizedBox(width: 8),
+                              SettingsDefaultChip(
+                                label: localizations?.translate('default') ?? 'Default',
+                              ),
+                            ],
                           ],
+                        ),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (status.description != null && status.description!.isNotEmpty)
+                                Text(
+                                  status.description!,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              const SizedBox(height: 4),
+                              SettingsLabelChip(
+                                label: _getCategoryLabel(status.category, localizations),
+                                color: _getCategoryColor(status.category),
+                              ),
+                            ],
+                          ),
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            if (!status.isDefault)
+                              TextButton(
+                                onPressed: () => _setDefaultStatus(status),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                  minimumSize: const Size(48, 48),
+                                ),
+                                child: Text(
+                                  localizations?.translate('setAsDefault') ?? 'Set as default',
+                                  style: theme.textTheme.labelSmall,
+                                ),
+                              ),
                             IconButton(
-                              icon: const Icon(Icons.edit),
+                              icon: const Icon(Icons.edit_outlined),
                               onPressed: () {
                                 showModalBottomSheet(
                                   context: context,
@@ -290,7 +333,7 @@ class _StatusesSettingsScreenState extends State<StatusesSettingsScreen> {
                             ),
                             if (!status.isDefault)
                               IconButton(
-                                icon: const Icon(Icons.delete, color: Colors.red),
+                                icon: Icon(Icons.delete_outline, color: theme.colorScheme.error),
                                 onPressed: () => _deleteStatus(status.id),
                               ),
                           ],

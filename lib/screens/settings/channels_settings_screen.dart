@@ -7,6 +7,7 @@ import '../../services/api_service.dart';
 import '../../services/error_logger.dart';
 import 'modals/add_channel_modal.dart';
 import 'modals/edit_channel_modal.dart';
+import 'widgets/settings_list_card.dart';
 
 class ChannelsSettingsScreen extends StatefulWidget {
   const ChannelsSettingsScreen({super.key});
@@ -55,15 +56,48 @@ class _ChannelsSettingsScreenState extends State<ChannelsSettingsScreen> {
     }
   }
 
-  Future<void> _deleteChannel(int channelId) async {
+  Future<void> _setDefaultChannel(ChannelModel channel) async {
+    if (channel.isDefault) return;
+    try {
+      await _apiService.updateChannel(
+        channelId: channel.id,
+        name: channel.name,
+        type: channel.type,
+        priority: channel.priority,
+        isDefault: true,
+      );
+      if (!mounted) return;
+      _loadChannels();
+      SnackbarHelper.showSuccess(
+        context,
+        AppLocalizations.of(context)?.translate('channelUpdatedSuccessfully') ?? 'Channel updated',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      SnackbarHelper.showError(context, e.toString());
+    }
+  }
+
+  Future<void> _deleteChannel(ChannelModel channel) async {
+    if (channel.isDefault) {
+      if (mounted) {
+        SnackbarHelper.showError(
+          context,
+          AppLocalizations.of(context)?.translate('cannotDeleteDefault') ??
+              'Cannot delete default channel',
+        );
+      }
+      return;
+    }
+
     final localizations = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(localizations?.translate('deleteChannel') ?? 'Delete Channel'),
         content: Text(
-          localizations?.translate('confirmDeleteChannel') ?? 
-          'Are you sure you want to delete this channel?',
+          localizations?.translate('confirmDeleteChannel') ??
+              'Are you sure you want to delete this channel?',
         ),
         actions: [
           TextButton(
@@ -82,7 +116,7 @@ class _ChannelsSettingsScreenState extends State<ChannelsSettingsScreen> {
     if (confirmed != true) return;
 
     try {
-      await _apiService.deleteChannel(channelId);
+      await _apiService.deleteChannel(channel.id);
       if (mounted) {
         SnackbarHelper.showSuccess(
           context,
@@ -147,7 +181,7 @@ class _ChannelsSettingsScreenState extends State<ChannelsSettingsScreen> {
           children: [
             Text(
               _errorMessage!,
-              style: const TextStyle(color: Colors.red),
+              style: TextStyle(color: theme.colorScheme.error),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
@@ -200,60 +234,96 @@ class _ChannelsSettingsScreenState extends State<ChannelsSettingsScreen> {
         Expanded(
           child: _channels.isEmpty
               ? Center(
-                  child: Text(
-                    localizations?.translate('noChannelsAvailable') ?? 'No channels available',
-                    style: theme.textTheme.bodyLarge,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.campaign_outlined,
+                        size: 64,
+                        color: theme.colorScheme.outline,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        localizations?.translate('noChannelsAvailable') ?? 'No channels available',
+                        style: theme.textTheme.bodyLarge,
+                      ),
+                    ],
                   ),
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   itemCount: _channels.length,
                   itemBuilder: (context, index) {
                     final channel = _channels[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 8),
+                    final priorityColor = channel.priority.toLowerCase() == 'high'
+                        ? Colors.red
+                        : channel.priority.toLowerCase() == 'medium'
+                            ? Colors.orange
+                            : Colors.green;
+                    return SettingsListCard(
                       child: ListTile(
-                        title: Text(channel.name),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        contentPadding: SettingsListCard.listTilePadding,
+                        leading: CircleAvatar(
+                          radius: 22,
+                          backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                          child: Icon(
+                            Icons.campaign_outlined,
+                            color: theme.colorScheme.onSurfaceVariant,
+                            size: 22,
+                          ),
+                        ),
+                        title: Row(
                           children: [
-                            Text('${localizations?.translate('type') ?? 'Type'}: ${_getLocalizedChannelType(channel.type, localizations)}'),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                Text('${localizations?.translate('priority') ?? 'Priority'}: '),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: channel.priority.toLowerCase() == 'high'
-                                        ? Colors.red.withValues(alpha: 0.2)
-                                        : channel.priority.toLowerCase() == 'medium'
-                                            ? Colors.orange.withValues(alpha: 0.2)
-                                            : Colors.green.withValues(alpha: 0.2),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    _getLocalizedPriority(channel.priority, localizations),
-                                    style: TextStyle(
-                                      color: channel.priority.toLowerCase() == 'high'
-                                          ? Colors.red
-                                          : channel.priority.toLowerCase() == 'medium'
-                                              ? Colors.orange
-                                              : Colors.green,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                            Expanded(
+                              child: Text(
+                                channel.name,
+                                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                              ),
                             ),
+                            if (channel.isDefault) ...[
+                              const SizedBox(width: 8),
+                              SettingsDefaultChip(
+                                label: localizations?.translate('default') ?? 'Default',
+                              ),
+                            ],
                           ],
+                        ),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${localizations?.translate('type') ?? 'Type'}: ${_getLocalizedChannelType(channel.type, localizations)}',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              SettingsLabelChip(
+                                label: _getLocalizedPriority(channel.priority, localizations),
+                                color: priorityColor,
+                              ),
+                            ],
+                          ),
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            if (!channel.isDefault)
+                              TextButton(
+                                onPressed: () => _setDefaultChannel(channel),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                  minimumSize: const Size(48, 48),
+                                ),
+                                child: Text(
+                                  localizations?.translate('setAsDefault') ?? 'Set as default',
+                                  style: theme.textTheme.labelSmall,
+                                ),
+                              ),
                             IconButton(
-                              icon: const Icon(Icons.edit),
+                              icon: const Icon(Icons.edit_outlined),
                               onPressed: () {
                                 showModalBottomSheet(
                                   context: context,
@@ -269,10 +339,11 @@ class _ChannelsSettingsScreenState extends State<ChannelsSettingsScreen> {
                                 );
                               },
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () => _deleteChannel(channel.id),
-                            ),
+                            if (!channel.isDefault)
+                              IconButton(
+                                icon: Icon(Icons.delete_outline, color: theme.colorScheme.error),
+                                onPressed: () => _deleteChannel(channel),
+                              ),
                           ],
                         ),
                       ),
