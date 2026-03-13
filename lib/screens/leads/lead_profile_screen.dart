@@ -995,6 +995,19 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
             ],
           ),
           const SizedBox(height: 16),
+          if (_canModifyLead() && allPhones.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Text(
+                localizations?.translate('doubleTapToSetPrimary') ?? 'Double-tap a number to set it as primary',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7) ??
+                      theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
+              ),
+            ),
+          if (_canModifyLead() && allPhones.isNotEmpty) const SizedBox(height: 2),
           ...allPhones.map((phone) => _buildPhoneNumberItem(phone, localizations)),
         ],
       ),
@@ -1015,114 +1028,108 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
       phoneTypeLabel = localizations?.translate('phoneTypeOther') ?? 'Other';
     }
     
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: theme.brightness == Brightness.dark
-            ? Colors.white.withValues(alpha: 0.05)
-            : Colors.grey.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
+    return GestureDetector(
+      onDoubleTap: () {
+        if (!phone.isPrimary && _canModifyLead()) {
+          _setPhoneAsPrimary(phone, localizations);
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
           color: theme.brightness == Brightness.dark
-              ? Colors.white.withValues(alpha: 0.1)
-              : Colors.grey.withValues(alpha: 0.2),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Primary Banner (if primary)
-                if (phone.isPrimary) ...[
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: AppTheme.primaryColor.withValues(alpha: 0.3),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.star,
-                          size: 12,
-                          color: AppTheme.primaryColor,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          localizations?.translate('primary') ?? 'Primary',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.primaryColor,
-                            letterSpacing: 0.3,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                ],
-                // Phone Number (full width) - LTR so + stays at start in RTL locale
-                Directionality(
-                  textDirection: TextDirection.ltr,
-                  child: Text(
-                    phone.phoneNumber,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: theme.textTheme.bodyLarge?.color ?? theme.colorScheme.onSurface,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  phoneTypeLabel,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7) ??
-                        theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
+              ? Colors.white.withValues(alpha: 0.05)
+              : Colors.grey.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: theme.brightness == Brightness.dark
+                ? Colors.white.withValues(alpha: 0.1)
+                : Colors.grey.withValues(alpha: 0.2),
+            width: 1,
           ),
-          const SizedBox(width: 12),
-          // Set as Primary Button (only for non-primary numbers)
-          if (!phone.isPrimary && _canModifyLead())
-            _updatingPrimaryMap[phone.phoneNumber] == true
-                ? SizedBox(
-                    width: 40,
-                    height: 40,
-                    child: Center(
-                      child: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Primary Banner (if primary)
+                  if (phone.isPrimary) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                          width: 1,
                         ),
                       ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.star,
+                            size: 12,
+                            color: AppTheme.primaryColor,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            localizations?.translate('primary') ?? 'Primary',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.primaryColor,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  )
-                : _buildPhoneActionButton(
-                    icon: Icons.star_outline,
-                    color: AppTheme.primaryColor,
-                    onPressed: () => _setPhoneAsPrimary(phone, localizations),
-                    tooltip: localizations?.translate('setAsPrimary') ?? 'Set as Primary',
+                    const SizedBox(height: 6),
+                  ],
+                  // Phone Number (full width) - LTR so + stays at start in RTL locale
+                  Directionality(
+                    textDirection: TextDirection.ltr,
+                    child: Text(
+                      phone.phoneNumber,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: theme.textTheme.bodyLarge?.color ?? theme.colorScheme.onSurface,
+                      ),
+                    ),
                   ),
-          if (!phone.isPrimary && _canModifyLead())
-            const SizedBox(width: 8),
-          // WhatsApp Button
+                  const SizedBox(height: 4),
+                  Text(
+                    phoneTypeLabel,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7) ??
+                          theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Loading indicator when setting this phone as primary
+            if (!phone.isPrimary && _canModifyLead() && _updatingPrimaryMap[phone.phoneNumber] == true)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+                  ),
+                ),
+              ),
+            // WhatsApp Button
           _buildPhoneActionButton(
             icon: Icons.chat_bubble,
             color: const Color(0xFF25D366),
@@ -1144,6 +1151,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
             onPressed: () => _showSendSMSModal(_lead!, phone.phoneNumber),
           ),
         ],
+      ),
       ),
     );
   }

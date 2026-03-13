@@ -67,6 +67,7 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
   Future<void> _loadUser() async {
     try {
       final user = await _apiService.getCurrentUser();
+      if (!mounted) return;
       setState(() {
         _currentUser = user;
       });
@@ -96,10 +97,12 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
       if (retry || reloadUser || _currentUser == null) {
         await _loadUser();
       }
-      
+      if (!mounted) return;
+
       final result = await _apiService.getLeads();
       final leads = (result['results'] as List).cast<LeadModel>();
-      
+
+      if (!mounted) return;
       setState(() {
         _allLeadsCount = leads.length;
         // Type filtering - case insensitive
@@ -125,6 +128,7 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = _getErrorMessage(e);
         _isLoading = false;

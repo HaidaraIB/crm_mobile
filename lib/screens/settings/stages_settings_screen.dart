@@ -228,89 +228,103 @@ class _StagesSettingsScreenState extends State<StagesSettingsScreen> {
                   itemBuilder: (context, index) {
                     final stage = _stages[index];
                     return SettingsListCard(
-                      child: ListTile(
-                        contentPadding: SettingsListCard.listTilePadding,
-                        leading: CircleAvatar(
-                          backgroundColor: _parseColor(stage.color),
-                          radius: 22,
-                        ),
-                        title: Row(
+                      child: Padding(
+                        padding: SettingsListCard.listTilePadding,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            CircleAvatar(
+                              backgroundColor: _parseColor(stage.color),
+                              radius: 22,
+                            ),
                             Expanded(
-                              child: Text(
-                                stage.name,
-                                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                              child: Padding(
+                                padding: const EdgeInsets.only(left: 16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            stage.name,
+                                            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                                            overflow: TextOverflow.visible,
+                                            softWrap: false,
+                                          ),
+                                        ),
+                                        if (stage.isDefault) ...[
+                                          const SizedBox(width: 8),
+                                          SettingsDefaultChip(
+                                            label: localizations?.translate('default') ?? 'Default',
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                    if (stage.description != null && stage.description!.isNotEmpty) ...[
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        stage.description!,
+                                        style: theme.textTheme.bodySmall?.copyWith(
+                                          color: theme.colorScheme.onSurfaceVariant,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.visible,
+                                      ),
+                                    ],
+                                    if (stage.required) ...[
+                                      if (stage.description != null && stage.description!.isNotEmpty) const SizedBox(height: 4),
+                                      SettingsLabelChip(
+                                        label: localizations?.translate('required') ?? 'Required',
+                                        color: Colors.blue,
+                                      ),
+                                    ],
+                                  ],
+                                ),
                               ),
                             ),
-                            if (stage.isDefault) ...[
-                              const SizedBox(width: 8),
-                              SettingsDefaultChip(
-                                label: localizations?.translate('default') ?? 'Default',
-                              ),
-                            ],
-                          ],
-                        ),
-                        subtitle: Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (stage.description != null && stage.description!.isNotEmpty)
-                                Text(
-                                  stage.description!,
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (!stage.isDefault)
+                                  TextButton(
+                                    onPressed: () => _setDefaultStage(stage),
+                                    style: TextButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                                      minimumSize: const Size(48, 48),
+                                    ),
+                                    child: Text(
+                                      localizations?.translate('setAsDefault') ?? 'Set as default',
+                                      style: theme.textTheme.labelSmall,
+                                      softWrap: false,
+                                      overflow: TextOverflow.visible,
+                                    ),
                                   ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined),
+                                  onPressed: () {
+                                    showModalBottomSheet(
+                                      context: context,
+                                      isScrollControlled: true,
+                                      backgroundColor: Colors.transparent,
+                                      builder: (context) => EditStageModal(
+                                        stage: stage,
+                                        onStageUpdated: () {
+                                          _loadStages();
+                                          Navigator.pop(context);
+                                        },
+                                      ),
+                                    );
+                                  },
                                 ),
-                              if (stage.required) ...[
-                                if (stage.description != null && stage.description!.isNotEmpty) const SizedBox(height: 4),
-                                SettingsLabelChip(
-                                  label: localizations?.translate('required') ?? 'Required',
-                                  color: Colors.blue,
-                                ),
+                                if (!stage.isDefault)
+                                  IconButton(
+                                    icon: Icon(Icons.delete_outline, color: theme.colorScheme.error),
+                                    onPressed: () => _deleteStage(stage),
+                                  ),
                               ],
-                            ],
-                          ),
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (!stage.isDefault)
-                              TextButton(
-                                onPressed: () => _setDefaultStage(stage),
-                                style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                                  minimumSize: const Size(48, 48),
-                                ),
-                                child: Text(
-                                  localizations?.translate('setAsDefault') ?? 'Set as default',
-                                  style: theme.textTheme.labelSmall,
-                                ),
-                              ),
-                            IconButton(
-                              icon: const Icon(Icons.edit_outlined),
-                              onPressed: () {
-                                showModalBottomSheet(
-                                  context: context,
-                                  isScrollControlled: true,
-                                  backgroundColor: Colors.transparent,
-                                  builder: (context) => EditStageModal(
-                                    stage: stage,
-                                    onStageUpdated: () {
-                                      _loadStages();
-                                      Navigator.pop(context);
-                                    },
-                                  ),
-                                );
-                              },
                             ),
-                            if (!stage.isDefault)
-                              IconButton(
-                                icon: Icon(Icons.delete_outline, color: theme.colorScheme.error),
-                                onPressed: () => _deleteStage(stage),
-                              ),
                           ],
                         ),
                       ),

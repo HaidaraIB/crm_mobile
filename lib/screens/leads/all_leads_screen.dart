@@ -11,6 +11,7 @@ import '../../services/api_service.dart';
 import '../../widgets/modals/add_action_modal.dart';
 import '../../widgets/modals/add_call_modal.dart';
 import '../../widgets/modals/send_sms_modal.dart';
+import '../../widgets/modals/assign_lead_modal.dart';
 import 'create_lead_screen.dart';
 import 'edit_lead_screen.dart';
 import 'import_leads_screen.dart';
@@ -813,240 +814,338 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     );
   }
 
+  void _showLeadCardContextMenu(
+    BuildContext context,
+    LeadModel lead,
+    AppLocalizations? localizations,
+  ) {
+    final canModify = _canModifyLead(lead);
+    final canAssign =
+        (_currentUser?.isAdmin ?? false) ||
+        (_currentUser?.hasSupervisorPermission('can_manage_leads') ?? false);
+    if (!canModify && !canAssign) return;
+
+    final theme = Theme.of(context);
+    final menuItems = <PopupMenuEntry<String>>[
+      if (canModify)
+        PopupMenuItem<String>(
+          value: 'edit',
+          child: Row(
+            children: [
+              Icon(
+                Icons.edit,
+                size: 20,
+                color: theme.textTheme.bodyMedium?.color,
+              ),
+              const SizedBox(width: 12),
+              Text(localizations?.translate('edit') ?? 'Edit'),
+            ],
+          ),
+        ),
+      if (canAssign)
+        PopupMenuItem<String>(
+          value: 'assign',
+          child: Row(
+            children: [
+              Icon(
+                Icons.person_add,
+                size: 20,
+                color: theme.textTheme.bodyMedium?.color,
+              ),
+              const SizedBox(width: 12),
+              Text(localizations?.translate('assign') ?? 'Assign'),
+            ],
+          ),
+        ),
+      if (canModify)
+        PopupMenuItem<String>(
+          value: 'delete',
+          child: Row(
+            children: [
+              const Icon(Icons.delete, size: 20, color: Colors.red),
+              const SizedBox(width: 12),
+              Text(
+                localizations?.translate('delete') ?? 'Delete',
+                style: const TextStyle(color: Colors.red),
+              ),
+            ],
+          ),
+        ),
+    ];
+
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+    final overlay = Navigator.of(context).overlay;
+    if (overlay == null) return;
+    final overlayBox = overlay.context.findRenderObject() as RenderBox?;
+    if (overlayBox == null) return;
+    final position = RelativeRect.fromRect(
+      box.localToGlobal(Offset.zero) & box.size,
+      Offset.zero & overlayBox.size,
+    );
+
+    showMenu<String>(
+      context: context,
+      position: position,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      items: menuItems,
+    ).then((value) {
+      if (value == null || !context.mounted) return;
+      if (value == 'edit') {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                EditLeadScreen(lead: lead, onLeadUpdated: (_) => _loadLeads()),
+          ),
+        );
+      } else if (value == 'assign') {
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (!context.mounted) return;
+          showDialog(
+            context: context,
+            builder: (context) => AssignLeadModal(
+              leadIds: [lead.id],
+              currentAssignedUserId: lead.assignedTo > 0
+                  ? lead.assignedTo
+                  : null,
+              onAssigned: _loadLeads,
+            ),
+          );
+        });
+      } else if (value == 'delete') {
+        _showDeleteConfirmation(context, lead, localizations);
+      }
+    });
+  }
+
   Widget _buildLeadCard(
     BuildContext context,
     LeadModel lead,
     AppLocalizations? localizations,
   ) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => LeadProfileScreen(leadId: lead.id),
+    return Builder(
+      builder: (cardContext) {
+        return GestureDetector(
+          onLongPress: () =>
+              _showLeadCardContextMenu(cardContext, lead, localizations),
+          behavior: HitTestBehavior.deferToChild,
+          child: Card(
+            margin: const EdgeInsets.only(bottom: 16),
+            elevation: 1,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
             ),
-          );
+            child: InkWell(
+              borderRadius: BorderRadius.circular(18),
+              onTap: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => LeadProfileScreen(leadId: lead.id),
+                  ),
+                );
 
-          if (result == true) {
-            _loadLeads();
-          }
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              /// HEADER
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  /// Avatar
-                  _LeadAvatar(lead: lead),
-
-                  const SizedBox(width: 14),
-
-                  /// Name + Phone
-                  Expanded(
-                    child: Column(
+                if (result == true) {
+                  _loadLeads();
+                }
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    /// HEADER
+                    Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          lead.name.isNotEmpty ? lead.name : "Unnamed Lead",
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.2,
+                        /// Avatar
+                        _LeadAvatar(lead: lead),
+
+                        const SizedBox(width: 14),
+
+                        /// Name + Phone
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                lead.name.isNotEmpty
+                                    ? lead.name
+                                    : "Unnamed Lead",
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+
+                              const SizedBox(height: 4),
+
+                              Directionality(
+                                textDirection: TextDirection.ltr,
+                                child: Text(
+                                  _formatPhoneForDisplay(lead.phone),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
 
-                        const SizedBox(height: 4),
+                        /// Quick actions
+                        _LeadQuickActions(
+                          lead: lead,
+                          onWhatsapp: () => _openWhatsApp(lead.phone),
+                          onCall: () => _makeCall(lead.phone),
+                          onSms: () => _showSendSMSModal(lead),
+                        ),
 
-                        Directionality(
-                          textDirection: TextDirection.ltr,
-                          child: Text(
-                            _formatPhoneForDisplay(lead.phone),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey.shade600,
+                        /// Menu
+                      ],
+                    ),
+
+                    const SizedBox(height: 18),
+
+                    /// STATUS
+                    if (_statuses.isNotEmpty && lead.statusName != null)
+                      _buildStatusDropdown(lead, localizations)
+                    else if (lead.statusName != null)
+                      _buildStatusDisplay(lead, localizations),
+
+                    const SizedBox(height: 14),
+
+                    /// Assigned user
+                    Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: lead.assignedTo > 0
+                              ? AppTheme.primaryColor.withValues(alpha: 0.1)
+                              : Colors.orange.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              lead.assignedTo > 0
+                                  ? Icons.person
+                                  : Icons.person_outline,
+                              size: 16,
+                              color: lead.assignedTo > 0
+                                  ? AppTheme.primaryColor
+                                  : Colors.orange,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              _getAssignedUserName(
+                                lead.assignedTo > 0 ? lead.assignedTo : null,
+                                localizations,
+                              ),
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                                color: lead.assignedTo > 0
+                                    ? AppTheme.primaryColor
+                                    : Colors.orange,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    /// INFO CHIPS
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        if (lead.communicationWay != null)
+                          _buildInfoChip(
+                            icon: Icons.home_outlined,
+                            label: lead.communicationWay!,
+                            color: Colors.grey.shade700,
+                          ),
+
+                        _buildInfoChip(
+                          icon: Icons.work_outline,
+                          label:
+                              lead.lastFeedback ??
+                              lead.lastStage ??
+                              (localizations?.translate('noFeedback') ??
+                                  'No Feedback'),
+                          color: Colors.grey.shade700,
+                        ),
+
+                        if (lead.budget > 0)
+                          _buildInfoChip(
+                            icon: Icons.attach_money,
+                            label: NumberFormatter.formatCurrency(lead.budget),
+                            color: const Color(0xFF16A34A),
+                          ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 18),
+
+                    /// CTA
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _showAddActionModal(lead),
+                            icon: const Icon(Icons.bolt),
+                            label: Text(
+                              localizations?.translate('addAction') ?? "Action",
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(width: 10),
+
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _showAddCallModal(lead),
+                            icon: const Icon(Icons.phone),
+                            label: Text(
+                              localizations?.translate('addCall') ?? "Call",
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
                             ),
                           ),
                         ),
                       ],
                     ),
-                  ),
-
-                  /// Quick actions
-                  _LeadQuickActions(
-                    lead: lead,
-                    onWhatsapp: () => _openWhatsApp(lead.phone),
-                    onCall: () => _makeCall(lead.phone),
-                    onSms: () => _showSendSMSModal(lead),
-                  ),
-
-                  /// Menu
-                  _LeadMenuButton(
-                    lead: lead,
-                    canModify: _canModifyLead(lead),
-                    onEdit: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => EditLeadScreen(
-                            lead: lead,
-                            onLeadUpdated: (updatedLead) {
-                              _loadLeads();
-                            },
-                          ),
-                        ),
-                      );
-                    },
-                    onDelete: () {
-                      _showDeleteConfirmation(context, lead, localizations);
-                    },
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 18),
-
-              /// STATUS
-              if (_statuses.isNotEmpty && lead.statusName != null)
-                _buildStatusDropdown(lead, localizations)
-              else if (lead.statusName != null)
-                _buildStatusDisplay(lead, localizations),
-
-              const SizedBox(height: 14),
-
-              /// Assigned user
-              Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: lead.assignedTo > 0
-                        ? AppTheme.primaryColor.withValues(alpha: 0.1)
-                        : Colors.orange.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        lead.assignedTo > 0
-                            ? Icons.person
-                            : Icons.person_outline,
-                        size: 16,
-                        color: lead.assignedTo > 0
-                            ? AppTheme.primaryColor
-                            : Colors.orange,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        _getAssignedUserName(
-                          lead.assignedTo > 0 ? lead.assignedTo : null,
-                          localizations,
-                        ),
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                          color: lead.assignedTo > 0
-                              ? AppTheme.primaryColor
-                              : Colors.orange,
-                        ),
-                      ),
-                    ],
-                  ),
+                  ],
                 ),
               ),
-
-              const SizedBox(height: 16),
-
-              /// INFO CHIPS
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  if (lead.communicationWay != null)
-                    _buildInfoChip(
-                      icon: Icons.home_outlined,
-                      label: lead.communicationWay!,
-                      color: Colors.grey.shade700,
-                    ),
-
-                  _buildInfoChip(
-                    icon: Icons.work_outline,
-                    label:
-                        lead.lastFeedback ??
-                        lead.lastStage ??
-                        (localizations?.translate('noFeedback') ??
-                            'No Feedback'),
-                    color: Colors.grey.shade700,
-                  ),
-
-                  if (lead.budget > 0)
-                    _buildInfoChip(
-                      icon: Icons.attach_money,
-                      label: NumberFormatter.formatCurrency(lead.budget),
-                      color: const Color(0xFF16A34A),
-                    ),
-                ],
-              ),
-
-              const SizedBox(height: 18),
-
-              /// CTA
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => _showAddActionModal(lead),
-                      icon: const Icon(Icons.bolt),
-                      label: Text(
-                        localizations?.translate('addAction') ?? "Action",
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(width: 10),
-
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => _showAddCallModal(lead),
-                      icon: const Icon(Icons.phone),
-                      label: Text(
-                        localizations?.translate('addCall') ?? "Call",
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -1555,42 +1654,6 @@ class _LeadAvatar extends StatelessWidget {
           color: AppTheme.primaryColor,
         ),
       ),
-    );
-  }
-}
-
-class _LeadMenuButton extends StatelessWidget {
-  final LeadModel lead;
-  final bool canModify;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-
-  const _LeadMenuButton({
-    required this.lead,
-    required this.canModify,
-    required this.onEdit,
-    required this.onDelete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return PopupMenuButton<String>(
-      icon: const Icon(Icons.more_vert, size: 20),
-      itemBuilder: (context) {
-        return [
-          if (canModify)
-            const PopupMenuItem(value: 'edit', child: Text("Edit")),
-          if (canModify)
-            const PopupMenuItem(
-              value: 'delete',
-              child: Text("Delete", style: TextStyle(color: Colors.red)),
-            ),
-        ];
-      },
-      onSelected: (value) {
-        if (value == 'edit') onEdit();
-        if (value == 'delete') onDelete();
-      },
     );
   }
 }

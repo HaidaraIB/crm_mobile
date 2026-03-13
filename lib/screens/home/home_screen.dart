@@ -21,7 +21,8 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   DateTime _selectedCalendarDate = DateTime.now();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  final GlobalKey<DashboardScreenState> _dashboardKey = GlobalKey<DashboardScreenState>();
+  final GlobalKey<DashboardScreenState> _dashboardKey =
+      GlobalKey<DashboardScreenState>();
   final GlobalKey _calendarKey = GlobalKey();
   final GlobalKey _allLeadsKey = GlobalKey();
   VoidCallback? _showAllLeadsFilterCallback;
@@ -30,7 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
   VoidCallback? _exportLeadsCallback;
   final ApiService _apiService = ApiService();
   int _unreadNotificationsCount = 0;
-  
+
   @override
   void initState() {
     super.initState();
@@ -53,7 +54,7 @@ class _HomeScreenState extends State<HomeScreen> {
       NotificationService().sendTokenToServerIfLoggedIn();
     });
   }
-  
+
   /// تحميل عدد الإشعارات غير المقروءة
   Future<void> _loadUnreadCount() async {
     try {
@@ -67,7 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
       debugPrint('Warning: Failed to load unread notifications count: $e');
     }
   }
-  
+
   /// إرسال FCM token إذا كان المستخدم مسجل دخول
   Future<void> _sendFCMTokenIfLoggedIn() async {
     try {
@@ -79,11 +80,11 @@ class _HomeScreenState extends State<HomeScreen> {
       // لا نعرض خطأ للمستخدم لأن هذا ليس حرجاً
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
-    
+
     String getAppBarTitle() {
       switch (_currentIndex) {
         case 0:
@@ -96,7 +97,7 @@ class _HomeScreenState extends State<HomeScreen> {
           return localizations?.translate('home') ?? 'Home';
       }
     }
-    
+
     Widget getBody() {
       switch (_currentIndex) {
         case 0:
@@ -127,10 +128,10 @@ class _HomeScreenState extends State<HomeScreen> {
           return DashboardScreen(key: _dashboardKey);
       }
     }
-    
+
     return Scaffold(
       key: _scaffoldKey,
-      appBar: _currentIndex == 2 
+      appBar: _currentIndex == 2
           ? AppBar(
               leading: IconButton(
                 icon: const Icon(Icons.menu),
@@ -140,7 +141,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Text(getAppBarTitle()),
                   Text(
-                    DateFormat('MMMM yyyy', localizations?.locale.languageCode ?? 'en').format(_selectedCalendarDate),
+                    DateFormat(
+                      'MMMM yyyy',
+                      localizations?.locale.languageCode ?? 'en',
+                    ).format(_selectedCalendarDate),
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.normal,
@@ -179,50 +183,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     (_calendarKey.currentState as dynamic)?.refreshEvents();
                   },
                 ),
-                Stack(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.notifications_outlined),
-                      onPressed: () async {
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const NotificationsScreen(),
-                          ),
-                        );
-                        // تحديث عدد الإشعارات بعد العودة
-                        if (mounted) {
-                          _loadUnreadCount();
-                        }
-                      },
-                    ),
-                    if (_unreadNotificationsCount > 0)
-                      Positioned(
-                        right: 8,
-                        top: 8,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            shape: BoxShape.circle,
-                          ),
-                          constraints: const BoxConstraints(
-                            minWidth: 16,
-                            minHeight: 16,
-                          ),
-                          child: Text(
-                            _unreadNotificationsCount > 99 ? '99+' : '$_unreadNotificationsCount',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
               ],
             )
           : AppBar(
@@ -236,19 +196,24 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (_currentIndex == 1) ...[
                   IconButton(
                     icon: const Icon(Icons.file_upload_outlined),
-                    tooltip: localizations?.translate('importLeads') ?? 'Import from Excel',
+                    tooltip:
+                        localizations?.translate('importLeads') ??
+                        'Import from Excel',
                     onPressed: () => _importLeadsCallback?.call(),
                   ),
                   IconButton(
                     icon: const Icon(Icons.file_download_outlined),
-                    tooltip: localizations?.translate('exportLeads') ?? 'Export to Excel',
+                    tooltip:
+                        localizations?.translate('exportLeads') ??
+                        'Export to Excel',
                     onPressed: () => _exportLeadsCallback?.call(),
                   ),
                   Builder(
                     builder: (context) {
                       // Check if filters are active
-                      final hasActiveFilters = _checkAllLeadsFiltersCallback?.call() ?? false;
-                      
+                      final hasActiveFilters =
+                          _checkAllLeadsFiltersCallback?.call() ?? false;
+
                       return IconButton(
                         icon: Stack(
                           children: [
@@ -261,7 +226,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                   width: 8,
                                   height: 8,
                                   decoration: BoxDecoration(
-                                    color: Theme.of(context).colorScheme.primary,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
                                     shape: BoxShape.circle,
                                   ),
                                 ),
@@ -276,50 +243,53 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                   ),
                 ],
-                Stack(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.notifications_outlined),
-                      onPressed: () async {
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const NotificationsScreen(),
-                          ),
-                        );
-                        // تحديث عدد الإشعارات بعد العودة
-                        if (mounted) {
-                          _loadUnreadCount();
-                        }
-                      },
-                    ),
-                    if (_unreadNotificationsCount > 0)
-                      Positioned(
-                        right: 8,
-                        top: 8,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            shape: BoxShape.circle,
-                          ),
-                          constraints: const BoxConstraints(
-                            minWidth: 16,
-                            minHeight: 16,
-                          ),
-                          child: Text(
-                            _unreadNotificationsCount > 99 ? '99+' : '$_unreadNotificationsCount',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                if (_currentIndex == 0)
+                  Stack(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.notifications_outlined),
+                        onPressed: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const NotificationsScreen(),
                             ),
-                            textAlign: TextAlign.center,
+                          );
+                          // تحديث عدد الإشعارات بعد العودة
+                          if (mounted) {
+                            _loadUnreadCount();
+                          }
+                        },
+                      ),
+                      if (_unreadNotificationsCount > 0)
+                        Positioned(
+                          right: 8,
+                          top: 8,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 16,
+                              minHeight: 16,
+                            ),
+                            child: Text(
+                              _unreadNotificationsCount > 99
+                                  ? '99+'
+                                  : '$_unreadNotificationsCount',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
                           ),
                         ),
-                      ),
-                  ],
-                ),
+                    ],
+                  ),
               ],
             ),
       drawer: NavigationDrawer(
@@ -351,5 +321,3 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
-
-

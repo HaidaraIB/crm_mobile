@@ -33,6 +33,14 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
     super.dispose();
   }
 
+  Widget _tabLabel(String text) {
+    return Text(
+      text,
+      softWrap: false,
+      overflow: TextOverflow.visible,
+    );
+  }
+
   Future<void> _loadUser() async {
     try {
       final user = await _apiService.getCurrentUser();
@@ -81,11 +89,11 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
           tabs: [
-            Tab(text: localizations?.translate('general') ?? 'General'),
-            if (canManageSettings) Tab(text: localizations?.translate('channels') ?? 'Channels'),
-            if (canManageSettings) Tab(text: localizations?.translate('stages') ?? 'Stages'),
-            if (canManageSettings) Tab(text: localizations?.translate('statuses') ?? 'Statuses'),
-            if (canManageSettings) Tab(text: localizations?.translate('callMethods') ?? 'Call Methods'),
+            Tab(child: _tabLabel(localizations?.translate('general') ?? 'General')),
+            if (canManageSettings) Tab(child: _tabLabel(localizations?.translate('channels') ?? 'Channels')),
+            if (canManageSettings) Tab(child: _tabLabel(localizations?.translate('stages') ?? 'Stages')),
+            if (canManageSettings) Tab(child: _tabLabel(localizations?.translate('statuses') ?? 'Statuses')),
+            if (canManageSettings) Tab(child: _tabLabel(localizations?.translate('callMethods') ?? 'Call Methods')),
           ],
         ),
       ),

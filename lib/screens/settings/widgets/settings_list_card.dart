@@ -57,6 +57,8 @@ class SettingsDefaultChip extends StatelessWidget {
           fontWeight: FontWeight.w600,
           color: AppTheme.primaryColor,
         ),
+        softWrap: false,
+        overflow: TextOverflow.visible,
       ),
     );
   }
@@ -88,6 +90,8 @@ class SettingsLabelChip extends StatelessWidget {
           fontWeight: FontWeight.w600,
           color: color,
         ),
+        softWrap: false,
+        overflow: TextOverflow.visible,
       ),
     );
   }

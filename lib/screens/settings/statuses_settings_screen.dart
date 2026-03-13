@@ -255,87 +255,101 @@ class _StatusesSettingsScreenState extends State<StatusesSettingsScreen> {
                   itemBuilder: (context, index) {
                     final status = _statuses[index];
                     return SettingsListCard(
-                      child: ListTile(
-                        contentPadding: SettingsListCard.listTilePadding,
-                        leading: CircleAvatar(
-                          backgroundColor: _parseColor(status.color),
-                          radius: 22,
-                        ),
-                        title: Row(
+                      child: Padding(
+                        padding: SettingsListCard.listTilePadding,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            CircleAvatar(
+                              backgroundColor: _parseColor(status.color),
+                              radius: 22,
+                            ),
                             Expanded(
-                              child: Text(
-                                status.name,
-                                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                              child: Padding(
+                                padding: const EdgeInsets.only(left: 16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            status.name,
+                                            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                                            overflow: TextOverflow.visible,
+                                            softWrap: false,
+                                          ),
+                                        ),
+                                        if (status.isDefault) ...[
+                                          const SizedBox(width: 8),
+                                          SettingsDefaultChip(
+                                            label: localizations?.translate('default') ?? 'Default',
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                    if (status.description != null && status.description!.isNotEmpty) ...[
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        status.description!,
+                                        style: theme.textTheme.bodySmall?.copyWith(
+                                          color: theme.colorScheme.onSurfaceVariant,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.visible,
+                                      ),
+                                    ],
+                                    const SizedBox(height: 4),
+                                    SettingsLabelChip(
+                                      label: _getCategoryLabel(status.category, localizations),
+                                      color: _getCategoryColor(status.category),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                            if (status.isDefault) ...[
-                              const SizedBox(width: 8),
-                              SettingsDefaultChip(
-                                label: localizations?.translate('default') ?? 'Default',
-                              ),
-                            ],
-                          ],
-                        ),
-                        subtitle: Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (status.description != null && status.description!.isNotEmpty)
-                                Text(
-                                  status.description!,
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (!status.isDefault)
+                                  TextButton(
+                                    onPressed: () => _setDefaultStatus(status),
+                                    style: TextButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                                      minimumSize: const Size(48, 48),
+                                    ),
+                                    child: Text(
+                                      localizations?.translate('setAsDefault') ?? 'Set as default',
+                                      style: theme.textTheme.labelSmall,
+                                      softWrap: false,
+                                      overflow: TextOverflow.visible,
+                                    ),
                                   ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined),
+                                  onPressed: () {
+                                    showModalBottomSheet(
+                                      context: context,
+                                      isScrollControlled: true,
+                                      backgroundColor: Colors.transparent,
+                                      builder: (context) => EditStatusModal(
+                                        status: status,
+                                        onStatusUpdated: () {
+                                          _loadStatuses();
+                                          Navigator.pop(context);
+                                        },
+                                      ),
+                                    );
+                                  },
                                 ),
-                              const SizedBox(height: 4),
-                              SettingsLabelChip(
-                                label: _getCategoryLabel(status.category, localizations),
-                                color: _getCategoryColor(status.category),
-                              ),
-                            ],
-                          ),
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (!status.isDefault)
-                              TextButton(
-                                onPressed: () => _setDefaultStatus(status),
-                                style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                                  minimumSize: const Size(48, 48),
-                                ),
-                                child: Text(
-                                  localizations?.translate('setAsDefault') ?? 'Set as default',
-                                  style: theme.textTheme.labelSmall,
-                                ),
-                              ),
-                            IconButton(
-                              icon: const Icon(Icons.edit_outlined),
-                              onPressed: () {
-                                showModalBottomSheet(
-                                  context: context,
-                                  isScrollControlled: true,
-                                  backgroundColor: Colors.transparent,
-                                  builder: (context) => EditStatusModal(
-                                    status: status,
-                                    onStatusUpdated: () {
-                                      _loadStatuses();
-                                      Navigator.pop(context);
-                                    },
+                                if (!status.isDefault)
+                                  IconButton(
+                                    icon: Icon(Icons.delete_outline, color: theme.colorScheme.error),
+                                    onPressed: () => _deleteStatus(status.id),
                                   ),
-                                );
-                              },
+                              ],
                             ),
-                            if (!status.isDefault)
-                              IconButton(
-                                icon: Icon(Icons.delete_outline, color: theme.colorScheme.error),
-                                onPressed: () => _deleteStatus(status.id),
-                              ),
                           ],
                         ),
                       ),

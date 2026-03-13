@@ -247,65 +247,83 @@ class _CallMethodsSettingsScreenState extends State<CallMethodsSettingsScreen> {
                   itemBuilder: (context, index) {
                     final callMethod = _callMethods[index];
                     return SettingsListCard(
-                      child: ListTile(
-                        contentPadding: SettingsListCard.listTilePadding,
-                        leading: CircleAvatar(
-                          backgroundColor: _parseColor(callMethod.color),
-                          radius: 22,
-                        ),
-                        title: Row(
+                      child: Padding(
+                        padding: SettingsListCard.listTilePadding,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            CircleAvatar(
+                              backgroundColor: _parseColor(callMethod.color),
+                              radius: 22,
+                            ),
                             Expanded(
-                              child: Text(
-                                callMethod.name,
-                                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                              child: Padding(
+                                padding: const EdgeInsets.only(left: 16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            callMethod.name,
+                                            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                                            overflow: TextOverflow.visible,
+                                            softWrap: false,
+                                          ),
+                                        ),
+                                        if (callMethod.isDefault) ...[
+                                          const SizedBox(width: 8),
+                                          SettingsDefaultChip(
+                                            label: localizations?.translate('default') ?? 'Default',
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                    if (callMethod.description != null && callMethod.description!.isNotEmpty) ...[
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        callMethod.description!,
+                                        style: theme.textTheme.bodySmall?.copyWith(
+                                          color: theme.colorScheme.onSurfaceVariant,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.visible,
+                                      ),
+                                    ],
+                                  ],
+                                ),
                               ),
                             ),
-                            if (callMethod.isDefault) ...[
-                              const SizedBox(width: 8),
-                              SettingsDefaultChip(
-                                label: localizations?.translate('default') ?? 'Default',
-                              ),
-                            ],
-                          ],
-                        ),
-                        subtitle: callMethod.description != null && callMethod.description!.isNotEmpty
-                            ? Padding(
-                                padding: const EdgeInsets.only(top: 6),
-                                child: Text(
-                                  callMethod.description!,
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (!callMethod.isDefault)
+                                  TextButton(
+                                    onPressed: () => _setDefaultCallMethod(callMethod),
+                                    style: TextButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                                      minimumSize: const Size(48, 48),
+                                    ),
+                                    child: Text(
+                                      localizations?.translate('setAsDefault') ?? 'Set as default',
+                                      style: theme.textTheme.labelSmall,
+                                      softWrap: false,
+                                      overflow: TextOverflow.visible,
+                                    ),
                                   ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined),
+                                  onPressed: () => _showEditCallMethodModal(callMethod),
                                 ),
-                              )
-                            : null,
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (!callMethod.isDefault)
-                              TextButton(
-                                onPressed: () => _setDefaultCallMethod(callMethod),
-                                style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                                  minimumSize: const Size(48, 48),
-                                ),
-                                child: Text(
-                                  localizations?.translate('setAsDefault') ?? 'Set as default',
-                                  style: theme.textTheme.labelSmall,
-                                ),
-                              ),
-                            IconButton(
-                              icon: const Icon(Icons.edit_outlined),
-                              onPressed: () => _showEditCallMethodModal(callMethod),
+                                if (!callMethod.isDefault)
+                                  IconButton(
+                                    icon: Icon(Icons.delete_outline, color: theme.colorScheme.error),
+                                    onPressed: () => _deleteCallMethod(callMethod),
+                                  ),
+                              ],
                             ),
-                            if (!callMethod.isDefault)
-                              IconButton(
-                                icon: Icon(Icons.delete_outline, color: theme.colorScheme.error),
-                                onPressed: () => _deleteCallMethod(callMethod),
-                              ),
                           ],
                         ),
                       ),
