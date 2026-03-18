@@ -27,6 +27,7 @@ class AppConstants {
   static const String isLoggedInKey = 'isLoggedIn';
   static const String hasSeenOnboardingKey = 'hasSeenOnboarding';
   static const String pendingSubscriptionIdKey = 'pendingSubscriptionId';
+  static const String notificationFilterKey = 'notificationFilter';
 
   // Primary Color (Purple)
   static const int primaryColorValue = 0xFF9333EA;

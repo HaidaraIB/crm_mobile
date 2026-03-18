@@ -55,6 +55,7 @@ class _DealFormScreenState extends State<DealFormScreen> {
   late TextEditingController _salesCommissionAmountController;
   late TextEditingController _startDateController;
   late TextEditingController _closedDateController;
+  late TextEditingController _reminderDateController;
   
   // Calculated values
   double get _calculatedDiscountAmount {
@@ -82,6 +83,7 @@ class _DealFormScreenState extends State<DealFormScreen> {
     _salesCommissionAmountController = TextEditingController();
     _startDateController = TextEditingController();
     _closedDateController = TextEditingController();
+    _reminderDateController = TextEditingController();
     _loadData();
   }
   
@@ -92,6 +94,7 @@ class _DealFormScreenState extends State<DealFormScreen> {
     _salesCommissionAmountController.dispose();
     _startDateController.dispose();
     _closedDateController.dispose();
+    _reminderDateController.dispose();
     super.dispose();
   }
   
@@ -190,11 +193,13 @@ class _DealFormScreenState extends State<DealFormScreen> {
       _formState['discountAmount'] = '0';
       _formState['salesCommissionPercentage'] = '0';
       _formState['description'] = '';
+      _formState['reminderDate'] = '';
     });
     
     // Update controllers
     _startDateController.text = today;
     _closedDateController.text = '';
+    _reminderDateController.text = '';
     _updateCalculatedFields();
   }
 
@@ -256,6 +261,11 @@ class _DealFormScreenState extends State<DealFormScreen> {
         return '';
       }
     }
+
+    String formatDateTime(DateTime? dt) {
+      if (dt == null) return '';
+      return DateFormat('yyyy-MM-dd HH:mm').format(dt);
+    }
     
     setState(() {
       _formState['project'] = projectValue;
@@ -278,11 +288,13 @@ class _DealFormScreenState extends State<DealFormScreen> {
       _formState['discountAmount'] = discountAmount.toString();
       _formState['salesCommissionPercentage'] = (deal.salesCommissionPercentage ?? 0.0).toString();
       _formState['description'] = deal.description ?? '';
+      _formState['reminderDate'] = formatDateTime(deal.reminderDate);
     });
     
     // Update controllers
     _startDateController.text = _formState['startDate'] ?? '';
     _closedDateController.text = _formState['closedDate'] ?? '';
+    _reminderDateController.text = _formState['reminderDate'] ?? '';
     _updateCalculatedFields();
   }
 
@@ -347,6 +359,9 @@ class _DealFormScreenState extends State<DealFormScreen> {
         'value': _calculatedTotalValue,
         'start_date': _formState['startDate']?.isNotEmpty == true ? _formState['startDate'] : null,
         'closed_date': _formState['closedDate']?.isNotEmpty == true ? _formState['closedDate'] : null,
+        'reminder_date': _formState['reminderDate']?.isNotEmpty == true
+            ? DateFormat('yyyy-MM-dd HH:mm').parse(_formState['reminderDate']!).toIso8601String()
+            : null,
         'discount_percentage': double.tryParse(_formState['discountPercentage'] ?? '0') ?? 0,
         'discount_amount': _calculatedDiscountAmount,
         'sales_commission_percentage': double.tryParse(_formState['salesCommissionPercentage'] ?? '0') ?? 0,
@@ -718,6 +733,50 @@ class _DealFormScreenState extends State<DealFormScreen> {
                             _closedDateController.text = formattedDate;
                           });
                         }
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _reminderDateController,
+                      decoration: InputDecoration(
+                        labelText: localizations?.translate('reminder') ?? 'Reminder',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        suffixIcon: const Icon(Icons.alarm),
+                      ),
+                      readOnly: true,
+                      onTap: () async {
+                        final now = DateTime.now();
+                        final initial = widget.deal?.reminderDate ?? now.add(const Duration(minutes: 30));
+
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: initial,
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime(2100),
+                        );
+                        if (date == null) return;
+                        if (!context.mounted) return;
+                        final time = await showTimePicker(
+                          context: context,
+                          initialTime: TimeOfDay.fromDateTime(initial),
+                        );
+                        if (time == null) return;
+
+                        final dt = DateTime(
+                          date.year,
+                          date.month,
+                          date.day,
+                          time.hour,
+                          time.minute,
+                        );
+
+                        final formatted = DateFormat('yyyy-MM-dd HH:mm').format(dt);
+                        setState(() {
+                          _formState['reminderDate'] = formatted;
+                          _reminderDateController.text = formatted;
+                        });
                       },
                     ),
                   ],

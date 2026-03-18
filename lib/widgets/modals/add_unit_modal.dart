@@ -408,7 +408,11 @@ class _AddUnitModalState extends State<AddUnitModal> {
                                       textDirection: TextDirection.ltr,
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                children: [
                                   Expanded(
                                     child: TextFormField(
                                       controller: _areaController,
@@ -429,7 +433,11 @@ class _AddUnitModalState extends State<AddUnitModal> {
                                       textDirection: TextDirection.ltr,
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                children: [
                                   Expanded(
                                     child: DropdownButtonFormField<String>(
                                       initialValue: _selectedCurrency,
@@ -445,6 +453,7 @@ class _AddUnitModalState extends State<AddUnitModal> {
                                           ),
                                         ),
                                       ),
+                                      isExpanded: true,
                                       items:
                                           [
                                                 'SAR',
@@ -460,7 +469,12 @@ class _AddUnitModalState extends State<AddUnitModal> {
                                               .map(
                                                 (c) => DropdownMenuItem(
                                                   value: c,
-                                                  child: Text(c),
+                                                  child: Text(
+                                                    c,
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
                                                 ),
                                               )
                                               .toList(),
@@ -490,6 +504,7 @@ class _AddUnitModalState extends State<AddUnitModal> {
                                           ),
                                         ),
                                       ),
+                                      isExpanded: true,
                                       items: [
                                         DropdownMenuItem(
                                           value: 'Apartment',
@@ -498,6 +513,8 @@ class _AddUnitModalState extends State<AddUnitModal> {
                                                   'apartment',
                                                 ) ??
                                                 'Apartment',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
                                         DropdownMenuItem(
@@ -505,6 +522,8 @@ class _AddUnitModalState extends State<AddUnitModal> {
                                           child: Text(
                                             localizations?.translate('villa') ??
                                                 'Villa',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
                                       ],
@@ -531,6 +550,7 @@ class _AddUnitModalState extends State<AddUnitModal> {
                                           ),
                                         ),
                                       ),
+                                      isExpanded: true,
                                       items: [
                                         DropdownMenuItem(
                                           value: 'Finished',
@@ -539,6 +559,8 @@ class _AddUnitModalState extends State<AddUnitModal> {
                                                   'finished',
                                                 ) ??
                                                 'Finished',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
                                         DropdownMenuItem(
@@ -548,6 +570,8 @@ class _AddUnitModalState extends State<AddUnitModal> {
                                                   'semiFinished',
                                                 ) ??
                                                 'Semi-Finished',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
                                       ],

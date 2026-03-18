@@ -687,15 +687,19 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                           ),
                         );
                       },
-                      icon: const Icon(Icons.phone),
+                      icon: const Icon(Icons.phone, color: Colors.white),
                       label: Text(
                         localizations?.translate('addCall') ?? 'Add Call',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
                       ),
                       style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
+                        elevation: 0,
                       ),
                     ),
                   ),
@@ -885,6 +889,15 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
             label: localizations?.translate('channel') ?? 'Channel',
             value: lead.communicationWay ?? '--',
             iconColor: const Color(0xFFF59E0B),
+          ),
+          const SizedBox(height: 12),
+          _buildDetailCard(
+            icon: Icons.business_outlined,
+            label: localizations?.translate('leadCompanyName') ?? 'Company name',
+            value: (lead.leadCompanyName != null && lead.leadCompanyName!.trim().isNotEmpty)
+                ? lead.leadCompanyName!
+                : '—',
+            iconColor: const Color(0xFF6366F1),
           ),
           // Phone Numbers Section with WhatsApp and Call buttons
           const SizedBox(height: 12),
@@ -1095,6 +1108,8 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                     textDirection: TextDirection.ltr,
                     child: Text(
                       phone.phoneNumber,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,

@@ -1569,6 +1569,7 @@ class ApiService {
     String? priority,
     String? status, // Deprecated: use statusId instead
     int? statusId, // Preferred: status ID
+    String? leadCompanyName,
   }) async {
     // Get current user to retrieve company ID
     final currentUser = await getCurrentUser();
@@ -1606,6 +1607,11 @@ class ApiService {
       body['status'] = statusId;
     } else if (status != null) {
       body['status'] = status;
+    }
+
+    // Always send lead_company_name when provided (including null/empty to clear)
+    if (leadCompanyName != null) {
+      body['lead_company_name'] = leadCompanyName.trim().isEmpty ? null : leadCompanyName.trim();
     }
 
     final response = await _makeRequest('POST', '/clients/', body: body);
@@ -1648,6 +1654,7 @@ class ApiService {
     String? priority,
     String? status, // Deprecated: use statusId instead
     int? statusId, // Preferred: status ID
+    String? leadCompanyName,
   }) async {
     final body = <String, dynamic>{};
 
@@ -1674,6 +1681,11 @@ class ApiService {
       body['status'] = statusId;
     } else if (status != null) {
       body['status'] = status;
+    }
+
+    // Always send lead_company_name when provided (so API can set or clear the field)
+    if (leadCompanyName != null) {
+      body['lead_company_name'] = leadCompanyName.trim().isEmpty ? null : leadCompanyName.trim();
     }
 
     final response = await _makeRequest('PATCH', '/clients/$id/', body: body);

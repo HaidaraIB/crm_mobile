@@ -177,20 +177,15 @@ class _SubscriptionPlanBillingPickerScreenState
                 children: [
                   Expanded(
                     child: Text(
-                      '${localizations?.translate('storageIncluded') ?? 'Storage'}: ${plan.storage} GB',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ),
-                  if (plan.trialDays > 0)
-                    Expanded(
-                      child: Text(
-                        '${plan.trialDays} ${localizations?.translate('trialDaysLabel') ?? 'trial days'}',
-                        style: TextStyle(
-                          color: AppTheme.primaryColor,
-                          fontSize: 12,
-                        ),
+                      plan.trialDays > 0
+                          ? '${plan.trialDays} ${localizations?.translate('trialDaysLabel') ?? 'trial days'}'
+                          : '',
+                      style: TextStyle(
+                        color: plan.trialDays > 0 ? AppTheme.primaryColor : Colors.transparent,
+                        fontSize: 12,
                       ),
                     ),
+                  ),
                 ],
               ),
             ],

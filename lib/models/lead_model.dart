@@ -14,7 +14,8 @@ class LeadModel {
   final String? lastStage;
   final String? statusName;
   final List<PhoneNumber>? phoneNumbers;
-  
+  final String? leadCompanyName;
+
   LeadModel({
     required this.id,
     required this.name,
@@ -31,6 +32,7 @@ class LeadModel {
     this.lastStage,
     this.statusName,
     this.phoneNumbers,
+    this.leadCompanyName,
   });
   
   factory LeadModel.fromJson(Map<String, dynamic> json) {
@@ -97,6 +99,7 @@ class LeadModel {
               .map((e) => PhoneNumber.fromJson(e as Map<String, dynamic>))
               .toList()
           : null,
+      leadCompanyName: json['lead_company_name'] as String?,
     );
   }
   
@@ -117,6 +120,7 @@ class LeadModel {
       'last_stage': lastStage,
       'status_name': statusName,
       'phone_numbers': phoneNumbers?.map((e) => e.toJson()).toList(),
+      'lead_company_name': leadCompanyName,
     };
   }
 }

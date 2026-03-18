@@ -233,6 +233,11 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
     }
   }
 
+  String _formatDateTime(DateTime? dt) {
+    if (dt == null) return '-';
+    return DateFormat('MMM dd, yyyy • h:mm a').format(dt);
+  }
+
   String _formatStage(String? stage, AppLocalizations? localizations) {
     if (stage == null) return '-';
     switch (stage.toLowerCase()) {
@@ -507,6 +512,12 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
                     label:
                         localizations?.translate('closedDate') ?? 'Closed Date',
                     value: _formatDate(deal.closedDate),
+                  ),
+                  InfoRow(
+                    icon: Icons.alarm,
+                    label:
+                        localizations?.translate('reminder') ?? 'Reminder',
+                    value: _formatDateTime(deal.reminderDate),
                   ),
                 ],
               ),

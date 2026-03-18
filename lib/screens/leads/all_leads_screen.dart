@@ -75,6 +75,9 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
   _selectedStatus; // 'untouched', 'touched', 'following', or null for all
   int? _selectedAssigneeId; // User ID or null for all
 
+  /// Key for export button; used to get sharePositionOrigin on iPad/iOS.
+  final GlobalKey _exportButtonKey = GlobalKey();
+
   @override
   void initState() {
     super.initState();
@@ -337,8 +340,10 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       // Apply search query
       if (query.isNotEmpty) {
         filtered = filtered.where((lead) {
+          final company = lead.leadCompanyName ?? '';
           return lead.name.toLowerCase().contains(query) ||
-              lead.phone.contains(query);
+              lead.phone.contains(query) ||
+              (company.isNotEmpty && company.toLowerCase().contains(query));
         }).toList();
       }
 
@@ -485,7 +490,6 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
 
   Future<void> _openImportLeads() async {
     if (!mounted) return;
-    final localizations = AppLocalizations.of(context);
     await Navigator.push(
       context,
       MaterialPageRoute(
@@ -495,11 +499,6 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
           },
         ),
       ),
-    );
-    if (!mounted) return;
-    SnackbarHelper.showSuccess(
-      context,
-      localizations?.translate('importLeadsComplete') ?? 'Import complete.',
     );
     _loadLeads();
   }
@@ -513,8 +512,16 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       );
       return;
     }
+    Rect? sharePositionOrigin;
+    final box = _exportButtonKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box != null && box.hasSize) {
+      sharePositionOrigin = box.localToGlobal(Offset.zero) & box.size;
+    }
     try {
-      await LeadsExcelService.exportLeadsToExcelAndShare(_leads);
+      await LeadsExcelService.exportLeadsToExcelAndShare(
+        _leads,
+        sharePositionOrigin: sharePositionOrigin,
+      );
       if (!mounted) return;
       SnackbarHelper.showSuccess(
         context,
@@ -650,18 +657,19 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                 title: Text(_getTitle(localizations)),
                 actions: [
                   IconButton(
+                    key: _exportButtonKey,
                     icon: const Icon(Icons.file_upload_outlined),
-                    tooltip:
-                        localizations?.translate('importLeads') ??
-                        'Import from Excel',
-                    onPressed: _openImportLeads,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.file_download_outlined),
                     tooltip:
                         localizations?.translate('exportLeads') ??
                         'Export to Excel',
                     onPressed: _exportLeads,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.file_download_outlined),
+                    tooltip:
+                        localizations?.translate('importLeads') ??
+                        'Import from Excel',
+                    onPressed: _openImportLeads,
                   ),
                   IconButton(
                     icon: Stack(
@@ -996,6 +1004,19 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                                   ),
                                 ),
                               ),
+                              if (lead.leadCompanyName != null &&
+                                  lead.leadCompanyName!.trim().isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  lead.leadCompanyName!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -1101,7 +1122,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
 
                     const SizedBox(height: 18),
 
-                    /// CTA
+                    /// CTA (same style as lead profile screen)
                     Row(
                       children: [
                         Expanded(
@@ -1109,7 +1130,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                             onPressed: () => _showAddActionModal(lead),
                             icon: const Icon(Icons.bolt),
                             label: Text(
-                              localizations?.translate('addAction') ?? "Action",
+                              localizations?.translate('addAction') ?? 'Add Action',
                             ),
                             style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 14),
@@ -1125,15 +1146,19 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                         Expanded(
                           child: ElevatedButton.icon(
                             onPressed: () => _showAddCallModal(lead),
-                            icon: const Icon(Icons.phone),
+                            icon: const Icon(Icons.phone, color: Colors.white),
                             label: Text(
-                              localizations?.translate('addCall') ?? "Call",
+                              localizations?.translate('addCall') ?? 'Add Call',
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
                             ),
                             style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryColor,
+                              foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                               ),
+                              elevation: 0,
                             ),
                           ),
                         ),

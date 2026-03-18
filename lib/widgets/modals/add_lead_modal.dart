@@ -23,6 +23,7 @@ class _AddLeadModalState extends State<AddLeadModal> {
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _budgetController = TextEditingController();
+  final _companyNameController = TextEditingController();
   final ApiService _apiService = ApiService();
 
   String? _selectedType;
@@ -52,6 +53,7 @@ class _AddLeadModalState extends State<AddLeadModal> {
     _nameController.dispose();
     _phoneController.dispose();
     _budgetController.dispose();
+    _companyNameController.dispose();
     super.dispose();
   }
 
@@ -192,6 +194,7 @@ class _AddLeadModalState extends State<AddLeadModal> {
         communicationWay: _selectedChannel,
         priority: _selectedPriority,
         status: _selectedStatus,
+        leadCompanyName: _companyNameController.text.trim().isEmpty ? null : _companyNameController.text.trim(),
       );
 
       if (mounted) {
@@ -318,6 +321,24 @@ class _AddLeadModalState extends State<AddLeadModal> {
                                     }
                                     return null;
                                   },
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Company name
+                                Text(
+                                  localizations?.translate('leadCompanyName') ?? 'Company name',
+                                  style: theme.textTheme.titleMedium,
+                                ),
+                                const SizedBox(height: 8),
+                                TextFormField(
+                                  controller: _companyNameController,
+                                  decoration: InputDecoration(
+                                    hintText:
+                                        localizations?.translate('enterLeadCompanyName') ?? 'Enter company name',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
                                 ),
                                 const SizedBox(height: 16),
 

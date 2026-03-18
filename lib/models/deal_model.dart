@@ -5,6 +5,7 @@ class DealModel {
   final String status; // 'reservation', 'contracted', 'closed'
   final String stage; // 'won', 'lost', 'on_hold', 'in_progress', 'cancelled'
   final double value;
+  final DateTime? reminderDate;
   final int? leadId;
   final int? client; // API client ID
   final int? company; // API company ID
@@ -32,6 +33,7 @@ class DealModel {
     required this.status,
     required this.stage,
     required this.value,
+    this.reminderDate,
     this.leadId,
     this.client,
     this.company,
@@ -115,6 +117,9 @@ class DealModel {
       status: json['status'] as String? ?? '',
       stage: json['stage'] as String? ?? '',
       value: parseToDouble(json['value']),
+      reminderDate: json['reminder_date'] != null
+          ? DateTime.tryParse(json['reminder_date'] as String)
+          : (json['reminderDate'] != null ? DateTime.tryParse(json['reminderDate'] as String) : null),
       leadId: json['lead_id'] as int? ?? json['leadId'] as int?,
       client: json['client'] is int ? json['client'] as int : null,
       company: json['company'] is int ? json['company'] as int : (json['company'] is Map ? (json['company'] as Map<String, dynamic>)['id'] as int? : null),
@@ -145,6 +150,7 @@ class DealModel {
       'status': status,
       'stage': stage,
       'value': value,
+      'reminder_date': reminderDate?.toIso8601String(),
       'lead_id': leadId,
       'client': client,
       'company': company,

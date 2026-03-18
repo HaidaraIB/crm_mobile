@@ -24,6 +24,7 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _budgetController = TextEditingController();
+  final _companyNameController = TextEditingController();
   final ApiService _apiService = ApiService();
 
   String? _selectedType;
@@ -54,6 +55,7 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
     _budgetController.text = widget.lead.budget > 0
         ? widget.lead.budget.toString()
         : '';
+    _companyNameController.text = widget.lead.leadCompanyName ?? '';
     _selectedType = widget.lead.type.toLowerCase();
     _selectedPriority = widget.lead.priority?.toLowerCase();
     _selectedStatus = widget.lead.statusName;
@@ -91,6 +93,7 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
     _nameController.dispose();
     _phoneController.dispose();
     _budgetController.dispose();
+    _companyNameController.dispose();
     super.dispose();
   }
 
@@ -301,6 +304,7 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
         communicationWayId: channelId,
         priority: _selectedPriority,
         statusId: statusId,
+        leadCompanyName: _companyNameController.text.trim().isEmpty ? null : _companyNameController.text.trim(),
       );
 
       if (mounted) {
@@ -451,6 +455,17 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
                                     'Enter client name',
                                 error: _errors['name'],
                                 onChanged: () => _clearError('name'),
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Company name
+                              _buildTextField(
+                                label:
+                                    localizations?.translate('leadCompanyName') ?? 'Company name',
+                                controller: _companyNameController,
+                                hint:
+                                    localizations?.translate('enterLeadCompanyName') ?? 'Enter company name',
+                                onChanged: () {},
                               ),
                               const SizedBox(height: 16),
 

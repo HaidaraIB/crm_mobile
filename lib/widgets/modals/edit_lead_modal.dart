@@ -24,6 +24,7 @@ class _EditLeadModalState extends State<EditLeadModal> {
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _budgetController = TextEditingController();
+  final _companyNameController = TextEditingController();
   final ApiService _apiService = ApiService();
 
   String? _selectedType;
@@ -53,6 +54,7 @@ class _EditLeadModalState extends State<EditLeadModal> {
     _budgetController.text = widget.lead.budget > 0
         ? widget.lead.budget.toString()
         : '';
+    _companyNameController.text = widget.lead.leadCompanyName ?? '';
     _selectedType = widget.lead.type.toLowerCase();
     _selectedPriority = widget.lead.priority?.toLowerCase();
     _selectedStatus = widget.lead.statusName;
@@ -90,6 +92,7 @@ class _EditLeadModalState extends State<EditLeadModal> {
     _nameController.dispose();
     _phoneController.dispose();
     _budgetController.dispose();
+    _companyNameController.dispose();
     super.dispose();
   }
 
@@ -225,6 +228,7 @@ class _EditLeadModalState extends State<EditLeadModal> {
         communicationWayId: channelId,
         priority: _selectedPriority,
         statusId: statusId,
+        leadCompanyName: _companyNameController.text.trim().isEmpty ? null : _companyNameController.text.trim(),
       );
 
       if (mounted) {
@@ -349,6 +353,24 @@ class _EditLeadModalState extends State<EditLeadModal> {
                                     }
                                     return null;
                                   },
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Company name
+                                Text(
+                                  localizations?.translate('leadCompanyName') ?? 'Company name',
+                                  style: theme.textTheme.titleMedium,
+                                ),
+                                const SizedBox(height: 8),
+                                TextFormField(
+                                  controller: _companyNameController,
+                                  decoration: InputDecoration(
+                                    hintText:
+                                        localizations?.translate('enterLeadCompanyName') ?? 'Enter company name',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
                                 ),
                                 const SizedBox(height: 16),
 

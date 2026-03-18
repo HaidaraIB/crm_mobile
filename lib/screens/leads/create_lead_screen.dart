@@ -23,6 +23,7 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _budgetController = TextEditingController();
+  final _companyNameController = TextEditingController();
   final ApiService _apiService = ApiService();
 
   String? _selectedType;
@@ -53,6 +54,7 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
     _nameController.dispose();
     _phoneController.dispose();
     _budgetController.dispose();
+    _companyNameController.dispose();
     super.dispose();
   }
 
@@ -270,6 +272,7 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
         communicationWayId: channelId,
         priority: _selectedPriority,
         statusId: statusId,
+        leadCompanyName: _companyNameController.text.trim().isEmpty ? null : _companyNameController.text.trim(),
       );
 
       if (mounted) {
@@ -423,6 +426,17 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
                                     'Enter client name',
                                 error: _errors['name'],
                                 onChanged: () => _clearError('name'),
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Company name
+                              _buildTextField(
+                                label:
+                                    localizations?.translate('leadCompanyName') ?? 'Company name',
+                                controller: _companyNameController,
+                                hint:
+                                    localizations?.translate('enterLeadCompanyName') ?? 'Enter company name',
+                                onChanged: () {},
                               ),
                               const SizedBox(height: 16),
 

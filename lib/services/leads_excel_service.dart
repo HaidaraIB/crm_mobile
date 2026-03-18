@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:excel/excel.dart';
+import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/lead_model.dart';
@@ -268,7 +269,11 @@ class LeadsExcelService {
   }
 
   /// Export a list of leads to an XLSX file and share it.
-  static Future<void> exportLeadsToExcelAndShare(List<LeadModel> leads) async {
+  /// [sharePositionOrigin] is required on iPad/iOS so the share sheet can anchor; pass from the export button's RenderBox.
+  static Future<void> exportLeadsToExcelAndShare(
+    List<LeadModel> leads, {
+    Rect? sharePositionOrigin,
+  }) async {
     final excel = Excel.createExcel();
     final sheetName = excel.getDefaultSheet() ?? 'Sheet1';
     final sheet = excel[sheetName];
@@ -293,6 +298,12 @@ class LeadsExcelService {
     final path = '${dir.path}/leads_export_${DateTime.now().millisecondsSinceEpoch}.xlsx';
     final file = File(path);
     await file.writeAsBytes(Uint8List.fromList(encoded));
-    await Share.shareXFiles([XFile(path)], text: 'Leads export');
+    // iPad/iOS requires a non-zero sharePositionOrigin; use fallback when not provided (e.g. export from parent app bar).
+    final origin = sharePositionOrigin ?? const Rect.fromLTWH(0, 0, 1, 1);
+    await Share.shareXFiles(
+      [XFile(path)],
+      text: 'Leads export',
+      sharePositionOrigin: origin,
+    );
   }
 }

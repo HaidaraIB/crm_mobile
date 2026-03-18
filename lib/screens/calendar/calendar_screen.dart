@@ -84,6 +84,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
         dealMap[dealId] = {
           'clientId': clientId,
           'clientName': dealData['deal_client_name'] as String? ?? '',
+          'reminderDate': dealData['reminder_date'] != null
+              ? DateTime.tryParse(dealData['reminder_date'] as String)
+              : (dealData['reminderDate'] != null
+                    ? DateTime.tryParse(dealData['reminderDate'] as String)
+                    : null),
         };
       }
 
@@ -117,6 +122,31 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ),
           );
         }
+      }
+
+      // 1b. Deal reminder events (Deal.reminder_date)
+      for (final entry in dealMap.entries) {
+        final dealId = entry.key;
+        final dealInfo = entry.value;
+        final reminderDate = dealInfo['reminderDate'] as DateTime?;
+        if (reminderDate == null) continue;
+        final clientId = dealInfo['clientId'] as int;
+        final clientName = dealInfo['clientName'] as String? ?? '';
+
+        events.add(
+          CalendarEvent(
+            id: dealId,
+            title: localizations?.translate('deal') ??
+                localizations?.translate('deals') ??
+                'Deal',
+            description:
+                '${localizations?.translate('reminder') ?? 'Reminder'} • #$dealId',
+            date: reminderDate,
+            leadId: clientId,
+            leadName: clientName,
+            type: 'deal_reminder',
+          ),
+        );
       }
 
       // 2. Get all client tasks (ClientTask model)
@@ -468,6 +498,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
             localizations?.translate('deal') ??
             localizations?.translate('deals') ??
             'Deal Task';
+        break;
+      case 'deal_reminder':
+        eventIcon = Icons.alarm;
+        eventColor = Colors.orange;
+        typeLabel =
+            localizations?.translate('deal') ??
+            localizations?.translate('deals') ??
+            'Deal';
         break;
       case 'client_task':
         eventIcon = Icons.check_circle;

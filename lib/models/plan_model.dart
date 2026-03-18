@@ -9,7 +9,6 @@ class PlanModel {
   final int trialDays;
   final String users;
   final String clients;
-  final int storage;
 
   PlanModel({
     required this.id,
@@ -22,7 +21,6 @@ class PlanModel {
     required this.trialDays,
     required this.users,
     required this.clients,
-    required this.storage,
   });
 
   /// Safely parse a JSON value to double (handles both String and num from API).
@@ -60,7 +58,6 @@ class PlanModel {
       trialDays: _toInt(json['trial_days']),
       users: json['users']?.toString() ?? '0',
       clients: json['clients']?.toString() ?? '0',
-      storage: _toInt(json['storage']),
     );
   }
 
@@ -76,7 +73,6 @@ class PlanModel {
       'trial_days': trialDays,
       'users': users,
       'clients': clients,
-      'storage': storage,
     };
   }
 

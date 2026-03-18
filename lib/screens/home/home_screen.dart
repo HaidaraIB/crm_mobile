@@ -195,14 +195,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 // Import / Export for All Leads page
                 if (_currentIndex == 1) ...[
                   IconButton(
-                    icon: const Icon(Icons.file_upload_outlined),
+                    icon: const Icon(Icons.file_download_outlined),
                     tooltip:
                         localizations?.translate('importLeads') ??
                         'Import from Excel',
                     onPressed: () => _importLeadsCallback?.call(),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.file_download_outlined),
+                    icon: const Icon(Icons.file_upload_outlined),
                     tooltip:
                         localizations?.translate('exportLeads') ??
                         'Export to Excel',

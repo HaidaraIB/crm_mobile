@@ -771,7 +771,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
             ),
-            hintText: 'e.g., example.com',
+            hintText: 'e.g., example',
             errorText: _errors['companyDomain'],
             helperText: localizations?.translate('domainHint') ?? 
                 'This will be used as your company identifier',
@@ -1229,20 +1229,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      '${localizations?.translate('storageIncluded') ?? 'Storage'}: ${plan.storage} GB',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ),
-                  if (plan.trialDays > 0)
-                    Expanded(
-                      child: Text(
-                        '${plan.trialDays} ${localizations?.translate('trialDaysLabel') ?? 'trial days'}',
-                        style: TextStyle(
-                          color: AppTheme.primaryColor,
-                          fontSize: 12,
-                        ),
+                      plan.trialDays > 0
+                          ? '${plan.trialDays} ${localizations?.translate('trialDaysLabel') ?? 'trial days'}'
+                          : '',
+                      style: TextStyle(
+                        color: plan.trialDays > 0 ? AppTheme.primaryColor : Colors.transparent,
+                        fontSize: 12,
                       ),
                     ),
+                  ),
                 ],
               ),
             ],
