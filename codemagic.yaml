@@ -21,8 +21,9 @@ workflows:
         XCODE_WORKSPACE: "ios/Runner.xcworkspace"
         XCODE_SCHEME: "Runner"
         FLUTTER_BUILD_MODE: "release"
+        # Marketing version (CFBundleShortVersionString). Bump when releasing a new App Store version.
         FLUTTER_BUILD_NAME: "1.2.0"
-        FLUTTER_BUILD_NUMBER: "16"
+        # Build number (CFBundleVersion): use Codemagic PROJECT_BUILD_NUMBER — auto-increments per project build.
     scripts:
       - name: Get Flutter dependencies
         script: |
@@ -101,11 +102,18 @@ workflows:
       - name: Flutter build ipa
         script: |
           cd "$CM_BUILD_DIR"
+          # PROJECT_BUILD_NUMBER: increments every Codemagic build for this app (global). Fallback: BUILD_NUMBER (per workflow).
+          BUILD_NUM="${PROJECT_BUILD_NUMBER:-$BUILD_NUMBER}"
+          if [ -z "$BUILD_NUM" ] || [ "$BUILD_NUM" = "null" ]; then
+            echo "❌ PROJECT_BUILD_NUMBER / BUILD_NUMBER not set. This should not happen on Codemagic."
+            exit 1
+          fi
+          echo "✅ CFBundleVersion (build number) = $BUILD_NUM"
           flutter build ipa \
             --release \
             --export-options-plist /tmp/ExportOptions.plist \
             --build-name="${FLUTTER_BUILD_NAME}" \
-            --build-number="${FLUTTER_BUILD_NUMBER}" || true
+            --build-number="$BUILD_NUM" || true
           if [ ! -d build/ios/ipa ] || [ -z "$(ls -A build/ios/ipa 2>/dev/null)" ]; then
             echo "=== Flutter export failed, running xcodebuild -exportArchive manually ==="
             mkdir -p build/ios/ipa
