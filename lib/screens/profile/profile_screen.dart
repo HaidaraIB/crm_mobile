@@ -3,8 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../../core/constants/app_constants.dart';
+import '../../core/storage/auth_token_storage.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/snackbar_helper.dart';
@@ -242,10 +241,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         profilePhotoPath: _selectedImage?.path,
       );
 
-      // Update stored user data
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-        AppConstants.currentUserKey,
+      // Update stored user snapshot (secure)
+      await AuthTokenStorage.instance.writeUserJson(
         jsonEncode(updatedUser.toJson()),
       );
 

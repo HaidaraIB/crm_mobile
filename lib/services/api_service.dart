@@ -3,7 +3,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/api/api_envelope.dart';
 import '../core/constants/app_constants.dart';
+import '../core/storage/auth_token_storage.dart';
 import '../core/localization/app_localizations.dart';
 import '../models/lead_model.dart';
 import '../models/user_model.dart';
@@ -16,6 +18,9 @@ import '../models/deal_model.dart';
 import '../models/support_ticket_model.dart';
 import 'error_logger.dart';
 
+/// طبقة HTTP موحّدة للتطبيق: [AuthTokenStorage] للرموز، [ApiEnvelope] لفك المظروف،
+/// والرأس `X-API-Key` من [AppConstants.mobileApiKey] (`API_KEY_MOBILE` / `--dart-define`).
+///
 /// استثناء عند كون الاشتراك غير مفعّل؛ يحمل [subscriptionId] إن أرسله الـ API
 class SubscriptionInactiveException implements Exception {
   SubscriptionInactiveException(this.message, {this.subscriptionId});
@@ -75,15 +80,11 @@ class ApiService {
     return englishLocalizations.translate(key);
   }
 
-  Future<String?> _getAccessToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(AppConstants.accessTokenKey);
-  }
+  Future<String?> _getAccessToken() =>
+      AuthTokenStorage.instance.readAccessToken();
 
-  Future<String?> _getRefreshToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(AppConstants.refreshTokenKey);
-  }
+  Future<String?> _getRefreshToken() =>
+      AuthTokenStorage.instance.readRefreshToken();
 
   /// Returns true if an access token is stored (user can be considered "logged in" for API calls).
   Future<bool> hasStoredAccessToken() async {
@@ -114,6 +115,15 @@ class ApiService {
 
     return headers;
   }
+
+  Map<String, dynamic> _unwrapResponseMap(http.Response response) =>
+      ApiEnvelope.decodeAndUnwrapMapForStatus(response.body, response.statusCode);
+
+  dynamic _unwrapResponseDynamic(http.Response response) =>
+      ApiEnvelope.decodeAndUnwrapForStatus(response.body, response.statusCode);
+
+  Map<String, dynamic> _errorContextFromBody(String body) =>
+      ApiEnvelope.errorContextFromBody(body);
 
   Future<http.Response> _makeRequest(
     String method,
@@ -241,9 +251,9 @@ class ApiService {
     if (response.statusCode == 403 && !cleanEndpoint.contains('users/me')) {
       String? errorMessage;
       try {
-        final data = jsonDecode(response.body) as Map<String, dynamic>?;
-        if (data != null) {
-          errorMessage = (data['detail'] ?? data['message'] ?? data['error'])?.toString() ?? '';
+        final raw = ApiEnvelope.tryDecodeMap(response.body);
+        if (raw != null) {
+          errorMessage = ApiEnvelope.errorMessageFromRoot(raw);
         }
       } catch (_) {}
       final lower = (errorMessage ?? '').toLowerCase();
@@ -278,8 +288,7 @@ class ApiService {
 
   Future<void> _savePendingSubscriptionIdIfAny() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final userJson = prefs.getString(AppConstants.currentUserKey);
+      final userJson = await AuthTokenStorage.instance.readUserJson();
       if (userJson == null) return;
       final user = jsonDecode(userJson) as Map<String, dynamic>?;
       final company = user?['company'] as Map<String, dynamic>?;
@@ -287,7 +296,11 @@ class ApiService {
       if (sub != null) {
         final id = sub is Map ? sub['id'] : null;
         if (id != null) {
-          await prefs.setString(AppConstants.pendingSubscriptionIdKey, id.toString());
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(
+            AppConstants.pendingSubscriptionIdKey,
+            id.toString(),
+          );
         }
       }
     } catch (_) {}
@@ -325,12 +338,11 @@ class ApiService {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = _unwrapResponseMap(response);
         final newAccessToken = data['access'] as String?;
 
         if (newAccessToken != null) {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString(AppConstants.accessTokenKey, newAccessToken);
+          await AuthTokenStorage.instance.writeAccessToken(newAccessToken);
           return true;
         }
       }
@@ -342,11 +354,14 @@ class ApiService {
   }
 
   Future<void> _clearTokens() async {
+    await AuthTokenStorage.instance.clear();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(AppConstants.accessTokenKey);
-    await prefs.remove(AppConstants.refreshTokenKey);
-    await prefs.remove(AppConstants.currentUserKey);
     await prefs.remove(AppConstants.isLoggedInKey);
+  }
+
+  /// مسح الجلسة (رموز + تفضيلات تسجيل الدخول) — للاستخدام من واجهة تسجيل الخروج.
+  Future<void> clearAuthSession() async {
+    await _clearTokens();
   }
 
   // ==================== Registration APIs ====================
@@ -386,18 +401,13 @@ class ApiService {
       );
 
       if (response.statusCode == 201) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = _unwrapResponseMap(response);
 
         // Save tokens if available
         if (data['access'] != null && data['refresh'] != null) {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString(
-            AppConstants.accessTokenKey,
-            data['access'] as String,
-          );
-          await prefs.setString(
-            AppConstants.refreshTokenKey,
-            data['refresh'] as String,
+          await AuthTokenStorage.instance.writeTokens(
+            access: data['access'] as String,
+            refresh: data['refresh'] as String,
           );
         }
 
@@ -410,7 +420,7 @@ class ApiService {
         Map<String, dynamic>? fieldErrors;
 
         try {
-          final error = jsonDecode(response.body) as Map<String, dynamic>;
+          final error = _errorContextFromBody(response.body);
           errorMessage =
               error['detail'] ??
               error['error'] ??
@@ -492,7 +502,7 @@ class ApiService {
         Map<String, dynamic>? fieldErrors;
 
         try {
-          final error = jsonDecode(response.body) as Map<String, dynamic>;
+          final error = _errorContextFromBody(response.body);
           errorMessage =
               error['detail'] ??
               error['error'] ??
@@ -537,7 +547,7 @@ class ApiService {
       final response = await http.get(url, headers: headers);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final data = _unwrapResponseDynamic(response);
         if (data is List) {
           return data.cast<Map<String, dynamic>>();
         } else if (data is Map && data['results'] != null) {
@@ -575,7 +585,7 @@ class ApiService {
         'Failed to load payment gateways: ${response.statusCode}',
       );
     }
-    final data = jsonDecode(response.body);
+    final data = _unwrapResponseDynamic(response);
     if (data is List) {
       return data.cast<Map<String, dynamic>>();
     }
@@ -658,7 +668,7 @@ class ApiService {
     if (response.statusCode != 200) {
       String msg = 'Failed to create payment session';
       try {
-        final err = jsonDecode(response.body) as Map<String, dynamic>;
+        final err = _errorContextFromBody(response.body);
         msg = (err['detail'] ?? err['error'] ?? err['message'] ?? msg)
             .toString();
       } catch (_) {}
@@ -671,7 +681,7 @@ class ApiService {
       );
       throw Exception(msg);
     }
-    return jsonDecode(response.body) as Map<String, dynamic>;
+    return _unwrapResponseMap(response);
   }
 
   Future<Map<String, dynamic>> createZaincashPaymentSession({
@@ -739,11 +749,11 @@ class ApiService {
       );
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body) as Map<String, dynamic>;
+        return _unwrapResponseMap(response);
       } else {
         String errorMessage = 'Email verification failed';
         try {
-          final error = jsonDecode(response.body) as Map<String, dynamic>;
+          final error = _errorContextFromBody(response.body);
           errorMessage =
               error['detail'] ??
               error['error'] ??
@@ -800,11 +810,11 @@ class ApiService {
       timeout: const Duration(seconds: 30),
     );
     if (response.statusCode == 200) {
-      return jsonDecode(response.body) as Map<String, dynamic>;
+      return _unwrapResponseMap(response);
     }
     String errorMessage = 'Failed to create payment session';
     try {
-      final error = jsonDecode(response.body) as Map<String, dynamic>;
+      final error = _errorContextFromBody(response.body);
       errorMessage =
           (error['detail'] ??
                   error['error'] ??
@@ -853,17 +863,12 @@ class ApiService {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = _unwrapResponseMap(response);
 
         // Save tokens
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(
-          AppConstants.accessTokenKey,
-          data['access'] as String,
-        );
-        await prefs.setString(
-          AppConstants.refreshTokenKey,
-          data['refresh'] as String,
+        await AuthTokenStorage.instance.writeTokens(
+          access: data['access'] as String,
+          refresh: data['refresh'] as String,
         );
 
         // Get user data
@@ -872,7 +877,7 @@ class ApiService {
       } else {
         String errorMessage;
         try {
-          final error = jsonDecode(response.body) as Map<String, dynamic>;
+          final error = _errorContextFromBody(response.body);
           // Check for API key errors first
           if (error.containsKey('error') &&
               error['error'] == 'Missing API key') {
@@ -956,7 +961,7 @@ class ApiService {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = _unwrapResponseMap(response);
         return data;
       } else {
         String errorMessage = _translateError(
@@ -966,7 +971,7 @@ class ApiService {
         Exception? customException;
 
         try {
-          final error = jsonDecode(response.body) as Map<String, dynamic>;
+          final error = _errorContextFromBody(response.body);
 
           // Extract the actual error message from the backend
           String backendErrorMessage =
@@ -991,7 +996,7 @@ class ApiService {
 
           // Handle special error codes FIRST - before setting generic error message
           // IMPORTANT: Check subscription status FIRST - if inactive, prevent 2FA code from being sent
-          if (error['code'] == 'SUBSCRIPTION_INACTIVE' ||
+          if (ApiEnvelope.codeEquals(error['code'], 'subscription_inactive') ||
               (error['error']?.toString().toLowerCase().contains(
                     'subscription',
                   ) ??
@@ -1013,7 +1018,10 @@ class ApiService {
               backendErrorMessage,
               subscriptionId: subId,
             );
-          } else if (error['code'] == 'ACCOUNT_TEMPORARILY_INACTIVE') {
+          } else if (ApiEnvelope.codeEquals(
+                error['code'],
+                'account_temporarily_inactive',
+              )) {
             // Use the actual backend error message
             customException = Exception(backendErrorMessage);
             (customException as dynamic).code = 'ACCOUNT_TEMPORARILY_INACTIVE';
@@ -1122,18 +1130,13 @@ class ApiService {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = _unwrapResponseMap(response);
 
         // Save tokens
         if (data['access'] != null && data['refresh'] != null) {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString(
-            AppConstants.accessTokenKey,
-            data['access'] as String,
-          );
-          await prefs.setString(
-            AppConstants.refreshTokenKey,
-            data['refresh'] as String,
+          await AuthTokenStorage.instance.writeTokens(
+            access: data['access'] as String,
+            refresh: data['refresh'] as String,
           );
         }
 
@@ -1144,7 +1147,7 @@ class ApiService {
           locale: locale ?? const Locale('en'),
         );
         try {
-          final error = jsonDecode(response.body) as Map<String, dynamic>;
+          final error = _errorContextFromBody(response.body);
           errorMessage =
               error['detail'] ??
               error['error'] ??
@@ -1152,13 +1155,16 @@ class ApiService {
               errorMessage;
 
           // Handle special error codes
-          if (error['code'] == 'ACCOUNT_TEMPORARILY_INACTIVE') {
+          if (ApiEnvelope.codeEquals(
+                error['code'],
+                'account_temporarily_inactive',
+              )) {
             final accountError = Exception('ACCOUNT_TEMPORARILY_INACTIVE');
             (accountError as dynamic).code = 'ACCOUNT_TEMPORARILY_INACTIVE';
             throw accountError;
           }
 
-          if (error['code'] == 'SUBSCRIPTION_INACTIVE' ||
+          if (ApiEnvelope.codeEquals(error['code'], 'subscription_inactive') ||
               (error['error']?.toString().toLowerCase().contains(
                     'subscription',
                   ) ??
@@ -1224,7 +1230,7 @@ class ApiService {
     final response = await _makeRequest('GET', '/users/me/');
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return UserModel.fromJson(data);
     } else {
       throw Exception(_translateError('failedToGetCurrentUser', locale: null));
@@ -1282,7 +1288,7 @@ class ApiService {
       final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = _unwrapResponseMap(response);
         return UserModel.fromJson(data);
       } else {
         String errorMessage = _translateError(
@@ -1290,7 +1296,7 @@ class ApiService {
           locale: null,
         );
         try {
-          final error = jsonDecode(response.body) as Map<String, dynamic>;
+          final error = _errorContextFromBody(response.body);
           final backendError = error['detail'] ?? error['message'] ?? '';
           errorMessage = backendError.isNotEmpty ? backendError : errorMessage;
         } catch (_) {
@@ -1339,7 +1345,7 @@ class ApiService {
     final response = await _makeRequest('GET', '/clients/$queryString');
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       final resultsList = data['results'] as List?;
       final results = resultsList != null
           ? resultsList
@@ -1363,7 +1369,7 @@ class ApiService {
     final response = await _makeRequest('GET', '/clients/$id/');
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return LeadModel.fromJson(data);
     } else {
       throw Exception(_translateError('failedToGetLead', locale: null));
@@ -1390,7 +1396,7 @@ class ApiService {
     final response = await _makeRequest('POST', '/client-tasks/', body: body);
 
     if (response.statusCode != 201) {
-      final error = jsonDecode(response.body) as Map<String, dynamic>;
+      final error = _errorContextFromBody(response.body);
       throw Exception(
         error['detail'] ??
             error['message'] ??
@@ -1404,7 +1410,7 @@ class ApiService {
     final response = await _makeRequest('GET', '/client-tasks/?client=$leadId');
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       final resultsList = data['results'] as List?;
       final results = resultsList != null
           ? resultsList
@@ -1422,7 +1428,7 @@ class ApiService {
     final response = await _makeRequest('GET', '/client-tasks/');
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       final resultsList = data['results'] as List?;
       final results = resultsList != null
           ? resultsList
@@ -1462,7 +1468,7 @@ class ApiService {
     final response = await _makeRequest('POST', '/client-calls/', body: body);
 
     if (response.statusCode != 201) {
-      final error = jsonDecode(response.body) as Map<String, dynamic>;
+      final error = _errorContextFromBody(response.body);
       throw Exception(
         error['detail'] ??
             error['message'] ??
@@ -1490,7 +1496,7 @@ class ApiService {
     );
 
     if (response.statusCode != 201) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _errorContextFromBody(response.body);
       final errorKey = data['error_key'] as String?;
       final errorMsg = data['error'] ?? data['detail'] ?? data['message'];
       final fallback = errorMsg is String && errorMsg.toString().trim().isNotEmpty
@@ -1505,7 +1511,7 @@ class ApiService {
     final response = await _makeRequest('GET', '/client-calls/?client=$leadId');
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       final resultsList = data['results'] as List?;
       final results = resultsList != null
           ? resultsList
@@ -1523,7 +1529,7 @@ class ApiService {
     final response = await _makeRequest('GET', '/client-calls/');
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       final resultsList = data['results'] as List?;
       final results = resultsList != null
           ? resultsList
@@ -1543,7 +1549,7 @@ class ApiService {
     final response = await _makeRequest('GET', '/tasks/');
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       final resultsList = data['results'] as List?;
       final results = resultsList != null
           ? resultsList
@@ -1617,12 +1623,12 @@ class ApiService {
     final response = await _makeRequest('POST', '/clients/', body: body);
 
     if (response.statusCode == 201) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return LeadModel.fromJson(data);
     } else {
       String errorMessage = 'Failed to create lead';
       try {
-        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        final error = _errorContextFromBody(response.body);
         if (error.containsKey('company')) {
           final companyErrors = error['company'] as List?;
           if (companyErrors != null && companyErrors.isNotEmpty) {
@@ -1691,10 +1697,10 @@ class ApiService {
     final response = await _makeRequest('PATCH', '/clients/$id/', body: body);
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return LeadModel.fromJson(data);
     } else {
-      final error = jsonDecode(response.body) as Map<String, dynamic>;
+      final error = _errorContextFromBody(response.body);
       throw Exception(
         error['detail'] ??
             error['message'] ??
@@ -1708,7 +1714,7 @@ class ApiService {
     final response = await _makeRequest('DELETE', '/clients/$id/');
 
     if (response.statusCode != 204) {
-      final error = jsonDecode(response.body) as Map<String, dynamic>;
+      final error = _errorContextFromBody(response.body);
       throw Exception(
         error['detail'] ??
             error['message'] ??
@@ -1728,7 +1734,7 @@ class ApiService {
     );
 
     if (response.statusCode != 200) {
-      final error = jsonDecode(response.body) as Map<String, dynamic>;
+      final error = _errorContextFromBody(response.body);
       throw Exception(
         error['detail'] ??
             error['message'] ??
@@ -1742,7 +1748,7 @@ class ApiService {
     final response = await _makeRequest('GET', '/users/');
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       final resultsList = data['results'] as List?;
       final results = <UserModel>[];
 
@@ -1776,7 +1782,7 @@ class ApiService {
     final response = await _makeRequest('GET', '/users/$userId/');
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return UserModel.fromJson(data);
     } else {
       throw Exception(_translateError('failedToGetUser', locale: null));
@@ -1788,7 +1794,7 @@ class ApiService {
     final response = await _makeRequest('GET', '/deals/');
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       final resultsList = data['results'] as List?;
 
       return {
@@ -1804,7 +1810,7 @@ class ApiService {
   Future<List<DealModel>> getDealsList() async {
     final response = await _makeRequest('GET', '/deals/');
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       final results = data['results'] as List<dynamic>? ?? [];
       return results
           .map((json) => DealModel.fromJson(json as Map<String, dynamic>))
@@ -1817,12 +1823,12 @@ class ApiService {
   Future<DealModel> createDeal(Map<String, dynamic> data) async {
     final response = await _makeRequest('POST', '/deals/', body: data);
     if (response.statusCode == 201 || response.statusCode == 200) {
-      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      final json = _unwrapResponseMap(response);
       return DealModel.fromJson(json);
     } else {
       String errorMessage = 'Failed to create deal';
       try {
-        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        final error = _errorContextFromBody(response.body);
         errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
       } catch (_) {
         errorMessage =
@@ -1835,12 +1841,12 @@ class ApiService {
   Future<DealModel> updateDeal(int dealId, Map<String, dynamic> data) async {
     final response = await _makeRequest('PUT', '/deals/$dealId/', body: data);
     if (response.statusCode == 200) {
-      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      final json = _unwrapResponseMap(response);
       return DealModel.fromJson(json);
     } else {
       String errorMessage = 'Failed to update deal';
       try {
-        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        final error = _errorContextFromBody(response.body);
         errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
       } catch (_) {
         errorMessage =
@@ -1856,7 +1862,7 @@ class ApiService {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       String errorMessage = 'Failed to delete deal';
       try {
-        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        final error = _errorContextFromBody(response.body);
         errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
       } catch (_) {
         errorMessage =
@@ -1873,7 +1879,7 @@ class ApiService {
     final response = await _makeRequest('GET', '/settings/channels/');
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
+      final data = _unwrapResponseDynamic(response);
       if (data is List) {
         return data
             .map((item) => ChannelModel.fromJson(item as Map<String, dynamic>))
@@ -1917,12 +1923,12 @@ class ApiService {
     );
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return ChannelModel.fromJson(data);
     } else {
       String errorMessage = 'Failed to create channel';
       try {
-        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        final error = _errorContextFromBody(response.body);
         // Try to extract field-specific errors
         if (error.containsKey('priority')) {
           final priorityErrors = error['priority'] as List?;
@@ -1973,12 +1979,12 @@ class ApiService {
     );
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return ChannelModel.fromJson(data);
     } else {
       String errorMessage = 'Failed to update channel';
       try {
-        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        final error = _errorContextFromBody(response.body);
         // Try to extract field-specific errors
         if (error.containsKey('priority')) {
           final priorityErrors = error['priority'] as List?;
@@ -2010,7 +2016,7 @@ class ApiService {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       String errorMessage = 'Failed to delete channel';
       try {
-        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        final error = _errorContextFromBody(response.body);
         errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
       } catch (_) {
         errorMessage =
@@ -2025,7 +2031,7 @@ class ApiService {
     final response = await _makeRequest('GET', '/settings/stages/');
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
+      final data = _unwrapResponseDynamic(response);
       if (data is List) {
         return data
             .map((item) => StageModel.fromJson(item as Map<String, dynamic>))
@@ -2073,12 +2079,12 @@ class ApiService {
     );
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return StageModel.fromJson(data);
     } else {
       String errorMessage = 'Failed to create stage';
       try {
-        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        final error = _errorContextFromBody(response.body);
         if (error.containsKey('company')) {
           final companyErrors = error['company'] as List?;
           if (companyErrors != null && companyErrors.isNotEmpty) {
@@ -2127,12 +2133,12 @@ class ApiService {
     );
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return StageModel.fromJson(data);
     } else {
       String errorMessage = 'Failed to update stage';
       try {
-        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        final error = _errorContextFromBody(response.body);
         if (error.containsKey('company')) {
           final companyErrors = error['company'] as List?;
           if (companyErrors != null && companyErrors.isNotEmpty) {
@@ -2155,7 +2161,7 @@ class ApiService {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       String errorMessage = 'Failed to delete stage';
       try {
-        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        final error = _errorContextFromBody(response.body);
         errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
       } catch (_) {
         errorMessage =
@@ -2170,7 +2176,7 @@ class ApiService {
     final response = await _makeRequest('GET', '/settings/statuses/');
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
+      final data = _unwrapResponseDynamic(response);
       if (data is List) {
         return data
             .map((item) => StatusModel.fromJson(item as Map<String, dynamic>))
@@ -2224,12 +2230,12 @@ class ApiService {
     );
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return StatusModel.fromJson(data);
     } else {
       String errorMessage = 'Failed to create status';
       try {
-        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        final error = _errorContextFromBody(response.body);
         if (error.containsKey('category')) {
           final categoryErrors = error['category'] as List?;
           if (categoryErrors != null && categoryErrors.isNotEmpty) {
@@ -2289,12 +2295,12 @@ class ApiService {
     );
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return StatusModel.fromJson(data);
     } else {
       String errorMessage = 'Failed to update status';
       try {
-        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        final error = _errorContextFromBody(response.body);
         if (error.containsKey('category')) {
           final categoryErrors = error['category'] as List?;
           if (categoryErrors != null && categoryErrors.isNotEmpty) {
@@ -2325,7 +2331,7 @@ class ApiService {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       String errorMessage = 'Failed to delete status';
       try {
-        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        final error = _errorContextFromBody(response.body);
         errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
       } catch (_) {
         errorMessage =
@@ -2340,7 +2346,7 @@ class ApiService {
     final response = await _makeRequest('GET', '/settings/call-methods/');
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
+      final data = _unwrapResponseDynamic(response);
       if (data is List) {
         return data
             .map(
@@ -2388,12 +2394,12 @@ class ApiService {
     );
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return CallMethodModel.fromJson(data);
     } else {
       String errorMessage = 'Failed to create call method';
       try {
-        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        final error = _errorContextFromBody(response.body);
         errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
       } catch (_) {
         errorMessage =
@@ -2431,12 +2437,12 @@ class ApiService {
     );
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return CallMethodModel.fromJson(data);
     } else {
       String errorMessage = 'Failed to update call method';
       try {
-        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        final error = _errorContextFromBody(response.body);
         errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
       } catch (_) {
         errorMessage =
@@ -2455,7 +2461,7 @@ class ApiService {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       String errorMessage = 'Failed to delete call method';
       try {
-        final error = jsonDecode(response.body) as Map<String, dynamic>;
+        final error = _errorContextFromBody(response.body);
         errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
       } catch (_) {
         errorMessage =
@@ -2471,7 +2477,7 @@ class ApiService {
   Future<List<Developer>> getDevelopers() async {
     final response = await _makeRequest('GET', '/developers/');
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       final results = data['results'] as List<dynamic>? ?? [];
       return results
           .map((json) => Developer.fromJson(json as Map<String, dynamic>))
@@ -2484,7 +2490,7 @@ class ApiService {
   Future<List<Project>> getProjects() async {
     final response = await _makeRequest('GET', '/projects/');
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       final results = data['results'] as List<dynamic>? ?? [];
       return results
           .map((json) => Project.fromJson(json as Map<String, dynamic>))
@@ -2497,7 +2503,7 @@ class ApiService {
   Future<List<Unit>> getUnits() async {
     final response = await _makeRequest('GET', '/units/');
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       final results = data['results'] as List<dynamic>? ?? [];
       return results
           .map((json) => Unit.fromJson(json as Map<String, dynamic>))
@@ -2510,7 +2516,7 @@ class ApiService {
   Future<List<Owner>> getOwners() async {
     final response = await _makeRequest('GET', '/owners/');
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       final results = data['results'] as List<dynamic>? ?? [];
       return results
           .map((json) => Owner.fromJson(json as Map<String, dynamic>))
@@ -2525,7 +2531,7 @@ class ApiService {
   Future<List<Service>> getServices() async {
     final response = await _makeRequest('GET', '/services/');
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       final results = data['results'] as List<dynamic>? ?? [];
       return results
           .map((json) => Service.fromJson(json as Map<String, dynamic>))
@@ -2538,7 +2544,7 @@ class ApiService {
   Future<List<ServicePackage>> getServicePackages() async {
     final response = await _makeRequest('GET', '/service-packages/');
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       final results = data['results'] as List<dynamic>? ?? [];
       return results
           .map((json) => ServicePackage.fromJson(json as Map<String, dynamic>))
@@ -2553,7 +2559,7 @@ class ApiService {
   Future<List<ServiceProvider>> getServiceProviders() async {
     final response = await _makeRequest('GET', '/service-providers/');
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       final results = data['results'] as List<dynamic>? ?? [];
       return results
           .map((json) => ServiceProvider.fromJson(json as Map<String, dynamic>))
@@ -2570,7 +2576,7 @@ class ApiService {
   Future<List<Product>> getProducts() async {
     final response = await _makeRequest('GET', '/products/');
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       final results = data['results'] as List<dynamic>? ?? [];
       return results
           .map((json) => Product.fromJson(json as Map<String, dynamic>))
@@ -2583,7 +2589,7 @@ class ApiService {
   Future<List<ProductCategory>> getProductCategories() async {
     final response = await _makeRequest('GET', '/product-categories/');
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       final results = data['results'] as List<dynamic>? ?? [];
       return results
           .map((json) => ProductCategory.fromJson(json as Map<String, dynamic>))
@@ -2598,7 +2604,7 @@ class ApiService {
   Future<List<Supplier>> getSuppliers() async {
     final response = await _makeRequest('GET', '/suppliers/');
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       final results = data['results'] as List<dynamic>? ?? [];
       return results
           .map((json) => Supplier.fromJson(json as Map<String, dynamic>))
@@ -2629,7 +2635,7 @@ class ApiService {
       body: dataWithCompany,
     );
     if (response.statusCode == 201) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return Product.fromJson(data);
     }
     throw Exception('Failed to create product');
@@ -2645,7 +2651,7 @@ class ApiService {
       body: productData,
     );
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return Product.fromJson(data);
     }
     throw Exception('Failed to update product');
@@ -2680,7 +2686,7 @@ class ApiService {
       body: dataWithCompany,
     );
     if (response.statusCode == 201) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return ProductCategory.fromJson(data);
     }
     throw Exception('Failed to create product category');
@@ -2696,7 +2702,7 @@ class ApiService {
       body: categoryData,
     );
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return ProductCategory.fromJson(data);
     }
     throw Exception('Failed to update product category');
@@ -2729,7 +2735,7 @@ class ApiService {
       body: dataWithCompany,
     );
     if (response.statusCode == 201) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return Supplier.fromJson(data);
     }
     throw Exception('Failed to create supplier');
@@ -2745,7 +2751,7 @@ class ApiService {
       body: supplierData,
     );
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return Supplier.fromJson(data);
     }
     throw Exception('Failed to update supplier');
@@ -2778,7 +2784,7 @@ class ApiService {
       body: dataWithCompany,
     );
     if (response.statusCode == 201) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return Service.fromJson(data);
     }
     throw Exception('Failed to create service');
@@ -2794,7 +2800,7 @@ class ApiService {
       body: serviceData,
     );
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return Service.fromJson(data);
     }
     throw Exception('Failed to update service');
@@ -2829,7 +2835,7 @@ class ApiService {
       body: dataWithCompany,
     );
     if (response.statusCode == 201) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return ServicePackage.fromJson(data);
     }
     throw Exception('Failed to create service package');
@@ -2845,7 +2851,7 @@ class ApiService {
       body: packageData,
     );
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return ServicePackage.fromJson(data);
     }
     throw Exception('Failed to update service package');
@@ -2880,7 +2886,7 @@ class ApiService {
       body: dataWithCompany,
     );
     if (response.statusCode == 201) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return ServiceProvider.fromJson(data);
     }
     throw Exception('Failed to create service provider');
@@ -2896,7 +2902,7 @@ class ApiService {
       body: providerData,
     );
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return ServiceProvider.fromJson(data);
     }
     throw Exception('Failed to update service provider');
@@ -2929,7 +2935,7 @@ class ApiService {
       body: dataWithCompany,
     );
     if (response.statusCode == 201) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return Developer.fromJson(data);
     }
     throw Exception('Failed to create developer');
@@ -2945,7 +2951,7 @@ class ApiService {
       body: developerData,
     );
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return Developer.fromJson(data);
     }
     throw Exception('Failed to update developer');
@@ -2978,7 +2984,7 @@ class ApiService {
       body: dataWithCompany,
     );
     if (response.statusCode == 201) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return Project.fromJson(data);
     }
     throw Exception('Failed to create project');
@@ -2998,7 +3004,7 @@ class ApiService {
       'updateProject - Status: ${response.statusCode}, Body: ${response.body}',
     );
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return Project.fromJson(data);
     } else {
       final errorBody = response.body;
@@ -3034,7 +3040,7 @@ class ApiService {
       body: dataWithCompany,
     );
     if (response.statusCode == 201) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return Unit.fromJson(data);
     }
     throw Exception('Failed to create unit');
@@ -3043,7 +3049,7 @@ class ApiService {
   Future<Unit> updateUnit(int id, Map<String, dynamic> unitData) async {
     final response = await _makeRequest('PATCH', '/units/$id/', body: unitData);
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return Unit.fromJson(data);
     }
     throw Exception('Failed to update unit');
@@ -3074,7 +3080,7 @@ class ApiService {
       timeout: const Duration(seconds: 15),
     );
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       final results = data['results'] as List<dynamic>? ?? [];
       final tickets = results
           .map((e) => SupportTicket.fromJson(e as Map<String, dynamic>))
@@ -3107,7 +3113,7 @@ class ApiService {
         timeout: const Duration(seconds: 15),
       );
       if (response.statusCode == 201) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = _unwrapResponseMap(response);
         return SupportTicket.fromJson(data);
       }
       throw Exception(
@@ -3141,12 +3147,12 @@ class ApiService {
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
       if (response.statusCode == 201) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = _unwrapResponseMap(response);
         return SupportTicket.fromJson(data);
       }
       String msg = _translateError('failedToCreateSupportTicket', locale: null);
       try {
-        final err = jsonDecode(response.body) as Map<String, dynamic>;
+        final err = _errorContextFromBody(response.body);
         final detail = err['detail'] ?? err['message'];
         if (detail != null) msg = detail.toString();
       } catch (_) {}
@@ -3182,7 +3188,7 @@ class ApiService {
       body: dataWithCompany,
     );
     if (response.statusCode == 201) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return Owner.fromJson(data);
     }
     throw Exception('Failed to create owner');
@@ -3195,7 +3201,7 @@ class ApiService {
       body: ownerData,
     );
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _unwrapResponseMap(response);
       return Owner.fromJson(data);
     }
     throw Exception('Failed to update owner');
@@ -3231,7 +3237,7 @@ class ApiService {
       } else {
         String errorMessage = 'Failed to update FCM token';
         try {
-          final error = jsonDecode(response.body) as Map<String, dynamic>;
+          final error = _errorContextFromBody(response.body);
           errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
         } catch (_) {
           errorMessage =
@@ -3267,8 +3273,20 @@ class ApiService {
       final success = response.statusCode >= 200 && response.statusCode < 300;
       String message = response.body;
       try {
-        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-        message = (decoded['message'] ?? decoded['detail'] ?? decoded['error'] ?? response.body).toString();
+        if (success) {
+          final decoded = _unwrapResponseMap(response);
+          message =
+              (decoded['message'] ?? decoded['detail'] ?? decoded['error'] ?? '')
+                  .toString();
+          if (message.isEmpty) {
+            message = response.body;
+          }
+        } else {
+          final raw = ApiEnvelope.tryDecodeMap(response.body);
+          if (raw != null) {
+            message = ApiEnvelope.errorMessageFromRoot(raw);
+          }
+        }
       } catch (_) {}
       return {
         'success': success,
@@ -3313,7 +3331,7 @@ class ApiService {
       } else {
         String errorMessage = 'Failed to update language';
         try {
-          final error = jsonDecode(response.body) as Map<String, dynamic>;
+          final error = _errorContextFromBody(response.body);
           errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
         } catch (_) {
           errorMessage =
@@ -3341,7 +3359,7 @@ class ApiService {
       final response = await _makeRequest('GET', '/notifications/settings/');
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        return jsonDecode(response.body) as Map<String, dynamic>;
+        return _unwrapResponseMap(response);
       } else {
         debugPrint('Warning: Failed to load notification settings from server');
         return null;
@@ -3376,7 +3394,7 @@ class ApiService {
       } else {
         String errorMessage = 'Failed to update notification settings';
         try {
-          final error = jsonDecode(response.body) as Map<String, dynamic>;
+          final error = _errorContextFromBody(response.body);
           errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
         } catch (_) {
           errorMessage =
@@ -3426,10 +3444,18 @@ class ApiService {
       final response = await _makeRequest('GET', endpoint);
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final results =
-            data['results'] as List<dynamic>? ?? data as List<dynamic>;
-        return results.cast<Map<String, dynamic>>();
+        final payload = _unwrapResponseDynamic(response);
+        if (payload is List) {
+          return payload.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        }
+        if (payload is Map) {
+          final m = Map<String, dynamic>.from(payload);
+          final r = m['results'] as List?;
+          if (r != null) {
+            return r.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+          }
+        }
+        return [];
       } else {
         throw Exception('Failed to load notifications');
       }
@@ -3453,7 +3479,7 @@ class ApiService {
       );
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        return jsonDecode(response.body) as Map<String, dynamic>;
+        return _unwrapResponseMap(response);
       } else {
         throw Exception('Failed to load notification');
       }
@@ -3525,7 +3551,7 @@ class ApiService {
       );
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = _unwrapResponseMap(response);
         return data['unread_count'] as int? ?? 0;
       } else {
         throw Exception('Failed to get unread count');

@@ -13,7 +13,7 @@ workflows:
         distribution_type: app_store
         bundle_identifier: com.loopcrm.mobile
       groups:
-        - ios_config # BASE_URL, API_KEY, and GOOGLE_SERVICE_INFO_PLIST
+        - ios_config # BASE_URL, API_KEY_MOBILE (or API_KEY), GOOGLE_SERVICE_INFO_PLIST
       vars:
         APP_ID: "com.loopcrm.mobile"
         APP_STORE_ID: "6758578493" # سيتم ملؤه لاحقاً بعد إنشاء التطبيق في App Store Connect
@@ -33,6 +33,8 @@ workflows:
       - name: Create .env file for production
         script: |
           echo "BASE_URL=$BASE_URL" > .env
+          MOBILE_KEY="${API_KEY_MOBILE:-$API_KEY}"
+          echo "API_KEY_MOBILE=$MOBILE_KEY" >> .env
           echo "API_KEY=$API_KEY" >> .env
           echo "✅ Created .env file with production settings"
           cat .env

@@ -9,6 +9,7 @@ class PlanModel {
   final int trialDays;
   final String users;
   final String clients;
+  final int tier;
 
   PlanModel({
     required this.id,
@@ -21,6 +22,7 @@ class PlanModel {
     required this.trialDays,
     required this.users,
     required this.clients,
+    this.tier = 0,
   });
 
   /// Safely parse a JSON value to double (handles both String and num from API).
@@ -53,11 +55,16 @@ class PlanModel {
       nameAr: _emptyToNull(json['name_ar']),
       description: json['description']?.toString() ?? '',
       descriptionAr: _emptyToNull(json['description_ar']),
-      priceMonthly: _toDouble(json['price_monthly']),
-      priceYearly: _toDouble(json['price_yearly']),
+      priceMonthly: _toDouble(
+        json['price_monthly'] ?? json['priceMonthly'],
+      ),
+      priceYearly: _toDouble(
+        json['price_yearly'] ?? json['priceYearly'],
+      ),
       trialDays: _toInt(json['trial_days']),
       users: json['users']?.toString() ?? '0',
       clients: json['clients']?.toString() ?? '0',
+      tier: _toInt(json['tier']),
     );
   }
 
@@ -73,6 +80,7 @@ class PlanModel {
       'trial_days': trialDays,
       'users': users,
       'clients': clients,
+      'tier': tier,
     };
   }
 

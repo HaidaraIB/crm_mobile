@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/storage/auth_token_storage.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/bloc/theme/theme_bloc.dart';
@@ -231,10 +232,7 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
       // Save login state
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(AppConstants.isLoggedInKey, true);
-      await prefs.setString(
-        AppConstants.currentUserKey,
-        jsonEncode(user.toJson()),
-      );
+      await AuthTokenStorage.instance.writeUserJson(jsonEncode(user.toJson()));
       
       // Sync user's preferred language from API so UI and future requests use it
       if (mounted && (user.language == 'ar' || user.language == 'en')) {

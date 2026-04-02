@@ -16,7 +16,6 @@ import '../screens/deals/deals_screen.dart';
 import '../screens/support/support_tickets_screen.dart';
 import '../models/user_model.dart';
 import '../services/api_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class NavigationDrawer extends StatefulWidget {
   final VoidCallback? onProfileUpdated;
@@ -403,11 +402,7 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
   }
 
   Future<void> _performLogout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(AppConstants.accessTokenKey);
-    await prefs.remove(AppConstants.refreshTokenKey);
-    await prefs.remove(AppConstants.currentUserKey);
-    await prefs.setBool(AppConstants.isLoggedInKey, false);
+    await ApiService().clearAuthSession();
 
     if (!mounted) return;
     Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);

@@ -36,19 +36,18 @@ void main() async {
   // Load environment variables
   try {
     await dotenv.load(fileName: ".env");
-    // Debug: Print loaded API key (first 10 chars only for security)
-    final apiKey = dotenv.env['API_KEY'] ?? '';
-    final baseUrl = dotenv.env['BASE_URL'] ?? '';
+    // Effective values: --dart-define=API_KEY_MOBILE / BASE_URL override .env
+    final apiKey = AppConstants.mobileApiKey;
+    final baseUrl = AppConstants.baseUrl;
     if (apiKey.isNotEmpty) {
-      debugPrint('✓ API Key loaded: ${apiKey.substring(0, 10)}...');
+      final n = apiKey.length < 10 ? apiKey.length : 10;
+      debugPrint('✓ X-API-Key (mobile) loaded: ${apiKey.substring(0, n)}...');
     } else {
-      debugPrint('⚠ Warning: API_KEY is empty in .env file');
+      debugPrint(
+        '⚠ Warning: API_KEY_MOBILE / API_KEY empty — set .env or --dart-define=API_KEY_MOBILE=...',
+      );
     }
-    if(baseUrl.isNotEmpty) {
-      debugPrint('✓ Base URL loaded: $baseUrl');
-    } else {
-      debugPrint('⚠ Warning: BASE_URL is empty in .env file');
-    }
+    debugPrint('✓ Base URL: $baseUrl');
   } catch (e) {
     // If .env file doesn't exist, continue with default values
     debugPrint('⚠ Warning: .env file not found. Using default values.');

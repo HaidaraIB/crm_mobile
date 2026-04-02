@@ -9,6 +9,7 @@ import '../../services/api_service.dart';
 import '../../models/plan_model.dart';
 import '../../widgets/phone_input.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/storage/auth_token_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../home/home_screen.dart';
 import '../payment/subscription_payment_screen.dart';
@@ -360,10 +361,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
         language: language,
       );
       
-      // Save user data and tokens (already saved by registerCompany)
+      // Save user snapshot (payload already unwrapped in ApiService) + tokens saved in registerCompany
+      final u = response['user'];
+      if (u is Map) {
+        await AuthTokenStorage.instance.writeUserJson(
+          jsonEncode(Map<String, dynamic>.from(u)),
+        );
+      }
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(AppConstants.currentUserKey, 
-          jsonEncode(response['user']));
       await prefs.setBool(AppConstants.isLoggedInKey, true);
       
       if (mounted) {
