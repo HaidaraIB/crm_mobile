@@ -21,9 +21,7 @@ workflows:
         XCODE_WORKSPACE: "ios/Runner.xcworkspace"
         XCODE_SCHEME: "Runner"
         FLUTTER_BUILD_MODE: "release"
-        # Marketing version (CFBundleShortVersionString). Bump when releasing a new App Store version.
-        FLUTTER_BUILD_NAME: "1.2.0"
-        # Build number (CFBundleVersion): use Codemagic PROJECT_BUILD_NUMBER — auto-increments per project build.
+        # Version + build number come from pubspec.yaml (version: x.y.z+build) — see Flutter build ipa step.
     scripts:
       - name: Get Flutter dependencies
         script: |
@@ -102,17 +100,29 @@ workflows:
       - name: Flutter build ipa
         script: |
           cd "$CM_BUILD_DIR"
-          # PROJECT_BUILD_NUMBER: increments every Codemagic build for this app (global). Fallback: BUILD_NUMBER (per workflow).
-          BUILD_NUM="${PROJECT_BUILD_NUMBER:-$BUILD_NUMBER}"
-          if [ -z "$BUILD_NUM" ] || [ "$BUILD_NUM" = "null" ]; then
-            echo "❌ PROJECT_BUILD_NUMBER / BUILD_NUMBER not set. This should not happen on Codemagic."
+          # Parse version: x.y.z+build from pubspec.yaml (single source of truth)
+          VERSION_LINE=$(grep '^version:' pubspec.yaml | head -1 | sed 's/^version:[[:space:]]*//' | tr -d '"' | tr -d "'")
+          if [ -z "$VERSION_LINE" ]; then
+            echo "❌ Could not read version from pubspec.yaml"
             exit 1
           fi
-          echo "✅ CFBundleVersion (build number) = $BUILD_NUM"
+          if echo "$VERSION_LINE" | grep -q '+'; then
+            PUBSPEC_BUILD_NAME="${VERSION_LINE%%+*}"
+            BUILD_NUM="${VERSION_LINE#*+}"
+          else
+            PUBSPEC_BUILD_NAME="$VERSION_LINE"
+            BUILD_NUM="1"
+            echo "⚠️ pubspec version has no +build suffix; using build number 1"
+          fi
+          if [ -z "$PUBSPEC_BUILD_NAME" ] || [ -z "$BUILD_NUM" ]; then
+            echo "❌ Invalid version line in pubspec.yaml: $VERSION_LINE"
+            exit 1
+          fi
+          echo "✅ From pubspec: CFBundleShortVersionString=$PUBSPEC_BUILD_NAME CFBundleVersion=$BUILD_NUM"
           flutter build ipa \
             --release \
             --export-options-plist /tmp/ExportOptions.plist \
-            --build-name="${FLUTTER_BUILD_NAME}" \
+            --build-name="$PUBSPEC_BUILD_NAME" \
             --build-number="$BUILD_NUM" || true
           if [ ! -d build/ios/ipa ] || [ -z "$(ls -A build/ios/ipa 2>/dev/null)" ]; then
             echo "=== Flutter export failed, running xcodebuild -exportArchive manually ==="

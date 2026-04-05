@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-# Local/dev default; Codemagic overrides with FLUTTER_BUILD_NAME + PROJECT_BUILD_NUMBER (see codemagic.yaml).
+# iOS/Android version: x.y.z = marketing version, +N = build number. Codemagic reads this line for ipa builds.
 version: 1.2.1+2
 
 environment:
