@@ -17,7 +17,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
 # iOS/Android version: x.y.z = marketing version, +N = build number. Codemagic reads this line for ipa builds.
-version: 1.2.1+3 # 1, 2, 4 builds are used
+version: 1.2.1+5 # 1, 2, 3, 4, 5 builds are used
 
 environment:
   sdk: ^3.9.0
