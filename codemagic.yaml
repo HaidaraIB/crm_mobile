@@ -100,8 +100,8 @@ workflows:
       - name: Flutter build ipa
         script: |
           cd "$CM_BUILD_DIR"
-          # Parse version: x.y.z+build from pubspec.yaml (single source of truth)
-          VERSION_LINE=$(grep '^version:' pubspec.yaml | head -1 | sed 's/^version:[[:space:]]*//' | tr -d '"' | tr -d "'")
+          # Parse version: x.y.z+build from pubspec.yaml (strip # comments — same-line comments break BUILD_NUM)
+          VERSION_LINE=$(grep '^version:' pubspec.yaml | head -1 | sed 's/^version:[[:space:]]*//' | sed 's/#.*//' | sed 's/[[:space:]]*$//' | tr -d '"' | tr -d "'")
           if [ -z "$VERSION_LINE" ]; then
             echo "❌ Could not read version from pubspec.yaml"
             exit 1
@@ -109,6 +109,8 @@ workflows:
           if echo "$VERSION_LINE" | grep -q '+'; then
             PUBSPEC_BUILD_NAME="${VERSION_LINE%%+*}"
             BUILD_NUM="${VERSION_LINE#*+}"
+            BUILD_NUM="${BUILD_NUM%%[[:space:]]#*}"
+            BUILD_NUM=$(echo "$BUILD_NUM" | sed 's/[[:space:]]*$//')
           else
             PUBSPEC_BUILD_NAME="$VERSION_LINE"
             BUILD_NUM="1"
@@ -116,6 +118,10 @@ workflows:
           fi
           if [ -z "$PUBSPEC_BUILD_NAME" ] || [ -z "$BUILD_NUM" ]; then
             echo "❌ Invalid version line in pubspec.yaml: $VERSION_LINE"
+            exit 1
+          fi
+          if ! echo "$BUILD_NUM" | grep -qE '^[0-9]+$'; then
+            echo "❌ Build number after + must be digits only (no text on the version line). Got: '$BUILD_NUM'"
             exit 1
           fi
           echo "✅ From pubspec: CFBundleShortVersionString=$PUBSPEC_BUILD_NAME CFBundleVersion=$BUILD_NUM"
