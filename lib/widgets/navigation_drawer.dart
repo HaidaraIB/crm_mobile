@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../core/localization/app_localizations.dart';
 import '../core/theme/app_theme.dart';
-import '../core/constants/app_constants.dart';
 import '../core/utils/specialization_helper.dart';
 import '../screens/leads/all_leads_screen.dart';
 import '../screens/leads/fresh_leads_screen.dart';
@@ -31,12 +31,25 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
   bool _leadsExpanded = false;
   UserModel? _currentUser;
   bool _isLoadingUser = true;
+  String _appVersionLine = '';
   final ApiService _apiService = ApiService();
 
   @override
   void initState() {
     super.initState();
     _loadUser();
+    _loadPackageInfo();
+  }
+
+  Future<void> _loadPackageInfo() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (mounted) {
+        setState(() {
+          _appVersionLine = '${info.version}+${info.buildNumber}';
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadUser() async {
@@ -354,7 +367,9 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
           Padding(
             padding: const EdgeInsets.all(16),
             child: Text(
-              '${localizations?.translate('version') ?? 'Version'} ${AppConstants.appVersion}',
+              _appVersionLine.isEmpty
+                  ? (localizations?.translate('version') ?? 'Version')
+                  : '${localizations?.translate('version') ?? 'Version'} $_appVersionLine',
               style: theme.textTheme.bodySmall,
             ),
           ),

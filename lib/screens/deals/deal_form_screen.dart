@@ -401,11 +401,12 @@ class _DealFormScreenState extends State<DealFormScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final apiMessage = e.toString().replaceFirst('Exception: ', '').trim();
         SnackbarHelper.showError(
           context,
           widget.deal != null 
-              ? (localizations?.translate('failedToUpdateDeal') ?? 'Failed to update deal: $e')
-              : (localizations?.translate('failedToCreateDeal') ?? 'Failed to create deal: $e'),
+              ? '${localizations?.translate('failedToUpdateDeal') ?? 'Failed to update deal'}: $apiMessage'
+              : '${localizations?.translate('failedToCreateDeal') ?? 'Failed to create deal'}: $apiMessage',
         );
       }
     } finally {

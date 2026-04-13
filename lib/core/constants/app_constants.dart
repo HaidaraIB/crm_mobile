@@ -60,6 +60,19 @@ class AppConstants {
   // Primary Color (Purple)
   static const int primaryColorValue = 0xFF9333EA;
 
-  // App Version
+  /// Legacy display string; prefer [PackageInfo] from `package_info_plus`.
   static const String appVersion = '1.0.0';
+
+  /// Optional fallback store links if the API omits them (`--dart-define` or `.env`).
+  static String get storeUrlAndroidFallback {
+    const fromDefine = String.fromEnvironment('STORE_URL_ANDROID');
+    if (fromDefine.isNotEmpty) return fromDefine.trim();
+    return (dotenv.env['STORE_URL_ANDROID'] ?? '').trim();
+  }
+
+  static String get storeUrlIosFallback {
+    const fromDefine = String.fromEnvironment('STORE_URL_IOS');
+    if (fromDefine.isNotEmpty) return fromDefine.trim();
+    return (dotenv.env['STORE_URL_IOS'] ?? '').trim();
+  }
 }

@@ -6,10 +6,12 @@ import '../../core/bloc/language/language_bloc.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/api_service.dart';
+import '../../services/app_version_gate.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../login/login_screen.dart';
 import '../home/home_screen.dart';
 import '../payment/subscription_payment_screen.dart';
+import 'force_update_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -57,6 +59,21 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _navigateToNextScreen() async {
+    final gate = await AppVersionGate.evaluate();
+    if (!mounted) return;
+    if (gate.outcome != AppVersionGateOutcome.allowed) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) => ForceUpdateScreen(
+            couldNotVerify:
+                gate.outcome == AppVersionGateOutcome.blockedCouldNotVerify,
+            storeUrl: gate.storeUrl,
+          ),
+        ),
+      );
+      return;
+    }
+
     // انتظار انتهاء الرسوم المتحركة
     await Future.delayed(const Duration(milliseconds: 2000));
 

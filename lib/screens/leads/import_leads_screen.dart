@@ -175,6 +175,7 @@ class _ImportLeadsScreenState extends State<ImportLeadsScreen> {
     setState(() => _isImporting = true);
     int ok = 0;
     int fail = 0;
+    String? firstError;
     for (int i = 0; i < _rows.length; i++) {
       final row = _rows[i];
       final name = (row['name'] as String? ?? '').trim();
@@ -201,14 +202,18 @@ class _ImportLeadsScreenState extends State<ImportLeadsScreen> {
         ok++;
       } catch (e) {
         fail++;
+        firstError ??= e.toString().replaceFirst('Exception: ', '').trim();
       }
     }
     if (!mounted) return;
     setState(() => _isImporting = false);
-    SnackbarHelper.showSuccess(
-      context,
-      '${AppLocalizations.of(context)?.translate('importLeadsComplete') ?? 'Import complete'}: $ok ${AppLocalizations.of(context)?.translate('importLeadsImported') ?? 'imported'}, $fail ${AppLocalizations.of(context)?.translate('importLeadsFailed') ?? 'failed'}.',
-    );
+    final summary =
+        '${AppLocalizations.of(context)?.translate('importLeadsComplete') ?? 'Import complete'}: $ok ${AppLocalizations.of(context)?.translate('importLeadsImported') ?? 'imported'}, $fail ${AppLocalizations.of(context)?.translate('importLeadsFailed') ?? 'failed'}.';
+    if (firstError != null && firstError.isNotEmpty) {
+      SnackbarHelper.showError(context, '$summary\n$firstError');
+    } else {
+      SnackbarHelper.showSuccess(context, summary);
+    }
     widget.onImportDone?.call();
   }
 

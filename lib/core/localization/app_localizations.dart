@@ -209,6 +209,15 @@ class AppLocalizations {
       'actionType': 'Action type',
       'selectItem': 'Select item',
       'version': 'Version',
+      'updateRequiredTitle': 'Update required',
+      'updateRequiredMessage':
+          'A newer version of the app is required to continue. Install the latest version from the store.',
+      'versionCheckFailedTitle': 'Cannot verify app version',
+      'versionCheckFailedMessage':
+          'We could not reach the server to verify this app. Check your connection and try again.',
+      'updateFromStore': 'Update from store',
+      'forceUpdateStoreUrlMissing':
+          'Store link is not set. Add the Play Store or App Store URL in system settings, then try again.',
       'logout': 'Logout',
       'english': 'English',
       'inventory': 'Inventory',
@@ -841,6 +850,16 @@ class AppLocalizations {
       'sms_error_twilio_rejected':
           'SMS was rejected. Please check your Integrations settings and try again.',
       'sms_error_send_failed': 'Failed to send SMS. Please try again later.',
+      'plan_quota_max_employees_exceeded':
+          'You have reached your plan employee limit. Please upgrade your plan to add more users.',
+      'plan_quota_max_clients_exceeded':
+          'You have reached your plan clients limit. Please upgrade your plan to add more leads.',
+      'plan_quota_max_deals_exceeded':
+          'You have reached your plan deals limit. Please upgrade your plan to add more deals.',
+      'plan_integration_not_included':
+          'This integration is not included in your current plan.',
+      'integration_disabled':
+          'This integration is currently disabled for your company.',
       'addCall': 'Add Call',
       'callMethod': 'Call Method',
       'callMethods': 'Call Methods',
@@ -1174,6 +1193,15 @@ class AppLocalizations {
       'actionType': 'نوع الإجراء',
       'selectItem': 'اختر عنصر',
       'version': 'الإصدار',
+      'updateRequiredTitle': 'يلزم التحديث',
+      'updateRequiredMessage':
+          'يجب تثبيت إصدار أحدث من التطبيق للمتابعة. ثبّت أحدث إصدار من المتجر.',
+      'versionCheckFailedTitle': 'تعذّر التحقق من إصدار التطبيق',
+      'versionCheckFailedMessage':
+          'تعذّر الاتصال بالخادم للتحقق من التطبيق. تحقق من الاتصال ثم أعد المحاولة.',
+      'updateFromStore': 'تحديث من المتجر',
+      'forceUpdateStoreUrlMissing':
+          'لم يُضبط رابط المتجر. أضف رابط Google Play أو App Store في إعدادات النظام ثم أعد المحاولة.',
       'logout': 'تسجيل الخروج',
       'english': 'الإنجليزية',
       'inventory': 'المخزون',
@@ -1785,6 +1813,16 @@ class AppLocalizations {
       'sms_error_twilio_rejected':
           'تم رفض الإرسال. يرجى التحقق من إعدادات التكاملات والمحاولة مرة أخرى.',
       'sms_error_send_failed': 'فشل إرسال الرسالة. يرجى المحاولة لاحقاً.',
+      'plan_quota_max_employees_exceeded':
+          'لقد وصلت إلى الحد الأقصى للموظفين في خطتك. يرجى ترقية الخطة لإضافة مستخدمين جدد.',
+      'plan_quota_max_clients_exceeded':
+          'لقد وصلت إلى الحد الأقصى للعملاء المحتملين في خطتك. يرجى ترقية الخطة لإضافة المزيد.',
+      'plan_quota_max_deals_exceeded':
+          'لقد وصلت إلى الحد الأقصى للصفقات في خطتك. يرجى ترقية الخطة لإضافة المزيد.',
+      'plan_integration_not_included':
+          'هذا التكامل غير مشمول في خطتك الحالية.',
+      'integration_disabled':
+          'هذا التكامل معطّل حالياً لشركتك.',
       'addCall': 'إضافة مكالمة',
       'callMethod': 'طريقة المكالمة',
       'callMethods': 'طرق المكالمات',

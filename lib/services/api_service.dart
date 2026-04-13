@@ -16,6 +16,7 @@ import '../models/task_model.dart';
 import '../models/inventory_model.dart';
 import '../models/deal_model.dart';
 import '../models/support_ticket_model.dart';
+import '../models/mobile_app_version_policy.dart';
 import 'error_logger.dart';
 
 /// طبقة HTTP موحّدة للتطبيق: [AuthTokenStorage] للرموز، [ApiEnvelope] لفك المظروف،
@@ -80,6 +81,27 @@ class ApiService {
     return englishLocalizations.translate(key);
   }
 
+  String _resolveApiErrorMessage(
+    Map<String, dynamic> error, {
+    required String fallbackKey,
+  }) {
+    final errorKey = error['error_key']?.toString();
+    final rawMessage = (error['detail'] ?? error['error'] ?? error['message'])
+        ?.toString()
+        .trim();
+
+    // Plan and entitlement related keys should map to localized app messages.
+    if (errorKey != null && errorKey.isNotEmpty) {
+      final mapped = _translateError(errorKey, locale: null);
+      if (mapped != errorKey) return mapped;
+    }
+
+    if (rawMessage != null && rawMessage.isNotEmpty) {
+      return rawMessage;
+    }
+    return _translateError(fallbackKey, locale: null);
+  }
+
   Future<String?> _getAccessToken() =>
       AuthTokenStorage.instance.readAccessToken();
 
@@ -131,6 +153,7 @@ class ApiService {
     Map<String, dynamic>? body,
     bool retryOn401 = true,
     Duration? timeout,
+    bool includeAuth = true,
   }) async {
     // Ensure endpoint starts with / and baseUrl doesn't end with /
     final cleanEndpoint = endpoint.startsWith('/') ? endpoint : '/$endpoint';
@@ -138,7 +161,7 @@ class ApiService {
         ? baseUrl.substring(0, baseUrl.length - 1)
         : baseUrl;
     final url = Uri.parse('$cleanBaseUrl$cleanEndpoint');
-    final headers = await _getHeaders();
+    final headers = await _getHeaders(includeAuth: includeAuth);
 
     // Default timeout of 5 seconds
     final requestTimeout = timeout ?? const Duration(seconds: 5);
@@ -231,11 +254,17 @@ class ApiService {
     }
 
     // Handle 401 Unauthorized - try to refresh token
-    if (response.statusCode == 401 && retryOn401) {
+    if (response.statusCode == 401 && retryOn401 && includeAuth) {
       final refreshed = await _refreshToken();
       if (refreshed) {
         // Retry the request with new token
-        return _makeRequest(method, endpoint, body: body, retryOn401: false);
+        return _makeRequest(
+          method,
+          endpoint,
+          body: body,
+          retryOn401: false,
+          includeAuth: includeAuth,
+        );
       } else {
         // Refresh failed: clear tokens and auto-logout to login screen (like web)
         await _clearTokens();
@@ -1225,6 +1254,21 @@ class ApiService {
     }
   }
 
+  /// Public mobile policy (no JWT). Used for forced-update gate.
+  Future<MobileAppVersionPolicy> fetchMobileAppVersionPolicy() async {
+    final response = await _makeRequest(
+      'GET',
+      '/public/mobile-app-version/',
+      includeAuth: false,
+      retryOn401: false,
+    );
+    if (response.statusCode == 200) {
+      final data = _unwrapResponseMap(response);
+      return MobileAppVersionPolicy.fromJson(data);
+    }
+    throw Exception('Mobile app version policy HTTP ${response.statusCode}');
+  }
+
   // Get current user
   Future<UserModel> getCurrentUser() async {
     final response = await _makeRequest('GET', '/users/me/');
@@ -1498,10 +1542,10 @@ class ApiService {
     if (response.statusCode != 201) {
       final data = _errorContextFromBody(response.body);
       final errorKey = data['error_key'] as String?;
-      final errorMsg = data['error'] ?? data['detail'] ?? data['message'];
-      final fallback = errorMsg is String && errorMsg.toString().trim().isNotEmpty
-          ? errorMsg.toString()
-          : _translateError(errorKey ?? 'failedToSendSms', locale: null);
+      final fallback = _resolveApiErrorMessage(
+        data,
+        fallbackKey: errorKey ?? 'failedToSendSms',
+      );
       throw SmsException(errorKey ?? 'failedToSendSms', fallback);
     }
   }
@@ -1626,22 +1670,14 @@ class ApiService {
       final data = _unwrapResponseMap(response);
       return LeadModel.fromJson(data);
     } else {
-      String errorMessage = 'Failed to create lead';
+      String errorMessage = _translateError('failedToCreateLead', locale: null);
       try {
         final error = _errorContextFromBody(response.body);
-        if (error.containsKey('company')) {
-          final companyErrors = error['company'] as List?;
-          if (companyErrors != null && companyErrors.isNotEmpty) {
-            errorMessage = companyErrors.first.toString();
-          } else {
-            errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
-          }
-        } else {
-          errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
-        }
-      } catch (e) {
-        // If error parsing fails, use default message
-      }
+        errorMessage = _resolveApiErrorMessage(
+          error,
+          fallbackKey: 'failedToCreateLead',
+        );
+      } catch (_) {}
       throw Exception(errorMessage);
     }
   }
@@ -1826,13 +1862,15 @@ class ApiService {
       final json = _unwrapResponseMap(response);
       return DealModel.fromJson(json);
     } else {
-      String errorMessage = 'Failed to create deal';
+      String errorMessage = _translateError('failedToCreateDeal', locale: null);
       try {
         final error = _errorContextFromBody(response.body);
-        errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
+        errorMessage = _resolveApiErrorMessage(
+          error,
+          fallbackKey: 'failedToCreateDeal',
+        );
       } catch (_) {
-        errorMessage =
-            'Failed to create deal with status ${response.statusCode}';
+        errorMessage = _translateError('failedToCreateDealWithStatus', locale: null);
       }
       throw Exception(errorMessage);
     }
