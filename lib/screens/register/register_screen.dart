@@ -24,12 +24,12 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   int _currentStep = 0; // 0: Company, 1: Owner, 2: WhatsApp OTP, 3: Plan
-  
+
   // Company information
   final _companyNameController = TextEditingController();
   final _companyDomainController = TextEditingController();
   String _specialization = 'real_estate';
-  
+
   // Owner information
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
@@ -44,26 +44,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _phoneVerificationToken;
   bool _otpSending = false;
   bool _otpVerifying = false;
-  
+
   // Plan selection
   List<PlanModel> _plans = [];
   PlanModel? _selectedPlan;
   String _billingCycle = 'monthly';
   bool _plansLoading = true;
   String? _plansError;
-  
+
   // UI state
   bool _isLoading = false;
   bool _stepCheckLoading = false;
   Map<String, String> _errors = {};
   String? _generalError;
-  
+
   @override
   void initState() {
     super.initState();
     _loadPlans();
   }
-  
+
   @override
   void dispose() {
     _companyNameController.dispose();
@@ -78,18 +78,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _phoneOtpController.dispose();
     super.dispose();
   }
-  
+
   Future<void> _loadPlans() async {
     setState(() {
       _plansLoading = true;
       _plansError = null;
     });
-    
+
     try {
       final apiService = ApiService();
       final plansData = await apiService.getPublicPlans();
       final plans = plansData.map((json) => PlanModel.fromJson(json)).toList();
-      
+
       if (mounted) {
         setState(() {
           _plans = plans;
@@ -108,92 +108,95 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
     }
   }
-  
+
   String? _validateCompanyName(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return AppLocalizations.of(context)?.translate('companyNameRequired') ?? 
+      return AppLocalizations.of(context)?.translate('companyNameRequired') ??
           'Company name is required';
     }
     return null;
   }
-  
+
   String? _validateCompanyDomain(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return AppLocalizations.of(context)?.translate('companyDomainRequired') ?? 
+      return AppLocalizations.of(context)?.translate('companyDomainRequired') ??
           'Company domain is required';
     }
-    if (!RegExp(r'^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]*\.?[a-zA-Z0-9-]*[a-zA-Z0-9]*$')
-        .hasMatch(value.trim())) {
-      return AppLocalizations.of(context)?.translate('invalidDomain') ?? 
+    if (!RegExp(
+      r'^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]*\.?[a-zA-Z0-9-]*[a-zA-Z0-9]*$',
+    ).hasMatch(value.trim())) {
+      return AppLocalizations.of(context)?.translate('invalidDomain') ??
           'Invalid domain format';
     }
     return null;
   }
-  
+
   String? _validateFirstName(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return AppLocalizations.of(context)?.translate('firstNameRequired') ?? 
+      return AppLocalizations.of(context)?.translate('firstNameRequired') ??
           'First name is required';
     }
     return null;
   }
-  
+
   String? _validateLastName(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return AppLocalizations.of(context)?.translate('lastNameRequired') ?? 
+      return AppLocalizations.of(context)?.translate('lastNameRequired') ??
           'Last name is required';
     }
     return null;
   }
-  
+
   String? _validateEmail(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return AppLocalizations.of(context)?.translate('emailRequired') ?? 
+      return AppLocalizations.of(context)?.translate('emailRequired') ??
           'Email is required';
     }
     if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(value.trim())) {
-      return AppLocalizations.of(context)?.translate('invalidEmail') ?? 
+      return AppLocalizations.of(context)?.translate('invalidEmail') ??
           'Invalid email format';
     }
     return null;
   }
-  
+
   String? _validateUsername(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return AppLocalizations.of(context)?.translate('usernameRequired') ?? 
+      return AppLocalizations.of(context)?.translate('usernameRequired') ??
           'Username is required';
     }
     if (value.trim().length < 3) {
-      return AppLocalizations.of(context)?.translate('usernameMinLength') ?? 
+      return AppLocalizations.of(context)?.translate('usernameMinLength') ??
           'Username must be at least 3 characters';
     }
     return null;
   }
-  
+
   String? _validatePassword(String? value) {
     if (value == null || value.isEmpty) {
-      return AppLocalizations.of(context)?.translate('passwordRequired') ?? 
+      return AppLocalizations.of(context)?.translate('passwordRequired') ??
           'Password is required';
     }
     if (value.length < 8) {
-      return AppLocalizations.of(context)?.translate('passwordMinLength') ?? 
+      return AppLocalizations.of(context)?.translate('passwordMinLength') ??
           'Password must be at least 8 characters';
     }
     return null;
   }
-  
+
   String? _validateConfirmPassword(String? value) {
     if (value == null || value.isEmpty) {
-      return AppLocalizations.of(context)?.translate('confirmPasswordRequired') ?? 
+      return AppLocalizations.of(
+            context,
+          )?.translate('confirmPasswordRequired') ??
           'Please confirm your password';
     }
     if (value != _passwordController.text) {
-      return AppLocalizations.of(context)?.translate('passwordsDoNotMatch') ?? 
+      return AppLocalizations.of(context)?.translate('passwordsDoNotMatch') ??
           'Passwords do not match';
     }
     return null;
   }
-  
+
   Future<bool> _checkAvailability({
     String? companyDomain,
     String? email,
@@ -204,7 +207,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _stepCheckLoading = true;
       _errors = {};
     });
-    
+
     try {
       final apiService = ApiService();
       await apiService.checkRegistrationAvailability(
@@ -213,7 +216,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         username: username,
         phone: phone,
       );
-      
+
       if (mounted) {
         setState(() {
           _stepCheckLoading = false;
@@ -224,9 +227,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (mounted) {
         final exceptionString = e.toString();
         final cleanError = exceptionString.replaceAll('Exception: ', '');
-        
+
         Map<String, String> fieldErrors = {};
-        
+
         // Try to extract field errors from exception
         try {
           final dynamic error = e;
@@ -241,7 +244,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             });
           }
         } catch (_) {}
-        
+
         // Map backend field names to frontend field names
         final mappedErrors = <String, String>{};
         if (fieldErrors.containsKey('company_domain')) {
@@ -256,7 +259,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         if (fieldErrors.containsKey('phone')) {
           mappedErrors['phone'] = fieldErrors['phone']!;
         }
-        
+
         setState(() {
           _errors = mappedErrors;
           _stepCheckLoading = false;
@@ -268,18 +271,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return false;
     }
   }
-  
+
   Future<void> _handleNext() async {
     if (_currentStep == 0) {
       // Validate step 1: Company information
       if (!_formKey.currentState!.validate()) {
         return;
       }
-      
+
       final domainAvailable = await _checkAvailability(
         companyDomain: _companyDomainController.text.trim(),
       );
-      
+
       if (domainAvailable) {
         setState(() {
           _currentStep = 1;
@@ -288,17 +291,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
         });
       }
     } else if (_currentStep == 1) {
+      final languageBloc = context.read<LanguageBloc>();
+      final language = languageBloc.state.locale.languageCode;
+
       // Validate step 2: Owner information
       if (!_formKey.currentState!.validate()) {
         return;
       }
-      
+
       final ownerAvailable = await _checkAvailability(
         email: _emailController.text.trim(),
         username: _usernameController.text.trim(),
         phone: _phoneController.text.trim(),
       );
-      
+
       if (!ownerAvailable) return;
 
       setState(() {
@@ -308,27 +314,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
       });
       try {
         final apiService = ApiService();
-        final languageBloc = context.read<LanguageBloc>();
-        final language = languageBloc.state.locale.languageCode;
         await apiService.registerPhoneSendOtp(
           phone: _phoneController.text.trim(),
           language: language,
         );
-        if (mounted) {
-          setState(() {
-            _phoneVerificationToken = null;
-            _phoneOtpController.clear();
-            _currentStep = 2;
-            _otpSending = false;
-          });
-        }
+        if (!mounted) return;
+        setState(() {
+          _phoneVerificationToken = null;
+          _phoneOtpController.clear();
+          _currentStep = 2;
+          _otpSending = false;
+        });
       } catch (e) {
-        if (mounted) {
-          setState(() {
-            _otpSending = false;
-            _generalError = e.toString().replaceAll('Exception: ', '');
-          });
-        }
+        if (!mounted) return;
+        setState(() {
+          _otpSending = false;
+          _generalError = e.toString().replaceAll('Exception: ', '');
+        });
       }
     }
   }
@@ -337,7 +339,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final code = _phoneOtpController.text.trim();
     if (!RegExp(r'^\d{4,8}$').hasMatch(code)) {
       setState(() {
-        _errors['phoneOtp'] = AppLocalizations.of(context)?.translate('verificationCodeRequired') ??
+        _errors['phoneOtp'] =
+            AppLocalizations.of(
+              context,
+            )?.translate('verificationCodeRequired') ??
             'Enter the code from WhatsApp';
       });
       return;
@@ -376,7 +381,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
     }
   }
-  
+
   /// Parse subscription id from API (may be int or string).
   int? _parseSubscriptionId(dynamic value) {
     if (value == null) return null;
@@ -385,7 +390,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (value is String) return int.tryParse(value);
     return null;
   }
-  
+
   Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) {
       // If validation fails, go back to step 2
@@ -394,10 +399,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       });
       return;
     }
-    
+
     if (_phoneVerificationToken == null || _phoneVerificationToken!.isEmpty) {
       setState(() {
-        _generalError = AppLocalizations.of(context)?.translate('phoneVerificationRequired') ??
+        _generalError =
+            AppLocalizations.of(
+              context,
+            )?.translate('phoneVerificationRequired') ??
             'Verify your phone via WhatsApp first.';
         _currentStep = 2;
       });
@@ -406,24 +414,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     if (_selectedPlan == null) {
       setState(() {
-        _generalError = AppLocalizations.of(context)?.translate('planRequired') ?? 
+        _generalError =
+            AppLocalizations.of(context)?.translate('planRequired') ??
             'Please select a plan to continue';
         _currentStep = 3;
       });
       return;
     }
-    
+
     setState(() {
       _isLoading = true;
       _errors = {};
       _generalError = null;
     });
-    
+
     try {
       final apiService = ApiService();
       final languageBloc = context.read<LanguageBloc>();
       final language = languageBloc.state.locale.languageCode;
-      
+
       final response = await apiService.registerCompany(
         company: {
           'name': _companyNameController.text.trim(),
@@ -443,7 +452,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         billingCycle: _billingCycle,
         language: language,
       );
-      
+
       // Save user snapshot (payload already unwrapped in ApiService) + tokens saved in registerCompany
       final u = response['user'];
       if (u is Map) {
@@ -453,14 +462,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(AppConstants.isLoggedInKey, true);
-      
+
       if (mounted) {
         final requiresPayment = response['requires_payment'] == true;
         final subscription = response['subscription'] as Map<String, dynamic>?;
         final subscriptionId = subscription != null
             ? _parseSubscriptionId(subscription['id'])
             : null;
-        
+
         if (requiresPayment && subscriptionId != null) {
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(
@@ -483,33 +492,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (mounted) {
         final exceptionString = e.toString();
         final cleanError = exceptionString.replaceAll('Exception: ', '');
-        
+
         Map<String, String> fieldErrors = {};
-        
+
         // Try to extract field errors from exception
         try {
           final dynamic error = e;
           if (error.fields != null) {
             final fields = error.fields as Map<String, dynamic>;
-            
+
             // Map backend field names to frontend field names
             if (fields.containsKey('company')) {
               final companyErrors = fields['company'] as Map<String, dynamic>?;
               if (companyErrors != null) {
                 if (companyErrors.containsKey('domain')) {
-                  fieldErrors['companyDomain'] = companyErrors['domain'].toString();
+                  fieldErrors['companyDomain'] = companyErrors['domain']
+                      .toString();
                 }
                 if (companyErrors.containsKey('name')) {
                   fieldErrors['companyName'] = companyErrors['name'].toString();
                 }
               }
             }
-            
+
             if (fields.containsKey('owner')) {
               final ownerErrors = fields['owner'] as Map<String, dynamic>?;
               if (ownerErrors != null) {
                 if (ownerErrors.containsKey('first_name')) {
-                  fieldErrors['firstName'] = ownerErrors['first_name'].toString();
+                  fieldErrors['firstName'] = ownerErrors['first_name']
+                      .toString();
                 }
                 if (ownerErrors.containsKey('last_name')) {
                   fieldErrors['lastName'] = ownerErrors['last_name'].toString();
@@ -528,7 +539,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 }
               }
             }
-            
+
             // Direct field mappings
             if (fields.containsKey('email')) {
               fieldErrors['email'] = fields['email'].toString();
@@ -550,10 +561,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
             }
           }
         } catch (_) {}
-        
+
         // Determine which step to show based on errors
         int errorStep = 3;
-        if (fieldErrors.containsKey('companyName') || 
+        if (fieldErrors.containsKey('companyName') ||
             fieldErrors.containsKey('companyDomain')) {
           errorStep = 0;
         } else if (fieldErrors.containsKey('firstName') ||
@@ -567,7 +578,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             fieldErrors.containsKey('phone_verification_token')) {
           errorStep = 2;
         }
-        
+
         setState(() {
           _errors = fieldErrors;
           _generalError = fieldErrors.isEmpty ? cleanError : null;
@@ -577,17 +588,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
     final themeBloc = context.read<ThemeBloc>();
     final languageBloc = context.read<LanguageBloc>();
-    final currentTheme = Theme.of(context).brightness == Brightness.dark 
-        ? ThemeMode.dark 
+    final currentTheme = Theme.of(context).brightness == Brightness.dark
+        ? ThemeMode.dark
         : ThemeMode.light;
     final currentLocale = languageBloc.state.locale;
-    
+
     return Scaffold(
       appBar: AppBar(
         title: SizedBox(
@@ -639,8 +650,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
               color: Theme.of(context).iconTheme.color,
             ),
             tooltip: currentLocale.languageCode == 'ar'
-                ? (localizations?.translate('switchToEnglish') ?? 'Switch to English')
-                : (localizations?.translate('switchToArabic') ?? 'Switch to Arabic'),
+                ? (localizations?.translate('switchToEnglish') ??
+                      'Switch to English')
+                : (localizations?.translate('switchToArabic') ??
+                      'Switch to Arabic'),
             onPressed: () {
               final newLocale = currentLocale.languageCode == 'ar'
                   ? const Locale('en')
@@ -656,8 +669,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
               color: Theme.of(context).iconTheme.color,
             ),
             tooltip: currentTheme == ThemeMode.dark
-                ? (localizations?.translate('switchToLightMode') ?? 'Switch to Light Mode')
-                : (localizations?.translate('switchToDarkMode') ?? 'Switch to Dark Mode'),
+                ? (localizations?.translate('switchToLightMode') ??
+                      'Switch to Light Mode')
+                : (localizations?.translate('switchToDarkMode') ??
+                      'Switch to Dark Mode'),
             onPressed: () {
               themeBloc.add(const ToggleTheme());
             },
@@ -693,127 +708,146 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const SizedBox(height: 32),
 
                   // Error message
-                      if (_generalError != null)
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          margin: const EdgeInsets.only(bottom: 16),
-                          decoration: BoxDecoration(
-                            color: Colors.red.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
-                          ),
-                          child: Text(
-                            _generalError!,
-                            style: const TextStyle(color: Colors.red),
-                            textAlign: TextAlign.center,
+                  if (_generalError != null)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: Colors.red.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Text(
+                        _generalError!,
+                        style: const TextStyle(color: Colors.red),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+
+                  // Step content
+                  if (_currentStep == 0) _buildCompanyStep(),
+                  if (_currentStep == 1) _buildOwnerStep(),
+                  if (_currentStep == 2) _buildOtpStep(),
+                  if (_currentStep == 3) _buildPlanStep(),
+
+                  const SizedBox(height: 24),
+
+                  // Navigation buttons
+                  Row(
+                    children: [
+                      if (_currentStep > 0)
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed:
+                                (_isLoading || _otpVerifying || _otpSending)
+                                ? null
+                                : () {
+                                    setState(() {
+                                      if (_currentStep == 3) {
+                                        _phoneVerificationToken = null;
+                                      }
+                                      _currentStep--;
+                                      _errors = {};
+                                      _generalError = null;
+                                    });
+                                  },
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text(
+                              localizations?.translate('back') ?? 'Back',
+                              style: const TextStyle(fontSize: 16),
+                            ),
                           ),
                         ),
-                      
-                      // Step content
-                      if (_currentStep == 0) _buildCompanyStep(),
-                      if (_currentStep == 1) _buildOwnerStep(),
-                      if (_currentStep == 2) _buildOtpStep(),
-                      if (_currentStep == 3) _buildPlanStep(),
-                      
-                      const SizedBox(height: 24),
-                      
-                      // Navigation buttons
-                      Row(
-                        children: [
-                          if (_currentStep > 0)
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: (_isLoading || _otpVerifying || _otpSending) ? null : () {
-                                  setState(() {
-                                    if (_currentStep == 3) {
-                                      _phoneVerificationToken = null;
-                                    }
-                                    _currentStep--;
-                                    _errors = {};
-                                    _generalError = null;
-                                  });
-                                },
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                      if (_currentStep > 0) const SizedBox(width: 16),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed:
+                              (_isLoading ||
+                                  _stepCheckLoading ||
+                                  _otpSending ||
+                                  _otpVerifying)
+                              ? null
+                              : (_currentStep < 2
+                                    ? _handleNext
+                                    : _currentStep == 2
+                                    ? _handleVerifyPhoneOtp
+                                    : _handleRegister),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child:
+                              (_isLoading ||
+                                  _stepCheckLoading ||
+                                  _otpSending ||
+                                  _otpVerifying)
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
                                   ),
-                                ),
-                                child: Text(
-                                  localizations?.translate('back') ?? 'Back',
+                                )
+                              : Text(
+                                  _currentStep < 2
+                                      ? (localizations?.translate('next') ??
+                                            'Next')
+                                      : _currentStep == 2
+                                      ? (localizations?.translate(
+                                              'verifyAndContinue',
+                                            ) ??
+                                            'Verify and continue')
+                                      : (localizations?.translate('register') ??
+                                            'Register'),
                                   style: const TextStyle(fontSize: 16),
                                 ),
-                              ),
-                            ),
-                          if (_currentStep > 0) const SizedBox(width: 16),
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: (_isLoading || _stepCheckLoading || _otpSending || _otpVerifying)
-                                  ? null
-                                  : (_currentStep < 2
-                                      ? _handleNext
-                                      : _currentStep == 2
-                                          ? _handleVerifyPhoneOtp
-                                          : _handleRegister),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.primaryColor,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: (_isLoading || _stepCheckLoading || _otpSending || _otpVerifying)
-                                  ? const SizedBox(
-                                      height: 20,
-                                      width: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                      ),
-                                    )
-                                  : Text(
-                                      _currentStep < 2
-                                          ? (localizations?.translate('next') ?? 'Next')
-                                          : _currentStep == 2
-                                              ? (localizations?.translate('verifyAndContinue') ??
-                                                  'Verify and continue')
-                                              : (localizations?.translate('register') ?? 'Register'),
-                                      style: const TextStyle(fontSize: 16),
-                                    ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      
-                      const SizedBox(height: 16),
-                      
-                      // Login link
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            localizations?.translate('alreadyHaveAccount') ?? 
-                                'Already have an account?',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                            },
-                            child: Text(
-                              localizations?.translate('signIn') ?? 'Sign In',
-                              style: TextStyle(color: AppTheme.primaryColor),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ],
                   ),
-                ),
+
+                  const SizedBox(height: 16),
+
+                  // Login link
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        localizations?.translate('alreadyHaveAccount') ??
+                            'Already have an account?',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                        child: Text(
+                          localizations?.translate('signIn') ?? 'Sign In',
+                          style: TextStyle(color: AppTheme.primaryColor),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
+        ),
+      ),
     );
   }
 
@@ -838,31 +872,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
     );
   }
-  
+
   Widget _buildCompanyStep() {
     final localizations = AppLocalizations.of(context);
     final isRTL = localizations?.isRTL ?? false;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          localizations?.translate('companyInformation') ?? 'Company Information',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          localizations?.translate('companyInformation') ??
+              'Company Information',
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 24),
-        
+
         // Company Name
         TextFormField(
           controller: _companyNameController,
           decoration: InputDecoration(
-            labelText: '${localizations?.translate('companyName') ?? 'Company Name'} *',
+            labelText:
+                '${localizations?.translate('companyName') ?? 'Company Name'} *',
             prefixIcon: const Icon(Icons.business),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             errorText: _errors['companyName'],
           ),
           textDirection: isRTL ? TextDirection.rtl : TextDirection.ltr,
@@ -874,19 +908,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
           },
         ),
         const SizedBox(height: 16),
-        
+
         // Company Domain
         TextFormField(
           controller: _companyDomainController,
           decoration: InputDecoration(
-            labelText: '${localizations?.translate('companyDomain') ?? 'Company Domain'} *',
+            labelText:
+                '${localizations?.translate('companyDomain') ?? 'Company Domain'} *',
             prefixIcon: const Icon(Icons.domain),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             hintText: 'e.g., example',
             errorText: _errors['companyDomain'],
-            helperText: localizations?.translate('domainHint') ?? 
+            helperText:
+                localizations?.translate('domainHint') ??
                 'This will be used as your company identifier',
           ),
           textDirection: isRTL ? TextDirection.rtl : TextDirection.ltr,
@@ -898,21 +932,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
           },
         ),
         const SizedBox(height: 16),
-        
+
         // Specialization
         DropdownButtonFormField<String>(
           initialValue: _specialization,
           decoration: InputDecoration(
-            labelText: '${localizations?.translate('specialization') ?? 'Specialization'} *',
+            labelText:
+                '${localizations?.translate('specialization') ?? 'Specialization'} *',
             prefixIcon: const Icon(Icons.category),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
           items: [
             DropdownMenuItem(
               value: 'real_estate',
-              child: Text(localizations?.translate('realEstate') ?? 'Real Estate'),
+              child: Text(
+                localizations?.translate('realEstate') ?? 'Real Estate',
+              ),
             ),
             DropdownMenuItem(
               value: 'services',
@@ -934,31 +969,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ],
     );
   }
-  
+
   Widget _buildOwnerStep() {
     final localizations = AppLocalizations.of(context);
     final isRTL = localizations?.isRTL ?? false;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
           localizations?.translate('ownerInformation') ?? 'Owner Information',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 24),
-        
+
         // First Name (full width so label is not cut off)
         TextFormField(
           controller: _firstNameController,
           decoration: InputDecoration(
-            labelText: '${localizations?.translate('firstName') ?? 'First Name'} *',
+            labelText:
+                '${localizations?.translate('firstName') ?? 'First Name'} *',
             prefixIcon: const Icon(Icons.person),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             errorText: _errors['firstName'],
           ),
           textDirection: isRTL ? TextDirection.rtl : TextDirection.ltr,
@@ -974,11 +1008,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         TextFormField(
           controller: _lastNameController,
           decoration: InputDecoration(
-            labelText: '${localizations?.translate('lastName') ?? 'Last Name'} *',
+            labelText:
+                '${localizations?.translate('lastName') ?? 'Last Name'} *',
             prefixIcon: const Icon(Icons.person_outline),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             errorText: _errors['lastName'],
           ),
           textDirection: isRTL ? TextDirection.rtl : TextDirection.ltr,
@@ -990,7 +1023,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           },
         ),
         const SizedBox(height: 16),
-        
+
         // Email
         TextFormField(
           controller: _emailController,
@@ -998,9 +1031,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           decoration: InputDecoration(
             labelText: '${localizations?.translate('email') ?? 'Email'} *',
             prefixIcon: const Icon(Icons.email),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             errorText: _errors['email'],
           ),
           textDirection: isRTL ? TextDirection.rtl : TextDirection.ltr,
@@ -1012,16 +1043,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
           },
         ),
         const SizedBox(height: 16),
-        
+
         // Username
         TextFormField(
           controller: _usernameController,
           decoration: InputDecoration(
-            labelText: '${localizations?.translate('username') ?? 'Username'} *',
+            labelText:
+                '${localizations?.translate('username') ?? 'Username'} *',
             prefixIcon: const Icon(Icons.person),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             errorText: _errors['username'],
           ),
           textDirection: isRTL ? TextDirection.rtl : TextDirection.ltr,
@@ -1033,7 +1063,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           },
         ),
         const SizedBox(height: 16),
-        
+
         // Phone
         PhoneInput(
           value: _phoneController.text,
@@ -1043,7 +1073,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               _errors.remove('phone');
             });
           },
-          hintText: localizations?.translate('enterPhone') ?? 'Enter phone number',
+          hintText:
+              localizations?.translate('enterPhone') ?? 'Enter phone number',
           error: _errors.containsKey('phone'),
           defaultCountry: 'SY',
         ),
@@ -1056,13 +1087,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
           ),
         const SizedBox(height: 16),
-        
+
         // Password
         TextFormField(
           controller: _passwordController,
           obscureText: _obscurePassword,
           decoration: InputDecoration(
-            labelText: '${localizations?.translate('password') ?? 'Password'} *',
+            labelText:
+                '${localizations?.translate('password') ?? 'Password'} *',
             prefixIcon: const Icon(Icons.lock),
             suffixIcon: IconButton(
               icon: Icon(
@@ -1074,11 +1106,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 });
               },
             ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             errorText: _errors['password'],
-            helperText: localizations?.translate('passwordRequirements') ?? 
+            helperText:
+                localizations?.translate('passwordRequirements') ??
                 'Password must be at least 8 characters',
           ),
           textDirection: isRTL ? TextDirection.rtl : TextDirection.ltr,
@@ -1090,17 +1121,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
           },
         ),
         const SizedBox(height: 16),
-        
+
         // Confirm Password
         TextFormField(
           controller: _confirmPasswordController,
           obscureText: _obscureConfirmPassword,
           decoration: InputDecoration(
-            labelText: '${localizations?.translate('confirmPassword') ?? 'Confirm Password'} *',
+            labelText:
+                '${localizations?.translate('confirmPassword') ?? 'Confirm Password'} *',
             prefixIcon: const Icon(Icons.lock_outline),
             suffixIcon: IconButton(
               icon: Icon(
-                _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
+                _obscureConfirmPassword
+                    ? Icons.visibility
+                    : Icons.visibility_off,
               ),
               onPressed: () {
                 setState(() {
@@ -1108,9 +1142,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 });
               },
             ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             errorText: _errors['confirmPassword'],
           ),
           textDirection: isRTL ? TextDirection.rtl : TextDirection.ltr,
@@ -1132,10 +1164,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          localizations?.translate('verifyPhoneWhatsApp') ?? 'Verify your phone (WhatsApp)',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+          localizations?.translate('verifyPhoneWhatsApp') ??
+              'Verify your phone (WhatsApp)',
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         Text(
@@ -1148,11 +1181,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
           controller: _phoneOtpController,
           keyboardType: TextInputType.number,
           decoration: InputDecoration(
-            labelText: localizations?.translate('verificationCode') ?? 'Verification code',
+            labelText:
+                localizations?.translate('verificationCode') ??
+                'Verification code',
             prefixIcon: const Icon(Icons.sms_outlined),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             errorText: _errors['phoneOtp'],
           ),
           textDirection: isRTL ? TextDirection.rtl : TextDirection.ltr,
@@ -1165,29 +1198,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ],
     );
   }
-  
+
   Widget _buildPlanStep() {
     final localizations = AppLocalizations.of(context);
     final languageBloc = context.read<LanguageBloc>();
     final language = languageBloc.state.locale.languageCode;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
           localizations?.translate('selectPlan') ?? 'Select a Plan',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         Text(
-          localizations?.translate('planSelectionHint') ?? 
+          localizations?.translate('planSelectionHint') ??
               'Choose the plan that fits your team. You can switch later and no payment details are required now.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 24),
-        
+
         // Billing Cycle Toggle
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1218,7 +1251,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ],
         ),
         const SizedBox(height: 24),
-        
+
         // Plans List
         if (_plansLoading)
           const Center(
@@ -1243,18 +1276,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
           )
         else if (_plans.isEmpty)
           Text(
-            localizations?.translate('noPlansAvailable') ?? 
+            localizations?.translate('noPlansAvailable') ??
                 'No paid plans are published yet. You can continue with the free trial.',
             style: Theme.of(context).textTheme.bodyMedium,
             textAlign: TextAlign.center,
           )
         else
           ..._plans.map((plan) => _buildPlanCard(plan, language)),
-        
+
         const SizedBox(height: 16),
-        
+
         Text(
-          localizations?.translate('planNoteNoPayment') ?? 
+          localizations?.translate('planNoteNoPayment') ??
               'We activate your chosen plan immediately—upgrade or downgrade anytime from settings.',
           style: Theme.of(context).textTheme.bodySmall,
           textAlign: TextAlign.center,
@@ -1262,7 +1295,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ],
     );
   }
-  
+
   Widget _buildBillingCycleButton(String cycle, String label) {
     final isSelected = _billingCycle == cycle;
     return GestureDetector(
@@ -1287,7 +1320,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
     );
   }
-  
+
   Widget _buildPlanCard(PlanModel plan, String language) {
     final localizations = AppLocalizations.of(context);
     final isSelected = _selectedPlan?.id == plan.id;
@@ -1295,7 +1328,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final priceText = price > 0
         ? '\$${price.toStringAsFixed(2)}'
         : (localizations?.translate('free') ?? 'Free');
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -1304,8 +1337,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           width: isSelected ? 2 : 1,
         ),
         borderRadius: BorderRadius.circular(12),
-        color: isSelected 
-            ? AppTheme.primaryColor.withValues(alpha: 0.1) 
+        color: isSelected
+            ? AppTheme.primaryColor.withValues(alpha: 0.1)
             : Colors.transparent,
       ),
       child: InkWell(
@@ -1329,9 +1362,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       children: [
                         Text(
                           plan.getDisplayName(language),
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -1346,15 +1378,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     children: [
                       Text(
                         priceText,
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          color: AppTheme.primaryColor,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(
+                              color: AppTheme.primaryColor,
+                              fontWeight: FontWeight.bold,
+                            ),
                       ),
                       Text(
                         _billingCycle == 'monthly'
-                            ? (localizations?.translate('perMonth') ?? 'per month')
-                            : (localizations?.translate('perYear') ?? 'per year'),
+                            ? (localizations?.translate('perMonth') ??
+                                  'per month')
+                            : (localizations?.translate('perYear') ??
+                                  'per year'),
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
@@ -1387,7 +1422,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ? '${plan.trialDays} ${localizations?.translate('trialDaysLabel') ?? 'trial days'}'
                           : '',
                       style: TextStyle(
-                        color: plan.trialDays > 0 ? AppTheme.primaryColor : Colors.transparent,
+                        color: plan.trialDays > 0
+                            ? AppTheme.primaryColor
+                            : Colors.transparent,
                         fontSize: 12,
                       ),
                     ),
