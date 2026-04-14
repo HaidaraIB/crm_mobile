@@ -23,7 +23,7 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
-  int _currentStep = 0; // 0: Company, 1: Owner, 2: Plan
+  int _currentStep = 0; // 0: Company, 1: Owner, 2: WhatsApp OTP, 3: Plan
   
   // Company information
   final _companyNameController = TextEditingController();
@@ -38,8 +38,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _phoneOtpController = TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  String? _phoneVerificationToken;
+  bool _otpSending = false;
+  bool _otpVerifying = false;
   
   // Plan selection
   List<PlanModel> _plans = [];
@@ -71,6 +75,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _phoneOtpController.dispose();
     super.dispose();
   }
   
@@ -294,11 +299,79 @@ class _RegisterScreenState extends State<RegisterScreen> {
         phone: _phoneController.text.trim(),
       );
       
-      if (ownerAvailable) {
+      if (!ownerAvailable) return;
+
+      setState(() {
+        _otpSending = true;
+        _generalError = null;
+        _errors = {};
+      });
+      try {
+        final apiService = ApiService();
+        final languageBloc = context.read<LanguageBloc>();
+        final language = languageBloc.state.locale.languageCode;
+        await apiService.registerPhoneSendOtp(
+          phone: _phoneController.text.trim(),
+          language: language,
+        );
+        if (mounted) {
+          setState(() {
+            _phoneVerificationToken = null;
+            _phoneOtpController.clear();
+            _currentStep = 2;
+            _otpSending = false;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _otpSending = false;
+            _generalError = e.toString().replaceAll('Exception: ', '');
+          });
+        }
+      }
+    }
+  }
+
+  Future<void> _handleVerifyPhoneOtp() async {
+    final code = _phoneOtpController.text.trim();
+    if (!RegExp(r'^\d{4,8}$').hasMatch(code)) {
+      setState(() {
+        _errors['phoneOtp'] = AppLocalizations.of(context)?.translate('verificationCodeRequired') ??
+            'Enter the code from WhatsApp';
+      });
+      return;
+    }
+    setState(() {
+      _otpVerifying = true;
+      _errors = {};
+      _generalError = null;
+    });
+    try {
+      final apiService = ApiService();
+      final languageBloc = context.read<LanguageBloc>();
+      final language = languageBloc.state.locale.languageCode;
+      final data = await apiService.registerPhoneVerifyOtp(
+        phone: _phoneController.text.trim(),
+        code: code,
+        language: language,
+      );
+      final token = data['phone_verification_token']?.toString();
+      if (token == null || token.isEmpty) {
+        throw Exception('Missing verification token');
+      }
+      if (mounted) {
         setState(() {
-          _currentStep = 2;
-          _errors = {};
-          _generalError = null;
+          _phoneVerificationToken = token;
+          _currentStep = 3;
+          _otpVerifying = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _otpVerifying = false;
+          _errors['phoneOtp'] = e.toString().replaceAll('Exception: ', '');
         });
       }
     }
@@ -322,11 +395,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
     
+    if (_phoneVerificationToken == null || _phoneVerificationToken!.isEmpty) {
+      setState(() {
+        _generalError = AppLocalizations.of(context)?.translate('phoneVerificationRequired') ??
+            'Verify your phone via WhatsApp first.';
+        _currentStep = 2;
+      });
+      return;
+    }
+
     if (_selectedPlan == null) {
       setState(() {
         _generalError = AppLocalizations.of(context)?.translate('planRequired') ?? 
             'Please select a plan to continue';
-        _currentStep = 2;
+        _currentStep = 3;
       });
       return;
     }
@@ -356,6 +438,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'password': _passwordController.text,
           'phone': _phoneController.text.trim(),
         },
+        phoneVerificationToken: _phoneVerificationToken!,
         planId: _selectedPlan!.id,
         billingCycle: _billingCycle,
         language: language,
@@ -469,7 +552,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         } catch (_) {}
         
         // Determine which step to show based on errors
-        int errorStep = 2;
+        int errorStep = 3;
         if (fieldErrors.containsKey('companyName') || 
             fieldErrors.containsKey('companyDomain')) {
           errorStep = 0;
@@ -480,6 +563,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
             fieldErrors.containsKey('password') ||
             fieldErrors.containsKey('phone')) {
           errorStep = 1;
+        } else if (fieldErrors.containsKey('phoneOtp') ||
+            fieldErrors.containsKey('phone_verification_token')) {
+          errorStep = 2;
         }
         
         setState(() {
@@ -505,7 +591,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Scaffold(
       appBar: AppBar(
         title: SizedBox(
-          width: 140,
+          width: 200,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -530,6 +616,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ),
               _buildProgressStepCompact(2, '3'),
+              Expanded(
+                child: Container(
+                  height: 2,
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  color: _currentStep >= 3
+                      ? AppTheme.primaryColor
+                      : Colors.grey[300],
+                ),
+              ),
+              _buildProgressStepCompact(3, '4'),
             ],
           ),
         ),
@@ -616,7 +712,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       // Step content
                       if (_currentStep == 0) _buildCompanyStep(),
                       if (_currentStep == 1) _buildOwnerStep(),
-                      if (_currentStep == 2) _buildPlanStep(),
+                      if (_currentStep == 2) _buildOtpStep(),
+                      if (_currentStep == 3) _buildPlanStep(),
                       
                       const SizedBox(height: 24),
                       
@@ -626,8 +723,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           if (_currentStep > 0)
                             Expanded(
                               child: OutlinedButton(
-                                onPressed: _isLoading ? null : () {
+                                onPressed: (_isLoading || _otpVerifying || _otpSending) ? null : () {
                                   setState(() {
+                                    if (_currentStep == 3) {
+                                      _phoneVerificationToken = null;
+                                    }
                                     _currentStep--;
                                     _errors = {};
                                     _generalError = null;
@@ -648,8 +748,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           if (_currentStep > 0) const SizedBox(width: 16),
                           Expanded(
                             child: ElevatedButton(
-                              onPressed: (_isLoading || _stepCheckLoading) ? null : 
-                                  (_currentStep < 2 ? _handleNext : _handleRegister),
+                              onPressed: (_isLoading || _stepCheckLoading || _otpSending || _otpVerifying)
+                                  ? null
+                                  : (_currentStep < 2
+                                      ? _handleNext
+                                      : _currentStep == 2
+                                          ? _handleVerifyPhoneOtp
+                                          : _handleRegister),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppTheme.primaryColor,
                                 foregroundColor: Colors.white,
@@ -658,7 +763,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              child: (_isLoading || _stepCheckLoading)
+                              child: (_isLoading || _stepCheckLoading || _otpSending || _otpVerifying)
                                   ? const SizedBox(
                                       height: 20,
                                       width: 20,
@@ -670,7 +775,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   : Text(
                                       _currentStep < 2
                                           ? (localizations?.translate('next') ?? 'Next')
-                                          : (localizations?.translate('register') ?? 'Register'),
+                                          : _currentStep == 2
+                                              ? (localizations?.translate('verifyAndContinue') ??
+                                                  'Verify and continue')
+                                              : (localizations?.translate('register') ?? 'Register'),
                                       style: const TextStyle(fontSize: 16),
                                     ),
                             ),
@@ -1010,6 +1118,47 @@ class _RegisterScreenState extends State<RegisterScreen> {
           onChanged: (_) {
             setState(() {
               _errors.remove('confirmPassword');
+            });
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOtpStep() {
+    final localizations = AppLocalizations.of(context);
+    final isRTL = localizations?.isRTL ?? false;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          localizations?.translate('verifyPhoneWhatsApp') ?? 'Verify your phone (WhatsApp)',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          localizations?.translate('verifyPhoneWhatsAppHint') ??
+              'We sent a code to your WhatsApp. Enter it below.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(height: 24),
+        TextFormField(
+          controller: _phoneOtpController,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            labelText: localizations?.translate('verificationCode') ?? 'Verification code',
+            prefixIcon: const Icon(Icons.sms_outlined),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            errorText: _errors['phoneOtp'],
+          ),
+          textDirection: isRTL ? TextDirection.rtl : TextDirection.ltr,
+          onChanged: (_) {
+            setState(() {
+              _errors.remove('phoneOtp');
             });
           },
         ),

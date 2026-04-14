@@ -147,6 +147,25 @@ class ApiService {
   Map<String, dynamic> _errorContextFromBody(String body) =>
       ApiEnvelope.errorContextFromBody(body);
 
+  bool _isPaginatedBody(dynamic data) {
+    if (data is! Map<String, dynamic>) return false;
+    return data['results'] is List &&
+        (data.containsKey('next')) &&
+        (data.containsKey('previous')) &&
+        (data.containsKey('count'));
+  }
+
+  Uri? _resolveNextPageUri(String nextUrl, String cleanBaseUrl) {
+    if (nextUrl.isEmpty) return null;
+    if (nextUrl.startsWith('http://') || nextUrl.startsWith('https://')) {
+      return Uri.tryParse(nextUrl);
+    }
+    if (nextUrl.startsWith('/')) {
+      return Uri.tryParse('$cleanBaseUrl$nextUrl');
+    }
+    return Uri.tryParse('$cleanBaseUrl/$nextUrl');
+  }
+
   Future<http.Response> _makeRequest(
     String method,
     String endpoint, {
@@ -301,6 +320,67 @@ class ApiService {
       }
     }
 
+    if (method.toUpperCase() == 'GET' &&
+        !cleanEndpoint.contains('page=') &&
+        response.statusCode >= 200 &&
+        response.statusCode < 300) {
+      try {
+        final firstData = _unwrapResponseDynamic(response);
+        if (_isPaginatedBody(firstData)) {
+          final mergedResults = <dynamic>[...(firstData['results'] as List)];
+          final initialCount = (firstData['count'] as num?)?.toInt() ?? mergedResults.length;
+          final initialPrevious = firstData['previous'];
+          String? nextUrl = firstData['next']?.toString();
+          var safetyCounter = 0;
+          var currentHeaders = headers;
+
+          while (nextUrl != null && nextUrl.isNotEmpty && safetyCounter < 200) {
+            safetyCounter += 1;
+            final nextUri = _resolveNextPageUri(nextUrl, cleanBaseUrl);
+            if (nextUri == null) break;
+
+            var nextResponse = await http
+                .get(nextUri, headers: currentHeaders)
+                .timeout(requestTimeout);
+
+            if (nextResponse.statusCode == 401 && includeAuth) {
+              final refreshed = await _refreshToken();
+              if (!refreshed) break;
+              currentHeaders = await _getHeaders(includeAuth: includeAuth);
+              nextResponse = await http
+                  .get(nextUri, headers: currentHeaders)
+                  .timeout(requestTimeout);
+            }
+
+            if (nextResponse.statusCode < 200 || nextResponse.statusCode >= 300) break;
+
+            final nextData = _unwrapResponseDynamic(nextResponse);
+            if (!_isPaginatedBody(nextData)) break;
+
+            mergedResults.addAll((nextData['results'] as List));
+            nextUrl = nextData['next']?.toString();
+          }
+
+          final mergedBody = <String, dynamic>{
+            'count': initialCount > mergedResults.length ? initialCount : mergedResults.length,
+            'next': null,
+            'previous': initialPrevious,
+            'results': mergedResults,
+          };
+
+          return http.Response(
+            jsonEncode(mergedBody),
+            response.statusCode,
+            headers: response.headers,
+            reasonPhrase: response.reasonPhrase,
+            request: response.request,
+          );
+        }
+      } catch (_) {
+        // Fallback to original response if pagination merge fails.
+      }
+    }
+
     return response;
   }
 
@@ -395,11 +475,83 @@ class ApiService {
 
   // ==================== Registration APIs ====================
 
+  /// POST /api/auth/register/phone/send-otp/
+  Future<Map<String, dynamic>> registerPhoneSendOtp({
+    required String phone,
+    String language = 'en',
+  }) async {
+    final cleanEndpoint = '/auth/register/phone/send-otp/';
+    final cleanBaseUrl = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
+    final url = Uri.parse('$cleanBaseUrl$cleanEndpoint');
+    final locale = language == 'ar' ? const Locale('ar') : const Locale('en');
+    try {
+      final headers = await _getHeaders(includeAuth: false);
+      headers['Accept-Language'] = language;
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: jsonEncode({'phone': phone}),
+      );
+      if (response.statusCode == 200) {
+        return _unwrapResponseMap(response);
+      }
+      final err = _errorContextFromBody(response.body);
+      throw ApiFieldException(
+        err['detail']?.toString() ??
+            err['message']?.toString() ??
+            _translateError('registrationFailed', locale: locale),
+        err,
+      );
+    } catch (e) {
+      if (e is ApiFieldException) rethrow;
+      rethrow;
+    }
+  }
+
+  /// POST /api/auth/register/phone/verify-otp/
+  Future<Map<String, dynamic>> registerPhoneVerifyOtp({
+    required String phone,
+    required String code,
+    String language = 'en',
+  }) async {
+    final cleanEndpoint = '/auth/register/phone/verify-otp/';
+    final cleanBaseUrl = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
+    final url = Uri.parse('$cleanBaseUrl$cleanEndpoint');
+    final locale = language == 'ar' ? const Locale('ar') : const Locale('en');
+    try {
+      final headers = await _getHeaders(includeAuth: false);
+      headers['Accept-Language'] = language;
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: jsonEncode({'phone': phone, 'code': code}),
+      );
+      if (response.statusCode == 200) {
+        return _unwrapResponseMap(response);
+      }
+      final err = _errorContextFromBody(response.body);
+      throw ApiFieldException(
+        err['detail']?.toString() ??
+            err['message']?.toString() ??
+            _translateError('verificationFailed', locale: locale),
+        err,
+      );
+    } catch (e) {
+      if (e is ApiFieldException) rethrow;
+      rethrow;
+    }
+  }
+
   /// تسجيل شركة جديدة مع المالك
   /// POST /api/auth/register/
   Future<Map<String, dynamic>> registerCompany({
     required Map<String, dynamic> company,
     required Map<String, dynamic> owner,
+    required String phoneVerificationToken,
     int? planId,
     String billingCycle = 'monthly',
     String language = 'en',
@@ -413,7 +565,11 @@ class ApiService {
     final locale = language == 'ar' ? const Locale('ar') : const Locale('en');
 
     try {
-      final requestBody = <String, dynamic>{'company': company, 'owner': owner};
+      final requestBody = <String, dynamic>{
+        'company': company,
+        'owner': owner,
+        'phone_verification_token': phoneVerificationToken,
+      };
 
       if (planId != null) {
         requestBody['plan_id'] = planId;
