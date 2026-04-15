@@ -44,18 +44,28 @@ class SettingsDefaultChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: AppTheme.primaryColor.withValues(alpha: 0.15),
+        color: isDark
+            ? AppTheme.primaryColor.withValues(alpha: 0.3)
+            : AppTheme.primaryColor.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: isDark
+              ? AppTheme.primaryColor.withValues(alpha: 0.85)
+              : AppTheme.primaryColor.withValues(alpha: 0.35),
+          width: 1,
+        ),
       ),
       child: Text(
         label,
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w600,
-          color: AppTheme.primaryColor,
+          color: isDark ? Colors.white : AppTheme.primaryColor,
         ),
         softWrap: false,
         overflow: TextOverflow.visible,

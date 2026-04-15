@@ -152,6 +152,7 @@ class _ChannelsSettingsScreenState extends State<ChannelsSettingsScreen> {
       case 'tiktok': return localizations?.translate('channelTypeTikTok') ?? 'TikTok';
       case 'youtube': return localizations?.translate('channelTypeYouTube') ?? 'YouTube';
       case 'other': return localizations?.translate('channelTypeOther') ?? 'Other';
+      case 'messaging': return localizations?.translate('channelTypeMessaging') ?? 'Messaging';
       default: return type;
     }
   }
@@ -261,9 +262,13 @@ class _ChannelsSettingsScreenState extends State<ChannelsSettingsScreen> {
                             ? Colors.orange
                             : Colors.green;
                     return SettingsListCard(
-                      child: Padding(
-                        padding: SettingsListCard.listTilePadding,
-                        child: Row(
+                      child: InkWell(
+                        onDoubleTap: channel.isDefault
+                            ? null
+                            : () => _setDefaultChannel(channel),
+                        child: Padding(
+                          padding: SettingsListCard.listTilePadding,
+                          child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             CircleAvatar(
@@ -288,8 +293,9 @@ class _ChannelsSettingsScreenState extends State<ChannelsSettingsScreen> {
                                           child: Text(
                                             channel.name,
                                             style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-                                            overflow: TextOverflow.visible,
-                                            softWrap: false,
+                                            overflow: TextOverflow.ellipsis,
+                                            softWrap: true,
+                                            maxLines: 1,
                                           ),
                                         ),
                                         if (channel.isDefault) ...[
@@ -306,13 +312,24 @@ class _ChannelsSettingsScreenState extends State<ChannelsSettingsScreen> {
                                       style: theme.textTheme.bodySmall?.copyWith(
                                         color: theme.colorScheme.onSurfaceVariant,
                                       ),
-                                      overflow: TextOverflow.visible,
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
                                     ),
                                     const SizedBox(height: 4),
                                     SettingsLabelChip(
                                       label: _getLocalizedPriority(channel.priority, localizations),
                                       color: priorityColor,
                                     ),
+                                    if (!channel.isDefault) ...[
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        '${localizations?.translate('setAsDefault') ?? 'Set as default'} (double-tap)',
+                                        style: theme.textTheme.labelSmall?.copyWith(
+                                          color: theme.colorScheme.primary,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),
@@ -320,20 +337,6 @@ class _ChannelsSettingsScreenState extends State<ChannelsSettingsScreen> {
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                if (!channel.isDefault)
-                                  TextButton(
-                                    onPressed: () => _setDefaultChannel(channel),
-                                    style: TextButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                                      minimumSize: const Size(48, 48),
-                                    ),
-                                    child: Text(
-                                      localizations?.translate('setAsDefault') ?? 'Set as default',
-                                      style: theme.textTheme.labelSmall,
-                                      softWrap: false,
-                                      overflow: TextOverflow.visible,
-                                    ),
-                                  ),
                                 IconButton(
                                   icon: const Icon(Icons.edit_outlined),
                                   onPressed: () {
@@ -359,6 +362,7 @@ class _ChannelsSettingsScreenState extends State<ChannelsSettingsScreen> {
                               ],
                             ),
                           ],
+                        ),
                         ),
                       ),
                     );

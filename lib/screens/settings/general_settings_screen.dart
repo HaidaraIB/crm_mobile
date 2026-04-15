@@ -6,6 +6,31 @@ import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import 'notification_settings_screen.dart';
 
+/// Icon tile used for Language / Theme / Notifications — readable on dark theme.
+Widget _settingsAccentIconBox(BuildContext context, {required Widget child}) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  return Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: isDark
+          ? AppTheme.primaryColor.withValues(alpha: 0.30)
+          : AppTheme.primaryColor.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(
+        color: AppTheme.primaryColor.withValues(alpha: isDark ? 0.65 : 0.40),
+        width: isDark ? 1.5 : 1,
+      ),
+    ),
+    child: IconTheme(
+      data: IconThemeData(
+        size: 26,
+        color: isDark ? Colors.white : AppTheme.primaryColor,
+      ),
+      child: child,
+    ),
+  );
+}
+
 class GeneralSettingsScreen extends StatelessWidget {
   const GeneralSettingsScreen({super.key});
 
@@ -30,17 +55,9 @@ class GeneralSettingsScreen extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        Icons.language,
-                        color: AppTheme.primaryColor,
-                        size: 24,
-                      ),
+                    _settingsAccentIconBox(
+                      context,
+                      child: const Icon(Icons.language_outlined),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -153,16 +170,12 @@ class GeneralSettingsScreen extends StatelessWidget {
                       BlocBuilder<ThemeBloc, ThemeState>(
                         builder: (context, themeState) {
                           final isDarkMode = themeState.themeMode == ThemeMode.dark;
-                          return Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                          return _settingsAccentIconBox(
+                            context,
                             child: Icon(
-                              isDarkMode ? Icons.dark_mode : Icons.light_mode,
-                              color: AppTheme.primaryColor,
-                              size: 24,
+                              isDarkMode
+                                  ? Icons.dark_mode_outlined
+                                  : Icons.light_mode_outlined,
                             ),
                           );
                         },
@@ -235,17 +248,9 @@ class GeneralSettingsScreen extends StatelessWidget {
               padding: const EdgeInsets.all(20),
               child: Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      Icons.notifications,
-                      color: AppTheme.primaryColor,
-                      size: 24,
-                    ),
+                  _settingsAccentIconBox(
+                    context,
+                    child: const Icon(Icons.notifications_outlined),
                   ),
                   const SizedBox(width: 16),
                   Expanded(

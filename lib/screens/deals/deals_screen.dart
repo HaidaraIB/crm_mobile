@@ -912,7 +912,31 @@ class _DealsScreenState extends State<DealsScreen> {
                             _filterDeals();
                             Navigator.pop(context);
                           },
-                          child: Text(localizations?.translate('reset') ?? 'Reset'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: theme.brightness == Brightness.dark
+                                ? const Color(0xFFF3F4F6)
+                                : AppTheme.primaryColor,
+                            backgroundColor: theme.brightness == Brightness.dark
+                                ? Colors.white.withValues(alpha: 0.10)
+                                : null,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            side: BorderSide(
+                              color: theme.brightness == Brightness.dark
+                                  ? Colors.white.withValues(alpha: 0.42)
+                                  : AppTheme.primaryColor.withValues(alpha: 0.6),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Text(
+                            localizations?.translate('reset') ?? 'Reset',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -922,7 +946,21 @@ class _DealsScreenState extends State<DealsScreen> {
                             _filterDeals();
                             Navigator.pop(context);
                           },
-                          child: Text(localizations?.translate('apply') ?? 'Apply'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Text(
+                            localizations?.translate('apply') ?? 'Apply',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
                       ),
                     ],

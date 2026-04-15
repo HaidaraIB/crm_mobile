@@ -228,9 +228,13 @@ class _StagesSettingsScreenState extends State<StagesSettingsScreen> {
                   itemBuilder: (context, index) {
                     final stage = _stages[index];
                     return SettingsListCard(
-                      child: Padding(
-                        padding: SettingsListCard.listTilePadding,
-                        child: Row(
+                      child: InkWell(
+                        onDoubleTap: stage.isDefault
+                            ? null
+                            : () => _setDefaultStage(stage),
+                        child: Padding(
+                          padding: SettingsListCard.listTilePadding,
+                          child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             CircleAvatar(
@@ -250,8 +254,9 @@ class _StagesSettingsScreenState extends State<StagesSettingsScreen> {
                                           child: Text(
                                             stage.name,
                                             style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-                                            overflow: TextOverflow.visible,
-                                            softWrap: false,
+                                            overflow: TextOverflow.ellipsis,
+                                            softWrap: true,
+                                            maxLines: 1,
                                           ),
                                         ),
                                         if (stage.isDefault) ...[
@@ -270,7 +275,7 @@ class _StagesSettingsScreenState extends State<StagesSettingsScreen> {
                                           color: theme.colorScheme.onSurfaceVariant,
                                         ),
                                         maxLines: 2,
-                                        overflow: TextOverflow.visible,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ],
                                     if (stage.required) ...[
@@ -280,6 +285,16 @@ class _StagesSettingsScreenState extends State<StagesSettingsScreen> {
                                         color: Colors.blue,
                                       ),
                                     ],
+                                    if (!stage.isDefault) ...[
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        '${localizations?.translate('setAsDefault') ?? 'Set as default'} (double-tap)',
+                                        style: theme.textTheme.labelSmall?.copyWith(
+                                          color: theme.colorScheme.primary,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),
@@ -287,20 +302,6 @@ class _StagesSettingsScreenState extends State<StagesSettingsScreen> {
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                if (!stage.isDefault)
-                                  TextButton(
-                                    onPressed: () => _setDefaultStage(stage),
-                                    style: TextButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                                      minimumSize: const Size(48, 48),
-                                    ),
-                                    child: Text(
-                                      localizations?.translate('setAsDefault') ?? 'Set as default',
-                                      style: theme.textTheme.labelSmall,
-                                      softWrap: false,
-                                      overflow: TextOverflow.visible,
-                                    ),
-                                  ),
                                 IconButton(
                                   icon: const Icon(Icons.edit_outlined),
                                   onPressed: () {
@@ -326,6 +327,7 @@ class _StagesSettingsScreenState extends State<StagesSettingsScreen> {
                               ],
                             ),
                           ],
+                        ),
                         ),
                       ),
                     );

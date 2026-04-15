@@ -255,9 +255,13 @@ class _StatusesSettingsScreenState extends State<StatusesSettingsScreen> {
                   itemBuilder: (context, index) {
                     final status = _statuses[index];
                     return SettingsListCard(
-                      child: Padding(
-                        padding: SettingsListCard.listTilePadding,
-                        child: Row(
+                      child: InkWell(
+                        onDoubleTap: status.isDefault
+                            ? null
+                            : () => _setDefaultStatus(status),
+                        child: Padding(
+                          padding: SettingsListCard.listTilePadding,
+                          child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             CircleAvatar(
@@ -277,8 +281,9 @@ class _StatusesSettingsScreenState extends State<StatusesSettingsScreen> {
                                           child: Text(
                                             status.name,
                                             style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-                                            overflow: TextOverflow.visible,
-                                            softWrap: false,
+                                            overflow: TextOverflow.ellipsis,
+                                            softWrap: true,
+                                            maxLines: 1,
                                           ),
                                         ),
                                         if (status.isDefault) ...[
@@ -297,7 +302,7 @@ class _StatusesSettingsScreenState extends State<StatusesSettingsScreen> {
                                           color: theme.colorScheme.onSurfaceVariant,
                                         ),
                                         maxLines: 2,
-                                        overflow: TextOverflow.visible,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ],
                                     const SizedBox(height: 4),
@@ -305,6 +310,16 @@ class _StatusesSettingsScreenState extends State<StatusesSettingsScreen> {
                                       label: _getCategoryLabel(status.category, localizations),
                                       color: _getCategoryColor(status.category),
                                     ),
+                                    if (!status.isDefault) ...[
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        '${localizations?.translate('setAsDefault') ?? 'Set as default'} (double-tap)',
+                                        style: theme.textTheme.labelSmall?.copyWith(
+                                          color: theme.colorScheme.primary,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),
@@ -312,20 +327,6 @@ class _StatusesSettingsScreenState extends State<StatusesSettingsScreen> {
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                if (!status.isDefault)
-                                  TextButton(
-                                    onPressed: () => _setDefaultStatus(status),
-                                    style: TextButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                                      minimumSize: const Size(48, 48),
-                                    ),
-                                    child: Text(
-                                      localizations?.translate('setAsDefault') ?? 'Set as default',
-                                      style: theme.textTheme.labelSmall,
-                                      softWrap: false,
-                                      overflow: TextOverflow.visible,
-                                    ),
-                                  ),
                                 IconButton(
                                   icon: const Icon(Icons.edit_outlined),
                                   onPressed: () {
@@ -351,6 +352,7 @@ class _StatusesSettingsScreenState extends State<StatusesSettingsScreen> {
                               ],
                             ),
                           ],
+                        ),
                         ),
                       ),
                     );

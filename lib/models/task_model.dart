@@ -45,8 +45,16 @@ class TaskModel {
           ? DateTime.parse(json['reminder_date'] as String)
           : null,
       createdBy: json['created_by'] as int? ?? json['createdBy'] as int? ?? 0,
-      createdAt: DateTime.parse(json['created_at'] as String? ?? json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updated_at'] as String? ?? json['updatedAt'] as String),
+      createdAt: DateTime.parse(
+        (json['created_at'] as String?) ??
+            (json['createdAt'] as String?) ??
+            '1970-01-01T00:00:00.000Z',
+      ),
+      updatedAt: DateTime.parse(
+        (json['updated_at'] as String?) ??
+            (json['updatedAt'] as String?) ??
+            '1970-01-01T00:00:00.000Z',
+      ),
       dealClientName: json['deal_client_name'] as String?,
       dealEmployeeUsername: json['deal_employee_username'] as String?,
       stageName: json['stage_name'] as String?,

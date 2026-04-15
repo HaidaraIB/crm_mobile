@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/localization/app_localizations.dart';
+import '../../core/utils/snackbar_helper.dart';
 import 'splash_screen.dart';
 
 /// Full-screen gate: update from store or retry policy fetch (fail-closed).
@@ -15,52 +16,13 @@ class ForceUpdateScreen extends StatelessWidget {
   final bool couldNotVerify;
   final String storeUrl;
 
-  void _showThemedNoticeSnackBar(BuildContext context, String message) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.clearSnackBars();
-    messenger.showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        elevation: 6,
-        backgroundColor: cs.inverseSurface,
-        clipBehavior: Clip.antiAlias,
-        content: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(
-              Icons.info_outline_rounded,
-              size: 22,
-              color: cs.onInverseSurface,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                message,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: cs.onInverseSurface,
-                  height: 1.4,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Future<void> _openStore(BuildContext context) async {
     final url = storeUrl.trim();
     if (url.isEmpty) {
       if (!context.mounted) return;
       final msg = AppLocalizations.of(context)?.translate('forceUpdateStoreUrlMissing') ??
           'Store link is not set. Add the Play Store or App Store URL in system settings, then try again.';
-      _showThemedNoticeSnackBar(context, msg);
+      SnackbarHelper.showInfo(context, msg, clearSnackBars: true);
       return;
     }
     final uri = Uri.tryParse(url);

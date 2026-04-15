@@ -58,7 +58,7 @@ class AppConstants {
   static const String notificationFilterKey = 'notificationFilter';
 
   // Primary Color (Purple)
-  static const int primaryColorValue = 0xFF9333EA;
+  static const int primaryColorValue = 0xFF4215AA;
 
   /// Legacy display string; prefer [PackageInfo] from `package_info_plus`.
   static const String appVersion = '1.0.0';

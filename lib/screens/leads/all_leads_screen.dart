@@ -12,6 +12,9 @@ import '../../widgets/modals/add_action_modal.dart';
 import '../../widgets/modals/add_call_modal.dart';
 import '../../widgets/modals/send_sms_modal.dart';
 import '../../widgets/modals/assign_lead_modal.dart';
+import '../../widgets/lead_contact_action_button.dart';
+import '../../widgets/lead_status_badge.dart';
+import '../../widgets/scrolling_single_line_text.dart';
 import 'create_lead_screen.dart';
 import 'edit_lead_screen.dart';
 import 'import_leads_screen.dart';
@@ -24,6 +27,13 @@ String _formatPhoneForDisplay(String? raw) {
   final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
   if (digits.isEmpty) return raw;
   return '+$digits';
+}
+
+/// Label/checkmark color on selected filter chips (readable on tinted fills).
+Color _filterChipOnBase(Color baseColor) {
+  return ThemeData.estimateBrightnessForColor(baseColor) == Brightness.light
+      ? const Color(0xFF111827)
+      : Colors.white;
 }
 
 class AllLeadsScreen extends StatefulWidget {
@@ -932,6 +942,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     LeadModel lead,
     AppLocalizations? localizations,
   ) {
+    final theme = Theme.of(context);
     return Builder(
       builder: (cardContext) {
         return GestureDetector(
@@ -977,12 +988,10 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                lead.name.isNotEmpty
+                              ScrollingSingleLineText(
+                                text: lead.name.isNotEmpty
                                     ? lead.name
                                     : "Unnamed Lead",
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w700,
@@ -1045,44 +1054,90 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
 
                     /// Assigned user
                     Center(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 8,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.86,
                         ),
-                        decoration: BoxDecoration(
-                          color: lead.assignedTo > 0
-                              ? AppTheme.primaryColor.withValues(alpha: 0.1)
-                              : Colors.orange.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              lead.assignedTo > 0
-                                  ? Icons.person
-                                  : Icons.person_outline,
-                              size: 16,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: lead.assignedTo > 0
+                                ? (theme.brightness == Brightness.dark
+                                    ? AppTheme.primaryColor.withValues(alpha: 0.25)
+                                    : AppTheme.primaryColor)
+                                : theme.colorScheme.tertiaryContainer.withValues(
+                                    alpha: 0.85,
+                                  ),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
                               color: lead.assignedTo > 0
-                                  ? AppTheme.primaryColor
-                                  : Colors.orange,
+                                  ? (theme.brightness == Brightness.dark
+                                      ? AppTheme.primaryColor.withValues(alpha: 0.8)
+                                      : Color.lerp(
+                                          AppTheme.primaryColor,
+                                          Colors.black,
+                                          0.18,
+                                        )!)
+                                  : Colors.transparent,
                             ),
-                            const SizedBox(width: 6),
-                            Text(
-                              _getAssignedUserName(
-                                lead.assignedTo > 0 ? lead.assignedTo : null,
-                                localizations,
-                              ),
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                lead.assignedTo > 0
+                                    ? Icons.person
+                                    : Icons.person_outline,
+                                size: 16,
                                 color: lead.assignedTo > 0
-                                    ? AppTheme.primaryColor
-                                    : Colors.orange,
+                                    ? Colors.white
+                                    : theme.colorScheme.onTertiaryContainer,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text.rich(
+                                  TextSpan(
+                                    children: [
+                                      TextSpan(
+                                        text:
+                                            '${localizations?.translate('assignedTo') ?? 'Assigned To'}: ',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 12,
+                                          color: lead.assignedTo > 0
+                                              ? Colors.white
+                                              : theme
+                                                  .colorScheme
+                                                  .onTertiaryContainer,
+                                        ),
+                                      ),
+                                      TextSpan(
+                                        text: _getAssignedUserName(
+                                          lead.assignedTo > 0
+                                              ? lead.assignedTo
+                                              : null,
+                                          localizations,
+                                        ),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 13,
+                                          color: lead.assignedTo > 0
+                                              ? Colors.white
+                                              : theme
+                                                  .colorScheme
+                                                  .onTertiaryContainer,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -1206,135 +1261,50 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
   }
 
   Widget _buildStatusDropdown(LeadModel lead, AppLocalizations? localizations) {
-    final theme = Theme.of(context);
     final currentStatus = _getCurrentStatus(lead);
     final statusColor = currentStatus != null
         ? _parseColor(currentStatus.color)
         : AppTheme.primaryColor;
     final isUpdating = _updatingStatusMap[lead.id] ?? false;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: statusColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: statusColor.withValues(alpha: 0.3), width: 2),
-      ),
-      child: isUpdating
-          ? const Center(
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            )
-          : DropdownButtonHideUnderline(
-              child: DropdownButton<StatusModel>(
-                value: currentStatus,
-                isExpanded: true,
-                icon: Icon(Icons.arrow_drop_down, color: statusColor),
-                items: _statuses.map((status) {
-                  final itemColor = _parseColor(status.color);
-                  return DropdownMenuItem<StatusModel>(
-                    value: status,
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: itemColor,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            status.name,
-                            style: TextStyle(
-                              color:
-                                  theme.textTheme.bodyLarge?.color ??
-                                  theme.colorScheme.onSurface,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-                onChanged: (StatusModel? newStatus) {
-                  if (newStatus != null) {
-                    _updateStatus(lead, newStatus);
-                  }
-                },
-                selectedItemBuilder: (context) {
-                  return _statuses.map((status) {
-                    final itemColor = _parseColor(status.color);
-                    return Row(
-                      children: [
-                        Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: itemColor,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            status.name,
-                            style: TextStyle(
-                              color: statusColor,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  }).toList();
-                },
-              ),
-            ),
+    if (_statuses.isEmpty) {
+      return const SizedBox(
+        height: 44,
+        child: Center(
+          child: SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+
+    if (currentStatus == null) {
+      return LeadStatusBadge(
+        accentColor: statusColor,
+        label: lead.statusName ?? '—',
+        parseColor: _parseColor,
+        isLoading: isUpdating,
+      );
+    }
+
+    return LeadStatusBadge(
+      accentColor: statusColor,
+      label: currentStatus.name,
+      parseColor: _parseColor,
+      statuses: _statuses,
+      selected: currentStatus,
+      isLoading: isUpdating,
+      onStatusSelected: (s) => _updateStatus(lead, s),
     );
   }
 
   Widget _buildStatusDisplay(LeadModel lead, AppLocalizations? localizations) {
-    final statusColor = AppTheme.primaryColor;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: statusColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: statusColor.withValues(alpha: 0.3), width: 2),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 12,
-            height: 12,
-            decoration: BoxDecoration(
-              color: statusColor,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            lead.statusName!,
-            style: TextStyle(
-              color: statusColor,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
+    return LeadStatusBadge(
+      accentColor: AppTheme.primaryColor,
+      label: lead.statusName!,
+      parseColor: _parseColor,
     );
   }
 
@@ -1402,24 +1372,6 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        if (_selectedType != null ||
-                            _selectedStatus != null ||
-                            _selectedAssigneeId != null)
-                          TextButton(
-                            onPressed: () {
-                              setState(() {
-                                _selectedType = null;
-                                _selectedStatus = null;
-                                _selectedAssigneeId = null;
-                              });
-                              setModalState(() {}); // Update modal UI
-                              _filterLeads(); // Apply cleared filters immediately
-                            },
-                            child: Text(
-                              localizations?.translate('clear') ?? 'Clear',
-                              style: TextStyle(color: theme.colorScheme.error),
-                            ),
-                          ),
                       ],
                     ),
                     const SizedBox(height: 24),
@@ -1590,32 +1542,75 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                             ),
                       const SizedBox(height: 24),
                     ],
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 24),
 
-                    // Apply Button
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _applyFilters();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primaryColor,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                    // Reset + Apply (aligned with Filter Deals)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () {
+                              setState(() {
+                                _selectedType = null;
+                                _selectedStatus = null;
+                                _selectedAssigneeId = null;
+                              });
+                              setModalState(() {});
+                              Navigator.pop(context);
+                              _applyFilters();
+                            },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: theme.brightness == Brightness.dark
+                                  ? const Color(0xFFF3F4F6)
+                                  : AppTheme.primaryColor,
+                              backgroundColor: theme.brightness == Brightness.dark
+                                  ? Colors.white.withValues(alpha: 0.10)
+                                  : null,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              side: BorderSide(
+                                color: theme.brightness == Brightness.dark
+                                    ? Colors.white.withValues(alpha: 0.42)
+                                    : AppTheme.primaryColor.withValues(alpha: 0.6),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Text(
+                              localizations?.translate('reset') ?? 'Reset',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                         ),
-                        child: Text(
-                          localizations?.translate('apply') ?? 'Apply',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              _applyFilters();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryColor,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text(
+                              localizations?.translate('apply') ?? 'Apply',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                     ),
                     const SizedBox(height: 16),
                   ],
@@ -1635,23 +1630,27 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     required ThemeData theme,
     Color? color,
   }) {
+    final base = color ?? AppTheme.primaryColor;
+    final selectedFill = base.withValues(
+      alpha: theme.brightness == Brightness.dark ? 0.88 : 0.82,
+    );
+    final onSelected = _filterChipOnBase(base);
+
     return FilterChip(
       label: Text(label),
       selected: isSelected,
       onSelected: (_) => onTap(),
-      selectedColor:
-          color?.withValues(alpha: 0.2) ??
-          AppTheme.primaryColor.withValues(alpha: 0.2),
-      checkmarkColor: color ?? AppTheme.primaryColor,
+      selectedColor: selectedFill,
+      checkmarkColor: isSelected ? onSelected : base,
       labelStyle: TextStyle(
         color: isSelected
-            ? (color ?? AppTheme.primaryColor)
+            ? onSelected
             : theme.textTheme.bodyMedium?.color,
         fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
       ),
       side: BorderSide(
         color: isSelected
-            ? (color ?? AppTheme.primaryColor)
+            ? base
             : (theme.brightness == Brightness.dark
                   ? Colors.white.withValues(alpha: 0.2)
                   : Colors.grey.withValues(alpha: 0.3)),
@@ -1668,15 +1667,31 @@ class _LeadAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CircleAvatar(
-      radius: 28,
-      backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.15),
-      child: Text(
-        lead.name.isNotEmpty ? lead.name[0].toUpperCase() : "?",
-        style: TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.bold,
-          color: AppTheme.primaryColor,
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final bg = isDark
+        ? AppTheme.primaryColor.withValues(alpha: 0.35)
+        : AppTheme.primaryColor;
+    const fg = Colors.white;
+    final borderColor = isDark
+        ? AppTheme.primaryColor.withValues(alpha: 0.85)
+        : Color.lerp(AppTheme.primaryColor, Colors.black, 0.2)!;
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: borderColor, width: 1.5),
+      ),
+      child: CircleAvatar(
+        radius: 28,
+        backgroundColor: bg,
+        foregroundColor: fg,
+        child: Text(
+          lead.name.isNotEmpty ? lead.name[0].toUpperCase() : "?",
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: fg,
+          ),
         ),
       ),
     );
@@ -1688,8 +1703,6 @@ class _LeadQuickActions extends StatelessWidget {
   final VoidCallback onWhatsapp;
   final VoidCallback onCall;
   final VoidCallback onSms;
-
-  static const Color _whatsappGreen = Color(0xFF25D366);
 
   const _LeadQuickActions({
     required this.lead,
@@ -1707,40 +1720,24 @@ class _LeadQuickActions extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Tooltip(
-          message: whatsappLabel,
-          child: IconButton(
-            iconSize: 24,
-            icon: Image.asset(
-              'assets/images/whatsapp_logo.png',
-              width: 24,
-              height: 24,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Icon(
-                Icons.chat_bubble_outline,
-                size: 24,
-                color: _whatsappGreen,
-              ),
-            ),
-            onPressed: onWhatsapp,
-          ),
+        LeadContactActionButton(
+          accentColor: LeadContactActionButton.whatsappGreen,
+          isWhatsApp: true,
+          onPressed: onWhatsapp,
+          tooltip: whatsappLabel,
         ),
-        IconButton(
-          iconSize: 24,
-          icon: Icon(Icons.phone_outlined, size: 24),
+        const SizedBox(width: 8),
+        LeadContactActionButton(
+          accentColor: AppTheme.primaryColor,
+          icon: Icons.phone_outlined,
           onPressed: onCall,
         ),
-        Tooltip(
-          message: smsLabel,
-          child: IconButton(
-            iconSize: 24,
-            icon: Icon(
-              Icons.sms_outlined,
-              size: 24,
-              color: AppTheme.smsButtonColor,
-            ),
-            onPressed: onSms,
-          ),
+        const SizedBox(width: 8),
+        LeadContactActionButton(
+          accentColor: AppTheme.smsButtonColor,
+          icon: Icons.sms_outlined,
+          onPressed: onSms,
+          tooltip: smsLabel,
         ),
       ],
     );

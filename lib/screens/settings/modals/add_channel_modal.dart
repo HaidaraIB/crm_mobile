@@ -81,6 +81,9 @@ class _AddChannelModalState extends State<AddChannelModal> {
         return localizations?.translate('youtube') ?? 'YouTube';
       case 'other':
         return localizations?.translate('other') ?? 'Other';
+      case 'messaging':
+      case 'channeltypemessaging':
+        return localizations?.translate('channelTypeMessaging') ?? 'Messaging';
       default:
         return type;
     }

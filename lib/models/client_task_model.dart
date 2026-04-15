@@ -27,7 +27,11 @@ class ClientTaskModel {
           ? DateTime.parse(json['reminder_date'] as String)
           : null,
       createdBy: json['created_by'] as int? ?? json['createdBy'] as int? ?? 0,
-      createdAt: DateTime.parse(json['created_at'] as String? ?? json['createdAt'] as String),
+      createdAt: DateTime.parse(
+        (json['created_at'] as String?) ??
+            (json['createdAt'] as String?) ??
+            '1970-01-01T00:00:00.000Z',
+      ),
     );
   }
   

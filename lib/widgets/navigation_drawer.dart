@@ -46,7 +46,7 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
       final info = await PackageInfo.fromPlatform();
       if (mounted) {
         setState(() {
-          _appVersionLine = '${info.version}+${info.buildNumber}';
+          _appVersionLine = info.version;
         });
       }
     } catch (_) {}

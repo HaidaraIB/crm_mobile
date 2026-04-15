@@ -554,6 +554,7 @@ class _DealFormScreenState extends State<DealFormScreen> {
                     const SizedBox(height: 20),
                     DropdownButtonFormField<String>(
                       initialValue: _formState['leadId'],
+                      isExpanded: true,
                       decoration: InputDecoration(
                         labelText: '${localizations?.translate('lead') ?? 'Lead'} *',
                         errorText: _errors['leadId'],
@@ -563,7 +564,11 @@ class _DealFormScreenState extends State<DealFormScreen> {
                       ),
                       items: _leads.map((l) => DropdownMenuItem(
                         value: l.id.toString(),
-                        child: Text(l.name),
+                        child: Text(
+                          l.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       )).toList(),
                       onChanged: (value) {
                         setState(() {

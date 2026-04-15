@@ -13,6 +13,9 @@ import '../../widgets/modals/add_action_modal.dart';
 import '../../widgets/modals/add_call_modal.dart';
 import '../../widgets/modals/send_sms_modal.dart';
 import '../../widgets/phone_input.dart';
+import '../../widgets/lead_contact_action_button.dart';
+import '../../widgets/lead_status_badge.dart';
+import '../../widgets/scrolling_single_line_text.dart';
 import 'edit_lead_screen.dart';
 
 /// Formats phone for display so the plus sign always appears at the start (works in both LTR and RTL).
@@ -521,10 +524,8 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              _lead!.name.isNotEmpty ? _lead!.name : 'Unnamed Lead',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                            ScrollingSingleLineText(
+                              text: _lead!.name.isNotEmpty ? _lead!.name : 'Unnamed Lead',
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
@@ -557,35 +558,76 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                     _buildStatusDisplay(localizations),
                   const SizedBox(height: 14),
                   Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: _lead!.assignedTo > 0
-                            ? AppTheme.primaryColor.withValues(alpha: 0.1)
-                            : Colors.orange.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(14),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: MediaQuery.of(context).size.width * 0.86,
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            _lead!.assignedTo > 0 ? Icons.person : Icons.person_outline,
-                            size: 16,
-                            color: _lead!.assignedTo > 0 ? AppTheme.primaryColor : Colors.orange,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: _lead!.assignedTo > 0
+                              ? (theme.brightness == Brightness.dark
+                                  ? AppTheme.primaryColor.withValues(alpha: 0.25)
+                                  : AppTheme.primaryColor)
+                              : theme.colorScheme.tertiaryContainer.withValues(alpha: 0.85),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: _lead!.assignedTo > 0
+                                ? (theme.brightness == Brightness.dark
+                                    ? AppTheme.primaryColor.withValues(alpha: 0.8)
+                                    : Color.lerp(
+                                        AppTheme.primaryColor,
+                                        Colors.black,
+                                        0.18,
+                                      )!)
+                                : Colors.transparent,
                           ),
-                          const SizedBox(width: 6),
-                          Text(
-                            _getAssignedUserName(
-                              _lead!.assignedTo > 0 ? _lead!.assignedTo : null,
-                              localizations,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              _lead!.assignedTo > 0 ? Icons.person : Icons.person_outline,
+                              size: 16,
+                              color: _lead!.assignedTo > 0
+                                  ? Colors.white
+                                  : theme.colorScheme.onTertiaryContainer,
                             ),
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                              color: _lead!.assignedTo > 0 ? AppTheme.primaryColor : Colors.orange,
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text.rich(
+                                TextSpan(
+                                  children: [
+                                    TextSpan(
+                                      text: '${localizations?.translate('assignedTo') ?? 'Assigned To'}: ',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 12,
+                                        color: _lead!.assignedTo > 0
+                                            ? Colors.white
+                                            : theme.colorScheme.onTertiaryContainer,
+                                      ),
+                                    ),
+                                    TextSpan(
+                                      text: _getAssignedUserName(
+                                        _lead!.assignedTo > 0 ? _lead!.assignedTo : null,
+                                        localizations,
+                                      ),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13,
+                                        color: _lead!.assignedTo > 0
+                                            ? Colors.white
+                                            : theme.colorScheme.onTertiaryContainer,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -714,50 +756,81 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
   }
   
   Widget _buildProfileAvatar(ThemeData theme) {
+    final isDark = theme.brightness == Brightness.dark;
+    final bg = isDark
+        ? AppTheme.primaryColor.withValues(alpha: 0.35)
+        : AppTheme.primaryColor;
+    const fg = Colors.white;
+    final borderColor = isDark
+        ? AppTheme.primaryColor.withValues(alpha: 0.85)
+        : Color.lerp(AppTheme.primaryColor, Colors.black, 0.2)!;
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        CircleAvatar(
-          radius: 28,
-          backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.15),
-          child: Text(
-            _lead!.name.isNotEmpty ? _lead!.name[0].toUpperCase() : '?',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.primaryColor,
+        Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: borderColor, width: 1.5),
+          ),
+          child: CircleAvatar(
+            radius: 28,
+            backgroundColor: bg,
+            foregroundColor: fg,
+            child: Text(
+              _lead!.name.isNotEmpty ? _lead!.name[0].toUpperCase() : '?',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: fg,
+              ),
             ),
           ),
         ),
         if (_lead!.communicationWay != null)
           Positioned(
-            bottom: -2,
-            right: -2,
-            child: Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                color: theme.cardColor,
-                shape: BoxShape.circle,
-                border: Border.all(color: theme.cardColor, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: theme.brightness == Brightness.dark
-                        ? Colors.black.withValues(alpha: 0.5)
-                        : Colors.black.withValues(alpha: 0.1),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
+            bottom: -3,
+            right: -3,
+            child: Tooltip(
+              message: _lead!.communicationWay!,
+              child: Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: Color.lerp(
+                    AppTheme.primaryColor,
+                    const Color(0xFF0B1020),
+                    theme.brightness == Brightness.dark ? 0.42 : 0.28,
                   ),
-                ],
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: theme.brightness == Brightness.dark
+                        ? Colors.white.withValues(alpha: 0.38)
+                        : Colors.white.withValues(alpha: 0.75),
+                    width: 2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(
+                        alpha: theme.brightness == Brightness.dark ? 0.35 : 0.18,
+                      ),
+                      blurRadius: 5,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Icon(
+                    Icons.campaign_rounded,
+                    size: 18,
+                    color: Colors.white.withValues(alpha: 0.92),
+                  ),
+                ),
               ),
-              child: Icon(Icons.folder, size: 16, color: Colors.blue[700]),
             ),
           ),
       ],
     );
   }
-
-  static const Color _whatsappGreen = Color(0xFF25D366);
 
   Widget _buildProfileQuickActions(AppLocalizations? localizations) {
     final whatsappLabel = localizations?.translate('whatsapp') ?? 'WhatsApp';
@@ -765,40 +838,24 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Tooltip(
-          message: whatsappLabel,
-          child: IconButton(
-            iconSize: 24,
-            icon: Image.asset(
-              'assets/images/whatsapp_logo.png',
-              width: 24,
-              height: 24,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Icon(
-                Icons.chat_bubble_outline,
-                size: 24,
-                color: _whatsappGreen,
-              ),
-            ),
-            onPressed: () => _openWhatsApp(_lead!.phone),
-          ),
+        LeadContactActionButton(
+          accentColor: LeadContactActionButton.whatsappGreen,
+          isWhatsApp: true,
+          onPressed: () => _openWhatsApp(_lead!.phone),
+          tooltip: whatsappLabel,
         ),
-        IconButton(
-          iconSize: 24,
-          icon: Icon(Icons.phone_outlined, size: 24),
+        const SizedBox(width: 8),
+        LeadContactActionButton(
+          accentColor: AppTheme.primaryColor,
+          icon: Icons.phone_outlined,
           onPressed: () => _makeCall(_lead!.phone),
         ),
-        Tooltip(
-          message: smsLabel,
-          child: IconButton(
-            iconSize: 24,
-            icon: Icon(
-              Icons.sms_outlined,
-              size: 24,
-              color: AppTheme.smsButtonColor,
-            ),
-            onPressed: () => _showSendSMSModal(_lead!),
-          ),
+        const SizedBox(width: 8),
+        LeadContactActionButton(
+          accentColor: AppTheme.smsButtonColor,
+          icon: Icons.sms_outlined,
+          onPressed: () => _showSendSMSModal(_lead!),
+          tooltip: smsLabel,
         ),
       ],
     );
@@ -868,6 +925,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
             label: localizations?.translate('assignedTo') ?? 'Assigned To',
             value: _getAssignedUserName(lead.assignedTo > 0 ? lead.assignedTo : null, localizations),
             iconColor: AppTheme.primaryColor,
+            useActionStyleIcon: true,
           ),
           const SizedBox(height: 12),
           _buildDetailCard(
@@ -999,11 +1057,43 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                 ),
               ),
               if (_canModifyLead())
-                IconButton(
-                  icon: const Icon(Icons.add_circle_outline, size: 22),
-                  color: AppTheme.primaryColor,
-                  onPressed: () => _showAddPhoneNumberModal(lead, localizations),
-                  tooltip: localizations?.translate('addPhoneNumber') ?? 'Add Phone',
+                Tooltip(
+                  message:
+                      localizations?.translate('addPhoneNumber') ?? 'Add Phone',
+                  child: Material(
+                    color: AppTheme.primaryColor,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      onTap: () =>
+                          _showAddPhoneNumberModal(lead, localizations),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.add_rounded,
+                              color: Colors.white,
+                              size: 22,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              localizations?.translate('add') ?? 'Add',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
             ],
           ),
@@ -1073,10 +1163,14 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withValues(alpha: 0.15),
+                        color: theme.brightness == Brightness.dark
+                            ? AppTheme.primaryColor.withValues(alpha: 0.3)
+                            : AppTheme.primaryColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                          color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                          color: theme.brightness == Brightness.dark
+                              ? AppTheme.primaryColor.withValues(alpha: 0.85)
+                              : AppTheme.primaryColor.withValues(alpha: 0.35),
                           width: 1,
                         ),
                       ),
@@ -1086,7 +1180,9 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                           Icon(
                             Icons.star,
                             size: 12,
-                            color: AppTheme.primaryColor,
+                            color: theme.brightness == Brightness.dark
+                                ? Colors.white
+                                : AppTheme.primaryColor,
                           ),
                           const SizedBox(width: 4),
                           Text(
@@ -1094,7 +1190,9 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
-                              color: AppTheme.primaryColor,
+                              color: theme.brightness == Brightness.dark
+                                  ? Colors.white
+                                  : AppTheme.primaryColor,
                               letterSpacing: 0.3,
                             ),
                           ),
@@ -1145,24 +1243,23 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                 ),
               ),
             // WhatsApp Button
-          _buildPhoneActionButton(
-            icon: Icons.chat_bubble,
-            color: const Color(0xFF25D366),
-            onPressed: () => _openWhatsApp(phone.phoneNumber),
+          LeadContactActionButton(
+            accentColor: LeadContactActionButton.whatsappGreen,
             isWhatsApp: true,
+            onPressed: () => _openWhatsApp(phone.phoneNumber),
           ),
           const SizedBox(width: 8),
           // Call Button
-          _buildPhoneActionButton(
+          LeadContactActionButton(
+            accentColor: AppTheme.primaryColor,
             icon: Icons.phone_outlined,
-            color: AppTheme.primaryColor,
             onPressed: () => _makeCall(phone.phoneNumber),
           ),
           const SizedBox(width: 8),
           // SMS Button
-          _buildPhoneActionButton(
+          LeadContactActionButton(
+            accentColor: AppTheme.smsButtonColor,
             icon: Icons.sms_outlined,
-            color: AppTheme.smsButtonColor,
             onPressed: () => _showSendSMSModal(_lead!, phone.phoneNumber),
           ),
         ],
@@ -1498,61 +1595,48 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
     );
   }
 
-  Widget _buildPhoneActionButton({
-    required IconData icon,
-    required Color color,
-    required VoidCallback onPressed,
-    bool isWhatsApp = false,
-    String? tooltip,
-  }) {
-    final button = Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: color.withValues(alpha: 0.3),
-              width: 1.5,
-            ),
-          ),
-          child: isWhatsApp
-              ? Image.asset(
-                  'assets/images/whatsapp_logo.png',
-                  width: 20,
-                  height: 20,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Icon(icon, color: color, size: 18);
-                  },
-                )
-              : Icon(icon, color: color, size: 18),
-        ),
-      ),
-    );
-    
-    if (tooltip != null) {
-      return Tooltip(
-        message: tooltip,
-        child: button,
-      );
-    }
-    return button;
-  }
-
   Widget _buildDetailCard({
     required IconData icon,
     required String label,
     required String value,
     required Color iconColor,
     bool isMultiline = false,
+    /// Same bordered “chip” as phone row actions — clearer on dark theme.
+    bool useActionStyleIcon = false,
   }) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    final Widget iconChip = useActionStyleIcon
+        ? Container(
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: isDark
+                  ? iconColor.withValues(alpha: 0.25)
+                  : iconColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: iconColor.withValues(alpha: isDark ? 0.85 : 0.3),
+                width: isDark ? 2 : 1.5,
+              ),
+            ),
+            child: Icon(
+              icon,
+              color: isDark ? Colors.white : iconColor,
+              size: 22,
+            ),
+          )
+        : Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: iconColor, size: 20),
+          );
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -1578,14 +1662,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: iconColor, size: 20),
-          ),
+          iconChip,
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -1619,138 +1696,49 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
   }
   
   Widget _buildStatusDropdown(BuildContext context, AppLocalizations? localizations) {
-    final theme = Theme.of(context);
     final currentStatus = _getCurrentStatus();
-    final statusColor = currentStatus != null 
-        ? _parseColor(currentStatus.color) 
+    final statusColor = currentStatus != null
+        ? _parseColor(currentStatus.color)
         : AppTheme.primaryColor;
-    
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: statusColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: statusColor.withValues(alpha: 0.3),
-          width: 2,
+
+    if (_statuses.isEmpty) {
+      return const SizedBox(
+        height: 44,
+        child: Center(
+          child: SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
         ),
-      ),
-      child: _isUpdatingStatus
-          ? const Center(
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            )
-          : DropdownButtonHideUnderline(
-              child: DropdownButton<StatusModel>(
-                value: currentStatus,
-                isExpanded: true,
-                icon: Icon(Icons.arrow_drop_down, color: statusColor),
-                items: _statuses.map((status) {
-                  final itemColor = _parseColor(status.color);
-                  return DropdownMenuItem<StatusModel>(
-                    value: status,
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: itemColor,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            status.name,
-                            style: TextStyle(
-                              color: theme.textTheme.bodyLarge?.color ?? theme.colorScheme.onSurface,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-                onChanged: (StatusModel? newStatus) {
-                  if (newStatus != null) {
-                    _updateStatus(newStatus);
-                  }
-                },
-                selectedItemBuilder: (context) {
-                  return _statuses.map((status) {
-                    final itemColor = _parseColor(status.color);
-                    return Row(
-                      children: [
-                        Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: itemColor,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            status.name,
-                            style: TextStyle(
-                              color: statusColor,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  }).toList();
-                },
-              ),
-            ),
+      );
+    }
+
+    if (currentStatus == null) {
+      return LeadStatusBadge(
+        accentColor: statusColor,
+        label: _lead?.statusName ?? '—',
+        parseColor: _parseColor,
+        isLoading: _isUpdatingStatus,
+      );
+    }
+
+    return LeadStatusBadge(
+      accentColor: statusColor,
+      label: currentStatus.name,
+      parseColor: _parseColor,
+      statuses: _statuses,
+      selected: currentStatus,
+      isLoading: _isUpdatingStatus,
+      onStatusSelected: (s) => _updateStatus(s),
     );
   }
   
   Widget _buildStatusDisplay(AppLocalizations? localizations) {
-    final statusColor = AppTheme.primaryColor;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: statusColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: statusColor.withValues(alpha: 0.3),
-          width: 2,
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 12,
-            height: 12,
-            decoration: BoxDecoration(
-              color: statusColor,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            _lead!.statusName!,
-            style: TextStyle(
-              color: statusColor,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
+    return LeadStatusBadge(
+      accentColor: AppTheme.primaryColor,
+      label: _lead!.statusName!,
+      parseColor: _parseColor,
     );
   }
   

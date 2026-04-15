@@ -78,7 +78,15 @@ class BottomNavigation extends StatelessWidget {
     String? label,
   }) {
     final theme = Theme.of(context);
-    
+    final isDark = theme.brightness == Brightness.dark;
+
+    /// Selected tab: strong contrast on dark theme (white on purple); primary on light theme.
+    final Color activeForeground =
+        isDark ? Colors.white : AppTheme.primaryColor;
+    final Color activeBackground = isDark
+        ? AppTheme.primaryColor.withValues(alpha: 0.48)
+        : AppTheme.primaryColor.withValues(alpha: 0.12);
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -87,8 +95,14 @@ class BottomNavigation extends StatelessWidget {
           vertical: 8,
         ),
         decoration: BoxDecoration(
-          color: isActive ? AppTheme.primaryColor.withValues(alpha: 0.1) : Colors.transparent,
+          color: isActive ? activeBackground : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
+          border: isActive && isDark
+              ? Border.all(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.65),
+                  width: 1,
+                )
+              : null,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -96,10 +110,8 @@ class BottomNavigation extends StatelessWidget {
             Icon(
               icon,
               color: isActive
-                  ? AppTheme.primaryColor
-                  : (theme.brightness == Brightness.dark
-                      ? Colors.grey[400]
-                      : Colors.grey[600]),
+                  ? activeForeground
+                  : (isDark ? Colors.grey[400] : Colors.grey[600]),
               size: isCenter ? 28 : 24,
             ),
             if (label != null) ...[
@@ -108,10 +120,8 @@ class BottomNavigation extends StatelessWidget {
                 label,
                 style: TextStyle(
                   color: isActive
-                      ? AppTheme.primaryColor
-                      : (theme.brightness == Brightness.dark
-                          ? Colors.grey[400]
-                          : Colors.grey[600]),
+                      ? activeForeground
+                      : (isDark ? Colors.grey[400] : Colors.grey[600]),
                   fontSize: 11,
                   fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
                 ),

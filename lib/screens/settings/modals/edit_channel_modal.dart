@@ -84,9 +84,34 @@ class _EditChannelModalState extends State<EditChannelModal> {
         return localizations?.translate('youtube') ?? 'YouTube';
       case 'other':
         return localizations?.translate('other') ?? 'Other';
+      case 'messaging':
+      case 'channeltypemessaging':
+        return localizations?.translate('channelTypeMessaging') ?? 'Messaging';
       default:
         return type;
     }
+  }
+
+  /// Maps API values to the canonical option in [_channelTypes] when they match
+  /// case-insensitively (e.g. `web` → `Web`). Unknown types (e.g. `messaging`) stay as-is.
+  String _normalizeChannelType(String raw) {
+    final lower = raw.toLowerCase();
+    // Some records mistakenly stored the i18n key as the type value
+    if (lower == 'channeltypemessaging') return 'messaging';
+    for (final t in _channelTypes) {
+      if (t.toLowerCase() == lower) return t;
+    }
+    return raw;
+  }
+
+  /// Ensures the selected type is present exactly once (required by [DropdownButtonFormField]).
+  List<String> get _typeDropdownValues {
+    final items = List<String>.from(_channelTypes);
+    final selected = _selectedType;
+    if (selected == null || selected.isEmpty) return items;
+    final hasSelected = items.any((t) => t.toLowerCase() == selected.toLowerCase());
+    if (!hasSelected) items.add(selected);
+    return items;
   }
 
   String _getLocalizedPriority(String priority, AppLocalizations? localizations) {
@@ -107,7 +132,7 @@ class _EditChannelModalState extends State<EditChannelModal> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.channel.name);
-    _selectedType = widget.channel.type;
+    _selectedType = _normalizeChannelType(widget.channel.type);
     // Normalize priority to match dropdown values (capitalize first letter)
     final priorityLower = widget.channel.priority.toLowerCase();
     _selectedPriority = priorityLower == 'high'
@@ -250,7 +275,7 @@ class _EditChannelModalState extends State<EditChannelModal> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          items: _channelTypes.map((type) => DropdownMenuItem(
+                          items: _typeDropdownValues.map((type) => DropdownMenuItem(
                             value: type,
                             child: Text(_getLocalizedChannelType(type, localizations)),
                           )).toList(),

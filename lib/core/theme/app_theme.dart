@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   // Primary Purple Color
-  static const Color primaryColor = Color(0xFF9333EA);
+  static const Color primaryColor = Color(0xFF4215AA);
 
   /// Blue color for SMS button (matches web app)
   static const Color smsButtonColor = Color(0xFF2563EB);
@@ -61,9 +61,12 @@ class AppTheme {
       ),
       textTheme: textTheme,
       snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         contentTextStyle: (isArabic ? GoogleFonts.tajawalTextTheme(base) : GoogleFonts.interTextTheme(base))
-            .bodyLarge
-            ?.copyWith(color: Colors.black),
+            .bodyMedium
+            ?.copyWith(color: const Color(0xFF111827), fontWeight: FontWeight.w500),
       ),
     );
   }
@@ -152,7 +155,13 @@ class AppTheme {
       iconColor: Color(0xFFD1D5DB),
     ),
     snackBarTheme: SnackBarThemeData(
-      contentTextStyle: fontTextTheme.bodyLarge?.copyWith(color: Colors.white),
+      behavior: SnackBarBehavior.floating,
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      contentTextStyle: fontTextTheme.bodyMedium?.copyWith(
+        color: const Color(0xFFE5E7EB),
+        fontWeight: FontWeight.w500,
+      ),
     ),
   );
   }
