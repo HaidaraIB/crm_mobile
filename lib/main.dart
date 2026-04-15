@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'core/constants/app_constants.dart';
@@ -18,6 +19,10 @@ import 'services/notification_service.dart';
 import 'services/notification_router.dart';
 
 void main() async {
+  // No console noise in release/store builds; debug/profile keep debugPrint.
+  if (kReleaseMode) {
+    debugPrint = (String? message, {int? wrapWidth}) {};
+  }
   WidgetsFlutterBinding.ensureInitialized();
   
   // Initialize Firebase (optional - only if google-services.json exists)
