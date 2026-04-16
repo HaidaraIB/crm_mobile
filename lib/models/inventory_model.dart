@@ -88,6 +88,7 @@ class Unit {
   final String code;
   final String name;
   final String project;
+  final int? projectId;
   final int bedrooms;
   final int bathrooms;
   final double price;
@@ -106,6 +107,7 @@ class Unit {
     required this.code,
     required this.name,
     required this.project,
+    this.projectId,
     required this.bedrooms,
     required this.bathrooms,
     required this.price,
@@ -183,6 +185,7 @@ class Unit {
       code: json['code'] as String? ?? '',
       name: json['name'] as String? ?? '',
       project: projectName,
+      projectId: json['project'] is int ? json['project'] as int : null,
       bedrooms: parseToInt(json['bedrooms']),
       bathrooms: parseToInt(json['bathrooms']),
       price: parseToDouble(json['price']),
@@ -203,7 +206,7 @@ class Unit {
       'id': id,
       'code': code,
       'name': name,
-      'project': project,
+      'project': projectId ?? project,
       'bedrooms': bedrooms,
       'bathrooms': bathrooms,
       'price': price,

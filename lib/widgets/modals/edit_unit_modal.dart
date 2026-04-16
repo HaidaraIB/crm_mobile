@@ -18,6 +18,7 @@ class EditUnitModal extends StatefulWidget {
 class _EditUnitModalState extends State<EditUnitModal> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
+  late TextEditingController _codeController;
   late TextEditingController _bedroomsController;
   late TextEditingController _bathroomsController;
   late TextEditingController _priceController;
@@ -42,6 +43,7 @@ class _EditUnitModalState extends State<EditUnitModal> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.unit.name);
+    _codeController = TextEditingController(text: widget.unit.code);
     _bedroomsController = TextEditingController(
       text: widget.unit.bedrooms.toString(),
     );
@@ -73,6 +75,7 @@ class _EditUnitModalState extends State<EditUnitModal> {
   @override
   void dispose() {
     _nameController.dispose();
+    _codeController.dispose();
     _bedroomsController.dispose();
     _bathroomsController.dispose();
     _priceController.dispose();
@@ -136,6 +139,7 @@ class _EditUnitModalState extends State<EditUnitModal> {
 
       final unitData = {
         'name': _nameController.text.trim(),
+        'code': _codeController.text.trim(),
         'project': projectId,
         'bedrooms': int.parse(_bedroomsController.text.trim()),
         'bathrooms': int.parse(_bathroomsController.text.trim()),
@@ -257,6 +261,26 @@ class _EditUnitModalState extends State<EditUnitModal> {
                                         'nameRequired',
                                       ) ??
                                       'Name is required';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                            TextFormField(
+                              controller: _codeController,
+                              decoration: InputDecoration(
+                                labelText:
+                                    '${localizations?.translate('code') ?? 'Code'} *',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return localizations?.translate(
+                                        'codeRequired',
+                                      ) ??
+                                      'Code is required';
                                 }
                                 return null;
                               },

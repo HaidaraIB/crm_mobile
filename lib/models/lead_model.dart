@@ -10,6 +10,7 @@ class LeadModel {
   final String? priority; // 'High', 'Medium', 'Low'
   final DateTime createdAt;
   final String? lastFeedback;
+  final DateTime? lastFeedbackAt;
   final String? notes;
   final String? lastStage;
   final String? statusName;
@@ -28,6 +29,7 @@ class LeadModel {
     this.priority,
     required this.createdAt,
     this.lastFeedback,
+    this.lastFeedbackAt,
     this.notes,
     this.lastStage,
     this.statusName,
@@ -91,6 +93,11 @@ class LeadModel {
               ? DateTime.parse(json['createdAt'] as String)
               : DateTime.now()),
       lastFeedback: json['last_feedback'] as String? ?? json['lastFeedback'] as String?,
+      lastFeedbackAt: json['last_feedback_at'] != null
+          ? DateTime.tryParse(json['last_feedback_at'] as String)
+          : (json['lastFeedbackAt'] != null
+              ? DateTime.tryParse(json['lastFeedbackAt'] as String)
+              : null),
       notes: json['notes'] as String?,
       lastStage: json['last_stage'] as String? ?? json['lastStage'] as String?,
       statusName: json['status_name'] as String?,
@@ -116,6 +123,7 @@ class LeadModel {
       'priority': priority,
       'created_at': createdAt.toIso8601String(),
       'last_feedback': lastFeedback,
+      'last_feedback_at': lastFeedbackAt?.toIso8601String(),
       'notes': notes,
       'last_stage': lastStage,
       'status_name': statusName,

@@ -17,6 +17,7 @@ class AddUnitModal extends StatefulWidget {
 class _AddUnitModalState extends State<AddUnitModal> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
+  final _codeController = TextEditingController();
   final _bedroomsController = TextEditingController();
   final _bathroomsController = TextEditingController();
   final _priceController = TextEditingController();
@@ -46,6 +47,7 @@ class _AddUnitModalState extends State<AddUnitModal> {
   @override
   void dispose() {
     _nameController.dispose();
+    _codeController.dispose();
     _bedroomsController.dispose();
     _bathroomsController.dispose();
     _priceController.dispose();
@@ -100,6 +102,9 @@ class _AddUnitModalState extends State<AddUnitModal> {
 
       final unitData = {
         'name': _nameController.text.trim(),
+        'code': _codeController.text.trim().isNotEmpty
+            ? _codeController.text.trim()
+            : null,
         'project': projectId,
         'bedrooms': int.parse(_bedroomsController.text.trim()),
         'bathrooms': int.parse(_bathroomsController.text.trim()),
@@ -227,6 +232,20 @@ class _AddUnitModalState extends State<AddUnitModal> {
                                   }
                                   return null;
                                 },
+                              ),
+                              const SizedBox(height: 16),
+                              TextFormField(
+                                controller: _codeController,
+                                decoration: InputDecoration(
+                                  labelText:
+                                      localizations?.translate('code') ?? 'Code',
+                                  hintText:
+                                      localizations?.translate('enterCode') ??
+                                      'Leave blank to auto-generate',
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
                               ),
                               const SizedBox(height: 16),
                               // Project
