@@ -11,6 +11,7 @@ import '../../services/api_service.dart';
 import '../../widgets/modals/assign_lead_modal.dart';
 import '../../widgets/modals/add_action_modal.dart';
 import '../../widgets/modals/add_call_modal.dart';
+import '../../widgets/modals/add_visit_modal.dart';
 import '../../widgets/modals/send_sms_modal.dart';
 import '../../widgets/phone_input.dart';
 import '../../widgets/lead_contact_action_button.dart';
@@ -67,6 +68,11 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
     }
   }
   
+  bool _companySupportsVisits() {
+    final s = _currentUser?.company?.specialization;
+    return s == 'real_estate' || s == 'services';
+  }
+
   // Check if user can edit/delete this lead
   bool _canModifyLead() {
     if (_currentUser == null || _lead == null) return false;
@@ -672,7 +678,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
               ),
             ),
             
-            // Add Action and Add Call Buttons at Bottom (same style as lead card)
+            // Add Action, Call, and optional Visit (same style as lead card)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
@@ -688,24 +694,86 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                   ),
                 ],
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) => AddActionModal(
+                                leadId: _lead!.id,
+                                onSave: (stageId, notes, reminderDate) {
+                                  _loadLead();
+                                },
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.bolt),
+                          label: Text(
+                            localizations?.translate('addAction') ?? 'Add Action',
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) => AddCallModal(
+                                leadId: _lead!.id,
+                                onSave: (callMethodId, notes, followUpDate) {
+                                  _loadLead();
+                                },
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.phone, color: Colors.white),
+                          label: Text(
+                            localizations?.translate('addCall') ?? 'Add Call',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            elevation: 0,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_companySupportsVisits()) ...[
+                    const SizedBox(height: 10),
+                    OutlinedButton.icon(
                       onPressed: () {
                         showDialog(
                           context: context,
-                          builder: (context) => AddActionModal(
+                          builder: (context) => AddVisitModal(
                             leadId: _lead!.id,
-                            onSave: (stageId, notes, reminderDate) {
-                              _loadLead();
-                            },
+                            onSave: (_, __, ___) => _loadLead(),
                           ),
                         );
                       },
-                      icon: const Icon(Icons.bolt),
+                      icon: const Icon(Icons.place_outlined),
                       label: Text(
-                        localizations?.translate('addAction') ?? 'Add Action',
+                        localizations?.translate('addVisit') ?? 'Add Visit',
                       ),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -714,37 +782,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder: (context) => AddCallModal(
-                            leadId: _lead!.id,
-                            onSave: (callMethodId, notes, followUpDate) {
-                              _loadLead();
-                            },
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.phone, color: Colors.white),
-                      label: Text(
-                        localizations?.translate('addCall') ?? 'Add Call',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryColor,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        elevation: 0,
-                      ),
-                    ),
-                  ),
+                  ],
                 ],
               ),
             ),

@@ -5,6 +5,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/bloc/theme/theme_bloc.dart';
 import '../../core/bloc/language/language_bloc.dart';
+import '../../core/utils/app_locales.dart';
 import '../../services/api_service.dart';
 import '../../models/plan_model.dart';
 import '../../widgets/phone_input.dart';
@@ -656,8 +657,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       'Switch to Arabic'),
             onPressed: () {
               final newLocale = currentLocale.languageCode == 'ar'
-                  ? const Locale('en')
-                  : const Locale('ar');
+                  ? AppLocales.english
+                  : AppLocales.arabic;
               languageBloc.add(ChangeLanguage(newLocale));
             },
           ),

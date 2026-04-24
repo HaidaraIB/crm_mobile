@@ -35,8 +35,11 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
   List<UserModel> _users = [];
   List<ChannelModel> _channels = [];
   List<StatusModel> _statuses = [];
+  UserModel? _currentUser;
   bool _isLoading = false;
   bool _isLoadingData = true;
+
+  bool get _isDataEntry => _currentUser?.isDataEntry ?? false;
 
   final List<Map<String, dynamic>> _phoneNumbers = [];
   final Map<String, String> _errors = {};
@@ -60,11 +63,13 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
 
   Future<void> _loadData() async {
     try {
+      final me = await _apiService.getCurrentUser();
       final usersData = await _apiService.getUsers();
       final channels = await _apiService.getChannels();
       final statuses = await _apiService.getStatuses();
 
       setState(() {
+        _currentUser = me;
         _users = (usersData['results'] as List).cast<UserModel>();
         _channels = channels;
         _statuses = statuses;
@@ -267,7 +272,7 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
         budget: _budgetController.text.trim().isNotEmpty
             ? double.tryParse(_budgetController.text.trim())
             : null,
-        assignedTo: _selectedUserId,
+        assignedTo: _isDataEntry ? null : _selectedUserId,
         type: _selectedType ?? 'fresh',
         communicationWayId: channelId,
         priority: _selectedPriority,
@@ -459,7 +464,8 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
                               _buildPhoneNumbersSection(localizations, theme),
                               const SizedBox(height: 16),
 
-                              // Assigned To
+                              // Assigned To (hidden for data entry — server auto-assigns)
+                              if (!_isDataEntry) ...[
                               _buildDropdown<int>(
                                 label:
                                     localizations?.translate('assignedTo') ??
@@ -487,6 +493,7 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
                                 },
                               ),
                               const SizedBox(height: 16),
+                              ],
 
                               // Type
                               _buildDropdown<String>(

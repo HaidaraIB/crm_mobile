@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/app_locales.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/support_ticket_model.dart';
 import '../../services/api_service.dart';
@@ -442,8 +443,12 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
     if (isoDate == null || isoDate.isEmpty) return '—';
     final date = DateTime.tryParse(isoDate);
     if (date == null) return isoDate;
-    final locale = AppLocalizations.of(context)?.locale.languageCode ?? 'en';
-    return DateFormat('MMM d, yyyy · h:mm a', locale).format(date.toLocal());
+    final locale =
+        AppLocalizations.of(context)?.locale ?? AppLocales.english;
+    return DateFormat(
+      'MMM d, yyyy · h:mm a',
+      AppLocales.intlDateFormat(locale),
+    ).format(date.toLocal());
   }
 
   /// Build full image URL for attachment (API may return relative path).

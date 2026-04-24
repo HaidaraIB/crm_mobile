@@ -74,6 +74,7 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
   /// True if user can see the Inventory section (admin always; supervisor only if they have the permission matching company specialization).
   bool _canAccessInventory(UserModel? user) {
     if (user == null || user.company == null) return false;
+    if (user.isDataEntry) return false;
     if (user.isAdmin) return true;
     if (user.isSupervisor) {
       final spec = user.company!.specialization;
@@ -157,7 +158,36 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
 
           // Menu Items
           Expanded(
-            child: ListView(
+            child: _currentUser?.isDataEntry == true
+                ? ListView(
+                    padding: EdgeInsets.zero,
+                    children: [
+                      _buildMenuItem(
+                        context,
+                        icon: Icons.people_outline,
+                        title:
+                            localizations?.translate('allLeads') ?? 'All Leads',
+                        onTap: () => Navigator.pop(context),
+                      ),
+                      _buildMenuItem(
+                        context,
+                        icon: Icons.headset_mic,
+                        title:
+                            localizations?.translate('supportCenter') ??
+                            'Support Center',
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SupportTicketsScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  )
+                : ListView(
               padding: EdgeInsets.zero,
               children: [
                 _buildMenuItem(

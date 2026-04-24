@@ -10,6 +10,7 @@ import '../../models/user_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/modals/add_action_modal.dart';
 import '../../widgets/modals/add_call_modal.dart';
+import '../../widgets/modals/add_visit_modal.dart';
 import '../../widgets/modals/send_sms_modal.dart';
 import '../../widgets/modals/assign_lead_modal.dart';
 import '../../widgets/lead_contact_action_button.dart';
@@ -130,6 +131,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
   // Check if user can edit/delete this lead
   bool _canModifyLead(LeadModel lead) {
     if (_currentUser == null) return false;
+    if (_currentUser!.isDataEntry) return false;
     if (_currentUser!.isAdmin) return true;
     if (_currentUser!.hasSupervisorPermission('can_manage_leads')) return true;
     return lead.assignedTo == _currentUser!.id;
@@ -481,6 +483,21 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     );
   }
 
+  bool _companySupportsVisits() {
+    final s = _currentUser?.company?.specialization;
+    return s == 'real_estate' || s == 'services';
+  }
+
+  void _showAddVisitModal(LeadModel lead) {
+    showDialog(
+      context: context,
+      builder: (context) => AddVisitModal(
+        leadId: lead.id,
+        onSave: (_, __, ___) => _loadLeads(),
+      ),
+    );
+  }
+
   void _showSendSMSModal(LeadModel lead) {
     final phone = lead.phone.trim();
     if (phone.isEmpty) {
@@ -666,6 +683,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
             ? AppBar(
                 title: Text(_getTitle(localizations)),
                 actions: [
+                  if (_currentUser?.isDataEntry != true)
                   IconButton(
                     key: _exportButtonKey,
                     icon: const Icon(Icons.file_upload_outlined),
@@ -891,6 +909,8 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
         ),
     ];
 
+    if (_currentUser?.isDataEntry == true) return;
+
     final box = context.findRenderObject() as RenderBox?;
     if (box == null || !box.hasSize) return;
     final overlay = Navigator.of(context).overlay;
@@ -946,8 +966,10 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     return Builder(
       builder: (cardContext) {
         return GestureDetector(
-          onLongPress: () =>
-              _showLeadCardContextMenu(cardContext, lead, localizations),
+          onLongPress: _currentUser?.isDataEntry == true
+              ? null
+              : () =>
+                  _showLeadCardContextMenu(cardContext, lead, localizations),
           behavior: HitTestBehavior.deferToChild,
           child: Card(
             margin: const EdgeInsets.only(bottom: 16),
@@ -957,7 +979,9 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
             ),
             child: InkWell(
               borderRadius: BorderRadius.circular(18),
-              onTap: () async {
+              onTap: _currentUser?.isDataEntry == true
+                  ? null
+                  : () async {
                 final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -1030,13 +1054,14 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                           ),
                         ),
 
-                        /// Quick actions
-                        _LeadQuickActions(
-                          lead: lead,
-                          onWhatsapp: () => _openWhatsApp(lead.phone),
-                          onCall: () => _makeCall(lead.phone),
-                          onSms: () => _showSendSMSModal(lead),
-                        ),
+                        /// Quick actions (hidden for data entry — intake-only role)
+                        if (_currentUser?.isDataEntry != true)
+                          _LeadQuickActions(
+                            lead: lead,
+                            onWhatsapp: () => _openWhatsApp(lead.phone),
+                            onCall: () => _makeCall(lead.phone),
+                            onSms: () => _showSendSMSModal(lead),
+                          ),
 
                         /// Menu
                       ],
@@ -1178,47 +1203,70 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                     const SizedBox(height: 18),
 
                     /// CTA (same style as lead profile screen)
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => _showAddActionModal(lead),
-                            icon: const Icon(Icons.bolt),
-                            label: Text(
-                              localizations?.translate('addAction') ?? 'Add Action',
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
+                    if (_currentUser?.isDataEntry != true)
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: () => _showAddActionModal(lead),
+                                  icon: const Icon(Icons.bolt),
+                                  label: Text(
+                                    localizations?.translate('addAction') ?? 'Add Action',
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: () => _showAddCallModal(lead),
+                                  icon: const Icon(Icons.phone, color: Colors.white),
+                                  label: Text(
+                                    localizations?.translate('addCall') ?? 'Add Call',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppTheme.primaryColor,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                    elevation: 0,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (_companySupportsVisits()) ...[
+                            const SizedBox(height: 10),
+                            OutlinedButton.icon(
+                              onPressed: () => _showAddVisitModal(lead),
+                              icon: const Icon(Icons.place_outlined),
+                              label: Text(
+                                localizations?.translate('addVisit') ?? 'Add Visit',
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
                               ),
                             ),
-                          ),
-                        ),
-
-                        const SizedBox(width: 10),
-
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () => _showAddCallModal(lead),
-                            icon: const Icon(Icons.phone, color: Colors.white),
-                            label: Text(
-                              localizations?.translate('addCall') ?? 'Add Call',
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primaryColor,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              elevation: 0,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                          ],
+                        ],
+                      ),
                   ],
                 ),
               ),
@@ -1284,6 +1332,15 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       return LeadStatusBadge(
         accentColor: statusColor,
         label: lead.statusName ?? '—',
+        parseColor: _parseColor,
+        isLoading: isUpdating,
+      );
+    }
+
+    if (_currentUser?.isDataEntry == true) {
+      return LeadStatusBadge(
+        accentColor: statusColor,
+        label: currentStatus.name,
         parseColor: _parseColor,
         isLoading: isUpdating,
       );

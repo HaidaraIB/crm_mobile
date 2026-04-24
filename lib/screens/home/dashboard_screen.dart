@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/app_locales.dart';
 import '../../core/utils/number_formatter.dart';
 import '../../models/lead_model.dart';
 import '../../models/user_model.dart';
@@ -329,8 +330,10 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
 
   Widget _buildWelcomeSection(BuildContext context, AppLocalizations? localizations) {
     final greetingKey = _getGreetingKey();
-    final locale = localizations?.locale.languageCode ?? 'en';
-    final todayStr = DateFormat.yMMMEd(locale).format(DateTime.now());
+    final locale = localizations?.locale ?? AppLocales.english;
+    final todayStr = DateFormat.yMMMEd(
+      AppLocales.intlDateFormat(locale),
+    ).format(DateTime.now());
 
     return Container(
       width: double.infinity,

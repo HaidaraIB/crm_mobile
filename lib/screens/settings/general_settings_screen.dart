@@ -4,6 +4,7 @@ import '../../core/bloc/language/language_bloc.dart';
 import '../../core/bloc/theme/theme_bloc.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/app_locales.dart';
 import 'notification_settings_screen.dart';
 
 /// Icon tile used for Language / Theme / Notifications — readable on dark theme.
@@ -101,7 +102,7 @@ class GeneralSettingsScreen extends StatelessWidget {
                                 ),
                                 items: [
                                   DropdownMenuItem<Locale>(
-                                    value: const Locale('en'),
+                                    value: AppLocales.english,
                                     child: Row(
                                       children: [
                                         const SizedBox(width: 8),
@@ -113,7 +114,7 @@ class GeneralSettingsScreen extends StatelessWidget {
                                     ),
                                   ),
                                   DropdownMenuItem<Locale>(
-                                    value: const Locale('ar'),
+                                    value: AppLocales.arabic,
                                     child: Row(
                                       children: [
                                         const SizedBox(width: 8),

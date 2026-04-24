@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart' hide NavigationDrawer;
 import 'package:intl/intl.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../core/utils/app_locales.dart';
+import '../../models/user_model.dart';
 import '../../services/notification_service.dart';
 import '../../services/api_service.dart';
 import '../../widgets/navigation_drawer.dart';
@@ -31,16 +33,35 @@ class _HomeScreenState extends State<HomeScreen> {
   VoidCallback? _exportLeadsCallback;
   final ApiService _apiService = ApiService();
   int _unreadNotificationsCount = 0;
+  UserModel? _sessionUser;
+
+  bool get _isDataEntry => _sessionUser?.isDataEntry ?? false;
 
   @override
   void initState() {
     super.initState();
+    _loadSessionUser();
     // إرسال FCM token للمستخدمين المسجلين دخول بالفعل
     _sendFCMTokenIfLoggedIn();
     // على iOS قد يتأخر استلام FCM token؛ إعادة المحاولة بعد 3 و 8 ثوانٍ لضمان حفظ التوكن في الخادم
     _scheduleFCMTokenRetries();
     // تحميل عدد الإشعارات غير المقروءة
     _loadUnreadCount();
+  }
+
+  Future<void> _loadSessionUser() async {
+    try {
+      final user = await _apiService.getCurrentUser();
+      if (!mounted) return;
+      setState(() {
+        _sessionUser = user;
+        if (user.isDataEntry) {
+          _currentIndex = 1;
+        }
+      });
+    } catch (e) {
+      debugPrint('Failed to load session user: $e');
+    }
   }
 
   /// جدولة إعادة إرسال FCM token (لمعالجة التأخر على iOS)
@@ -86,6 +107,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final localizations = AppLocalizations.of(context);
 
     String getAppBarTitle() {
+      if (_isDataEntry) {
+        return localizations?.translate('allLeads') ?? 'All Leads';
+      }
       switch (_currentIndex) {
         case 0:
           return localizations?.translate('home') ?? 'Home';
@@ -99,6 +123,24 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     Widget getBody() {
+      if (_isDataEntry) {
+        return AllLeadsScreen(
+          key: _allLeadsKey,
+          showAppBar: false,
+          onFilterRequested: (callback) {
+            _showAllLeadsFilterCallback = callback;
+          },
+          onHasActiveFiltersRequested: (callback) {
+            _checkAllLeadsFiltersCallback = callback;
+          },
+          onImportRequested: (callback) {
+            _importLeadsCallback = callback;
+          },
+          onExportRequested: (callback) {
+            _exportLeadsCallback = callback;
+          },
+        );
+      }
       switch (_currentIndex) {
         case 0:
           return DashboardScreen(key: _dashboardKey);
@@ -143,7 +185,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   Text(
                     DateFormat(
                       'MMMM yyyy',
-                      localizations?.locale.languageCode ?? 'en',
+                      AppLocales.intlDateFormat(
+                        localizations?.locale ?? AppLocales.english,
+                      ),
                     ).format(_selectedCalendarDate),
                     style: const TextStyle(
                       fontSize: 12,
@@ -193,7 +237,7 @@ class _HomeScreenState extends State<HomeScreen> {
               title: Text(getAppBarTitle()),
               actions: [
                 // Import / Export for All Leads page
-                if (_currentIndex == 1) ...[
+                if (_currentIndex == 1 || _isDataEntry) ...[
                   IconButton(
                     icon: const Icon(Icons.file_download_outlined),
                     tooltip:
@@ -201,6 +245,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         'Import from Excel',
                     onPressed: () => _importLeadsCallback?.call(),
                   ),
+                  if (!_isDataEntry)
                   IconButton(
                     icon: const Icon(Icons.file_upload_outlined),
                     tooltip:
@@ -299,7 +344,9 @@ class _HomeScreenState extends State<HomeScreen> {
         },
       ),
       body: getBody(),
-      bottomNavigationBar: BottomNavigation(
+      bottomNavigationBar: _isDataEntry
+          ? null
+          : BottomNavigation(
         currentIndex: _currentIndex,
         onTap: (index) {
           // Refresh data when switching tabs

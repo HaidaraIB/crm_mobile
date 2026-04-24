@@ -7,6 +7,7 @@ import '../../models/lead_model.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/inventory_card.dart';
+import '../../core/utils/app_locales.dart';
 import '../../core/utils/specialization_helper.dart';
 
 class ViewDealScreen extends StatefulWidget {
@@ -227,7 +228,11 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
     if (dateStr == null || dateStr.isEmpty) return '-';
     try {
       final date = DateTime.parse(dateStr);
-      return DateFormat('MMM dd, yyyy').format(date);
+      final loc = AppLocalizations.of(context)?.locale ?? AppLocales.english;
+      return DateFormat(
+        'MMM dd, yyyy',
+        AppLocales.intlDateFormat(loc),
+      ).format(date);
     } catch (e) {
       return dateStr;
     }
@@ -235,7 +240,11 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
 
   String _formatDateTime(DateTime? dt) {
     if (dt == null) return '-';
-    return DateFormat('MMM dd, yyyy • h:mm a').format(dt);
+    final loc = AppLocalizations.of(context)?.locale ?? AppLocales.english;
+    return DateFormat(
+      'MMM dd, yyyy • h:mm a',
+      AppLocales.intlDateFormat(loc),
+    ).format(dt);
   }
 
   String _formatStage(String? stage, AppLocalizations? localizations) {

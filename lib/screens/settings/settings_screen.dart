@@ -8,6 +8,7 @@ import 'general_settings_screen.dart';
 import 'stages_settings_screen.dart';
 import 'statuses_settings_screen.dart';
 import 'call_methods_settings_screen.dart';
+import 'visit_types_settings_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -50,7 +51,13 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
           // Initialize TabController after we know if user is admin
           final isAdmin = user.isAdmin;
           final hasSettingsPerm = user.hasSupervisorPermission('can_manage_settings');
-          final tabCount = (isAdmin || hasSettingsPerm) ? 5 : 1; // General + 4 admin/supervisor tabs or just General
+          final spec = user.company?.specialization ?? '';
+          final showVisitTypesTab = (isAdmin || hasSettingsPerm) &&
+              (spec == 'real_estate' || spec == 'services');
+          final tabCount = (isAdmin || hasSettingsPerm)
+              ? (5 + (showVisitTypesTab ? 1 : 0))
+              : 1;
+          _tabController?.dispose();
           _tabController = TabController(length: tabCount, vsync: this);
         });
       }
@@ -70,6 +77,9 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
     final isAdmin = _currentUser?.isAdmin == true;
     final hasSettingsPerm = _currentUser?.hasSupervisorPermission('can_manage_settings') ?? false;
     final canManageSettings = isAdmin || hasSettingsPerm;
+    final spec = _currentUser?.company?.specialization ?? '';
+    final showVisitTypesTab = canManageSettings &&
+        (spec == 'real_estate' || spec == 'services');
 
     if (_tabController == null) {
       return const Scaffold(
@@ -94,6 +104,8 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
             if (canManageSettings) Tab(child: _tabLabel(localizations?.translate('stages') ?? 'Stages')),
             if (canManageSettings) Tab(child: _tabLabel(localizations?.translate('statuses') ?? 'Statuses')),
             if (canManageSettings) Tab(child: _tabLabel(localizations?.translate('callMethods') ?? 'Call Methods')),
+            if (showVisitTypesTab)
+              Tab(child: _tabLabel(localizations?.translate('visitTypes') ?? 'Visit types')),
           ],
         ),
       ),
@@ -105,6 +117,7 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
           if (canManageSettings) const StagesSettingsScreen(),
           if (canManageSettings) const StatusesSettingsScreen(),
           if (canManageSettings) const CallMethodsSettingsScreen(),
+          if (showVisitTypesTab) const VisitTypesSettingsScreen(),
         ],
       ),
     );

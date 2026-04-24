@@ -7,11 +7,13 @@ import '../core/api/api_envelope.dart';
 import '../core/constants/app_constants.dart';
 import '../core/storage/auth_token_storage.dart';
 import '../core/localization/app_localizations.dart';
+import '../core/utils/app_locales.dart';
 import '../models/lead_model.dart';
 import '../models/user_model.dart';
 import '../models/settings_model.dart';
 import '../models/client_task_model.dart';
 import '../models/client_call_model.dart';
+import '../models/client_visit_model.dart';
 import '../models/task_model.dart';
 import '../models/inventory_model.dart';
 import '../models/deal_model.dart';
@@ -485,7 +487,7 @@ class ApiService {
         ? baseUrl.substring(0, baseUrl.length - 1)
         : baseUrl;
     final url = Uri.parse('$cleanBaseUrl$cleanEndpoint');
-    final locale = language == 'ar' ? const Locale('ar') : const Locale('en');
+    final locale = language == 'ar' ? AppLocales.arabic : AppLocales.english;
     try {
       final headers = await _getHeaders(includeAuth: false);
       headers['Accept-Language'] = language;
@@ -521,7 +523,7 @@ class ApiService {
         ? baseUrl.substring(0, baseUrl.length - 1)
         : baseUrl;
     final url = Uri.parse('$cleanBaseUrl$cleanEndpoint');
-    final locale = language == 'ar' ? const Locale('ar') : const Locale('en');
+    final locale = language == 'ar' ? AppLocales.arabic : AppLocales.english;
     try {
       final headers = await _getHeaders(includeAuth: false);
       headers['Accept-Language'] = language;
@@ -562,7 +564,7 @@ class ApiService {
         : baseUrl;
     final url = Uri.parse('$cleanBaseUrl$cleanEndpoint');
 
-    final locale = language == 'ar' ? const Locale('ar') : const Locale('en');
+    final locale = language == 'ar' ? AppLocales.arabic : AppLocales.english;
 
     try {
       final requestBody = <String, dynamic>{
@@ -1129,7 +1131,7 @@ class ApiService {
     final url = Uri.parse('$cleanBaseUrl$cleanEndpoint');
 
     // Convert language string to Locale
-    final locale = language == 'ar' ? const Locale('ar') : const Locale('en');
+    final locale = language == 'ar' ? AppLocales.arabic : AppLocales.english;
 
     try {
       // Get headers with API Key (no auth token needed for 2FA request)
@@ -1721,6 +1723,53 @@ class ApiService {
       return results;
     } else {
       throw Exception(_translateError('failedToGetClientCalls', locale: null));
+    }
+  }
+
+  /// Log a site/office visit (real_estate / services companies only).
+  Future<void> addVisitToLead({
+    required int leadId,
+    required int visitType,
+    required String summary,
+    required DateTime visitDatetime,
+    DateTime? upcomingVisitDate,
+  }) async {
+    final body = <String, dynamic>{
+      'client': leadId,
+      'visit_type': visitType,
+      'summary': summary,
+      'visit_datetime': visitDatetime.toIso8601String(),
+    };
+    if (upcomingVisitDate != null) {
+      body['upcoming_visit_date'] = upcomingVisitDate.toIso8601String();
+    }
+
+    final response = await _makeRequest('POST', '/client-visits/', body: body);
+
+    if (response.statusCode != 201) {
+      final error = _errorContextFromBody(response.body);
+      throw Exception(
+        error['detail'] ??
+            error['message'] ??
+            _translateError('failedToAddVisit', locale: null),
+      );
+    }
+  }
+
+  Future<List<ClientVisitModel>> getClientVisits(int leadId) async {
+    final response = await _makeRequest('GET', '/client-visits/?client=$leadId');
+
+    if (response.statusCode == 200) {
+      final data = _unwrapResponseMap(response);
+      final resultsList = data['results'] as List?;
+      final results = resultsList != null
+          ? resultsList
+              .map((e) => ClientVisitModel.fromJson(e as Map<String, dynamic>))
+              .toList()
+          : <ClientVisitModel>[];
+      return results;
+    } else {
+      throw Exception(_translateError('failedToGetClientVisits', locale: null));
     }
   }
 
@@ -2660,6 +2709,130 @@ class ApiService {
       } catch (_) {
         errorMessage =
             'Failed to delete call method with status ${response.statusCode}';
+      }
+      throw Exception(errorMessage);
+    }
+  }
+
+  // Visit types CRUD (settings; real_estate / services)
+  Future<List<VisitTypeModel>> getVisitTypes() async {
+    final response = await _makeRequest('GET', '/settings/visit-types/');
+
+    if (response.statusCode == 200) {
+      final data = _unwrapResponseDynamic(response);
+      if (data is List) {
+        return data
+            .map((item) => VisitTypeModel.fromJson(item as Map<String, dynamic>))
+            .toList();
+      } else if (data is Map && data['results'] != null) {
+        final results = data['results'] as List;
+        return results
+            .map((item) => VisitTypeModel.fromJson(item as Map<String, dynamic>))
+            .toList();
+      }
+      return [];
+    } else {
+      throw Exception(_translateError('failedToGetVisitTypes', locale: null));
+    }
+  }
+
+  Future<VisitTypeModel> createVisitType({
+    required String name,
+    String? description,
+    required String color,
+    bool isDefault = false,
+  }) async {
+    final currentUser = await getCurrentUser();
+    if (currentUser.company == null) {
+      throw Exception(
+        _translateError('userMustBeAssociatedWithCompany', locale: null),
+      );
+    }
+
+    final response = await _makeRequest(
+      'POST',
+      '/settings/visit-types/',
+      body: {
+        'name': name,
+        'description': description,
+        'color': color,
+        'company': currentUser.company!.id,
+        'is_default': isDefault,
+      },
+    );
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final data = _unwrapResponseMap(response);
+      return VisitTypeModel.fromJson(data);
+    } else {
+      String errorMessage = 'Failed to create visit type';
+      try {
+        final error = _errorContextFromBody(response.body);
+        errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
+      } catch (_) {
+        errorMessage =
+            'Failed to create visit type with status ${response.statusCode}';
+      }
+      throw Exception(errorMessage);
+    }
+  }
+
+  Future<VisitTypeModel> updateVisitType({
+    required int visitTypeId,
+    required String name,
+    String? description,
+    required String color,
+    bool isDefault = false,
+  }) async {
+    final currentUser = await getCurrentUser();
+    if (currentUser.company == null) {
+      throw Exception(
+        _translateError('userMustBeAssociatedWithCompany', locale: null),
+      );
+    }
+
+    final response = await _makeRequest(
+      'PUT',
+      '/settings/visit-types/$visitTypeId/',
+      body: {
+        'name': name,
+        'description': description,
+        'color': color,
+        'company': currentUser.company!.id,
+        'is_default': isDefault,
+      },
+    );
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final data = _unwrapResponseMap(response);
+      return VisitTypeModel.fromJson(data);
+    } else {
+      String errorMessage = 'Failed to update visit type';
+      try {
+        final error = _errorContextFromBody(response.body);
+        errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
+      } catch (_) {
+        errorMessage =
+            'Failed to update visit type with status ${response.statusCode}';
+      }
+      throw Exception(errorMessage);
+    }
+  }
+
+  Future<void> deleteVisitType(int visitTypeId) async {
+    final response = await _makeRequest(
+      'DELETE',
+      '/settings/visit-types/$visitTypeId/',
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      String errorMessage = 'Failed to delete visit type';
+      try {
+        final error = _errorContextFromBody(response.body);
+        errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
+      } catch (_) {
+        errorMessage =
+            'Failed to delete visit type with status ${response.statusCode}';
       }
       throw Exception(errorMessage);
     }

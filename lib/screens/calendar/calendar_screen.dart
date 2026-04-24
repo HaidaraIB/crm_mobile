@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/app_locales.dart';
 import '../../models/lead_model.dart';
 import '../../services/api_service.dart';
 import '../leads/lead_profile_screen.dart';
@@ -315,7 +316,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           Text(
                             DateFormat(
                               'EEEE, MMMM d',
-                              localizations?.locale.languageCode ?? 'en',
+                              AppLocales.intlDateFormat(
+                                localizations?.locale ?? AppLocales.english,
+                              ),
                             ).format(_selectedDate),
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.bold,
@@ -482,7 +485,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final localizations = AppLocalizations.of(context);
     final timeFormat = DateFormat(
       'h:mm a',
-      localizations?.locale.languageCode ?? 'en',
+      AppLocales.intlDateFormat(
+        localizations?.locale ?? AppLocales.english,
+      ),
     );
 
     // Determine icon and color based on event type

@@ -6,6 +6,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/bloc/theme/theme_bloc.dart';
 import '../../core/bloc/language/language_bloc.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../core/utils/app_locales.dart';
 import '../login/login_screen.dart';
 import '../home/home_screen.dart';
 
@@ -125,8 +126,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 : l10n.translate('switchToArabic'),
             onPressed: () {
               final newLocale = currentLocale.languageCode == 'ar'
-                  ? const Locale('en')
-                  : const Locale('ar');
+                  ? AppLocales.english
+                  : AppLocales.arabic;
               languageBloc.add(ChangeLanguage(newLocale));
             },
           ),

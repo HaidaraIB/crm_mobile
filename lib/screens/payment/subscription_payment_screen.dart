@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/bloc/theme/theme_bloc.dart';
 import '../../core/bloc/language/language_bloc.dart';
+import '../../core/utils/app_locales.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../services/api_service.dart';
 import '../home/home_screen.dart';
@@ -328,8 +329,8 @@ class _SubscriptionPaymentScreenState extends State<SubscriptionPaymentScreen> {
                 : l10n.translate('switchToArabic'),
             onPressed: () {
               final newLocale = currentLocale.languageCode == 'ar'
-                  ? const Locale('en')
-                  : const Locale('ar');
+                  ? AppLocales.english
+                  : AppLocales.arabic;
               context.read<LanguageBloc>().add(ChangeLanguage(newLocale));
             },
           ),

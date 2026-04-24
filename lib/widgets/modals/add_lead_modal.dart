@@ -35,8 +35,11 @@ class _AddLeadModalState extends State<AddLeadModal> {
   List<UserModel> _users = [];
   List<ChannelModel> _channels = [];
   List<StatusModel> _statuses = [];
+  UserModel? _currentUser;
   bool _isLoading = false;
   bool _isLoadingData = true;
+
+  bool get _isDataEntry => _currentUser?.isDataEntry ?? false;
 
   final List<Map<String, dynamic>> _phoneNumbers = [];
 
@@ -59,19 +62,21 @@ class _AddLeadModalState extends State<AddLeadModal> {
 
   Future<void> _loadData() async {
     try {
+      final me = await _apiService.getCurrentUser();
       final usersData = await _apiService.getUsers();
       final channels = await _apiService.getChannels();
       final statuses = await _apiService.getStatuses();
 
       if (mounted) {
         setState(() {
+          _currentUser = me;
           _users = (usersData['results'] as List).cast<UserModel>();
           _channels = channels;
           _statuses = statuses;
           _isLoadingData = false;
 
           // Set defaults
-          if (_users.isNotEmpty && _selectedUserId == null) {
+          if (!_isDataEntry && _users.isNotEmpty && _selectedUserId == null) {
             _selectedUserId = _users.first.id;
           }
           if (_channels.isNotEmpty && _selectedChannel == null) {
@@ -189,7 +194,7 @@ class _AddLeadModalState extends State<AddLeadModal> {
         budget: _budgetController.text.trim().isNotEmpty
             ? double.tryParse(_budgetController.text.trim()) ?? 0
             : null,
-        assignedTo: _selectedUserId,
+        assignedTo: _isDataEntry ? null : _selectedUserId,
         type: _selectedType ?? 'fresh',
         communicationWay: _selectedChannel,
         priority: _selectedPriority,
@@ -502,6 +507,7 @@ class _AddLeadModalState extends State<AddLeadModal> {
                                 ),
                                 const SizedBox(height: 16),
 
+                                if (!_isDataEntry) ...[
                                 // Assigned To
                                 Text(
                                   localizations?.translate('assignedTo') ??
@@ -531,6 +537,7 @@ class _AddLeadModalState extends State<AddLeadModal> {
                                   },
                                 ),
                                 const SizedBox(height: 16),
+                                ],
 
                                 // Type
                                 Text(

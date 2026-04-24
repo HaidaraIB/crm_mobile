@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/app_locales.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/notification_model.dart';
 import '../../services/api_service.dart';
@@ -507,7 +508,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               Text(
                                 _formatDate(
                                   sentDate,
-                                  localizations?.locale.languageCode ?? 'en',
+                                  localizations?.locale ?? AppLocales.english,
                                 ),
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: theme.colorScheme.onSurface.withValues(
@@ -543,7 +544,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  String _formatDate(DateTime date, String languageCode) {
+  String _formatDate(DateTime date, Locale locale) {
     final now = DateTime.now();
     final difference = now.difference(date);
 
@@ -562,7 +563,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     } else if (difference.inDays < 7) {
       return '${difference.inDays} ${AppLocalizations.of(context)?.translate('daysAgo') ?? 'days ago'}';
     } else {
-      return DateFormat('MMM d, yyyy', languageCode).format(date);
+      return DateFormat(
+        'MMM d, yyyy',
+        AppLocales.intlDateFormat(locale),
+      ).format(date);
     }
   }
 }

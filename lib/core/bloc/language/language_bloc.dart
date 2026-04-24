@@ -3,13 +3,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../constants/app_constants.dart';
+import '../../utils/app_locales.dart';
 import '../../../services/api_service.dart';
 
 part 'language_event.dart';
 part 'language_state.dart';
 
 class LanguageBloc extends Bloc<LanguageEvent, LanguageState> {
-  LanguageBloc() : super(const LanguageState(locale: Locale('en'))) {
+  LanguageBloc() : super(const LanguageState(locale: AppLocales.english)) {
     on<LoadLanguage>(_onLoadLanguage);
     on<ChangeLanguage>(_onChangeLanguage);
   }
@@ -17,7 +18,7 @@ class LanguageBloc extends Bloc<LanguageEvent, LanguageState> {
   Future<void> _onLoadLanguage(LoadLanguage event, Emitter<LanguageState> emit) async {
     final prefs = await SharedPreferences.getInstance();
     final languageCode = prefs.getString(AppConstants.languageKey) ?? 'en';
-    emit(LanguageState(locale: Locale(languageCode)));
+    emit(LanguageState(locale: AppLocales.fromLanguageCode(languageCode)));
   }
   
   Future<void> _onChangeLanguage(ChangeLanguage event, Emitter<LanguageState> emit) async {

@@ -7,6 +7,7 @@ import '../../models/user_model.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/inventory_card.dart';
+import '../../core/utils/app_locales.dart';
 import '../../core/utils/specialization_helper.dart';
 import '../../core/utils/snackbar_helper.dart';
 import 'view_deal_screen.dart';
@@ -256,7 +257,11 @@ class _DealsScreenState extends State<DealsScreen> {
     if (dateStr == null || dateStr.isEmpty) return '-';
     try {
       final date = DateTime.parse(dateStr);
-      return DateFormat('MMM dd, yyyy').format(date);
+      final loc = AppLocalizations.of(context)?.locale ?? AppLocales.english;
+      return DateFormat(
+        'MMM dd, yyyy',
+        AppLocales.intlDateFormat(loc),
+      ).format(date);
     } catch (e) {
       return dateStr;
     }

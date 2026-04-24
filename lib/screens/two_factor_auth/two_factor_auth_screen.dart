@@ -10,6 +10,7 @@ import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/bloc/theme/theme_bloc.dart';
 import '../../core/bloc/language/language_bloc.dart';
+import '../../core/utils/app_locales.dart';
 import '../../services/api_service.dart';
 import '../../services/notification_service.dart';
 import '../home/home_screen.dart';
@@ -236,7 +237,9 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
       
       // Sync user's preferred language from API so UI and future requests use it
       if (mounted && (user.language == 'ar' || user.language == 'en')) {
-        context.read<LanguageBloc>().add(ChangeLanguage(Locale(user.language!)));
+        context.read<LanguageBloc>().add(
+              ChangeLanguage(AppLocales.fromLanguageCode(user.language)),
+            );
       }
       
       // Clear cooldown
@@ -573,8 +576,8 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
                         : (localizations?.translate('switchToArabic') ?? 'Switch to Arabic'),
                     onPressed: () {
                       final newLocale = currentLocale.languageCode == 'ar'
-                          ? const Locale('en')
-                          : const Locale('ar');
+                          ? AppLocales.english
+                          : AppLocales.arabic;
                       languageBloc.add(ChangeLanguage(newLocale));
                     },
                   ),

@@ -47,10 +47,16 @@ class UserModel {
     return roleLower == 'supervisor';
   }
 
-  // Check if user is employee
+  // Check if user is employee (sales); excludes data_entry.
   bool get isEmployee {
     final roleLower = role.toLowerCase();
     return roleLower == 'employee';
+  }
+
+  /// Lead intake role: list/create/import only (API: `data_entry`).
+  bool get isDataEntry {
+    final roleLower = role.toLowerCase();
+    return roleLower == 'data_entry';
   }
 
   /// True if user is supervisor, active, and has the given permission.
@@ -61,10 +67,11 @@ class UserModel {
     return perms[key] == true;
   }
 
-  // Get normalized role (ADMIN, SUPERVISOR, or EMPLOYEE)
+  // Get normalized role (ADMIN, SUPERVISOR, EMPLOYEE, or DATA_ENTRY)
   String get normalizedRole {
     if (isAdmin) return 'ADMIN';
     if (isSupervisor) return 'SUPERVISOR';
+    if (isDataEntry) return 'DATA_ENTRY';
     return 'EMPLOYEE';
   }
   

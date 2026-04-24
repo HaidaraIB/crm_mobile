@@ -238,3 +238,47 @@ class CallMethodModel {
   }
 }
 
+class VisitTypeModel {
+  final int id;
+  final String name;
+  final String? description;
+  final String color;
+  final bool isDefault;
+
+  VisitTypeModel({
+    required this.id,
+    required this.name,
+    this.description,
+    required this.color,
+    this.isDefault = false,
+  });
+
+  factory VisitTypeModel.fromJson(Map<String, dynamic> json) {
+    return VisitTypeModel(
+      id: json['id'] as int,
+      name: json['name'] as String,
+      description: json['description'] as String?,
+      color: json['color'] as String? ?? '#808080',
+      isDefault: json['is_default'] as bool? ?? json['isDefault'] as bool? ?? false,
+    );
+  }
+
+  Map<String, dynamic> toCreateJson() {
+    return {
+      'name': name,
+      'description': description,
+      'color': color,
+      'is_default': isDefault,
+    };
+  }
+
+  Map<String, dynamic> toUpdateJson() {
+    return {
+      'name': name,
+      'description': description,
+      'color': color,
+      'is_default': isDefault,
+    };
+  }
+}
+

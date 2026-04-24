@@ -8,6 +8,7 @@ import 'core/bloc/theme/theme_bloc.dart';
 import 'core/bloc/language/language_bloc.dart';
 import 'core/theme/app_theme.dart';
 import 'core/localization/app_localizations.dart';
+import 'core/utils/app_locales.dart';
 import 'screens/splash/splash_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/login/login_screen.dart';
@@ -145,8 +146,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                 themeMode: themeState.themeMode,
                 locale: languageState.locale,
                 supportedLocales: const [
-                  Locale('en'),
-                  Locale('ar'),
+                  AppLocales.english,
+                  AppLocales.arabic,
                 ],
                 localizationsDelegates: const [
                   AppLocalizations.delegate,
