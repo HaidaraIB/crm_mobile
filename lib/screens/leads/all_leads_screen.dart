@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/localization/app_localizations.dart';
@@ -68,6 +70,7 @@ class AllLeadsScreen extends StatefulWidget {
 class _AllLeadsScreenState extends State<AllLeadsScreen> {
   final ApiService _apiService = ApiService();
   final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
   List<LeadModel> _leads = [];
   List<LeadModel> _filteredLeads = [];
   bool _isLoading = true;
@@ -99,7 +102,6 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     _loadLeads();
     _loadStatuses();
     _loadUsers();
-    _searchController.addListener(_filterLeads);
   }
 
   @override
@@ -289,8 +291,17 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _scheduleLeadsReloadFromSearch() {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      _loadLeads();
+    });
   }
 
   Future<void> _loadLeads() async {
@@ -301,9 +312,11 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
         _errorMessage = null;
       });
 
+      final searchTerm = _searchController.text.trim();
       final result = await _apiService.getLeads(
         type: widget.type,
         status: widget.status,
+        search: searchTerm.isEmpty ? null : searchTerm,
       );
 
       if (!mounted) return;
@@ -332,9 +345,9 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       if (!mounted) return;
       setState(() {
         _leads = filteredLeads;
-        _filteredLeads = filteredLeads;
         _isLoading = false;
       });
+      _filterLeads();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -345,19 +358,8 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
   }
 
   void _filterLeads() {
-    final query = _searchController.text.toLowerCase();
     setState(() {
       var filtered = _leads;
-
-      // Apply search query
-      if (query.isNotEmpty) {
-        filtered = filtered.where((lead) {
-          final company = lead.leadCompanyName ?? '';
-          return lead.name.toLowerCase().contains(query) ||
-              lead.phone.contains(query) ||
-              (company.isNotEmpty && company.toLowerCase().contains(query));
-        }).toList();
-      }
 
       // Apply type filter
       if (_selectedType != null) {
@@ -739,10 +741,11 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                     padding: const EdgeInsets.all(16),
                     child: TextField(
                       controller: _searchController,
+                      onChanged: (_) => _scheduleLeadsReloadFromSearch(),
                       decoration: InputDecoration(
                         hintText:
-                            localizations?.translate('typeToSearch') ??
-                            'Type to search...',
+                            localizations?.translate('searchLeadsByNameOrPhone') ??
+                            'Search by name or phone',
                         prefixIcon: const Icon(Icons.search),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
