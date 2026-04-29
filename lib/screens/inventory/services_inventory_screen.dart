@@ -72,22 +72,22 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
     super.dispose();
   }
 
-  Future<void> _loadData() async {
+  Future<void> _loadData({bool forceRefresh = false}) async {
     await Future.wait([
-      _loadServices(),
-      _loadPackages(),
-      _loadProviders(),
+      _loadServices(forceRefresh: forceRefresh),
+      _loadPackages(forceRefresh: forceRefresh),
+      _loadProviders(forceRefresh: forceRefresh),
     ]);
   }
 
-  Future<void> _loadServices() async {
+  Future<void> _loadServices({bool forceRefresh = false}) async {
     setState(() {
       _isLoadingServices = true;
       _errorServices = null;
     });
     
     try {
-      final services = await _apiService.getServices();
+      final services = await _apiService.getServices(forceRefresh: forceRefresh);
       setState(() {
         _services = services;
         _filteredServices = services;
@@ -101,14 +101,16 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
     }
   }
 
-  Future<void> _loadPackages() async {
+  Future<void> _loadPackages({bool forceRefresh = false}) async {
     setState(() {
       _isLoadingPackages = true;
       _errorPackages = null;
     });
     
     try {
-      final packages = await _apiService.getServicePackages();
+      final packages = await _apiService.getServicePackages(
+        forceRefresh: forceRefresh,
+      );
       setState(() {
         _packages = packages;
         _filteredPackages = packages;
@@ -122,14 +124,16 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
     }
   }
 
-  Future<void> _loadProviders() async {
+  Future<void> _loadProviders({bool forceRefresh = false}) async {
     setState(() {
       _isLoadingProviders = true;
       _errorProviders = null;
     });
     
     try {
-      final providers = await _apiService.getServiceProviders();
+      final providers = await _apiService.getServiceProviders(
+        forceRefresh: forceRefresh,
+      );
       setState(() {
         _providers = providers;
         _filteredProviders = providers;
@@ -178,6 +182,13 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
     return Scaffold(
       appBar: AppBar(
         title: Text(localizations?.translate('inventory') ?? 'Inventory'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () => _loadData(forceRefresh: true),
+            tooltip: localizations?.translate('refresh') ?? 'Refresh',
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: [

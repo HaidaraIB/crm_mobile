@@ -28,14 +28,14 @@ class _VisitTypesSettingsScreenState extends State<VisitTypesSettingsScreen> {
     _loadVisitTypes();
   }
 
-  Future<void> _loadVisitTypes() async {
+  Future<void> _loadVisitTypes({bool forceRefresh = false}) async {
     if (!mounted) return;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
     try {
-      final list = await _apiService.getVisitTypes();
+      final list = await _apiService.getVisitTypes(forceRefresh: forceRefresh);
       if (!mounted) return;
       setState(() {
         _visitTypes = list;
@@ -204,14 +204,24 @@ class _VisitTypesSettingsScreenState extends State<VisitTypesSettingsScreen> {
                 localizations?.translate('visitTypes') ?? 'Visit types',
                 style: theme.textTheme.titleLarge,
               ),
-              ElevatedButton.icon(
-                onPressed: _showAddModal,
-                icon: const Icon(Icons.add),
-                label: Text(localizations?.translate('addVisitType') ?? 'Add visit type'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryColor,
-                  foregroundColor: Colors.white,
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.refresh),
+                    tooltip: localizations?.translate('refresh') ?? 'Refresh',
+                    onPressed: () => _loadVisitTypes(forceRefresh: true),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: _showAddModal,
+                    icon: const Icon(Icons.add),
+                    label: Text(localizations?.translate('addVisitType') ?? 'Add visit type'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

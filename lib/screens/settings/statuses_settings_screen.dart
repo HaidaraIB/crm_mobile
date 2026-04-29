@@ -28,7 +28,7 @@ class _StatusesSettingsScreenState extends State<StatusesSettingsScreen> {
     _loadStatuses();
   }
 
-  Future<void> _loadStatuses() async {
+  Future<void> _loadStatuses({bool forceRefresh = false}) async {
     if (!mounted) return;
     setState(() {
       _isLoading = true;
@@ -36,7 +36,7 @@ class _StatusesSettingsScreenState extends State<StatusesSettingsScreen> {
     });
 
     try {
-      final statuses = await _apiService.getStatuses();
+      final statuses = await _apiService.getStatuses(forceRefresh: forceRefresh);
       if (!mounted) return;
       setState(() {
         _statuses = statuses;
@@ -204,8 +204,16 @@ class _StatusesSettingsScreenState extends State<StatusesSettingsScreen> {
                 localizations?.translate('availableStatuses') ?? 'Available Statuses',
                 style: theme.textTheme.titleLarge,
               ),
-              ElevatedButton.icon(
-                onPressed: () {
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.refresh),
+                    tooltip: localizations?.translate('refresh') ?? 'Refresh',
+                    onPressed: () => _loadStatuses(forceRefresh: true),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () {
                   showModalBottomSheet(
                     context: context,
                     isScrollControlled: true,
@@ -219,12 +227,14 @@ class _StatusesSettingsScreenState extends State<StatusesSettingsScreen> {
                     ),
                   );
                 },
-                icon: const Icon(Icons.add),
-                label: Text(localizations?.translate('addStatus') ?? 'Add Status'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryColor,
-                  foregroundColor: Colors.white,
-                ),
+                    icon: const Icon(Icons.add),
+                    label: Text(localizations?.translate('addStatus') ?? 'Add Status'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

@@ -41,12 +41,14 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
     super.dispose();
   }
 
-  Future<void> _loadTickets() async {
+  Future<void> _loadTickets({bool forceRefresh = false}) async {
     setState(() {
       _isLoadingTickets = true;
     });
     try {
-      final data = await _apiService.getSupportTickets();
+      final data = await _apiService.getSupportTickets(
+        forceRefresh: forceRefresh,
+      );
       if (mounted) {
         setState(() {
           _tickets =
@@ -155,12 +157,14 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
           actions: [
             IconButton(
               icon: const Icon(Icons.refresh),
-              onPressed: _isLoadingTickets ? null : _loadTickets,
+              onPressed: _isLoadingTickets
+                  ? null
+                  : () => _loadTickets(forceRefresh: true),
             ),
           ],
         ),
         body: RefreshIndicator(
-          onRefresh: _loadTickets,
+          onRefresh: () => _loadTickets(forceRefresh: true),
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16),

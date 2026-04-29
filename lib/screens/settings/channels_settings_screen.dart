@@ -28,7 +28,7 @@ class _ChannelsSettingsScreenState extends State<ChannelsSettingsScreen> {
     _loadChannels();
   }
 
-  Future<void> _loadChannels() async {
+  Future<void> _loadChannels({bool forceRefresh = false}) async {
     if (!mounted) return;
     setState(() {
       _isLoading = true;
@@ -36,7 +36,7 @@ class _ChannelsSettingsScreenState extends State<ChannelsSettingsScreen> {
     });
 
     try {
-      final channels = await _apiService.getChannels();
+      final channels = await _apiService.getChannels(forceRefresh: forceRefresh);
       if (!mounted) return;
       setState(() {
         _channels = channels;
@@ -207,8 +207,16 @@ class _ChannelsSettingsScreenState extends State<ChannelsSettingsScreen> {
                 localizations?.translate('activeChannels') ?? 'Active Channels',
                 style: theme.textTheme.titleLarge,
               ),
-              ElevatedButton.icon(
-                onPressed: () {
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.refresh),
+                    tooltip: localizations?.translate('refresh') ?? 'Refresh',
+                    onPressed: () => _loadChannels(forceRefresh: true),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () {
                   showModalBottomSheet(
                     context: context,
                     isScrollControlled: true,
@@ -221,12 +229,14 @@ class _ChannelsSettingsScreenState extends State<ChannelsSettingsScreen> {
                     ),
                   );
                 },
-                icon: const Icon(Icons.add),
-                label: Text(localizations?.translate('addChannel') ?? 'Add Channel'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryColor,
-                  foregroundColor: Colors.white,
-                ),
+                    icon: const Icon(Icons.add),
+                    label: Text(localizations?.translate('addChannel') ?? 'Add Channel'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

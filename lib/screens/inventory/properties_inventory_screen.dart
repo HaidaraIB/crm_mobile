@@ -72,22 +72,22 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
     super.dispose();
   }
 
-  Future<void> _loadData() async {
+  Future<void> _loadData({bool forceRefresh = false}) async {
     await Future.wait([
-      _loadUnits(),
-      _loadProjects(),
-      _loadDevelopers(),
+      _loadUnits(forceRefresh: forceRefresh),
+      _loadProjects(forceRefresh: forceRefresh),
+      _loadDevelopers(forceRefresh: forceRefresh),
     ]);
   }
 
-  Future<void> _loadUnits() async {
+  Future<void> _loadUnits({bool forceRefresh = false}) async {
     setState(() {
       _isLoadingUnits = true;
       _errorUnits = null;
     });
     
     try {
-      final units = await _apiService.getUnits();
+      final units = await _apiService.getUnits(forceRefresh: forceRefresh);
       setState(() {
         _units = units;
         _filteredUnits = units;
@@ -101,14 +101,14 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
     }
   }
 
-  Future<void> _loadProjects() async {
+  Future<void> _loadProjects({bool forceRefresh = false}) async {
     setState(() {
       _isLoadingProjects = true;
       _errorProjects = null;
     });
     
     try {
-      final projects = await _apiService.getProjects();
+      final projects = await _apiService.getProjects(forceRefresh: forceRefresh);
       setState(() {
         _projects = projects;
         _filteredProjects = projects;
@@ -122,14 +122,14 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
     }
   }
 
-  Future<void> _loadDevelopers() async {
+  Future<void> _loadDevelopers({bool forceRefresh = false}) async {
     setState(() {
       _isLoadingDevelopers = true;
       _errorDevelopers = null;
     });
     
     try {
-      final developers = await _apiService.getDevelopers();
+      final developers = await _apiService.getDevelopers(forceRefresh: forceRefresh);
       setState(() {
         _developers = developers;
         _filteredDevelopers = developers;
@@ -176,8 +176,27 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
     return Scaffold(
       appBar: AppBar(
         title: Text(localizations?.translate('inventory') ?? 'Inventory'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () => _loadData(forceRefresh: true),
+            tooltip: localizations?.translate('refresh') ?? 'Refresh',
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          labelStyle: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+          ),
+          indicatorColor: Colors.white,
+          indicatorWeight: 3,
           tabs: [
             Tab(text: localizations?.translate('units') ?? 'Units'),
             Tab(text: localizations?.translate('projects') ?? 'Projects'),

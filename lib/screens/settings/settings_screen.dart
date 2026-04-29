@@ -17,7 +17,7 @@ class SettingsScreen extends StatefulWidget {
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProviderStateMixin {
+class _SettingsScreenState extends State<SettingsScreen> with TickerProviderStateMixin {
   TabController? _tabController;
   UserModel? _currentUser;
   final ApiService _apiService = ApiService();
@@ -42,9 +42,9 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
     );
   }
 
-  Future<void> _loadUser() async {
+  Future<void> _loadUser({bool forceRefresh = false}) async {
     try {
-      final user = await _apiService.getCurrentUser();
+      final user = await _apiService.getCurrentUser(forceRefresh: forceRefresh);
       if (mounted) {
         setState(() {
           _currentUser = user;
@@ -92,6 +92,13 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
         title: Text(localizations?.translate('settings') ?? 'Settings'),
         backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () => _loadUser(forceRefresh: true),
+            tooltip: localizations?.translate('refresh') ?? 'Refresh',
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,

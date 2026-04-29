@@ -118,9 +118,9 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     });
   }
 
-  Future<void> _loadCurrentUser() async {
+  Future<void> _loadCurrentUser({bool forceRefresh = false}) async {
     try {
-      final user = await _apiService.getCurrentUser();
+      final user = await _apiService.getCurrentUser(forceRefresh: forceRefresh);
       if (!mounted) return;
       setState(() {
         _currentUser = user;
@@ -304,7 +304,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     });
   }
 
-  Future<void> _loadLeads() async {
+  Future<void> _loadLeads({bool forceRefresh = false}) async {
     try {
       if (!mounted) return;
       setState(() {
@@ -317,6 +317,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
         type: widget.type,
         status: widget.status,
         search: searchTerm.isEmpty ? null : searchTerm,
+        forceRefresh: forceRefresh,
       );
 
       if (!mounted) return;
@@ -466,7 +467,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
         leadId: lead.id,
         onSave: (stageId, notes, reminderDate) {
           // Refresh leads list after action is added
-          _loadLeads();
+          _loadLeads(forceRefresh: true);
         },
       ),
     );
@@ -479,7 +480,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
         leadId: lead.id,
         onSave: (callMethodId, notes, followUpDate) {
           // Refresh leads list after call is added
-          _loadLeads();
+          _loadLeads(forceRefresh: true);
         },
       ),
     );
@@ -495,7 +496,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       context: context,
       builder: (context) => AddVisitModal(
         leadId: lead.id,
-        onSave: (_, __, ___) => _loadLeads(),
+        onSave: (_, __, ___) => _loadLeads(forceRefresh: true),
       ),
     );
   }
@@ -513,7 +514,11 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     showDialog(
       context: context,
       builder: (context) =>
-          SendSMSModal(leadId: lead.id, phoneNumber: phone, onSent: _loadLeads),
+          SendSMSModal(
+            leadId: lead.id,
+            phoneNumber: phone,
+            onSent: () => _loadLeads(forceRefresh: true),
+          ),
     );
   }
 
@@ -524,12 +529,12 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       MaterialPageRoute(
         builder: (context) => ImportLeadsScreen(
           onImportDone: () {
-            _loadLeads();
+            _loadLeads(forceRefresh: true);
           },
         ),
       ),
     );
-    _loadLeads();
+    _loadLeads(forceRefresh: true);
   }
 
   Future<void> _exportLeads() async {
@@ -626,7 +631,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: _loadLeads,
+            onPressed: () => _loadLeads(forceRefresh: true),
               icon: const Icon(Icons.refresh),
               label: Text(localizations?.translate('tryAgain') ?? 'Try Again'),
               style: ElevatedButton.styleFrom(
@@ -675,7 +680,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
           // Use microtask to ensure widget is still mounted
           Future.microtask(() {
             if (mounted) {
-              _loadLeads();
+              _loadLeads(forceRefresh: true);
             }
           });
         }
@@ -757,7 +762,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                   // Leads List
                   Expanded(
                     child: RefreshIndicator(
-                      onRefresh: _loadLeads,
+                      onRefresh: () => _loadLeads(forceRefresh: true),
                       child: _filteredLeads.isEmpty
                           ? Center(
                               child: Text(
@@ -791,7 +796,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
               MaterialPageRoute(
                 builder: (context) => CreateLeadScreen(
                   onLeadCreated: (lead) {
-                    _loadLeads();
+                    _loadLeads(forceRefresh: true);
                   },
                 ),
               ),
@@ -829,7 +834,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
               try {
                 await _apiService.deleteLead(lead.id);
                 if (!mounted) return;
-                _loadLeads();
+                _loadLeads(forceRefresh: true);
                 SnackbarHelper.showSuccess(
                   this.context,
                   localizations?.translate('leadDeletedSuccessfully') ??
@@ -937,7 +942,10 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
           context,
           MaterialPageRoute(
             builder: (context) =>
-                EditLeadScreen(lead: lead, onLeadUpdated: (_) => _loadLeads()),
+                EditLeadScreen(
+                  lead: lead,
+                  onLeadUpdated: (_) => _loadLeads(forceRefresh: true),
+                ),
           ),
         );
       } else if (value == 'assign') {
@@ -950,7 +958,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
               currentAssignedUserId: lead.assignedTo > 0
                   ? lead.assignedTo
                   : null,
-              onAssigned: _loadLeads,
+              onAssigned: () => _loadLeads(forceRefresh: true),
             ),
           );
         });
@@ -993,7 +1001,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                 );
 
                 if (result == true) {
-                  _loadLeads();
+                  _loadLeads(forceRefresh: true);
                 }
               },
               child: Padding(

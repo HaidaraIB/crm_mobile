@@ -65,9 +65,9 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
     _loadLeads();
   }
   
-  Future<void> _loadUser() async {
+  Future<void> _loadUser({bool forceRefresh = false}) async {
     try {
-      final user = await _apiService.getCurrentUser();
+      final user = await _apiService.getCurrentUser(forceRefresh: forceRefresh);
       if (!mounted) return;
       setState(() {
         _currentUser = user;
@@ -78,7 +78,11 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
     }
   }
   
-  Future<void> _loadLeads({bool retry = false, bool reloadUser = false}) async {
+  Future<void> _loadLeads({
+    bool retry = false,
+    bool reloadUser = false,
+    bool forceRefresh = false,
+  }) async {
     try {
       setState(() {
         _isLoading = true;
@@ -96,11 +100,11 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
       
       // Reload user data when retrying, refreshing, or if not loaded
       if (retry || reloadUser || _currentUser == null) {
-        await _loadUser();
+        await _loadUser(forceRefresh: forceRefresh);
       }
       if (!mounted) return;
 
-      final result = await _apiService.getLeads();
+      final result = await _apiService.getLeads(forceRefresh: forceRefresh);
       final leads = (result['results'] as List).cast<LeadModel>();
 
       if (!mounted) return;
@@ -138,11 +142,11 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
   }
   
   Future<void> _retryLoad() async {
-    await _loadLeads(retry: true, reloadUser: true);
+    await _loadLeads(retry: true, reloadUser: true, forceRefresh: true);
   }
   
   Future<void> _refreshAll() async {
-    await _loadLeads(retry: true, reloadUser: true);
+    await _loadLeads(retry: true, reloadUser: true, forceRefresh: true);
   }
   
   String _getErrorMessage(dynamic error) {
@@ -400,7 +404,7 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
                   builder: (_) => const AllLeadsScreen(),
                 ),
               );
-              if (mounted) _loadLeads();
+              if (mounted) _loadLeads(forceRefresh: true);
             },
           ),
           const SizedBox(width: 8),
@@ -415,7 +419,7 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
                   builder: (_) => const CreateLeadScreen(),
                 ),
               );
-              if (mounted) _loadLeads();
+              if (mounted) _loadLeads(forceRefresh: true);
             },
           ),
           const SizedBox(width: 8),
@@ -430,7 +434,7 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
                   builder: (_) => const DealsScreen(),
                 ),
               );
-              if (mounted) _loadLeads();
+              if (mounted) _loadLeads(forceRefresh: true);
             },
           ),
         ],
@@ -503,7 +507,7 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
                     builder: (_) => const CreateLeadScreen(),
                   ),
                 );
-                if (mounted) _loadLeads();
+                if (mounted) _loadLeads(forceRefresh: true);
               },
               icon: const Icon(Icons.person_add_outlined),
               label: Text(
@@ -672,7 +676,7 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
           );
           // Refresh leads data when returning from AllLeadsScreen
           if (result == true || mounted) {
-            _loadLeads();
+            _loadLeads(forceRefresh: true);
           }
         },
         borderRadius: BorderRadius.circular(12),

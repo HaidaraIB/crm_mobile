@@ -28,7 +28,7 @@ class _StagesSettingsScreenState extends State<StagesSettingsScreen> {
     _loadStages();
   }
 
-  Future<void> _loadStages() async {
+  Future<void> _loadStages({bool forceRefresh = false}) async {
     if (!mounted) return;
     setState(() {
       _isLoading = true;
@@ -36,7 +36,7 @@ class _StagesSettingsScreenState extends State<StagesSettingsScreen> {
     });
 
     try {
-      final stages = await _apiService.getStages();
+      final stages = await _apiService.getStages(forceRefresh: forceRefresh);
       if (!mounted) return;
       setState(() {
         _stages = stages;
@@ -178,8 +178,16 @@ class _StagesSettingsScreenState extends State<StagesSettingsScreen> {
                 localizations?.translate('leadStages') ?? 'Lead Stages',
                 style: theme.textTheme.titleLarge,
               ),
-              ElevatedButton.icon(
-                onPressed: () {
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.refresh),
+                    tooltip: localizations?.translate('refresh') ?? 'Refresh',
+                    onPressed: () => _loadStages(forceRefresh: true),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () {
                   showModalBottomSheet(
                     context: context,
                     isScrollControlled: true,
@@ -192,12 +200,14 @@ class _StagesSettingsScreenState extends State<StagesSettingsScreen> {
                     ),
                   );
                 },
-                icon: const Icon(Icons.add),
-                label: Text(localizations?.translate('addStage') ?? 'Add Stage'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryColor,
-                  foregroundColor: Colors.white,
-                ),
+                    icon: const Icon(Icons.add),
+                    label: Text(localizations?.translate('addStage') ?? 'Add Stage'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

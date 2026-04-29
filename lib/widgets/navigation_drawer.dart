@@ -52,9 +52,9 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
     } catch (_) {}
   }
 
-  Future<void> _loadUser() async {
+  Future<void> _loadUser({bool forceRefresh = false}) async {
     try {
-      final user = await _apiService.getCurrentUser();
+      final user = await _apiService.getCurrentUser(forceRefresh: forceRefresh);
       if (mounted) {
         setState(() {
           _currentUser = user;
@@ -460,7 +460,7 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
       MaterialPageRoute(builder: (_) => const ProfileScreen()),
     );
     // Refresh user data in drawer after returning from profile
-    _loadUser();
+    _loadUser(forceRefresh: true);
     // If profile was updated, notify parent to refresh dashboard
     if (result == true) {
       widget.onProfileUpdated?.call();

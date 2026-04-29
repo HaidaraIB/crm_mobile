@@ -50,14 +50,14 @@ class _OwnersScreenState extends State<OwnersScreen> {
     super.dispose();
   }
 
-  Future<void> _loadOwners() async {
+  Future<void> _loadOwners({bool forceRefresh = false}) async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
     
     try {
-      final owners = await _apiService.getOwners();
+      final owners = await _apiService.getOwners(forceRefresh: forceRefresh);
       setState(() {
         _owners = owners;
         _filteredOwners = owners;
@@ -199,7 +199,7 @@ class _OwnersScreenState extends State<OwnersScreen> {
     }
     
     return RefreshIndicator(
-      onRefresh: _loadOwners,
+      onRefresh: () => _loadOwners(forceRefresh: true),
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: _filteredOwners.length,

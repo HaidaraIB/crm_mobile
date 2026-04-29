@@ -34,12 +34,36 @@ class _HomeScreenState extends State<HomeScreen> {
   final ApiService _apiService = ApiService();
   int _unreadNotificationsCount = 0;
   UserModel? _sessionUser;
+  late final Widget _dashboardScreen;
+  late final Widget _allLeadsScreen;
+  late final Widget _calendarScreen;
 
   bool get _isDataEntry => _sessionUser?.isDataEntry ?? false;
 
   @override
   void initState() {
     super.initState();
+    _dashboardScreen = DashboardScreen(key: _dashboardKey);
+    _allLeadsScreen = AllLeadsScreen(
+      key: _allLeadsKey,
+      showAppBar: false,
+      onFilterRequested: (callback) {
+        _showAllLeadsFilterCallback = callback;
+      },
+      onHasActiveFiltersRequested: (callback) {
+        _checkAllLeadsFiltersCallback = callback;
+      },
+      onImportRequested: (callback) {
+        _importLeadsCallback = callback;
+      },
+      onExportRequested: (callback) {
+        _exportLeadsCallback = callback;
+      },
+    );
+    _calendarScreen = CalendarScreen(
+      key: _calendarKey,
+      initialDate: _selectedCalendarDate,
+    );
     _loadSessionUser();
     // إرسال FCM token للمستخدمين المسجلين دخول بالفعل
     _sendFCMTokenIfLoggedIn();
@@ -77,9 +101,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// تحميل عدد الإشعارات غير المقروءة
-  Future<void> _loadUnreadCount() async {
+  Future<void> _loadUnreadCount({bool forceRefresh = false}) async {
     try {
-      final count = await _apiService.getUnreadNotificationsCount();
+      final count = await _apiService.getUnreadNotificationsCount(
+        forceRefresh: forceRefresh,
+      );
       if (mounted) {
         setState(() {
           _unreadNotificationsCount = count;
@@ -119,55 +145,6 @@ class _HomeScreenState extends State<HomeScreen> {
           return localizations?.translate('calendar') ?? 'Calendar';
         default:
           return localizations?.translate('home') ?? 'Home';
-      }
-    }
-
-    Widget getBody() {
-      if (_isDataEntry) {
-        return AllLeadsScreen(
-          key: _allLeadsKey,
-          showAppBar: false,
-          onFilterRequested: (callback) {
-            _showAllLeadsFilterCallback = callback;
-          },
-          onHasActiveFiltersRequested: (callback) {
-            _checkAllLeadsFiltersCallback = callback;
-          },
-          onImportRequested: (callback) {
-            _importLeadsCallback = callback;
-          },
-          onExportRequested: (callback) {
-            _exportLeadsCallback = callback;
-          },
-        );
-      }
-      switch (_currentIndex) {
-        case 0:
-          return DashboardScreen(key: _dashboardKey);
-        case 1:
-          return AllLeadsScreen(
-            key: _allLeadsKey,
-            showAppBar: false,
-            onFilterRequested: (callback) {
-              _showAllLeadsFilterCallback = callback;
-            },
-            onHasActiveFiltersRequested: (callback) {
-              _checkAllLeadsFiltersCallback = callback;
-            },
-            onImportRequested: (callback) {
-              _importLeadsCallback = callback;
-            },
-            onExportRequested: (callback) {
-              _exportLeadsCallback = callback;
-            },
-          );
-        case 2:
-          return CalendarScreen(
-            key: _calendarKey,
-            initialDate: _selectedCalendarDate,
-          );
-        default:
-          return DashboardScreen(key: _dashboardKey);
       }
     }
 
@@ -302,7 +279,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           );
                           // تحديث عدد الإشعارات بعد العودة
                           if (mounted) {
-                            _loadUnreadCount();
+                            _loadUnreadCount(forceRefresh: true);
                           }
                         },
                       ),
@@ -343,7 +320,16 @@ class _HomeScreenState extends State<HomeScreen> {
           _dashboardKey.currentState?.refreshUserData();
         },
       ),
-      body: getBody(),
+      body: _isDataEntry
+          ? _allLeadsScreen
+          : IndexedStack(
+              index: _currentIndex,
+              children: [
+                _dashboardScreen,
+                _allLeadsScreen,
+                _calendarScreen,
+              ],
+            ),
       bottomNavigationBar: _isDataEntry
           ? null
           : BottomNavigation(
@@ -357,8 +343,8 @@ class _HomeScreenState extends State<HomeScreen> {
             // Switching to all leads - refresh leads data
             // The AllLeadsScreen will handle its own refresh via PopScope
           } else if (index == 2 && _currentIndex != 2) {
-            // Switching to calendar - refresh calendar events
-            (_calendarKey.currentState as dynamic)?.refreshEvents();
+            // Switching to calendar should not force refresh; keep cache-friendly behavior.
+            // Manual refresh remains available via the calendar app bar button.
           }
           setState(() {
             _currentIndex = index;

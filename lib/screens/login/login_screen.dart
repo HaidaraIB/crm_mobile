@@ -345,13 +345,21 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 48),
+                      const SizedBox(height: 8),
+                      Text(
+                        isRTL
+                            ? 'سجّل دخولك للمتابعة'
+                            : 'Sign in to continue',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 32),
                   
                   // Username Field
                   TextFormField(
                     controller: _usernameController,
                     decoration: InputDecoration(
-                      labelText: localizations?.translate('username') ?? 'Username',
+                      labelText: isRTL ? 'اسم المستخدم أو البريد الإلكتروني' : 'Username or Email',
                       prefixIcon: const Icon(Icons.person),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -396,7 +404,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
                   
                   // Error Message
                   if (_errorMessage != null)

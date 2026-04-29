@@ -73,22 +73,22 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
     super.dispose();
   }
 
-  Future<void> _loadData() async {
+  Future<void> _loadData({bool forceRefresh = false}) async {
     await Future.wait([
-      _loadProducts(),
-      _loadCategories(),
-      _loadSuppliers(),
+      _loadProducts(forceRefresh: forceRefresh),
+      _loadCategories(forceRefresh: forceRefresh),
+      _loadSuppliers(forceRefresh: forceRefresh),
     ]);
   }
 
-  Future<void> _loadProducts() async {
+  Future<void> _loadProducts({bool forceRefresh = false}) async {
     setState(() {
       _isLoadingProducts = true;
       _errorProducts = null;
     });
     
     try {
-      final products = await _apiService.getProducts();
+      final products = await _apiService.getProducts(forceRefresh: forceRefresh);
       setState(() {
         _products = products;
         _filteredProducts = products;
@@ -102,14 +102,16 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
     }
   }
 
-  Future<void> _loadCategories() async {
+  Future<void> _loadCategories({bool forceRefresh = false}) async {
     setState(() {
       _isLoadingCategories = true;
       _errorCategories = null;
     });
     
     try {
-      final categories = await _apiService.getProductCategories();
+      final categories = await _apiService.getProductCategories(
+        forceRefresh: forceRefresh,
+      );
       setState(() {
         _categories = categories;
         _filteredCategories = categories;
@@ -123,14 +125,14 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
     }
   }
 
-  Future<void> _loadSuppliers() async {
+  Future<void> _loadSuppliers({bool forceRefresh = false}) async {
     setState(() {
       _isLoadingSuppliers = true;
       _errorSuppliers = null;
     });
     
     try {
-      final suppliers = await _apiService.getSuppliers();
+      final suppliers = await _apiService.getSuppliers(forceRefresh: forceRefresh);
       setState(() {
         _suppliers = suppliers;
         _filteredSuppliers = suppliers;
@@ -186,6 +188,13 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
     return Scaffold(
       appBar: AppBar(
         title: Text(localizations?.translate('inventory') ?? 'Inventory'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () => _loadData(forceRefresh: true),
+            tooltip: localizations?.translate('refresh') ?? 'Refresh',
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: [

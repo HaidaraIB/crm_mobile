@@ -55,8 +55,77 @@ class ApiService {
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
   ApiService._internal();
+  static const Duration _defaultCacheTtl = Duration(seconds: 60);
+  final Map<String, _CacheEntry<dynamic>> _memoryCache = {};
 
   String get baseUrl => AppConstants.baseUrl;
+
+  String _cacheKey(String resource, [Map<String, Object?> params = const {}]) {
+    if (params.isEmpty) return resource;
+    final sortedKeys = params.keys.toList()..sort();
+    final query = sortedKeys
+        .map((key) => '$key=${params[key] ?? ''}')
+        .join('&');
+    return '$resource?$query';
+  }
+
+  void _logCacheEvent(String message) {
+    assert(() {
+      debugPrint('[ApiCache] $message');
+      return true;
+    }());
+  }
+
+  T? _cacheGet<T>(String key, {bool forceRefresh = false}) {
+    if (forceRefresh) {
+      _memoryCache.remove(key);
+      _logCacheEvent('BYPASS key=$key reason=forceRefresh');
+      return null;
+    }
+    final entry = _memoryCache[key];
+    if (entry == null) {
+      _logCacheEvent('MISS key=$key reason=not_found');
+      return null;
+    }
+    if (entry.isExpired) {
+      _memoryCache.remove(key);
+      _logCacheEvent('MISS key=$key reason=expired');
+      return null;
+    }
+    _logCacheEvent('HIT key=$key');
+    return entry.value as T;
+  }
+
+  void _cacheSet<T>(
+    String key,
+    T value, {
+    Duration ttl = _defaultCacheTtl,
+  }) {
+    _memoryCache[key] = _CacheEntry<T>(
+      value: value,
+      expiresAt: DateTime.now().add(ttl),
+    );
+    _logCacheEvent('SET key=$key ttl=${ttl.inSeconds}s');
+  }
+
+  void _cacheInvalidateByPrefix(String prefix) {
+    final keysToRemove = _memoryCache.keys
+        .where((key) => key.startsWith(prefix))
+        .toList();
+    for (final key in keysToRemove) {
+      _memoryCache.remove(key);
+      _logCacheEvent('INVALIDATE key=$key prefix=$prefix');
+    }
+  }
+
+  void _invalidateUserCache() => _cacheInvalidateByPrefix('current_user');
+  void _invalidateLeadsCache() => _cacheInvalidateByPrefix('leads');
+  void _invalidateDealsCache() => _cacheInvalidateByPrefix('deals');
+  void _invalidateNotificationsCache() =>
+      _cacheInvalidateByPrefix('notifications');
+  void _invalidateSettingsCache() => _cacheInvalidateByPrefix('settings_');
+  void _invalidateInventoryCache() => _cacheInvalidateByPrefix('inventory_');
+  void _invalidateSupportCache() => _cacheInvalidateByPrefix('support_');
 
   // Helper function to translate error messages
   // If locale is provided, it will use localization, otherwise returns English message
@@ -473,6 +542,7 @@ class ApiService {
   /// مسح الجلسة (رموز + تفضيلات تسجيل الدخول) — للاستخدام من واجهة تسجيل الخروج.
   Future<void> clearAuthSession() async {
     await _clearTokens();
+    _memoryCache.clear();
   }
 
   // ==================== Registration APIs ====================
@@ -1353,6 +1423,7 @@ class ApiService {
     required String password,
     required String code,
     String? token,
+    bool? trustDevice,
     Locale? locale,
   }) async {
     final cleanEndpoint = '/auth/verify-2fa/';
@@ -1369,6 +1440,9 @@ class ApiService {
       };
       if (token != null) {
         requestBody['token'] = token;
+      }
+      if (trustDevice != null) {
+        requestBody['trust_device'] = trustDevice;
       }
 
       // Get headers with API Key (no auth token needed for 2FA verification)
@@ -1492,12 +1566,21 @@ class ApiService {
   }
 
   // Get current user
-  Future<UserModel> getCurrentUser() async {
+  Future<UserModel> getCurrentUser({
+    bool forceRefresh = false,
+    Duration cacheTtl = _defaultCacheTtl,
+  }) async {
+    const cacheKey = 'current_user';
+    final cached = _cacheGet<UserModel>(cacheKey, forceRefresh: forceRefresh);
+    if (cached != null) return cached;
+
     final response = await _makeRequest('GET', '/users/me/');
 
     if (response.statusCode == 200) {
       final data = _unwrapResponseMap(response);
-      return UserModel.fromJson(data);
+      final user = UserModel.fromJson(data);
+      _cacheSet<UserModel>(cacheKey, user, ttl: cacheTtl);
+      return user;
     } else {
       throw Exception(_translateError('failedToGetCurrentUser', locale: null));
     }
@@ -1555,7 +1638,9 @@ class ApiService {
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final data = _unwrapResponseMap(response);
-        return UserModel.fromJson(data);
+        final user = UserModel.fromJson(data);
+        _invalidateUserCache();
+        return user;
       } else {
         String errorMessage = _translateError(
           'failedToUpdateProfile',
@@ -1588,9 +1673,11 @@ class ApiService {
     String? type,
     String? search,
     int? page,
+    bool forceRefresh = false,
+    Duration cacheTtl = _defaultCacheTtl,
   }) async {
     // Get current user to check role
-    final currentUser = await getCurrentUser();
+    final currentUser = await getCurrentUser(forceRefresh: forceRefresh);
     final isEmployee = currentUser.isEmployee;
 
     final queryParams = <String, String>{};
@@ -1607,6 +1694,12 @@ class ApiService {
     final queryString = queryParams.isEmpty
         ? ''
         : '?${queryParams.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&')}';
+    final cacheKey = _cacheKey('leads', queryParams);
+    final cachedResponse = _cacheGet<Map<String, dynamic>>(
+      cacheKey,
+      forceRefresh: forceRefresh,
+    );
+    if (cachedResponse != null) return cachedResponse;
 
     final response = await _makeRequest('GET', '/clients/$queryString');
 
@@ -1619,12 +1712,14 @@ class ApiService {
                 .toList()
           : <LeadModel>[];
 
-      return {
+      final result = {
         'results': results,
         'count': (data['count'] as num?)?.toInt() ?? 0,
         'next': data['next'] as String?,
         'previous': data['previous'] as String?,
       };
+      _cacheSet<Map<String, dynamic>>(cacheKey, result, ttl: cacheTtl);
+      return result;
     } else {
       throw Exception(_translateError('failedToGetLeads', locale: null));
     }
@@ -1937,7 +2032,9 @@ class ApiService {
 
     if (response.statusCode == 201) {
       final data = _unwrapResponseMap(response);
-      return LeadModel.fromJson(data);
+      final lead = LeadModel.fromJson(data);
+      _invalidateLeadsCache();
+      return lead;
     } else {
       String errorMessage = _translateError('failedToCreateLead', locale: null);
       try {
@@ -2003,7 +2100,9 @@ class ApiService {
 
     if (response.statusCode == 200) {
       final data = _unwrapResponseMap(response);
-      return LeadModel.fromJson(data);
+      final lead = LeadModel.fromJson(data);
+      _invalidateLeadsCache();
+      return lead;
     } else {
       final error = _errorContextFromBody(response.body);
       throw Exception(
@@ -2026,6 +2125,7 @@ class ApiService {
             _translateError('failedToDeleteLead', locale: null),
       );
     }
+    _invalidateLeadsCache();
   }
 
   // Assign lead(s)
@@ -2095,31 +2195,55 @@ class ApiService {
   }
 
   // Get deals (legacy method - kept for backward compatibility)
-  Future<Map<String, dynamic>> getDeals() async {
+  Future<Map<String, dynamic>> getDeals({
+    bool forceRefresh = false,
+    Duration cacheTtl = _defaultCacheTtl,
+  }) async {
+    const cacheKey = 'deals_legacy';
+    final cached = _cacheGet<Map<String, dynamic>>(
+      cacheKey,
+      forceRefresh: forceRefresh,
+    );
+    if (cached != null) return cached;
+
     final response = await _makeRequest('GET', '/deals/');
 
     if (response.statusCode == 200) {
       final data = _unwrapResponseMap(response);
       final resultsList = data['results'] as List?;
 
-      return {
+      final result = {
         'results': resultsList ?? [],
         'count': (data['count'] as num?)?.toInt() ?? 0,
       };
+      _cacheSet<Map<String, dynamic>>(cacheKey, result, ttl: cacheTtl);
+      return result;
     } else {
       throw Exception(_translateError('failedToGetDeals', locale: null));
     }
   }
 
   // Get deals as list of DealModel
-  Future<List<DealModel>> getDealsList() async {
+  Future<List<DealModel>> getDealsList({
+    bool forceRefresh = false,
+    Duration cacheTtl = _defaultCacheTtl,
+  }) async {
+    const cacheKey = 'deals_list';
+    final cached = _cacheGet<List<DealModel>>(
+      cacheKey,
+      forceRefresh: forceRefresh,
+    );
+    if (cached != null) return cached;
+
     final response = await _makeRequest('GET', '/deals/');
     if (response.statusCode == 200) {
       final data = _unwrapResponseMap(response);
       final results = data['results'] as List<dynamic>? ?? [];
-      return results
+      final deals = results
           .map((json) => DealModel.fromJson(json as Map<String, dynamic>))
           .toList();
+      _cacheSet<List<DealModel>>(cacheKey, deals, ttl: cacheTtl);
+      return deals;
     }
     throw Exception(_translateError('failedToLoadDeals', locale: null));
   }
@@ -2129,7 +2253,9 @@ class ApiService {
     final response = await _makeRequest('POST', '/deals/', body: data);
     if (response.statusCode == 201 || response.statusCode == 200) {
       final json = _unwrapResponseMap(response);
-      return DealModel.fromJson(json);
+      final deal = DealModel.fromJson(json);
+      _invalidateDealsCache();
+      return deal;
     } else {
       String errorMessage = _translateError('failedToCreateDeal', locale: null);
       try {
@@ -2149,7 +2275,9 @@ class ApiService {
     final response = await _makeRequest('PUT', '/deals/$dealId/', body: data);
     if (response.statusCode == 200) {
       final json = _unwrapResponseMap(response);
-      return DealModel.fromJson(json);
+      final deal = DealModel.fromJson(json);
+      _invalidateDealsCache();
+      return deal;
     } else {
       String errorMessage = 'Failed to update deal';
       try {
@@ -2177,26 +2305,42 @@ class ApiService {
       }
       throw Exception(errorMessage);
     }
+    _invalidateDealsCache();
   }
 
   // ==================== Settings APIs (Channels, Stages, Statuses) ====================
 
   // Channels CRUD
-  Future<List<ChannelModel>> getChannels() async {
+  Future<List<ChannelModel>> getChannels({
+    bool forceRefresh = false,
+    Duration cacheTtl = _defaultCacheTtl,
+  }) async {
+    const cacheKey = 'settings_channels';
+    final cached = _cacheGet<List<ChannelModel>>(
+      cacheKey,
+      forceRefresh: forceRefresh,
+    );
+    if (cached != null) return cached;
+
     final response = await _makeRequest('GET', '/settings/channels/');
 
     if (response.statusCode == 200) {
       final data = _unwrapResponseDynamic(response);
       if (data is List) {
-        return data
+        final channels = data
             .map((item) => ChannelModel.fromJson(item as Map<String, dynamic>))
             .toList();
+        _cacheSet<List<ChannelModel>>(cacheKey, channels, ttl: cacheTtl);
+        return channels;
       } else if (data is Map && data['results'] != null) {
         final results = data['results'] as List;
-        return results
+        final channels = results
             .map((item) => ChannelModel.fromJson(item as Map<String, dynamic>))
             .toList();
+        _cacheSet<List<ChannelModel>>(cacheKey, channels, ttl: cacheTtl);
+        return channels;
       }
+      _cacheSet<List<ChannelModel>>(cacheKey, <ChannelModel>[], ttl: cacheTtl);
       return [];
     } else {
       throw Exception(_translateError('failedToGetChannels', locale: null));
@@ -2231,7 +2375,9 @@ class ApiService {
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final data = _unwrapResponseMap(response);
-      return ChannelModel.fromJson(data);
+      final channel = ChannelModel.fromJson(data);
+      _invalidateSettingsCache();
+      return channel;
     } else {
       String errorMessage = 'Failed to create channel';
       try {
@@ -2287,7 +2433,9 @@ class ApiService {
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final data = _unwrapResponseMap(response);
-      return ChannelModel.fromJson(data);
+      final channel = ChannelModel.fromJson(data);
+      _invalidateSettingsCache();
+      return channel;
     } else {
       String errorMessage = 'Failed to update channel';
       try {
@@ -2331,24 +2479,39 @@ class ApiService {
       }
       throw Exception(errorMessage);
     }
+    _invalidateSettingsCache();
   }
 
   // Stages CRUD
-  Future<List<StageModel>> getStages() async {
+  Future<List<StageModel>> getStages({
+    bool forceRefresh = false,
+    Duration cacheTtl = _defaultCacheTtl,
+  }) async {
+    const cacheKey = 'settings_stages';
+    final cached = _cacheGet<List<StageModel>>(
+      cacheKey,
+      forceRefresh: forceRefresh,
+    );
+    if (cached != null) return cached;
     final response = await _makeRequest('GET', '/settings/stages/');
 
     if (response.statusCode == 200) {
       final data = _unwrapResponseDynamic(response);
       if (data is List) {
-        return data
+        final stages = data
             .map((item) => StageModel.fromJson(item as Map<String, dynamic>))
             .toList();
+        _cacheSet<List<StageModel>>(cacheKey, stages, ttl: cacheTtl);
+        return stages;
       } else if (data is Map && data['results'] != null) {
         final results = data['results'] as List;
-        return results
+        final stages = results
             .map((item) => StageModel.fromJson(item as Map<String, dynamic>))
             .toList();
+        _cacheSet<List<StageModel>>(cacheKey, stages, ttl: cacheTtl);
+        return stages;
       }
+      _cacheSet<List<StageModel>>(cacheKey, <StageModel>[], ttl: cacheTtl);
       return [];
     } else {
       throw Exception(_translateError('failedToGetStages', locale: null));
@@ -2387,7 +2550,9 @@ class ApiService {
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final data = _unwrapResponseMap(response);
-      return StageModel.fromJson(data);
+      final stage = StageModel.fromJson(data);
+      _invalidateSettingsCache();
+      return stage;
     } else {
       String errorMessage = 'Failed to create stage';
       try {
@@ -2441,7 +2606,9 @@ class ApiService {
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final data = _unwrapResponseMap(response);
-      return StageModel.fromJson(data);
+      final stage = StageModel.fromJson(data);
+      _invalidateSettingsCache();
+      return stage;
     } else {
       String errorMessage = 'Failed to update stage';
       try {
@@ -2476,24 +2643,39 @@ class ApiService {
       }
       throw Exception(errorMessage);
     }
+    _invalidateSettingsCache();
   }
 
   // Statuses CRUD
-  Future<List<StatusModel>> getStatuses() async {
+  Future<List<StatusModel>> getStatuses({
+    bool forceRefresh = false,
+    Duration cacheTtl = _defaultCacheTtl,
+  }) async {
+    const cacheKey = 'settings_statuses';
+    final cached = _cacheGet<List<StatusModel>>(
+      cacheKey,
+      forceRefresh: forceRefresh,
+    );
+    if (cached != null) return cached;
     final response = await _makeRequest('GET', '/settings/statuses/');
 
     if (response.statusCode == 200) {
       final data = _unwrapResponseDynamic(response);
       if (data is List) {
-        return data
+        final statuses = data
             .map((item) => StatusModel.fromJson(item as Map<String, dynamic>))
             .toList();
+        _cacheSet<List<StatusModel>>(cacheKey, statuses, ttl: cacheTtl);
+        return statuses;
       } else if (data is Map && data['results'] != null) {
         final results = data['results'] as List;
-        return results
+        final statuses = results
             .map((item) => StatusModel.fromJson(item as Map<String, dynamic>))
             .toList();
+        _cacheSet<List<StatusModel>>(cacheKey, statuses, ttl: cacheTtl);
+        return statuses;
       }
+      _cacheSet<List<StatusModel>>(cacheKey, <StatusModel>[], ttl: cacheTtl);
       return [];
     } else {
       throw Exception(_translateError('failedToGetStatuses', locale: null));
@@ -2538,7 +2720,9 @@ class ApiService {
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final data = _unwrapResponseMap(response);
-      return StatusModel.fromJson(data);
+      final status = StatusModel.fromJson(data);
+      _invalidateSettingsCache();
+      return status;
     } else {
       String errorMessage = 'Failed to create status';
       try {
@@ -2603,7 +2787,9 @@ class ApiService {
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final data = _unwrapResponseMap(response);
-      return StatusModel.fromJson(data);
+      final status = StatusModel.fromJson(data);
+      _invalidateSettingsCache();
+      return status;
     } else {
       String errorMessage = 'Failed to update status';
       try {
@@ -2646,28 +2832,47 @@ class ApiService {
       }
       throw Exception(errorMessage);
     }
+    _invalidateSettingsCache();
   }
 
   // Call Methods CRUD
-  Future<List<CallMethodModel>> getCallMethods() async {
+  Future<List<CallMethodModel>> getCallMethods({
+    bool forceRefresh = false,
+    Duration cacheTtl = _defaultCacheTtl,
+  }) async {
+    const cacheKey = 'settings_call_methods';
+    final cached = _cacheGet<List<CallMethodModel>>(
+      cacheKey,
+      forceRefresh: forceRefresh,
+    );
+    if (cached != null) return cached;
     final response = await _makeRequest('GET', '/settings/call-methods/');
 
     if (response.statusCode == 200) {
       final data = _unwrapResponseDynamic(response);
       if (data is List) {
-        return data
+        final methods = data
             .map(
               (item) => CallMethodModel.fromJson(item as Map<String, dynamic>),
             )
             .toList();
+        _cacheSet<List<CallMethodModel>>(cacheKey, methods, ttl: cacheTtl);
+        return methods;
       } else if (data is Map && data['results'] != null) {
         final results = data['results'] as List;
-        return results
+        final methods = results
             .map(
               (item) => CallMethodModel.fromJson(item as Map<String, dynamic>),
             )
             .toList();
+        _cacheSet<List<CallMethodModel>>(cacheKey, methods, ttl: cacheTtl);
+        return methods;
       }
+      _cacheSet<List<CallMethodModel>>(
+        cacheKey,
+        <CallMethodModel>[],
+        ttl: cacheTtl,
+      );
       return [];
     } else {
       throw Exception(_translateError('failedToGetCallMethods', locale: null));
@@ -2702,7 +2907,9 @@ class ApiService {
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final data = _unwrapResponseMap(response);
-      return CallMethodModel.fromJson(data);
+      final method = CallMethodModel.fromJson(data);
+      _invalidateSettingsCache();
+      return method;
     } else {
       String errorMessage = 'Failed to create call method';
       try {
@@ -2745,7 +2952,9 @@ class ApiService {
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final data = _unwrapResponseMap(response);
-      return CallMethodModel.fromJson(data);
+      final method = CallMethodModel.fromJson(data);
+      _invalidateSettingsCache();
+      return method;
     } else {
       String errorMessage = 'Failed to update call method';
       try {
@@ -2776,24 +2985,39 @@ class ApiService {
       }
       throw Exception(errorMessage);
     }
+    _invalidateSettingsCache();
   }
 
   // Visit types CRUD (settings; real_estate / services)
-  Future<List<VisitTypeModel>> getVisitTypes() async {
+  Future<List<VisitTypeModel>> getVisitTypes({
+    bool forceRefresh = false,
+    Duration cacheTtl = _defaultCacheTtl,
+  }) async {
+    const cacheKey = 'settings_visit_types';
+    final cached = _cacheGet<List<VisitTypeModel>>(
+      cacheKey,
+      forceRefresh: forceRefresh,
+    );
+    if (cached != null) return cached;
     final response = await _makeRequest('GET', '/settings/visit-types/');
 
     if (response.statusCode == 200) {
       final data = _unwrapResponseDynamic(response);
       if (data is List) {
-        return data
+        final visitTypes = data
             .map((item) => VisitTypeModel.fromJson(item as Map<String, dynamic>))
             .toList();
+        _cacheSet<List<VisitTypeModel>>(cacheKey, visitTypes, ttl: cacheTtl);
+        return visitTypes;
       } else if (data is Map && data['results'] != null) {
         final results = data['results'] as List;
-        return results
+        final visitTypes = results
             .map((item) => VisitTypeModel.fromJson(item as Map<String, dynamic>))
             .toList();
+        _cacheSet<List<VisitTypeModel>>(cacheKey, visitTypes, ttl: cacheTtl);
+        return visitTypes;
       }
+      _cacheSet<List<VisitTypeModel>>(cacheKey, <VisitTypeModel>[], ttl: cacheTtl);
       return [];
     } else {
       throw Exception(_translateError('failedToGetVisitTypes', locale: null));
@@ -2827,7 +3051,9 @@ class ApiService {
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final data = _unwrapResponseMap(response);
-      return VisitTypeModel.fromJson(data);
+      final visitType = VisitTypeModel.fromJson(data);
+      _invalidateSettingsCache();
+      return visitType;
     } else {
       String errorMessage = 'Failed to create visit type';
       try {
@@ -2869,7 +3095,9 @@ class ApiService {
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final data = _unwrapResponseMap(response);
-      return VisitTypeModel.fromJson(data);
+      final visitType = VisitTypeModel.fromJson(data);
+      _invalidateSettingsCache();
+      return visitType;
     } else {
       String errorMessage = 'Failed to update visit type';
       try {
@@ -2900,58 +3128,91 @@ class ApiService {
       }
       throw Exception(errorMessage);
     }
+    _invalidateSettingsCache();
   }
 
   // ==================== Real Estate Inventory APIs ====================
 
   // Developers
-  Future<List<Developer>> getDevelopers() async {
+  Future<List<Developer>> getDevelopers({
+    bool forceRefresh = false,
+    Duration cacheTtl = _defaultCacheTtl,
+  }) async {
+    const cacheKey = 'inventory_developers';
+    final cached = _cacheGet<List<Developer>>(cacheKey, forceRefresh: forceRefresh);
+    if (cached != null) return cached;
     final response = await _makeRequest('GET', '/developers/');
     if (response.statusCode == 200) {
       final data = _unwrapResponseMap(response);
       final results = data['results'] as List<dynamic>? ?? [];
-      return results
+      final developers = results
           .map((json) => Developer.fromJson(json as Map<String, dynamic>))
           .toList();
+      _cacheSet<List<Developer>>(cacheKey, developers, ttl: cacheTtl);
+      return developers;
     }
     throw Exception(_translateError('failedToLoadDevelopers', locale: null));
   }
 
   // Projects
-  Future<List<Project>> getProjects() async {
+  Future<List<Project>> getProjects({
+    bool forceRefresh = false,
+    Duration cacheTtl = _defaultCacheTtl,
+  }) async {
+    const cacheKey = 'inventory_projects';
+    final cached = _cacheGet<List<Project>>(cacheKey, forceRefresh: forceRefresh);
+    if (cached != null) return cached;
     final response = await _makeRequest('GET', '/projects/');
     if (response.statusCode == 200) {
       final data = _unwrapResponseMap(response);
       final results = data['results'] as List<dynamic>? ?? [];
-      return results
+      final projects = results
           .map((json) => Project.fromJson(json as Map<String, dynamic>))
           .toList();
+      _cacheSet<List<Project>>(cacheKey, projects, ttl: cacheTtl);
+      return projects;
     }
     throw Exception(_translateError('failedToLoadProjects', locale: null));
   }
 
   // Units
-  Future<List<Unit>> getUnits() async {
+  Future<List<Unit>> getUnits({
+    bool forceRefresh = false,
+    Duration cacheTtl = _defaultCacheTtl,
+  }) async {
+    const cacheKey = 'inventory_units';
+    final cached = _cacheGet<List<Unit>>(cacheKey, forceRefresh: forceRefresh);
+    if (cached != null) return cached;
     final response = await _makeRequest('GET', '/units/');
     if (response.statusCode == 200) {
       final data = _unwrapResponseMap(response);
       final results = data['results'] as List<dynamic>? ?? [];
-      return results
+      final units = results
           .map((json) => Unit.fromJson(json as Map<String, dynamic>))
           .toList();
+      _cacheSet<List<Unit>>(cacheKey, units, ttl: cacheTtl);
+      return units;
     }
     throw Exception(_translateError('failedToLoadUnits', locale: null));
   }
 
   // Owners
-  Future<List<Owner>> getOwners() async {
+  Future<List<Owner>> getOwners({
+    bool forceRefresh = false,
+    Duration cacheTtl = _defaultCacheTtl,
+  }) async {
+    const cacheKey = 'inventory_owners';
+    final cached = _cacheGet<List<Owner>>(cacheKey, forceRefresh: forceRefresh);
+    if (cached != null) return cached;
     final response = await _makeRequest('GET', '/owners/');
     if (response.statusCode == 200) {
       final data = _unwrapResponseMap(response);
       final results = data['results'] as List<dynamic>? ?? [];
-      return results
+      final owners = results
           .map((json) => Owner.fromJson(json as Map<String, dynamic>))
           .toList();
+      _cacheSet<List<Owner>>(cacheKey, owners, ttl: cacheTtl);
+      return owners;
     }
     throw Exception(_translateError('failedToLoadOwners', locale: null));
   }
@@ -2959,27 +3220,46 @@ class ApiService {
   // ==================== Services Inventory APIs ====================
 
   // Services
-  Future<List<Service>> getServices() async {
+  Future<List<Service>> getServices({
+    bool forceRefresh = false,
+    Duration cacheTtl = _defaultCacheTtl,
+  }) async {
+    const cacheKey = 'inventory_services';
+    final cached = _cacheGet<List<Service>>(cacheKey, forceRefresh: forceRefresh);
+    if (cached != null) return cached;
     final response = await _makeRequest('GET', '/services/');
     if (response.statusCode == 200) {
       final data = _unwrapResponseMap(response);
       final results = data['results'] as List<dynamic>? ?? [];
-      return results
+      final services = results
           .map((json) => Service.fromJson(json as Map<String, dynamic>))
           .toList();
+      _cacheSet<List<Service>>(cacheKey, services, ttl: cacheTtl);
+      return services;
     }
     throw Exception(_translateError('failedToLoadServices', locale: null));
   }
 
   // Service Packages
-  Future<List<ServicePackage>> getServicePackages() async {
+  Future<List<ServicePackage>> getServicePackages({
+    bool forceRefresh = false,
+    Duration cacheTtl = _defaultCacheTtl,
+  }) async {
+    const cacheKey = 'inventory_service_packages';
+    final cached = _cacheGet<List<ServicePackage>>(
+      cacheKey,
+      forceRefresh: forceRefresh,
+    );
+    if (cached != null) return cached;
     final response = await _makeRequest('GET', '/service-packages/');
     if (response.statusCode == 200) {
       final data = _unwrapResponseMap(response);
       final results = data['results'] as List<dynamic>? ?? [];
-      return results
+      final packages = results
           .map((json) => ServicePackage.fromJson(json as Map<String, dynamic>))
           .toList();
+      _cacheSet<List<ServicePackage>>(cacheKey, packages, ttl: cacheTtl);
+      return packages;
     }
     throw Exception(
       _translateError('failedToLoadServicePackages', locale: null),
@@ -2987,14 +3267,25 @@ class ApiService {
   }
 
   // Service Providers
-  Future<List<ServiceProvider>> getServiceProviders() async {
+  Future<List<ServiceProvider>> getServiceProviders({
+    bool forceRefresh = false,
+    Duration cacheTtl = _defaultCacheTtl,
+  }) async {
+    const cacheKey = 'inventory_service_providers';
+    final cached = _cacheGet<List<ServiceProvider>>(
+      cacheKey,
+      forceRefresh: forceRefresh,
+    );
+    if (cached != null) return cached;
     final response = await _makeRequest('GET', '/service-providers/');
     if (response.statusCode == 200) {
       final data = _unwrapResponseMap(response);
       final results = data['results'] as List<dynamic>? ?? [];
-      return results
+      final providers = results
           .map((json) => ServiceProvider.fromJson(json as Map<String, dynamic>))
           .toList();
+      _cacheSet<List<ServiceProvider>>(cacheKey, providers, ttl: cacheTtl);
+      return providers;
     }
     throw Exception(
       _translateError('failedToLoadServiceProviders', locale: null),
@@ -3004,27 +3295,46 @@ class ApiService {
   // ==================== Products Inventory APIs ====================
 
   // Products
-  Future<List<Product>> getProducts() async {
+  Future<List<Product>> getProducts({
+    bool forceRefresh = false,
+    Duration cacheTtl = _defaultCacheTtl,
+  }) async {
+    const cacheKey = 'inventory_products';
+    final cached = _cacheGet<List<Product>>(cacheKey, forceRefresh: forceRefresh);
+    if (cached != null) return cached;
     final response = await _makeRequest('GET', '/products/');
     if (response.statusCode == 200) {
       final data = _unwrapResponseMap(response);
       final results = data['results'] as List<dynamic>? ?? [];
-      return results
+      final products = results
           .map((json) => Product.fromJson(json as Map<String, dynamic>))
           .toList();
+      _cacheSet<List<Product>>(cacheKey, products, ttl: cacheTtl);
+      return products;
     }
     throw Exception(_translateError('failedToLoadProducts', locale: null));
   }
 
   // Product Categories
-  Future<List<ProductCategory>> getProductCategories() async {
+  Future<List<ProductCategory>> getProductCategories({
+    bool forceRefresh = false,
+    Duration cacheTtl = _defaultCacheTtl,
+  }) async {
+    const cacheKey = 'inventory_product_categories';
+    final cached = _cacheGet<List<ProductCategory>>(
+      cacheKey,
+      forceRefresh: forceRefresh,
+    );
+    if (cached != null) return cached;
     final response = await _makeRequest('GET', '/product-categories/');
     if (response.statusCode == 200) {
       final data = _unwrapResponseMap(response);
       final results = data['results'] as List<dynamic>? ?? [];
-      return results
+      final categories = results
           .map((json) => ProductCategory.fromJson(json as Map<String, dynamic>))
           .toList();
+      _cacheSet<List<ProductCategory>>(cacheKey, categories, ttl: cacheTtl);
+      return categories;
     }
     throw Exception(
       _translateError('failedToLoadProductCategories', locale: null),
@@ -3032,14 +3342,22 @@ class ApiService {
   }
 
   // Suppliers
-  Future<List<Supplier>> getSuppliers() async {
+  Future<List<Supplier>> getSuppliers({
+    bool forceRefresh = false,
+    Duration cacheTtl = _defaultCacheTtl,
+  }) async {
+    const cacheKey = 'inventory_suppliers';
+    final cached = _cacheGet<List<Supplier>>(cacheKey, forceRefresh: forceRefresh);
+    if (cached != null) return cached;
     final response = await _makeRequest('GET', '/suppliers/');
     if (response.statusCode == 200) {
       final data = _unwrapResponseMap(response);
       final results = data['results'] as List<dynamic>? ?? [];
-      return results
+      final suppliers = results
           .map((json) => Supplier.fromJson(json as Map<String, dynamic>))
           .toList();
+      _cacheSet<List<Supplier>>(cacheKey, suppliers, ttl: cacheTtl);
+      return suppliers;
     }
     throw Exception(_translateError('failedToLoadSuppliers', locale: null));
   }
@@ -3067,7 +3385,9 @@ class ApiService {
     );
     if (response.statusCode == 201) {
       final data = _unwrapResponseMap(response);
-      return Product.fromJson(data);
+      final product = Product.fromJson(data);
+      _invalidateInventoryCache();
+      return product;
     }
     throw Exception('Failed to create product');
   }
@@ -3083,7 +3403,9 @@ class ApiService {
     );
     if (response.statusCode == 200) {
       final data = _unwrapResponseMap(response);
-      return Product.fromJson(data);
+      final product = Product.fromJson(data);
+      _invalidateInventoryCache();
+      return product;
     }
     throw Exception('Failed to update product');
   }
@@ -3093,6 +3415,7 @@ class ApiService {
     if (response.statusCode != 204) {
       throw Exception('Failed to delete product');
     }
+    _invalidateInventoryCache();
   }
 
   // Product Categories CRUD
@@ -3118,7 +3441,9 @@ class ApiService {
     );
     if (response.statusCode == 201) {
       final data = _unwrapResponseMap(response);
-      return ProductCategory.fromJson(data);
+      final category = ProductCategory.fromJson(data);
+      _invalidateInventoryCache();
+      return category;
     }
     throw Exception('Failed to create product category');
   }
@@ -3134,7 +3459,9 @@ class ApiService {
     );
     if (response.statusCode == 200) {
       final data = _unwrapResponseMap(response);
-      return ProductCategory.fromJson(data);
+      final category = ProductCategory.fromJson(data);
+      _invalidateInventoryCache();
+      return category;
     }
     throw Exception('Failed to update product category');
   }
@@ -3144,6 +3471,7 @@ class ApiService {
     if (response.statusCode != 204) {
       throw Exception('Failed to delete product category');
     }
+    _invalidateInventoryCache();
   }
 
   // Suppliers CRUD
@@ -3167,7 +3495,9 @@ class ApiService {
     );
     if (response.statusCode == 201) {
       final data = _unwrapResponseMap(response);
-      return Supplier.fromJson(data);
+      final supplier = Supplier.fromJson(data);
+      _invalidateInventoryCache();
+      return supplier;
     }
     throw Exception('Failed to create supplier');
   }
@@ -3183,7 +3513,9 @@ class ApiService {
     );
     if (response.statusCode == 200) {
       final data = _unwrapResponseMap(response);
-      return Supplier.fromJson(data);
+      final supplier = Supplier.fromJson(data);
+      _invalidateInventoryCache();
+      return supplier;
     }
     throw Exception('Failed to update supplier');
   }
@@ -3193,6 +3525,7 @@ class ApiService {
     if (response.statusCode != 204) {
       throw Exception('Failed to delete supplier');
     }
+    _invalidateInventoryCache();
   }
 
   // Services CRUD
@@ -3216,7 +3549,9 @@ class ApiService {
     );
     if (response.statusCode == 201) {
       final data = _unwrapResponseMap(response);
-      return Service.fromJson(data);
+      final service = Service.fromJson(data);
+      _invalidateInventoryCache();
+      return service;
     }
     throw Exception('Failed to create service');
   }
@@ -3232,7 +3567,9 @@ class ApiService {
     );
     if (response.statusCode == 200) {
       final data = _unwrapResponseMap(response);
-      return Service.fromJson(data);
+      final service = Service.fromJson(data);
+      _invalidateInventoryCache();
+      return service;
     }
     throw Exception('Failed to update service');
   }
@@ -3242,6 +3579,7 @@ class ApiService {
     if (response.statusCode != 204) {
       throw Exception('Failed to delete service');
     }
+    _invalidateInventoryCache();
   }
 
   // Service Packages CRUD
@@ -3267,7 +3605,9 @@ class ApiService {
     );
     if (response.statusCode == 201) {
       final data = _unwrapResponseMap(response);
-      return ServicePackage.fromJson(data);
+      final package = ServicePackage.fromJson(data);
+      _invalidateInventoryCache();
+      return package;
     }
     throw Exception('Failed to create service package');
   }
@@ -3283,7 +3623,9 @@ class ApiService {
     );
     if (response.statusCode == 200) {
       final data = _unwrapResponseMap(response);
-      return ServicePackage.fromJson(data);
+      final package = ServicePackage.fromJson(data);
+      _invalidateInventoryCache();
+      return package;
     }
     throw Exception('Failed to update service package');
   }
@@ -3293,6 +3635,7 @@ class ApiService {
     if (response.statusCode != 204) {
       throw Exception('Failed to delete service package');
     }
+    _invalidateInventoryCache();
   }
 
   // Service Providers CRUD
@@ -3318,7 +3661,9 @@ class ApiService {
     );
     if (response.statusCode == 201) {
       final data = _unwrapResponseMap(response);
-      return ServiceProvider.fromJson(data);
+      final provider = ServiceProvider.fromJson(data);
+      _invalidateInventoryCache();
+      return provider;
     }
     throw Exception('Failed to create service provider');
   }
@@ -3334,7 +3679,9 @@ class ApiService {
     );
     if (response.statusCode == 200) {
       final data = _unwrapResponseMap(response);
-      return ServiceProvider.fromJson(data);
+      final provider = ServiceProvider.fromJson(data);
+      _invalidateInventoryCache();
+      return provider;
     }
     throw Exception('Failed to update service provider');
   }
@@ -3344,6 +3691,7 @@ class ApiService {
     if (response.statusCode != 204) {
       throw Exception('Failed to delete service provider');
     }
+    _invalidateInventoryCache();
   }
 
   // Developers CRUD
@@ -3367,7 +3715,9 @@ class ApiService {
     );
     if (response.statusCode == 201) {
       final data = _unwrapResponseMap(response);
-      return Developer.fromJson(data);
+      final developer = Developer.fromJson(data);
+      _invalidateInventoryCache();
+      return developer;
     }
     throw Exception('Failed to create developer');
   }
@@ -3383,7 +3733,9 @@ class ApiService {
     );
     if (response.statusCode == 200) {
       final data = _unwrapResponseMap(response);
-      return Developer.fromJson(data);
+      final developer = Developer.fromJson(data);
+      _invalidateInventoryCache();
+      return developer;
     }
     throw Exception('Failed to update developer');
   }
@@ -3393,6 +3745,7 @@ class ApiService {
     if (response.statusCode != 204) {
       throw Exception('Failed to delete developer');
     }
+    _invalidateInventoryCache();
   }
 
   // Projects CRUD
@@ -3416,7 +3769,9 @@ class ApiService {
     );
     if (response.statusCode == 201) {
       final data = _unwrapResponseMap(response);
-      return Project.fromJson(data);
+      final project = Project.fromJson(data);
+      _invalidateInventoryCache();
+      return project;
     }
     throw Exception('Failed to create project');
   }
@@ -3436,7 +3791,9 @@ class ApiService {
     );
     if (response.statusCode == 200) {
       final data = _unwrapResponseMap(response);
-      return Project.fromJson(data);
+      final project = Project.fromJson(data);
+      _invalidateInventoryCache();
+      return project;
     } else {
       final errorBody = response.body;
       debugPrint('updateProject - Error: $errorBody');
@@ -3449,6 +3806,7 @@ class ApiService {
     if (response.statusCode != 204) {
       throw Exception('Failed to delete project');
     }
+    _invalidateInventoryCache();
   }
 
   // Units CRUD
@@ -3472,7 +3830,9 @@ class ApiService {
     );
     if (response.statusCode == 201) {
       final data = _unwrapResponseMap(response);
-      return Unit.fromJson(data);
+      final unit = Unit.fromJson(data);
+      _invalidateInventoryCache();
+      return unit;
     }
     throw Exception('Failed to create unit');
   }
@@ -3481,7 +3841,9 @@ class ApiService {
     final response = await _makeRequest('PATCH', '/units/$id/', body: unitData);
     if (response.statusCode == 200) {
       final data = _unwrapResponseMap(response);
-      return Unit.fromJson(data);
+      final unit = Unit.fromJson(data);
+      _invalidateInventoryCache();
+      return unit;
     }
     throw Exception('Failed to update unit');
   }
@@ -3491,6 +3853,7 @@ class ApiService {
     if (response.statusCode != 204) {
       throw Exception('Failed to delete unit');
     }
+    _invalidateInventoryCache();
   }
 
   // ==================== Support Tickets ====================
@@ -3499,12 +3862,20 @@ class ApiService {
   Future<Map<String, dynamic>> getSupportTickets({
     int? page,
     int? pageSize,
+    bool forceRefresh = false,
+    Duration cacheTtl = _defaultCacheTtl,
   }) async {
     final queryParams = <String, String>{};
     if (page != null) queryParams['page'] = page.toString();
     if (pageSize != null) queryParams['page_size'] = pageSize.toString();
     final queryString =
         queryParams.isEmpty ? '' : '?${queryParams.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&')}';
+    final cacheKey = _cacheKey('support_tickets', queryParams);
+    final cached = _cacheGet<Map<String, dynamic>>(
+      cacheKey,
+      forceRefresh: forceRefresh,
+    );
+    if (cached != null) return cached;
     final response = await _makeRequest(
       'GET',
       '/support-tickets/$queryString',
@@ -3516,12 +3887,14 @@ class ApiService {
       final tickets = results
           .map((e) => SupportTicket.fromJson(e as Map<String, dynamic>))
           .toList();
-      return {
+      final payload = {
         'count': data['count'] as int? ?? tickets.length,
         'next': data['next'] as String?,
         'previous': data['previous'] as String?,
         'results': tickets,
       };
+      _cacheSet<Map<String, dynamic>>(cacheKey, payload, ttl: cacheTtl);
+      return payload;
     }
     throw Exception(
       _translateError('failedToLoadSupportTickets', locale: null),
@@ -3545,7 +3918,9 @@ class ApiService {
       );
       if (response.statusCode == 201) {
         final data = _unwrapResponseMap(response);
-        return SupportTicket.fromJson(data);
+        final ticket = SupportTicket.fromJson(data);
+        _invalidateSupportCache();
+        return ticket;
       }
       throw Exception(
         _translateError('failedToCreateSupportTicket', locale: null),
@@ -3579,7 +3954,9 @@ class ApiService {
       final response = await http.Response.fromStream(streamedResponse);
       if (response.statusCode == 201) {
         final data = _unwrapResponseMap(response);
-        return SupportTicket.fromJson(data);
+        final ticket = SupportTicket.fromJson(data);
+        _invalidateSupportCache();
+        return ticket;
       }
       String msg = _translateError('failedToCreateSupportTicket', locale: null);
       try {
@@ -3620,7 +3997,9 @@ class ApiService {
     );
     if (response.statusCode == 201) {
       final data = _unwrapResponseMap(response);
-      return Owner.fromJson(data);
+      final owner = Owner.fromJson(data);
+      _invalidateInventoryCache();
+      return owner;
     }
     throw Exception('Failed to create owner');
   }
@@ -3633,7 +4012,9 @@ class ApiService {
     );
     if (response.statusCode == 200) {
       final data = _unwrapResponseMap(response);
-      return Owner.fromJson(data);
+      final owner = Owner.fromJson(data);
+      _invalidateInventoryCache();
+      return owner;
     }
     throw Exception('Failed to update owner');
   }
@@ -3643,6 +4024,7 @@ class ApiService {
     if (response.statusCode != 204) {
       throw Exception('Failed to delete owner');
     }
+    _invalidateInventoryCache();
   }
 
   // ==================== FCM Token Management ====================
@@ -3785,12 +4167,23 @@ class ApiService {
   // ==================== Notifications Management ====================
 
   /// جلب إعدادات الإشعارات من الخادم
-  Future<Map<String, dynamic>?> getNotificationSettings() async {
+  Future<Map<String, dynamic>?> getNotificationSettings({
+    bool forceRefresh = false,
+    Duration cacheTtl = _defaultCacheTtl,
+  }) async {
     try {
+      const cacheKey = 'settings_notification_settings';
+      final cached = _cacheGet<Map<String, dynamic>>(
+        cacheKey,
+        forceRefresh: forceRefresh,
+      );
+      if (cached != null) return cached;
       final response = await _makeRequest('GET', '/notifications/settings/');
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        return _unwrapResponseMap(response);
+        final settings = _unwrapResponseMap(response);
+        _cacheSet<Map<String, dynamic>>(cacheKey, settings, ttl: cacheTtl);
+        return settings;
       } else {
         debugPrint('Warning: Failed to load notification settings from server');
         return null;
@@ -3822,6 +4215,7 @@ class ApiService {
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         debugPrint('✓ Notification settings updated on server successfully');
+        _invalidateSettingsCache();
       } else {
         String errorMessage = 'Failed to update notification settings';
         try {
@@ -3850,6 +4244,8 @@ class ApiService {
   Future<List<Map<String, dynamic>>> getNotifications({
     bool? read,
     String? type,
+    bool forceRefresh = false,
+    Duration cacheTtl = _defaultCacheTtl,
   }) async {
     try {
       String endpoint = '/notifications/';
@@ -3871,19 +4267,44 @@ class ApiService {
             .join('&');
         endpoint += '?$queryString';
       }
+      final cacheKey = _cacheKey('notifications', {
+        'read': read,
+        'type': type,
+      });
+      final cached = _cacheGet<List<Map<String, dynamic>>>(
+        cacheKey,
+        forceRefresh: forceRefresh,
+      );
+      if (cached != null) return cached;
 
       final response = await _makeRequest('GET', endpoint);
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final payload = _unwrapResponseDynamic(response);
         if (payload is List) {
-          return payload.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+          final notifications = payload
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList();
+          _cacheSet<List<Map<String, dynamic>>>(
+            cacheKey,
+            notifications,
+            ttl: cacheTtl,
+          );
+          return notifications;
         }
         if (payload is Map) {
           final m = Map<String, dynamic>.from(payload);
           final r = m['results'] as List?;
           if (r != null) {
-            return r.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+            final notifications = r
+                .map((e) => Map<String, dynamic>.from(e as Map))
+                .toList();
+            _cacheSet<List<Map<String, dynamic>>>(
+              cacheKey,
+              notifications,
+              ttl: cacheTtl,
+            );
+            return notifications;
           }
         }
         return [];
@@ -3935,6 +4356,7 @@ class ApiService {
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         debugPrint('✓ Notification marked as read');
+        _invalidateNotificationsCache();
       } else {
         throw Exception('Failed to mark notification as read');
       }
@@ -3959,6 +4381,7 @@ class ApiService {
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         debugPrint('✓ All notifications marked as read');
+        _invalidateNotificationsCache();
       } else {
         throw Exception('Failed to mark all notifications as read');
       }
@@ -3974,8 +4397,15 @@ class ApiService {
   }
 
   /// جلب عدد الإشعارات غير المقروءة
-  Future<int> getUnreadNotificationsCount() async {
+  Future<int> getUnreadNotificationsCount({
+    bool forceRefresh = false,
+    Duration cacheTtl = _defaultCacheTtl,
+  }) async {
     try {
+      const cacheKey = 'notifications_unread_count';
+      final cached = _cacheGet<int>(cacheKey, forceRefresh: forceRefresh);
+      if (cached != null) return cached;
+
       final response = await _makeRequest(
         'GET',
         '/notifications/unread_count/',
@@ -3983,7 +4413,9 @@ class ApiService {
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final data = _unwrapResponseMap(response);
-        return data['unread_count'] as int? ?? 0;
+        final count = data['unread_count'] as int? ?? 0;
+        _cacheSet<int>(cacheKey, count, ttl: cacheTtl);
+        return count;
       } else {
         throw Exception('Failed to get unread count');
       }
@@ -4008,6 +4440,7 @@ class ApiService {
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         debugPrint('✓ All read notifications deleted');
+        _invalidateNotificationsCache();
       } else {
         throw Exception('Failed to delete read notifications');
       }
@@ -4021,4 +4454,16 @@ class ApiService {
       rethrow;
     }
   }
+}
+
+class _CacheEntry<T> {
+  _CacheEntry({
+    required this.value,
+    required this.expiresAt,
+  });
+
+  final T value;
+  final DateTime expiresAt;
+
+  bool get isExpired => DateTime.now().isAfter(expiresAt);
 }

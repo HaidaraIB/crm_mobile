@@ -37,6 +37,7 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
   bool _isLoading = false;
   bool _isRequesting = false;
+  bool _trustDevice = true;
   String? _errorMessage;
   String? _successMessage;
   int _countdown = 0;
@@ -211,6 +212,7 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
         password: widget.password,
         code: code,
         token: widget.token,
+        trustDevice: _trustDevice,
         locale: languageBloc.state.locale,
       );
       
@@ -493,9 +495,31 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
                     ),
                     const SizedBox(height: 32),
                     
+                    CheckboxListTile(
+                      value: _trustDevice,
+                      onChanged: (value) {
+                        setState(() {
+                          _trustDevice = value ?? true;
+                        });
+                      },
+                      controlAffinity: ListTileControlAffinity.leading,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(
+                        isRTL
+                            ? 'الوثوق بهذا الجهاز لمدة 7 أيام'
+                            : 'Trust this device for 7 days',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
                     // Verify Button
                     ElevatedButton(
-                      onPressed: _isLoading ? null : _verifyCode,
+                      onPressed:
+                          _isLoading ||
+                              _codeControllers.any((c) => c.text.isEmpty)
+                          ? null
+                          : _verifyCode,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primaryColor,
                         foregroundColor: Colors.white,

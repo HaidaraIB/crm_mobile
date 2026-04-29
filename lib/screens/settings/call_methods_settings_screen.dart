@@ -28,7 +28,7 @@ class _CallMethodsSettingsScreenState extends State<CallMethodsSettingsScreen> {
     _loadCallMethods();
   }
 
-  Future<void> _loadCallMethods() async {
+  Future<void> _loadCallMethods({bool forceRefresh = false}) async {
     if (!mounted) return;
     setState(() {
       _isLoading = true;
@@ -36,7 +36,9 @@ class _CallMethodsSettingsScreenState extends State<CallMethodsSettingsScreen> {
     });
 
     try {
-      final callMethods = await _apiService.getCallMethods();
+      final callMethods = await _apiService.getCallMethods(
+        forceRefresh: forceRefresh,
+      );
       if (!mounted) return;
       setState(() {
         _callMethods = callMethods;
@@ -210,14 +212,24 @@ class _CallMethodsSettingsScreenState extends State<CallMethodsSettingsScreen> {
                 localizations?.translate('callMethods') ?? 'Call Methods',
                 style: theme.textTheme.titleLarge,
               ),
-              ElevatedButton.icon(
-                onPressed: _showAddCallMethodModal,
-                icon: const Icon(Icons.add),
-                label: Text(localizations?.translate('addCallMethod') ?? 'Add Call Method'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryColor,
-                  foregroundColor: Colors.white,
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.refresh),
+                    tooltip: localizations?.translate('refresh') ?? 'Refresh',
+                    onPressed: () => _loadCallMethods(forceRefresh: true),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: _showAddCallMethodModal,
+                    icon: const Icon(Icons.add),
+                    label: Text(localizations?.translate('addCallMethod') ?? 'Add Call Method'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

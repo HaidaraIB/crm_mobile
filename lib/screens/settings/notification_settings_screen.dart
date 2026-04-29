@@ -27,7 +27,7 @@ class _NotificationSettingsScreenState
     _loadSettings();
   }
 
-  Future<void> _loadSettings() async {
+  Future<void> _loadSettings({bool forceRefresh = false}) async {
     setState(() => _isLoading = true);
 
     // محاولة تحميل الإعدادات من الخادم أولاً
@@ -37,7 +37,9 @@ class _NotificationSettingsScreenState
 
       if (isLoggedIn) {
         final apiService = ApiService();
-        final serverSettings = await apiService.getNotificationSettings();
+        final serverSettings = await apiService.getNotificationSettings(
+          forceRefresh: forceRefresh,
+        );
 
         if (serverSettings != null) {
           // استخدام الإعدادات من الخادم
@@ -105,6 +107,13 @@ class _NotificationSettingsScreenState
           localizations?.translate('notificationSettings') ??
               'Notification Settings',
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () => _loadSettings(forceRefresh: true),
+            tooltip: localizations?.translate('refresh') ?? 'Refresh',
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),

@@ -40,10 +40,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   void refreshEvents() {
-    _loadEvents();
+    _loadEvents(forceRefresh: true);
   }
 
-  Future<void> _loadEvents() async {
+  Future<void> _loadEvents({bool forceRefresh = false}) async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -65,7 +65,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
       }
 
       // Get all leads to map lead IDs to names
-      final leadsResponse = await _apiService.getLeads();
+      final leadsResponse = await _apiService.getLeads(
+        forceRefresh: forceRefresh,
+      );
       final leads = leadsResponse['results'] as List<LeadModel>? ?? [];
       final leadMap = <int, LeadModel>{};
       for (final lead in leads) {
@@ -73,7 +75,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
       }
 
       // Get all deals to map deal IDs to client names
-      final dealsResponse = await _apiService.getDeals();
+      final dealsResponse = await _apiService.getDeals(
+        forceRefresh: forceRefresh,
+      );
       final deals = dealsResponse['results'] as List? ?? [];
       final dealMap = <int, Map<String, dynamic>>{};
       for (final deal in deals) {
@@ -251,7 +255,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: _loadEvents,
+                  onPressed: () => _loadEvents(forceRefresh: true),
                   child: Text(
                     localizations?.translate('tryAgain') ?? 'Try Again',
                   ),
@@ -551,8 +555,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
+            const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
@@ -585,10 +592,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
                 const SizedBox(width: 4),
-                Text(
-                  event.leadName,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                Expanded(
+                  child: Text(
+                    event.leadName,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -634,7 +645,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ),
           ).then((_) {
             // Refresh events when returning from lead profile
-            _loadEvents();
+            _loadEvents(forceRefresh: true);
           });
         },
       ),
