@@ -193,6 +193,7 @@ class ApiService {
     if (apiKey.isNotEmpty) {
       headers['X-API-Key'] = apiKey;
     }
+    headers['X-Client-Platform'] = 'mobile';
 
     // Send user language so backend can use it for emails and responses
     final prefs = await SharedPreferences.getInstance();
@@ -204,6 +205,12 @@ class ApiService {
       if (token != null) {
         headers['Authorization'] = 'Bearer $token';
       }
+    }
+
+    final trustedDeviceToken =
+        await AuthTokenStorage.instance.readTrustedDeviceToken();
+    if (trustedDeviceToken != null && trustedDeviceToken.trim().isNotEmpty) {
+      headers['X-Owner-Trusted-Device'] = trustedDeviceToken.trim();
     }
 
     return headers;
@@ -534,7 +541,9 @@ class ApiService {
   }
 
   Future<void> _clearTokens() async {
-    await AuthTokenStorage.instance.clear();
+    // Keep trusted-device token on normal logout so owner can skip 2FA
+    // on the same mobile within trust window.
+    await AuthTokenStorage.instance.clearSessionDataKeepTrustedDevice();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(AppConstants.isLoggedInKey);
   }
@@ -1102,12 +1111,9 @@ class ApiService {
       final url = Uri.parse('$cleanBaseUrl/auth/login/');
       final requestBody = {'username': username, 'password': password};
 
-      final headers = <String, String>{'Content-Type': 'application/json'};
-
-      // Add API Key
-      final apiKey = AppConstants.apiKey;
-      if (apiKey.isNotEmpty) {
-        headers['X-API-Key'] = apiKey;
+      // Use shared header builder so trusted-device token is sent for login too.
+      final headers = await _getHeaders(includeAuth: false);
+      if ((headers['X-API-Key'] ?? '').isNotEmpty) {
         debugPrint('✓ API Key added to login request');
       } else {
         debugPrint('⚠ WARNING: API Key is empty! Check .env file');
@@ -1462,6 +1468,17 @@ class ApiService {
           await AuthTokenStorage.instance.writeTokens(
             access: data['access'] as String,
             refresh: data['refresh'] as String,
+          );
+        }
+
+        // Persist owner trusted-device token for future login attempts on mobile.
+        final trustedDeviceTokenRaw = data['trusted_device_token'];
+        final trustedDeviceToken = trustedDeviceTokenRaw is String
+            ? trustedDeviceTokenRaw.trim()
+            : trustedDeviceTokenRaw?.toString().trim();
+        if (trustedDeviceToken != null && trustedDeviceToken.isNotEmpty) {
+          await AuthTokenStorage.instance.writeTrustedDeviceToken(
+            trustedDeviceToken,
           );
         }
 

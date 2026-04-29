@@ -11,6 +11,7 @@ class AuthTokenStorage {
 
   /// مفتاح منفصل عن مفاتيح الرموز لتجنب التعارض مع أسماء قديمة في prefs.
   static const String _userJsonSecureKey = 'crm_secure_user_json';
+  static const String _trustedDeviceTokenSecureKey = 'crm_secure_trusted_device_token';
 
   static const FlutterSecureStorage _secure = FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
@@ -81,8 +82,25 @@ class AuthTokenStorage {
     await _secure.write(key: _userJsonSecureKey, value: json);
   }
 
-  /// يمسح الرموز والمستخدم من التخزين الآمن ومن SharedPreferences (إن بقيت نسخة قديمة).
-  Future<void> clear() async {
+  Future<String?> readTrustedDeviceToken() async {
+    final v = await _secure.read(key: _trustedDeviceTokenSecureKey);
+    if (v != null && v.trim().isNotEmpty) {
+      return v;
+    }
+    return null;
+  }
+
+  Future<void> writeTrustedDeviceToken(String token) async {
+    await _secure.write(key: _trustedDeviceTokenSecureKey, value: token);
+  }
+
+  Future<void> clearTrustedDeviceToken() async {
+    await _secure.delete(key: _trustedDeviceTokenSecureKey);
+  }
+
+  /// Clears auth/session data but intentionally keeps trusted-device token.
+  /// Use this for normal logout so "Trust this device" survives re-login.
+  Future<void> clearSessionDataKeepTrustedDevice() async {
     await _secure.delete(key: AppConstants.accessTokenKey);
     await _secure.delete(key: AppConstants.refreshTokenKey);
     await _secure.delete(key: _userJsonSecureKey);
@@ -90,5 +108,11 @@ class AuthTokenStorage {
     await prefs.remove(AppConstants.accessTokenKey);
     await prefs.remove(AppConstants.refreshTokenKey);
     await prefs.remove(AppConstants.currentUserKey);
+  }
+
+  /// يمسح الرموز والمستخدم من التخزين الآمن ومن SharedPreferences (إن بقيت نسخة قديمة).
+  Future<void> clear() async {
+    await clearSessionDataKeepTrustedDevice();
+    await _secure.delete(key: _trustedDeviceTokenSecureKey);
   }
 }

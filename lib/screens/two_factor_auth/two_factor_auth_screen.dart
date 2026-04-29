@@ -207,7 +207,7 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
     try {
       // Step 1: Verify 2FA code (backend also checks subscription during verification)
       final languageBloc = context.read<LanguageBloc>();
-      await _apiService.verifyTwoFactorAuth(
+      final verifyResponse = await _apiService.verifyTwoFactorAuth(
         username: widget.username,
         password: widget.password,
         code: code,
@@ -215,6 +215,18 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
         trustDevice: _trustDevice,
         locale: languageBloc.state.locale,
       );
+
+      final trustedDeviceTokenRaw = verifyResponse['trusted_device_token'];
+      final trustedDeviceToken = trustedDeviceTokenRaw is String
+          ? trustedDeviceTokenRaw.trim()
+          : trustedDeviceTokenRaw?.toString().trim();
+      if (_trustDevice &&
+          trustedDeviceToken != null &&
+          trustedDeviceToken.isNotEmpty) {
+        await AuthTokenStorage.instance.writeTrustedDeviceToken(
+          trustedDeviceToken,
+        );
+      }
       
       // Step 2: Get user data
       final user = await _apiService.getCurrentUser();
@@ -495,20 +507,38 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
                     ),
                     const SizedBox(height: 32),
                     
-                    CheckboxListTile(
-                      value: _trustDevice,
-                      onChanged: (value) {
-                        setState(() {
-                          _trustDevice = value ?? true;
-                        });
-                      },
-                      controlAffinity: ListTileControlAffinity.leading,
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(
-                        isRTL
-                            ? 'الوثوق بهذا الجهاز لمدة 7 أيام'
-                            : 'Trust this device for 7 days',
-                        style: Theme.of(context).textTheme.bodySmall,
+                    Align(
+                      alignment: isRTL
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
+                      child: InkWell(
+                        onTap: () {
+                          setState(() {
+                            _trustDevice = !_trustDevice;
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Checkbox(
+                              value: _trustDevice,
+                              onChanged: (value) {
+                                setState(() {
+                                  _trustDevice = value ?? true;
+                                });
+                              },
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              isRTL
+                                  ? 'الوثوق بهذا الجهاز لمدة 7 أيام'
+                                  : 'Trust this device for 7 days',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),
