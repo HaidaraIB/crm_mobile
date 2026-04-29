@@ -16,10 +16,23 @@ import 'screens/login/login_screen.dart';
 import 'screens/two_factor_auth/two_factor_auth_screen.dart';
 import 'screens/settings/settings_screen.dart';
 import 'screens/profile/profile_screen.dart';
+import 'screens/leads/lead_profile_screen.dart';
+import 'screens/leads/all_leads_screen.dart';
+import 'screens/calendar/calendar_screen.dart';
+import 'screens/deals/deals_screen.dart';
+import 'screens/deals/view_deal_by_id_screen.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/notification_service.dart';
 import 'services/notification_router.dart';
 import 'services/api_service.dart';
+
+int? _routeIntArguments(Object? args) {
+  if (args == null) return null;
+  if (args is int) return args;
+  if (args is num) return args.toInt();
+  if (args is String) return int.tryParse(args.trim());
+  return null;
+}
 
 void main() async {
   // No console noise in release/store builds; debug/profile keep debugPrint.
@@ -186,6 +199,31 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                   '/home': (context) => const HomeScreen(),
                   '/settings': (context) => const SettingsScreen(),
                   '/profile': (context) => const ProfileScreen(),
+                  '/leads': (context) => const AllLeadsScreen(),
+                  '/leads/details': (context) {
+                    final id = _routeIntArguments(
+                      ModalRoute.of(context)?.settings.arguments,
+                    );
+                    if (id == null) {
+                      return const Scaffold(
+                        body: Center(child: Text('Invalid lead')),
+                      );
+                    }
+                    return LeadProfileScreen(leadId: id);
+                  },
+                  '/calendar': (context) => const CalendarScreen(),
+                  '/deals': (context) => const DealsScreen(),
+                  '/deals/view': (context) {
+                    final id = _routeIntArguments(
+                      ModalRoute.of(context)?.settings.arguments,
+                    );
+                    if (id == null) {
+                      return const Scaffold(
+                        body: Center(child: Text('Invalid deal')),
+                      );
+                    }
+                    return ViewDealByIdScreen(dealId: id);
+                  },
                   '/2fa': (context) {
                     // Get username, password, and token from arguments
                     final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;

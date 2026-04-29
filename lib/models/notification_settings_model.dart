@@ -46,6 +46,7 @@ class NotificationSettings {
       NotificationType.leadTransferred: true,
       NotificationType.leadUpdated: true,
       NotificationType.leadReminder: true,
+      NotificationType.teamActivity: true,
       
       // إشعارات واتساب - مفعلة افتراضياً
       NotificationType.whatsappMessageReceived: true,

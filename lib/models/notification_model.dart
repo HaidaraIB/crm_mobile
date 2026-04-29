@@ -22,6 +22,8 @@ enum NotificationType {
   leadUpdated, // تم تحديث معلومات العميل
   /// تذكير بموعد متابعة عميل
   leadReminder, // تذكير بموعد متابعة عميل
+  /// نشاط فريق الشركة (للمالك)
+  teamActivity, // إشعار نشاط عضو من الفريق
   
   // ==================== إشعارات واتساب (WhatsApp Automation) ====================
   /// 📨 رسالة واردة
@@ -110,13 +112,29 @@ class NotificationPayload {
     this.notificationId,
   }) : timestamp = timestamp ?? DateTime.now();
 
+  static NotificationType _parseNotificationType(String? rawType) {
+    final value = (rawType ?? 'unknown').trim();
+    if (value.isEmpty) return NotificationType.unknown;
+
+    final direct = NotificationType.values.where((e) => e.name == value);
+    if (direct.isNotEmpty) return direct.first;
+
+    final parts = value.split('_');
+    final camel = parts.first +
+        parts.skip(1).map((p) {
+          if (p.isEmpty) return '';
+          return p[0].toUpperCase() + p.substring(1);
+        }).join();
+    final normalized = NotificationType.values.where((e) => e.name == camel);
+    if (normalized.isNotEmpty) return normalized.first;
+
+    return NotificationType.unknown;
+  }
+
   /// إنشاء من JSON (من FCM)
   factory NotificationPayload.fromJson(Map<String, dynamic> json) {
     final typeString = json['type'] as String? ?? 'unknown';
-    final type = NotificationType.values.firstWhere(
-      (e) => e.name == typeString,
-      orElse: () => NotificationType.unknown,
-    );
+    final type = _parseNotificationType(typeString);
 
     return NotificationPayload(
       type: type,
@@ -160,10 +178,7 @@ class NotificationPayload {
     final finalBody = body.isNotEmpty ? body : (data['body'] as String? ?? '');
 
     final typeString = data['type'] as String? ?? 'unknown';
-    final type = NotificationType.values.firstWhere(
-      (e) => e.name == typeString,
-      orElse: () => NotificationType.unknown,
-    );
+    final type = _parseNotificationType(typeString);
 
     return NotificationPayload(
       type: type,

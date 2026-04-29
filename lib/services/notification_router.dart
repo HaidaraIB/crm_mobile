@@ -7,6 +7,15 @@ class NotificationRouter {
   factory NotificationRouter() => _instance;
   NotificationRouter._internal();
 
+  /// FCM / API payloads often send numeric ids as [String]; avoid `as int?` casts.
+  static int? _intFromPayload(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value.trim());
+    return null;
+  }
+
   /// التنقل بناءً على نوع الإشعار
   /// يمكن توسيع هذه الطريقة بسهولة لإضافة أنواع جديدة من الإشعارات
   static Future<void> navigateFromNotification(
@@ -29,7 +38,8 @@ class NotificationRouter {
       case NotificationType.leadUpdated:
       case NotificationType.leadStatusChanged:
       case NotificationType.leadTransferred:
-        final leadId = payload.data?['lead_id'] as int?;
+      case NotificationType.teamActivity:
+        final leadId = _intFromPayload(payload.data?['lead_id']);
         if (leadId != null) {
           navigator.pushNamed('/leads/details', arguments: leadId);
         } else {
@@ -41,7 +51,7 @@ class NotificationRouter {
       case NotificationType.leadReengaged:
       case NotificationType.leadContactFailed:
       case NotificationType.leadReminder:
-        final leadId = payload.data?['lead_id'] as int?;
+        final leadId = _intFromPayload(payload.data?['lead_id']);
         if (leadId != null) {
           navigator.pushNamed('/leads/details', arguments: leadId);
         } else {
@@ -54,7 +64,7 @@ class NotificationRouter {
       case NotificationType.whatsappTemplateSent:
       case NotificationType.whatsappSendFailed:
       case NotificationType.whatsappWaitingResponse:
-        final leadId = payload.data?['lead_id'] as int?;
+        final leadId = _intFromPayload(payload.data?['lead_id']);
         if (leadId != null) {
           navigator.pushNamed('/leads/details', arguments: leadId);
         } else {
@@ -83,7 +93,7 @@ class NotificationRouter {
       case NotificationType.dealCreated:
       case NotificationType.dealUpdated:
       case NotificationType.dealClosed:
-        final dealId = payload.data?['deal_id'] as int?;
+        final dealId = _intFromPayload(payload.data?['deal_id']);
         if (dealId != null) {
           navigator.pushNamed('/deals/view', arguments: dealId);
         } else {
@@ -92,7 +102,7 @@ class NotificationRouter {
         break;
 
       case NotificationType.dealReminder:
-        final dealId = payload.data?['deal_id'] as int?;
+        final dealId = _intFromPayload(payload.data?['deal_id']);
         if (dealId != null) {
           navigator.pushNamed('/deals/view', arguments: dealId);
         } else {
@@ -146,6 +156,8 @@ class NotificationRouter {
         return Icons.error_outline;
       case NotificationType.leadReminder:
         return Icons.notifications_active;
+      case NotificationType.teamActivity:
+        return Icons.groups;
       
       // إشعارات واتساب
       case NotificationType.whatsappMessageReceived:
@@ -233,6 +245,8 @@ class NotificationRouter {
         return Colors.red;
       case NotificationType.leadReminder:
         return Colors.redAccent;
+      case NotificationType.teamActivity:
+        return Colors.indigo;
       
       // إشعارات واتساب
       case NotificationType.whatsappMessageReceived:
@@ -319,6 +333,8 @@ class NotificationRouter {
         return 'تحديث عميل';
       case NotificationType.leadReminder:
         return 'تذكير عميل';
+      case NotificationType.teamActivity:
+        return 'نشاط الفريق';
       
       case NotificationType.whatsappMessageReceived:
         return 'رسالة واتساب واردة';

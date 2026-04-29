@@ -185,22 +185,32 @@ class ApiService {
     return token != null && token.toString().trim().isNotEmpty;
   }
 
+  /// Same rule as web: only staff roles report presence (not company owner/admin).
+  static bool _roleReportsPresence(String? role) {
+    var token = (role ?? '').trim().toLowerCase().replaceAll(RegExp(r'\s+'), '_');
+    return token == 'employee' ||
+        token == 'data_entry' ||
+        token == 'supervisor';
+  }
+
   Future<void> sendPresenceHeartbeat({String source = 'mobile'}) async {
     final hasToken = await hasStoredAccessToken();
     if (!hasToken) return;
     final storedUserJson = await AuthTokenStorage.instance.readUserJson();
-    if (storedUserJson != null && storedUserJson.trim().isNotEmpty) {
-      try {
-        final decoded = jsonDecode(storedUserJson);
-        if (decoded is Map<String, dynamic>) {
-          final role = (decoded['role']?.toString() ?? '').toLowerCase();
-          if (role == 'admin' || role == 'owner') {
-            return;
-          }
-        }
-      } catch (_) {
-        // Ignore malformed local user snapshot; heartbeat remains best-effort.
+    if (storedUserJson == null || storedUserJson.trim().isEmpty) {
+      return;
+    }
+    try {
+      final decoded = jsonDecode(storedUserJson);
+      if (decoded is! Map<String, dynamic>) {
+        return;
       }
+      final role = decoded['role']?.toString();
+      if (!_roleReportsPresence(role)) {
+        return;
+      }
+    } catch (_) {
+      return;
     }
 
     try {
@@ -570,6 +580,7 @@ class ApiService {
   }
 
   Future<void> _clearTokens() async {
+    await _removeCurrentDeviceFcmTokenBeforeLogout();
     // Keep trusted-device token on normal logout so owner can skip 2FA
     // on the same mobile within trust window.
     await AuthTokenStorage.instance.clearSessionDataKeepTrustedDevice();
@@ -2292,6 +2303,26 @@ class ApiService {
       return deals;
     }
     throw Exception(_translateError('failedToLoadDeals', locale: null));
+  }
+
+  Future<DealModel> getDeal(int dealId) async {
+    final response = await _makeRequest('GET', '/deals/$dealId/');
+    if (response.statusCode == 200) {
+      final json = _unwrapResponseMap(response);
+      return DealModel.fromJson(json);
+    }
+    String errorMessage = _translateError('failedToLoadDeals', locale: null);
+    try {
+      final error = _errorContextFromBody(response.body);
+      errorMessage = _resolveApiErrorMessage(
+        error,
+        fallbackKey: 'failedToLoadDeals',
+      );
+    } catch (_) {
+      errorMessage =
+          'Failed to load deal with status ${response.statusCode}';
+    }
+    throw Exception(errorMessage);
   }
 
   // Update deal
@@ -4158,6 +4189,35 @@ class ApiService {
         'status_code': null,
         'message': e.toString(),
       };
+    }
+  }
+
+  /// إزالة FCM token الحالي من الخادم عند تسجيل الخروج (best effort).
+  Future<void> removeFCMTokenFromServer(String fcmToken) async {
+    if (fcmToken.trim().isEmpty) return;
+    try {
+      await _makeRequest(
+        'POST',
+        '/users/remove-fcm-token/',
+        body: {'fcm_token': fcmToken.trim()},
+        retryOn401: false,
+        timeout: const Duration(seconds: 4),
+      );
+    } catch (_) {
+      // Intentional best-effort flow during logout.
+    }
+  }
+
+  Future<void> _removeCurrentDeviceFcmTokenBeforeLogout() async {
+    try {
+      final accessToken = await AuthTokenStorage.instance.readAccessToken();
+      if (accessToken == null || accessToken.isEmpty) return;
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('fcm_token')?.trim() ?? '';
+      if (token.isEmpty) return;
+      await removeFCMTokenFromServer(token);
+    } catch (_) {
+      // Intentional best-effort flow during logout.
     }
   }
 

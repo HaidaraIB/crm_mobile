@@ -165,6 +165,7 @@ class _NotificationSettingsScreenState
               NotificationType.leadTransferred,
               NotificationType.leadUpdated,
               NotificationType.leadReminder,
+              NotificationType.teamActivity,
             ],
           ),
 
@@ -385,6 +386,8 @@ class _NotificationSettingsScreenState
         return 'leadUpdated';
       case NotificationType.leadReminder:
         return 'leadReminder';
+      case NotificationType.teamActivity:
+        return 'teamActivity';
       case NotificationType.whatsappMessageReceived:
         return 'whatsappMessageReceived';
       case NotificationType.whatsappTemplateSent:
