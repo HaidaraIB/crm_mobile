@@ -185,6 +185,35 @@ class ApiService {
     return token != null && token.toString().trim().isNotEmpty;
   }
 
+  Future<void> sendPresenceHeartbeat({String source = 'mobile'}) async {
+    final hasToken = await hasStoredAccessToken();
+    if (!hasToken) return;
+    final storedUserJson = await AuthTokenStorage.instance.readUserJson();
+    if (storedUserJson != null && storedUserJson.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(storedUserJson);
+        if (decoded is Map<String, dynamic>) {
+          final role = (decoded['role']?.toString() ?? '').toLowerCase();
+          if (role == 'admin' || role == 'owner') {
+            return;
+          }
+        }
+      } catch (_) {
+        // Ignore malformed local user snapshot; heartbeat remains best-effort.
+      }
+    }
+
+    try {
+      await _makeRequest(
+        'POST',
+        '/users/presence_heartbeat/',
+        body: <String, dynamic>{'source': source},
+      );
+    } catch (_) {
+      // Presence is best-effort; ignore failures.
+    }
+  }
+
   Future<Map<String, String>> _getHeaders({bool includeAuth = true}) async {
     final headers = <String, String>{'Content-Type': 'application/json'};
 

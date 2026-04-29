@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'core/constants/app_constants.dart';
@@ -18,6 +19,7 @@ import 'screens/profile/profile_screen.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/notification_service.dart';
 import 'services/notification_router.dart';
+import 'services/api_service.dart';
 
 void main() async {
   // No console noise in release/store builds; debug/profile keep debugPrint.
@@ -86,6 +88,7 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   // GlobalKey للـ Navigator للوصول إليه من أي مكان
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  Timer? _presenceTimer;
   
   @override
   void initState() {
@@ -93,10 +96,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     AppConstants.navigatorKey = navigatorKey;
     WidgetsBinding.instance.addObserver(this);
     _setupNotificationListener();
+    _startPresenceHeartbeat();
   }
 
   @override
   void dispose() {
+    _presenceTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -107,7 +112,21 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     // عند استئناف التطبيق من الخلفية، إعادة إرسال FCM token إن وُجد (لمستخدمي iOS الذين تأخر توكنهم)
     if (state == AppLifecycleState.resumed) {
       NotificationService().sendTokenToServerIfLoggedIn();
+      ApiService().sendPresenceHeartbeat(source: 'mobile');
+      _startPresenceHeartbeat();
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached) {
+      _presenceTimer?.cancel();
     }
+  }
+
+  void _startPresenceHeartbeat() {
+    _presenceTimer?.cancel();
+    ApiService().sendPresenceHeartbeat(source: 'mobile');
+    _presenceTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+      ApiService().sendPresenceHeartbeat(source: 'mobile');
+    });
   }
 
   /// إعداد مستمع الإشعارات
