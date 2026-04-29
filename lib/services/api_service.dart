@@ -1052,17 +1052,51 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = _unwrapResponseMap(response);
 
-        // Save tokens
+        final requiresTwoFactorRaw = data['requires_two_factor'];
+        final requiresTwoFactor = requiresTwoFactorRaw == true ||
+            requiresTwoFactorRaw?.toString().toLowerCase() == 'true';
+
+        // Owner-only: if backend requires 2FA, it will return a 2FA token but
+        // typically not access/refresh tokens yet.
+        if (requiresTwoFactor) {
+          final tokenRaw = data['token'];
+          final token = tokenRaw is String ? tokenRaw : tokenRaw?.toString();
+          if (token == null || token.trim().isEmpty) {
+            throw Exception('2FA token missing from login response');
+          }
+          return {
+            'requires_two_factor': true,
+            'token': token,
+            'user': data['user'],
+            'sent': data['sent'],
+            'message': data['message'],
+          };
+        }
+
+        // Normal login: Save tokens then fetch user snapshot.
+        final accessRaw = data['access'];
+        final refreshRaw = data['refresh'];
+        final access = accessRaw is String ? accessRaw : accessRaw?.toString();
+        final refresh = refreshRaw is String ? refreshRaw : refreshRaw?.toString();
+
+        if (access == null || access.trim().isEmpty || refresh == null || refresh.trim().isEmpty) {
+          throw Exception('Login succeeded but tokens were missing');
+        }
+
         await AuthTokenStorage.instance.writeTokens(
-          access: data['access'] as String,
-          refresh: data['refresh'] as String,
+          access: access,
+          refresh: refresh,
         );
 
-        // Get user data
         final userResponse = await getCurrentUser();
-        return {'success': true, 'user': userResponse};
+        return {
+          'success': true,
+          'requires_two_factor': false,
+          'user': userResponse,
+        };
       } else {
         String errorMessage;
+        SubscriptionInactiveException? subscriptionInactiveException;
         try {
           final error = _errorContextFromBody(response.body);
           // Check for API key errors first
@@ -1075,12 +1109,39 @@ class ApiService {
           } else {
             final backendError =
                 error['detail'] ?? error['error'] ?? error['message'] ?? '';
-            errorMessage = backendError.isNotEmpty
-                ? backendError
-                : _translateError(
-                    'loginFailed',
-                    locale: locale ?? const Locale('en'),
-                  );
+
+            // subscription_inactive is used for subscription gating (owners/admins).
+            if (ApiEnvelope.codeEquals(error['code'], 'subscription_inactive') ||
+                backendError.toString().toLowerCase().contains('subscription') ||
+                backendError.toString().toLowerCase().contains('not active')) {
+              final subIdRaw = error['subscriptionId'] ?? error['subscription_id'];
+              int? subId;
+              if (subIdRaw is int) {
+                subId = subIdRaw;
+              } else if (subIdRaw is num) {
+                subId = subIdRaw.toInt();
+              } else if (subIdRaw is String) {
+                subId = int.tryParse(subIdRaw);
+              }
+
+              errorMessage = backendError.isNotEmpty
+                  ? backendError.toString()
+                  : _translateError(
+                      'subscriptionNotActive',
+                      locale: locale ?? const Locale('en'),
+                    );
+              subscriptionInactiveException = SubscriptionInactiveException(
+                errorMessage,
+                subscriptionId: subId,
+              );
+            } else {
+              errorMessage = backendError.isNotEmpty
+                  ? backendError.toString()
+                  : _translateError(
+                      'loginFailed',
+                      locale: locale ?? const Locale('en'),
+                    );
+            }
           }
           debugPrint('Login error: $errorMessage');
           debugPrint('Response body: ${response.body}');
@@ -1099,6 +1160,9 @@ class ApiService {
           responseBody: response.body,
         );
 
+        if (subscriptionInactiveException != null) {
+          throw subscriptionInactiveException;
+        }
         throw Exception(errorMessage);
       }
     } catch (e, stackTrace) {

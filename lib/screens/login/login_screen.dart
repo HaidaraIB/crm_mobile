@@ -1,13 +1,19 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/bloc/theme/theme_bloc.dart';
 import '../../core/bloc/language/language_bloc.dart';
+import '../../core/storage/auth_token_storage.dart';
 import '../../core/utils/app_locales.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../services/api_service.dart';
+import '../../models/user_model.dart';
+import '../home/home_screen.dart';
 import '../two_factor_auth/two_factor_auth_screen.dart';
 import '../payment/subscription_payment_screen.dart';
 
@@ -80,32 +86,47 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final apiService = ApiService();
       final languageBloc = context.read<LanguageBloc>();
-      final language = languageBloc.state.locale.languageCode;
-      
-      // Step 1: Validate credentials and check subscription status, then request 2FA code
-      // The request-2fa endpoint validates credentials and checks subscription status on the backend
-      // If credentials are invalid or subscription is inactive, it will throw an error here
-      // This prevents navigation to 2FA screen if credentials are invalid or subscription is not active
-      final twoFAResponse = await apiService.requestTwoFactorAuth(
+      final locale = languageBloc.state.locale;
+
+      // Step 1: Validate credentials on the backend.
+      // Backend enforces owners-only 2FA and may return `requires_two_factor`.
+      final loginResponse = await apiService.login(
         _usernameController.text.trim(),
         _passwordController.text,
-        language,
+        locale: locale,
       );
-      
-      // Step 2: Only navigate to 2FA screen if credentials are valid AND request was successful
-      // If requestTwoFactorAuth throws an exception (invalid credentials, subscription inactive, etc.),
-      // we will NOT reach this point - the catch block will handle the error instead
-      // This ensures we never navigate to 2FA screen with invalid credentials
+
+      // If the backend says 2FA is required, show the 2FA screen.
       if (!mounted) return;
-      
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => TwoFactorAuthScreen(
-            username: _usernameController.text.trim(),
-            password: _passwordController.text,
-            token: twoFAResponse['token'] as String?,
+
+      final requiresTwoFactorRaw = loginResponse['requires_two_factor'];
+      final requiresTwoFactor = requiresTwoFactorRaw == true ||
+          requiresTwoFactorRaw?.toString().toLowerCase() == 'true';
+
+      if (requiresTwoFactor) {
+        final token = loginResponse['token'] as String?;
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => TwoFactorAuthScreen(
+              username: _usernameController.text.trim(),
+              password: _passwordController.text,
+              token: token,
+            ),
           ),
-        ),
+        );
+        return;
+      }
+
+      // Normal login (employees, or owners with trusted-device).
+      final user = loginResponse['user'] as UserModel;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(AppConstants.isLoggedInKey, true);
+      await AuthTokenStorage.instance.writeUserJson(
+        jsonEncode(user.toJson()),
+      );
+
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
       );
     } catch (e) {
       if (!mounted) return;
