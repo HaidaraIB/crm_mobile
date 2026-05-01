@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/localization/app_localizations.dart';
+import '../../../core/utils/api_error_helper.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/snackbar_helper.dart';
 import '../../../models/settings_model.dart';
@@ -90,7 +91,7 @@ class _EditCallMethodModalState extends State<EditCallMethodModal> {
       );
       if (mounted) {
         setState(() {
-          _errorMessage = e.toString().replaceAll('Exception: ', '');
+          _errorMessage = ApiErrorHelper.toUserMessage(context, e);
           _isLoading = false;
         });
       }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/api_error_helper.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../core/utils/number_formatter.dart';
 import '../../models/inventory_model.dart';
@@ -96,7 +97,7 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
       });
     } catch (e) {
       setState(() {
-        _errorProducts = e.toString();
+        _errorProducts = ApiErrorHelper.toUserMessage(context, e);
         _isLoadingProducts = false;
       });
     }
@@ -119,7 +120,7 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
       });
     } catch (e) {
       setState(() {
-        _errorCategories = e.toString();
+        _errorCategories = ApiErrorHelper.toUserMessage(context, e);
         _isLoadingCategories = false;
       });
     }
@@ -140,7 +141,7 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
       });
     } catch (e) {
       setState(() {
-        _errorSuppliers = e.toString();
+        _errorSuppliers = ApiErrorHelper.toUserMessage(context, e);
         _isLoadingSuppliers = false;
       });
     }

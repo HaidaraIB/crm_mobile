@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../core/utils/api_error_helper.dart';
 import '../../models/deal_model.dart';
 import '../../services/api_service.dart';
 import 'view_deal_screen.dart';
@@ -37,7 +38,7 @@ class _ViewDealByIdScreenState extends State<ViewDealByIdScreen> {
       if (!mounted) return;
       setState(() {
         _deal = null;
-        _error = e.toString();
+        _error = ApiErrorHelper.toUserMessage(context, e);
       });
     }
   }

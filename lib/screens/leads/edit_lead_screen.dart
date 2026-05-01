@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/api_error_helper.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/lead_model.dart';
 import '../../models/user_model.dart';
@@ -323,11 +324,11 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
       );
       if (mounted) {
         setState(() {
-          _errors['general'] = e.toString();
+          _errors['general'] = ApiErrorHelper.toUserMessage(context, e);
         });
         SnackbarHelper.showError(
           context,
-          '${AppLocalizations.of(context)?.translate('error') ?? 'Error'}: ${e.toString()}',
+          '${AppLocalizations.of(context)?.translate('error') ?? 'Error'}: ${ApiErrorHelper.toUserMessage(context, e)}',
         );
       }
     } finally {

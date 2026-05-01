@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/api_error_helper.dart';
 import '../../core/utils/app_locales.dart';
 import '../../models/lead_model.dart';
 import '../../services/api_service.dart';
@@ -141,7 +142,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
         events.add(
           CalendarEvent(
             id: dealId,
-            title: localizations?.translate('deal') ??
+            title:
+                localizations?.translate('deal') ??
                 localizations?.translate('deals') ??
                 'Deal',
             description:
@@ -215,12 +217,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e.toString();
+          _errorMessage = _mapReadableError(e);
           _isLoading = false;
         });
       }
       debugPrint('Failed to load calendar events: $e');
     }
+  }
+
+  String _mapReadableError(dynamic error) {
+    return ApiErrorHelper.toDisplayCodeOrMessage(error);
   }
 
   List<CalendarEvent> _getEventsForDate(DateTime date) {
@@ -239,6 +245,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     final eventsForSelectedDate = _getEventsForDate(_selectedDate);
 
+    final isNoInternet = _errorMessage == 'NO_INTERNET';
+    final isTimeout = _errorMessage == 'CONNECTION_TIMEOUT';
+
     return _isLoading
         ? const Center(child: CircularProgressIndicator())
         : _errorMessage != null
@@ -246,10 +255,35 @@ class _CalendarScreenState extends State<CalendarScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+                Icon(
+                  isNoInternet ? Icons.wifi_off_rounded : Icons.error_outline,
+                  size: 64,
+                  color: Colors.red[300],
+                ),
                 const SizedBox(height: 16),
                 Text(
-                  _errorMessage!,
+                  isNoInternet
+                      ? (localizations?.translate('noInternetConnection') ??
+                            'No Internet Connection')
+                      : isTimeout
+                      ? (localizations?.translate('connectionError') ??
+                            'Connection Error')
+                      : (localizations?.translate('errorOccurred') ??
+                            'An error occurred'),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  isNoInternet
+                      ? (localizations?.translate('noInternetMessage') ??
+                            'Please check your internet connection and try again')
+                      : isTimeout
+                      ? (localizations?.translate('connectionErrorMessage') ??
+                            'Unable to connect to the server. Please try again later')
+                      : _errorMessage!,
                   style: theme.textTheme.bodyMedium,
                   textAlign: TextAlign.center,
                 ),
@@ -489,9 +523,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final localizations = AppLocalizations.of(context);
     final timeFormat = DateFormat(
       'h:mm a',
-      AppLocales.intlDateFormat(
-        localizations?.locale ?? AppLocales.english,
-      ),
+      AppLocales.intlDateFormat(localizations?.locale ?? AppLocales.english),
     );
 
     // Determine icon and color based on event type

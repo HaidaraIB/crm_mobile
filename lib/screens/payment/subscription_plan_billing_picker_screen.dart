@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/bloc/language/language_bloc.dart';
+import '../../core/utils/api_error_helper.dart';
 import '../../services/api_service.dart';
 import '../../models/plan_model.dart';
 
@@ -59,7 +60,7 @@ class _SubscriptionPlanBillingPickerScreenState
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _plansError = e.toString().replaceAll('Exception: ', '');
+        _plansError = ApiErrorHelper.toUserMessage(context, e);
         _plansLoading = false;
       });
     }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/api_error_helper.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/lead_model.dart';
 import '../../models/user_model.dart';
@@ -104,7 +105,7 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
         final localizations = AppLocalizations.of(context);
         SnackbarHelper.showError(
           context,
-          '${localizations?.translate('failedToLoadData') ?? 'Failed to load data'}: ${e.toString()}',
+          '${localizations?.translate('failedToLoadData') ?? 'Failed to load data'}: ${ApiErrorHelper.toUserMessage(context, e)}',
         );
       }
     }
@@ -296,12 +297,12 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
       );
       if (mounted) {
         setState(() {
-          _errors['general'] = e.toString();
+          _errors['general'] = ApiErrorHelper.toUserMessage(context, e);
         });
         final localizations = AppLocalizations.of(context);
         SnackbarHelper.showError(
           context,
-          '${localizations?.translate('error') ?? 'Error'}: ${e.toString()}',
+          '${localizations?.translate('error') ?? 'Error'}: ${ApiErrorHelper.toUserMessage(context, e)}',
         );
       }
     } finally {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/api_error_helper.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
@@ -95,7 +96,7 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
       });
     } catch (e) {
       setState(() {
-        _errorServices = e.toString();
+        _errorServices = ApiErrorHelper.toUserMessage(context, e);
         _isLoadingServices = false;
       });
     }
@@ -118,7 +119,7 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
       });
     } catch (e) {
       setState(() {
-        _errorPackages = e.toString();
+        _errorPackages = ApiErrorHelper.toUserMessage(context, e);
         _isLoadingPackages = false;
       });
     }
@@ -141,7 +142,7 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
       });
     } catch (e) {
       setState(() {
-        _errorProviders = e.toString();
+        _errorProviders = ApiErrorHelper.toUserMessage(context, e);
         _isLoadingProviders = false;
       });
     }

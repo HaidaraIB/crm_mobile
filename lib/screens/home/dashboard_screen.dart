@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/app_locales.dart';
+import '../../core/utils/api_error_helper.dart';
 import '../../core/utils/number_formatter.dart';
 import '../../models/lead_model.dart';
 import '../../models/user_model.dart';
@@ -150,23 +151,8 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
   }
   
   String _getErrorMessage(dynamic error) {
-    // Check for TimeoutException directly
-    if (error is TimeoutException) {
-      return 'CONNECTION_TIMEOUT';
-    }
-    
-    final errorString = error.toString().toLowerCase();
-    if (errorString.contains('socketexception') ||
-        errorString.contains('failed host lookup') ||
-        errorString.contains('network is unreachable') ||
-        errorString.contains('connection refused') ||
-        errorString.contains('connection timed out')) {
-      return 'NO_INTERNET';
-    }
-    if (errorString.contains('timeout') || errorString.contains('timed out')) {
-      return 'CONNECTION_TIMEOUT';
-    }
-    return error.toString();
+    if (error is TimeoutException) return ApiErrorHelper.connectionTimeoutCode;
+    return ApiErrorHelper.toDisplayCodeOrMessage(error);
   }
 
   Widget _buildErrorWidget(
@@ -174,8 +160,8 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
     AppLocalizations? localizations,
     ThemeData theme,
   ) {
-    final isNoInternet = _errorMessage == 'NO_INTERNET';
-    final isTimeout = _errorMessage == 'CONNECTION_TIMEOUT';
+    final isNoInternet = _errorMessage == ApiErrorHelper.noInternetCode;
+    final isTimeout = _errorMessage == ApiErrorHelper.connectionTimeoutCode;
     
     return Center(
       child: Padding(

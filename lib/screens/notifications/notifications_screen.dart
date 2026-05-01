@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/api_error_helper.dart';
 import '../../core/utils/app_locales.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/notification_model.dart';
@@ -78,7 +79,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = ApiErrorHelper.toUserMessage(context, e);
         _isLoading = false;
       });
     }

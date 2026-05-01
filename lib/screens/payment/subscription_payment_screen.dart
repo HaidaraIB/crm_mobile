@@ -6,6 +6,7 @@ import '../../core/localization/app_localizations.dart';
 import '../../core/bloc/theme/theme_bloc.dart';
 import '../../core/bloc/language/language_bloc.dart';
 import '../../core/utils/app_locales.dart';
+import '../../core/utils/api_error_helper.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../services/api_service.dart';
 import '../home/home_screen.dart';
@@ -76,7 +77,7 @@ class _SubscriptionPaymentScreenState extends State<SubscriptionPaymentScreen> {
       if (!mounted) return;
       setState(() {
         _loadingGateways = false;
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _errorMessage = ApiErrorHelper.toUserMessage(context, e);
       });
     }
   }
@@ -187,7 +188,7 @@ class _SubscriptionPaymentScreenState extends State<SubscriptionPaymentScreen> {
       }
     } catch (e) {
       if (mounted) {
-        final msg = e.toString().replaceAll('Exception: ', '');
+        final msg = ApiErrorHelper.toUserMessage(context, e);
         setState(() {
           _isLoadingPaymentLink = false;
           _errorMessage = msg.isNotEmpty ? msg : AppLocalizations.of(context)!.translate('paymentSessionError');
@@ -240,7 +241,7 @@ class _SubscriptionPaymentScreenState extends State<SubscriptionPaymentScreen> {
         });
       } catch (e) {
         if (!mounted) return;
-        final msg = e.toString().replaceAll('Exception: ', '').trim();
+        final msg = ApiErrorHelper.toUserMessage(context, e).trim();
         setState(() {
           _isCheckingStatus = false;
           _errorMessage = msg.isEmpty ? AppLocalizations.of(context)!.translate('paymentNotActiveYet') : msg;

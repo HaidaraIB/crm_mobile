@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/api_error_helper.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
@@ -101,7 +102,7 @@ class _AssignLeadModalState extends State<AssignLeadModal> {
         method: 'POST',
       );
       if (mounted) {
-        SnackbarHelper.showError(context, e.toString());
+        SnackbarHelper.showError(context, ApiErrorHelper.toUserMessage(context, e));
       }
     } finally {
       if (mounted) {

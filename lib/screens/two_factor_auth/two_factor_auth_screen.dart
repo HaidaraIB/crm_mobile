@@ -11,6 +11,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/bloc/theme/theme_bloc.dart';
 import '../../core/bloc/language/language_bloc.dart';
 import '../../core/utils/app_locales.dart';
+import '../../core/utils/api_error_helper.dart';
 import '../../services/api_service.dart';
 import '../../services/notification_service.dart';
 import '../home/home_screen.dart';
@@ -178,7 +179,7 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
         });
       } else {
         setState(() {
-          _errorMessage = e.toString().replaceAll('Exception: ', '');
+          _errorMessage = ApiErrorHelper.toUserMessage(context, e);
         });
       }
     } finally {
@@ -311,7 +312,7 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
         errorMsg = AppLocalizations.of(context)?.translate('twoFactorCodeInvalid') ?? 
             'Invalid two-factor authentication code';
       } else {
-        errorMsg = e.toString().replaceAll('Exception: ', '');
+        errorMsg = ApiErrorHelper.toUserMessage(context, e);
       }
       
       setState(() {

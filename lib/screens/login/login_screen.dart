@@ -10,6 +10,7 @@ import '../../core/bloc/theme/theme_bloc.dart';
 import '../../core/bloc/language/language_bloc.dart';
 import '../../core/storage/auth_token_storage.dart';
 import '../../core/utils/app_locales.dart';
+import '../../core/utils/api_error_helper.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../services/api_service.dart';
 import '../../models/user_model.dart';
@@ -39,7 +40,9 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _showLogoutReasonIfAny());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _showLogoutReasonIfAny(),
+    );
   }
 
   void _showLogoutReasonIfAny() {
@@ -49,8 +52,9 @@ class _LoginScreenState extends State<LoginScreen> {
     final message = reason == 'session_expired'
         ? (t?.call('sessionExpired') ?? 'Session expired. Please login again.')
         : reason == 'subscription_inactive'
-            ? (t?.call('subscriptionInactive') ?? 'Your subscription is not active. Please contact support or renew.')
-            : null;
+        ? (t?.call('subscriptionInactive') ??
+              'Your subscription is not active. Please contact support or renew.')
+        : null;
     if (message != null) {
       SnackbarHelper.showError(context, message);
     }
@@ -76,13 +80,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
       _isSubscriptionError = false;
     });
-    
+
     try {
       final apiService = ApiService();
       final languageBloc = context.read<LanguageBloc>();
@@ -100,7 +104,8 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       final requiresTwoFactorRaw = loginResponse['requires_two_factor'];
-      final requiresTwoFactor = requiresTwoFactorRaw == true ||
+      final requiresTwoFactor =
+          requiresTwoFactorRaw == true ||
           requiresTwoFactorRaw?.toString().toLowerCase() == 'true';
 
       if (requiresTwoFactor) {
@@ -121,28 +126,26 @@ class _LoginScreenState extends State<LoginScreen> {
       final user = loginResponse['user'] as UserModel;
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(AppConstants.isLoggedInKey, true);
-      await AuthTokenStorage.instance.writeUserJson(
-        jsonEncode(user.toJson()),
-      );
-
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
+      await AuthTokenStorage.instance.writeUserJson(jsonEncode(user.toJson()));
+      if (!mounted) return;
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
     } catch (e) {
       if (!mounted) return;
-      
+
       String errorMsg;
-      
+
       // Extract the error message from the exception
       // The exception message should contain the backend error message
       final exceptionString = e.toString();
-      final cleanError = exceptionString.replaceAll('Exception: ', '');
-      
+      final cleanError = ApiErrorHelper.cleanException(exceptionString);
+
       // Determine error type by checking the error message content
       // We don't access .code property to avoid NoSuchMethodError
       final lowerError = cleanError.toLowerCase();
       bool isSubscriptionError = false;
-      
+
       // Check for network/offline errors first (ClientException, SocketException, host lookup, etc.)
       if (lowerError.contains('socketexception') ||
           lowerError.contains('failed host lookup') ||
@@ -155,16 +158,19 @@ class _LoginScreenState extends State<LoginScreen> {
           lowerError.contains('connection reset') ||
           lowerError.contains('timed out') ||
           lowerError.contains('clientexception')) {
-        errorMsg = AppLocalizations.of(context)?.translate('noInternetConnection') ?? 
+        errorMsg =
+            AppLocalizations.of(context)?.translate('noInternetConnection') ??
             'No Internet Connection';
         errorMsg += '. ';
-        errorMsg += AppLocalizations.of(context)?.translate('noInternetMessage') ?? 
+        errorMsg +=
+            AppLocalizations.of(context)?.translate('noInternetMessage') ??
             'Please check your internet connection and try again.';
       }
       // Check for subscription errors → redirect to complete payment
       else if (lowerError.contains('subscription is not active') ||
-          lowerError.contains('subscription') && 
-          (lowerError.contains('not active') || lowerError.contains('inactive')) ||
+          lowerError.contains('subscription') &&
+              (lowerError.contains('not active') ||
+                  lowerError.contains('inactive')) ||
           (e is Exception && _getSubscriptionId(e) != null)) {
         final subscriptionId = _getSubscriptionId(e);
         if (subscriptionId != null) {
@@ -180,54 +186,63 @@ class _LoginScreenState extends State<LoginScreen> {
           );
           return;
         }
-        if (cleanError.isNotEmpty && 
+        if (cleanError.isNotEmpty &&
             !cleanError.toLowerCase().contains('failed to request') &&
             !cleanError.toLowerCase().contains('status 403') &&
             !cleanError.toLowerCase().contains('subscription_inactive')) {
           errorMsg = cleanError;
         } else {
-          errorMsg = AppLocalizations.of(context)?.translate('subscriptionNotActive') ?? 
+          errorMsg =
+              AppLocalizations.of(
+                context,
+              )?.translate('subscriptionNotActive') ??
               'Your subscription is not active. Please contact support or Complete Your Payment to access the system.';
         }
         isSubscriptionError = true;
-      } 
+      }
       // Check for account temporarily inactive errors
       else if (lowerError.contains('account is temporarily inactive') ||
-               lowerError.contains('account_temporarily_inactive')) {
-        if (cleanError.isNotEmpty && 
+          lowerError.contains('account_temporarily_inactive')) {
+        if (cleanError.isNotEmpty &&
             !cleanError.toLowerCase().contains('failed to request')) {
           errorMsg = cleanError;
         } else {
-          errorMsg = AppLocalizations.of(context)?.translate('accountTemporarilyInactive') ?? 
+          errorMsg =
+              AppLocalizations.of(
+                context,
+              )?.translate('accountTemporarilyInactive') ??
               'Your account is temporarily inactive';
         }
-      } 
+      }
       // Check for invalid credentials errors
-      else if (lowerError.contains('invalid credentials') || 
-               lowerError.contains('invalid username') ||
-               lowerError.contains('invalid password') ||
-               lowerError.contains('user not found') ||
-               lowerError.contains('unable to log in') ||
-               lowerError.contains('no active account')) {
+      else if (lowerError.contains('invalid credentials') ||
+          lowerError.contains('invalid username') ||
+          lowerError.contains('invalid password') ||
+          lowerError.contains('user not found') ||
+          lowerError.contains('unable to log in') ||
+          lowerError.contains('no active account')) {
         // Use the actual backend error message, with localization fallback
-        if (cleanError.isNotEmpty && 
+        if (cleanError.isNotEmpty &&
             !cleanError.toLowerCase().contains('failed to request')) {
           errorMsg = cleanError;
         } else if (lowerError.contains('user not found')) {
-          errorMsg = AppLocalizations.of(context)?.translate('userNotFound') ?? 
+          errorMsg =
+              AppLocalizations.of(context)?.translate('userNotFound') ??
               'User not found';
         } else {
-          errorMsg = AppLocalizations.of(context)?.translate('invalidCredentials') ?? 
+          errorMsg =
+              AppLocalizations.of(context)?.translate('invalidCredentials') ??
               'Invalid username or password. Please check your credentials and try again.';
         }
-      } 
+      }
       // For any other error, use the exception message
       else {
-        errorMsg = cleanError.isNotEmpty ? cleanError : 
-            (AppLocalizations.of(context)?.translate('anErrorOccurred') ?? 
-             'An error occurred. Please try again.');
+        errorMsg = cleanError.isNotEmpty
+            ? cleanError
+            : (AppLocalizations.of(context)?.translate('anErrorOccurred') ??
+                  'An error occurred. Please try again.');
       }
-      
+
       setState(() {
         _errorMessage = errorMsg;
         _isSubscriptionError = isSubscriptionError;
@@ -265,31 +280,32 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         SnackbarHelper.showError(
           context,
-          AppLocalizations.of(context)?.translate('unableToOpenPayment') ?? 'Unable to open payment. Please try again.',
+          AppLocalizations.of(context)?.translate('unableToOpenPayment') ??
+              'Unable to open payment. Please try again.',
         );
       }
     }
     if (mounted) setState(() => _isLoading = false);
   }
-  
+
   @override
   void dispose() {
     _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
     final isRTL = localizations?.isRTL ?? false;
     final themeBloc = context.read<ThemeBloc>();
     final languageBloc = context.read<LanguageBloc>();
-    final currentTheme = Theme.of(context).brightness == Brightness.dark 
-        ? ThemeMode.dark 
+    final currentTheme = Theme.of(context).brightness == Brightness.dark
+        ? ThemeMode.dark
         : ThemeMode.light;
     final currentLocale = languageBloc.state.locale;
-    
+
     return Scaffold(
       appBar: AppBar(
         actions: [
@@ -301,8 +317,10 @@ class _LoginScreenState extends State<LoginScreen> {
               color: Theme.of(context).iconTheme.color,
             ),
             tooltip: currentLocale.languageCode == 'ar'
-                ? (localizations?.translate('switchToEnglish') ?? 'Switch to English')
-                : (localizations?.translate('switchToArabic') ?? 'Switch to Arabic'),
+                ? (localizations?.translate('switchToEnglish') ??
+                      'Switch to English')
+                : (localizations?.translate('switchToArabic') ??
+                      'Switch to Arabic'),
             onPressed: () {
               final newLocale = currentLocale.languageCode == 'ar'
                   ? AppLocales.english
@@ -318,8 +336,10 @@ class _LoginScreenState extends State<LoginScreen> {
               color: Theme.of(context).iconTheme.color,
             ),
             tooltip: currentTheme == ThemeMode.dark
-                ? (localizations?.translate('switchToLightMode') ?? 'Switch to Light Mode')
-                : (localizations?.translate('switchToDarkMode') ?? 'Switch to Dark Mode'),
+                ? (localizations?.translate('switchToLightMode') ??
+                      'Switch to Light Mode')
+                : (localizations?.translate('switchToDarkMode') ??
+                      'Switch to Dark Mode'),
             onPressed: () {
               themeBloc.add(const ToggleTheme());
             },
@@ -337,54 +357,62 @@ class _LoginScreenState extends State<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // Logo or App Name
-                      Text(
-                        localizations?.translate('appName') ?? 'LOOP CRM',
-                        style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                          color: AppTheme.primaryColor,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        isRTL
-                            ? 'سجّل دخولك للمتابعة'
-                            : 'Sign in to continue',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 32),
-                  
+                  Text(
+                    localizations?.translate('appName') ?? 'LOOP CRM',
+                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                      color: AppTheme.primaryColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    isRTL ? 'سجّل دخولك للمتابعة' : 'Sign in to continue',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 32),
+
                   // Username Field
                   TextFormField(
                     controller: _usernameController,
                     decoration: InputDecoration(
-                      labelText: isRTL ? 'اسم المستخدم أو البريد الإلكتروني' : 'Username or Email',
+                      labelText: isRTL
+                          ? 'اسم المستخدم أو البريد الإلكتروني'
+                          : 'Username or Email',
                       prefixIcon: const Icon(Icons.person),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    textDirection: isRTL ? TextDirection.rtl : TextDirection.ltr,
+                    textDirection: isRTL
+                        ? TextDirection.rtl
+                        : TextDirection.ltr,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return localizations?.translate('pleaseEnterUsername') ?? 'Please enter username';
+                        return localizations?.translate(
+                              'pleaseEnterUsername',
+                            ) ??
+                            'Please enter username';
                       }
                       return null;
                     },
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Password Field
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
                     decoration: InputDecoration(
-                      labelText: localizations?.translate('password') ?? 'Password',
+                      labelText:
+                          localizations?.translate('password') ?? 'Password',
                       prefixIcon: const Icon(Icons.lock),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                          _obscurePassword
+                              ? Icons.visibility
+                              : Icons.visibility_off,
                         ),
                         onPressed: () {
                           setState(() {
@@ -396,16 +424,21 @@ class _LoginScreenState extends State<LoginScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    textDirection: isRTL ? TextDirection.rtl : TextDirection.ltr,
+                    textDirection: isRTL
+                        ? TextDirection.rtl
+                        : TextDirection.ltr,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return localizations?.translate('pleaseEnterPassword') ?? 'Please enter password';
+                        return localizations?.translate(
+                              'pleaseEnterPassword',
+                            ) ??
+                            'Please enter password';
                       }
                       return null;
                     },
                   ),
                   const SizedBox(height: 20),
-                  
+
                   // Error Message
                   if (_errorMessage != null)
                     Padding(
@@ -415,19 +448,30 @@ class _LoginScreenState extends State<LoginScreen> {
                         decoration: BoxDecoration(
                           color: Colors.red.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                          border: Border.all(
+                            color: Colors.red.withValues(alpha: 0.3),
+                          ),
                         ),
                         child: _isSubscriptionError
                             ? Text.rich(
                                 TextSpan(
-                                  style: const TextStyle(color: Colors.red, fontSize: 14),
+                                  style: const TextStyle(
+                                    color: Colors.red,
+                                    fontSize: 14,
+                                  ),
                                   children: [
                                     TextSpan(
-                                      text: localizations?.translate('subscriptionNotActiveBeforeLink') ??
+                                      text:
+                                          localizations?.translate(
+                                            'subscriptionNotActiveBeforeLink',
+                                          ) ??
                                           'Your subscription is not active. Please contact support or ',
                                     ),
                                     TextSpan(
-                                      text: localizations?.translate('subscriptionNotActiveLink') ??
+                                      text:
+                                          localizations?.translate(
+                                            'subscriptionNotActiveLink',
+                                          ) ??
                                           'Complete Your Payment',
                                       style: TextStyle(
                                         color: AppTheme.primaryColor,
@@ -438,13 +482,18 @@ class _LoginScreenState extends State<LoginScreen> {
                                         ..onTap = _onCompletePaymentTap,
                                     ),
                                     TextSpan(
-                                      text: localizations?.translate('subscriptionNotActiveAfterLink') ??
+                                      text:
+                                          localizations?.translate(
+                                            'subscriptionNotActiveAfterLink',
+                                          ) ??
                                           ' to access the system.',
                                     ),
                                   ],
                                 ),
                                 textAlign: TextAlign.center,
-                                textDirection: isRTL ? TextDirection.rtl : TextDirection.ltr,
+                                textDirection: isRTL
+                                    ? TextDirection.rtl
+                                    : TextDirection.ltr,
                               )
                             : Text(
                                 _errorMessage!,
@@ -453,7 +502,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                       ),
                     ),
-                  
+
                   // Login Button
                   ElevatedButton(
                     onPressed: _isLoading ? null : _login,
@@ -471,7 +520,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             width: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
                             ),
                           )
                         : Text(
@@ -488,4 +539,3 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
-

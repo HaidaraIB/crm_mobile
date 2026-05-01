@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../core/storage/auth_token_storage.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/api_error_helper.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
@@ -61,7 +62,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
     } catch (e) {
       setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _errorMessage = ApiErrorHelper.toUserMessage(context, e);
         _isLoading = false;
       });
     }
@@ -87,7 +88,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final localizations = AppLocalizations.of(context);
       SnackbarHelper.showError(
         context,
-        '${localizations?.translate('errorPickingImage') ?? 'Error picking image'}: ${e.toString()}',
+        '${localizations?.translate('errorPickingImage') ?? 'Error picking image'}: ${ApiErrorHelper.cleanException(e)}',
       );
     }
   }
@@ -261,7 +262,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } catch (e) {
       setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _errorMessage = ApiErrorHelper.toUserMessage(context, e);
         _isSaving = false;
       });
     }

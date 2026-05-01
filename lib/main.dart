@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'core/constants/app_constants.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -22,9 +23,11 @@ import 'screens/calendar/calendar_screen.dart';
 import 'screens/deals/deals_screen.dart';
 import 'screens/deals/view_deal_by_id_screen.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:http/http.dart' as http;
 import 'services/notification_service.dart';
 import 'services/notification_router.dart';
 import 'services/api_service.dart';
+import 'core/utils/snackbar_helper.dart';
 
 int? _routeIntArguments(Object? args) {
   if (args == null) return null;
@@ -102,6 +105,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   // GlobalKey للـ Navigator للوصول إليه من أي مكان
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
   Timer? _presenceTimer;
+  Timer? _reachabilityTimer;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  bool _reachabilityCheckInFlight = false;
+  bool _reachabilitySeeded = false;
+  bool _lastReachable = true;
   
   @override
   void initState() {
@@ -110,11 +118,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _setupNotificationListener();
     _startPresenceHeartbeat();
+    _setupConnectivityListener();
   }
 
   @override
   void dispose() {
     _presenceTimer?.cancel();
+    _reachabilityTimer?.cancel();
+    _connectivitySubscription?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -127,6 +138,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       NotificationService().sendTokenToServerIfLoggedIn();
       ApiService().sendPresenceHeartbeat(source: 'mobile');
       _startPresenceHeartbeat();
+      unawaited(_runReachabilityCheck());
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
@@ -139,6 +151,77 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     ApiService().sendPresenceHeartbeat(source: 'mobile');
     _presenceTimer = Timer.periodic(const Duration(seconds: 60), (_) {
       ApiService().sendPresenceHeartbeat(source: 'mobile');
+    });
+  }
+
+  void _setupConnectivityListener() {
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((_) {
+      unawaited(_runReachabilityCheck());
+    });
+
+    _reachabilityTimer?.cancel();
+    _reachabilityTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+      unawaited(_runReachabilityCheck());
+    });
+
+    unawaited(_runReachabilityCheck());
+  }
+
+  /// Local interface can be "connected" while there is no real internet (same issue as `navigator.onLine` on web).
+  Future<bool> _probeHasInternet() async {
+    const timeout = Duration(seconds: 5);
+    final uris = <Uri>[
+      Uri.parse('https://www.gstatic.com/generate_204'),
+      Uri.parse('https://cp.cloudflare.com/generate_204'),
+    ];
+    for (final uri in uris) {
+      try {
+        final r = await http.get(uri).timeout(timeout);
+        if (r.statusCode == 204 || r.statusCode == 200) return true;
+      } catch (_) {
+        continue;
+      }
+    }
+    return false;
+  }
+
+  Future<void> _runReachabilityCheck() async {
+    if (_reachabilityCheckInFlight) return;
+    _reachabilityCheckInFlight = true;
+    try {
+      final results = await Connectivity().checkConnectivity();
+      final hasInterface = results.any((c) => c != ConnectivityResult.none);
+      final reachable = hasInterface && await _probeHasInternet();
+      _applyReachability(reachable);
+    } finally {
+      _reachabilityCheckInFlight = false;
+    }
+  }
+
+  void _applyReachability(bool reachable) {
+    if (!_reachabilitySeeded) {
+      _reachabilitySeeded = true;
+      _lastReachable = reachable;
+      return;
+    }
+    if (_lastReachable == reachable) return;
+    _lastReachable = reachable;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = navigatorKey.currentContext;
+      if (ctx == null || !ctx.mounted) return;
+      final loc = AppLocalizations.of(ctx);
+      if (!reachable) {
+        final title = loc?.translate('noInternetConnection') ?? 'No Internet Connection';
+        final body = loc?.translate('noInternetMessage') ??
+            'Please check your internet connection and try again.';
+        SnackbarHelper.showError(ctx, '$title. $body');
+      } else {
+        SnackbarHelper.showSuccess(
+          ctx,
+          loc?.translate('connectivityBackOnline') ?? 'Internet connection is back online.',
+        );
+      }
     });
   }
 

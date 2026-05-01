@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/api_error_helper.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../core/utils/number_formatter.dart';
 import '../../models/lead_model.dart';
@@ -221,7 +222,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                 }
               } catch (e) {
                 if (!mounted) return;
-                SnackbarHelper.showError(this.context, e.toString());
+                SnackbarHelper.showError(this.context, ApiErrorHelper.toUserMessage(this.context, e));
               }
             },
             child: Text(
@@ -249,7 +250,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
       });
     } catch (e) {
       setState(() {
-        _errorMessage = e.toString();
+        _errorMessage = ApiErrorHelper.toUserMessage(context, e);
         _isLoading = false;
       });
     }

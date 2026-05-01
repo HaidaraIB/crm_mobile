@@ -56,6 +56,31 @@ class AppLocalizations {
       "noPlansAvailable":
           "No paid plans are published yet. You can continue with the free trial.",
       "planRequired": "Please select a plan to continue",
+      "verifyPhoneWhatsApp": "Verify your phone (WhatsApp)",
+      "verifyPhoneWhatsAppHint":
+          "We sent a verification code to your WhatsApp. Enter it below.",
+      "verifyPhoneSms": "Verify your phone (SMS)",
+      "verifyPhoneSmsHint":
+          "We sent a verification code by SMS. Enter it below.",
+      "verificationCodeHintWhatsApp": "Enter the code from WhatsApp.",
+      "verificationCodeHintSms": "Enter the code from the SMS message.",
+      "phoneVerificationRequiredWhatsApp":
+          "Verify your phone via WhatsApp before completing registration.",
+      "phoneVerificationRequiredSms":
+          "Verify your phone via SMS before completing registration.",
+      "phoneVerificationRequiredGeneric":
+          "Verify your phone before completing registration.",
+      "registrationOtpDisabled":
+          "Phone verification is not enabled for registration.",
+      "phoneOtpMisconfigured":
+          "Verification is temporarily unavailable. Please try again later.",
+      "otpSendFailedGeneric": "Could not send verification code. Try again.",
+      "otpSendFailedWhatsApp":
+          "Could not send WhatsApp verification code. Try again.",
+      "otpSendFailedSms":
+          "Could not send SMS verification code. Try again.",
+      "otpRateLimitedUser": "Too many attempts. Try again later.",
+      "verificationCode": "Verification code",
       "companyName": "Company Name",
       "companyNameRequired": "Company name is required",
       "leadCompanyName": "Company name",
@@ -336,6 +361,9 @@ class AppLocalizations {
       'noInternetConnection': 'No Internet Connection',
       'noInternetMessage':
           'Please check your internet connection and try again',
+      'connectivityOfflineWarning':
+          'You are offline. Your changes may not be saved until internet is restored.',
+      'connectivityBackOnline': 'Internet connection is back online.',
       'connectionError': 'Connection Error',
       'connectionErrorMessage':
           'Unable to connect to the server. Please try again later',
@@ -1053,6 +1081,28 @@ class AppLocalizations {
       "noPlansAvailable":
           "لا توجد خطط مدفوعة منشورة بعد. يمكنك المتابعة مع الفترة التجريبية المجانية.",
       "planRequired": "يرجى اختيار خطة للمتابعة",
+      "verifyPhoneWhatsApp": "تحقق من هاتفك (واتساب)",
+      "verifyPhoneWhatsAppHint": "أرسلنا رمز التحقق إلى واتساب. أدخله أدناه.",
+      "verifyPhoneSms": "تحقق من هاتفك (رسالة نصية)",
+      "verifyPhoneSmsHint":
+          "أرسلنا رمز التحقق عبر الرسائل النصية. أدخله أدناه.",
+      "verificationCodeHintWhatsApp": "أدخل الرمز الوارد من واتساب.",
+      "verificationCodeHintSms": "أدخل الرمز الوارد في الرسالة النصية.",
+      "phoneVerificationRequiredWhatsApp":
+          "تحقق من هاتفك عبر واتساب قبل إكمال التسجيل.",
+      "phoneVerificationRequiredSms":
+          "تحقق من هاتفك عبر الرسائل النصية قبل إكمال التسجيل.",
+      "phoneVerificationRequiredGeneric":
+          "تحقق من هاتفك قبل إكمال التسجيل.",
+      "registrationOtpDisabled": "التحقق من الهاتف غير مفعّل للتسجيل.",
+      "phoneOtpMisconfigured": "التحقق غير متاح مؤقتاً. حاول لاحقاً.",
+      "otpSendFailedGeneric": "تعذر إرسال رمز التحقق. حاول مرة أخرى.",
+      "otpSendFailedWhatsApp":
+          "تعذر إرسال رمز التحقق عبر واتساب. حاول مرة أخرى.",
+      "otpSendFailedSms":
+          "تعذر إرسال رمز التحقق عبر الرسائل النصية. حاول مرة أخرى.",
+      "otpRateLimitedUser": "محاولات كثيرة. حاول لاحقاً.",
+      "verificationCode": "رمز التحقق",
       "companyName": "اسم الشركة",
       "companyNameRequired": "اسم الشركة مطلوب",
       "leadCompanyName": "اسم الشركة",
@@ -1348,6 +1398,9 @@ class AppLocalizations {
       'phoneTypeOther': 'أخرى',
       'noInternetConnection': 'لا يوجد اتصال بالإنترنت',
       'noInternetMessage': 'يرجى التحقق من اتصالك بالإنترنت والمحاولة مرة أخرى',
+      'connectivityOfflineWarning':
+          'انقطع اتصال الإنترنت. قد لا يتم حفظ التغييرات حتى يعود الاتصال.',
+      'connectivityBackOnline': 'عاد اتصال الإنترنت بنجاح.',
       'connectionError': 'خطأ في الاتصال',
       'connectionErrorMessage':
           'تعذر الاتصال بالخادم. يرجى المحاولة مرة أخرى لاحقاً',

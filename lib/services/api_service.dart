@@ -7,6 +7,7 @@ import '../core/api/api_envelope.dart';
 import '../core/constants/app_constants.dart';
 import '../core/storage/auth_token_storage.dart';
 import '../core/localization/app_localizations.dart';
+import '../core/utils/api_error_helper.dart';
 import '../core/utils/app_locales.dart';
 import '../models/lead_model.dart';
 import '../models/user_model.dart';
@@ -595,6 +596,36 @@ class ApiService {
   }
 
   // ==================== Registration APIs ====================
+
+  /// GET /api/auth/register/phone-otp-requirement/
+  Future<Map<String, dynamic>> getPhoneOtpRequirement({
+    String language = 'en',
+  }) async {
+    final cleanEndpoint = '/auth/register/phone-otp-requirement/';
+    final cleanBaseUrl = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
+    final url = Uri.parse('$cleanBaseUrl$cleanEndpoint');
+    final locale = language == 'ar' ? AppLocales.arabic : AppLocales.english;
+    try {
+      final headers = await _getHeaders(includeAuth: false);
+      headers['Accept-Language'] = language;
+      final response = await http.get(url, headers: headers);
+      if (response.statusCode == 200) {
+        return _unwrapResponseMap(response);
+      }
+      final err = _errorContextFromBody(response.body);
+      throw ApiFieldException(
+        err['detail']?.toString() ??
+            err['message']?.toString() ??
+            _translateError('registrationFailed', locale: locale),
+        err,
+      );
+    } catch (e) {
+      if (e is ApiFieldException) rethrow;
+      rethrow;
+    }
+  }
 
   /// POST /api/auth/register/phone/send-otp/
   Future<Map<String, dynamic>> registerPhoneSendOtp({
@@ -1415,7 +1446,9 @@ class ApiService {
         // Log the error
         ErrorLogger().logError(
           error:
-              customException?.toString().replaceAll('Exception: ', '') ??
+              (customException != null
+                  ? ApiErrorHelper.cleanException(customException)
+                  : null) ??
               errorMessage,
           endpoint: cleanEndpoint,
           method: 'POST',
