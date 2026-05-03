@@ -16,6 +16,8 @@ class UserModel {
   final bool? supervisorIsActive;
   /// User preferred language (ar/en), synced with API for emails and UI.
   final String? language;
+  /// 0=Mon .. 6=Sun; null = no fixed weekly day off.
+  final int? weeklyDayOff;
 
   UserModel({
     required this.id,
@@ -33,6 +35,7 @@ class UserModel {
     this.supervisorPermissions,
     this.supervisorIsActive,
     this.language,
+    this.weeklyDayOff,
   });
 
   // Check if user is admin (handles multiple role formats)
@@ -100,6 +103,7 @@ class UserModel {
           id: companyId,
           name: companyName,
           specialization: companySpecialization,
+          timezone: json['company_timezone'] as String?,
         );
       }
     }
@@ -131,6 +135,9 @@ class UserModel {
       supervisorPermissions: supervisorPermissions,
       supervisorIsActive: supervisorIsActive,
       language: (json['language'] as String?)?.isNotEmpty == true && (json['language'] == 'ar' || json['language'] == 'en') ? json['language'] as String : null,
+      weeklyDayOff: json['weekly_day_off'] == null
+          ? null
+          : (json['weekly_day_off'] as num?)?.toInt(),
     );
   }
   
@@ -150,6 +157,7 @@ class UserModel {
       'email_verified': emailVerified,
       if (supervisorPermissions != null) 'supervisor_permissions': {'is_active': supervisorIsActive, 'permissions': supervisorPermissions},
       if (language != null) 'language': language,
+      if (weeklyDayOff != null) 'weekly_day_off': weeklyDayOff,
     };
   }
 }
@@ -163,7 +171,8 @@ class CompanyModel {
   final bool? reAssignEnabled;
   final int? reAssignHours;
   final SubscriptionModel? subscription;
-  
+  final String? timezone;
+
   CompanyModel({
     required this.id,
     required this.name,
@@ -173,6 +182,7 @@ class CompanyModel {
     this.reAssignEnabled,
     this.reAssignHours,
     this.subscription,
+    this.timezone,
   });
   
   factory CompanyModel.fromJson(Map<String, dynamic> json) {
@@ -184,6 +194,7 @@ class CompanyModel {
       autoAssignEnabled: json['auto_assign_enabled'] as bool? ?? json['autoAssignEnabled'] as bool?,
       reAssignEnabled: json['re_assign_enabled'] as bool? ?? json['reAssignEnabled'] as bool?,
       reAssignHours: json['re_assign_hours'] as int? ?? json['reAssignHours'] as int?,
+      timezone: json['timezone'] as String?,
       subscription: json['subscription'] != null
           ? SubscriptionModel.fromJson(json['subscription'] as Map<String, dynamic>)
           : null,
@@ -199,6 +210,7 @@ class CompanyModel {
       'auto_assign_enabled': autoAssignEnabled,
       're_assign_enabled': reAssignEnabled,
       're_assign_hours': reAssignHours,
+      if (timezone != null) 'timezone': timezone,
       'subscription': subscription?.toJson(),
     };
   }

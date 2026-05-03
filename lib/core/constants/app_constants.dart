@@ -20,6 +20,18 @@ class AppConstants {
     return u;
   }
 
+  /// Web CRM origin derived from [baseUrl] by stripping `/api/v1` (e.g. for links from mobile).
+  static String get webAppBaseUrl {
+    var u = baseUrl.trim();
+    for (final s in ['/api/v1/', '/api/v1']) {
+      if (u.endsWith(s)) {
+        u = u.substring(0, u.length - s.length);
+        break;
+      }
+    }
+    return _trimTrailingSlash(u);
+  }
+
   /// Canonical API prefix: `/api/v1/` (see CRM-api-1 `urls.py`).
   static String get baseUrl {
     const fromDefine = String.fromEnvironment('BASE_URL');

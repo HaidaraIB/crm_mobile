@@ -13,6 +13,7 @@ import '../../core/utils/app_locales.dart';
 import '../../core/utils/api_error_helper.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../services/api_service.dart';
+import '../../widgets/login_verification_gate_card.dart';
 import '../../models/user_model.dart';
 import '../home/home_screen.dart';
 import '../two_factor_auth/two_factor_auth_screen.dart';
@@ -36,6 +37,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   String? _errorMessage;
   bool _isSubscriptionError = false;
+  LoginVerificationRequiredException? _verificationGate;
 
   @override
   void initState() {
@@ -85,6 +87,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
       _errorMessage = null;
       _isSubscriptionError = false;
+      _verificationGate = null;
     });
 
     try {
@@ -133,6 +136,16 @@ class _LoginScreenState extends State<LoginScreen> {
       ).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
     } catch (e) {
       if (!mounted) return;
+
+      if (e is LoginVerificationRequiredException) {
+        setState(() {
+          _verificationGate = e;
+          _errorMessage = null;
+          _isSubscriptionError = false;
+          _isLoading = false;
+        });
+        return;
+      }
 
       String errorMsg;
 
@@ -397,6 +410,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       }
                       return null;
                     },
+                    onChanged: (_) {
+                      setState(() {
+                        _verificationGate = null;
+                        _errorMessage = null;
+                      });
+                    },
                   ),
                   const SizedBox(height: 16),
 
@@ -436,8 +455,26 @@ class _LoginScreenState extends State<LoginScreen> {
                       }
                       return null;
                     },
+                    onChanged: (_) {
+                      setState(() {
+                        _verificationGate = null;
+                        _errorMessage = null;
+                      });
+                    },
                   ),
                   const SizedBox(height: 20),
+
+                  if (_verificationGate != null) ...[
+                    LoginVerificationGateCard(
+                      gate: _verificationGate!,
+                      onDismiss: () {
+                        setState(() => _verificationGate = null);
+                      },
+                      preloginUsername: _usernameController.text.trim(),
+                      preloginPassword: _passwordController.text,
+                    ),
+                    const SizedBox(height: 16),
+                  ],
 
                   // Error Message
                   if (_errorMessage != null)

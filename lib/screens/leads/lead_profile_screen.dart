@@ -4,7 +4,7 @@ import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/api_error_helper.dart';
 import '../../core/utils/snackbar_helper.dart';
-import '../../core/utils/number_formatter.dart';
+import '../../core/utils/budget_range_utils.dart';
 import '../../models/lead_model.dart';
 import '../../models/settings_model.dart';
 import '../../models/user_model.dart';
@@ -112,7 +112,39 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
     
     return user.displayName;
   }
-  
+
+  String _getCreatorDisplayValue(LeadModel lead, AppLocalizations? localizations) {
+    final id = lead.createdBy;
+    final apiName = lead.createdByName?.trim();
+    if (id != null && id > 0) {
+      try {
+        final user = _users.firstWhere((u) => u.id == id);
+        return user.displayName;
+      } catch (_) {
+        if (apiName != null && apiName.isNotEmpty) return apiName;
+        return localizations?.translate('unknown') ?? '—';
+      }
+    }
+    if (apiName != null && apiName.isNotEmpty) return apiName;
+    return '—';
+  }
+
+  String? _creatorHeaderText(LeadModel lead, AppLocalizations? localizations) {
+    final id = lead.createdBy;
+    final apiName = lead.createdByName?.trim();
+    if (id != null && id > 0) {
+      try {
+        final user = _users.firstWhere((u) => u.id == id);
+        return user.displayName;
+      } catch (_) {
+        if (apiName != null && apiName.isNotEmpty) return apiName;
+        return localizations?.translate('unknown') ?? '—';
+      }
+    }
+    if (apiName != null && apiName.isNotEmpty) return apiName;
+    return null;
+  }
+
   Future<void> _loadStatuses() async {
     try {
       final statuses = await _apiService.getStatuses();
@@ -638,6 +670,64 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                       ),
                     ),
                   ),
+                  if (_creatorHeaderText(_lead!, localizations) != null) ...[
+                    const SizedBox(height: 10),
+                    Center(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.86,
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surfaceContainerHighest
+                                .withValues(alpha: 0.55),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: theme.dividerColor.withValues(alpha: 0.45),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.person_pin_outlined,
+                                size: 16,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text.rich(
+                                  TextSpan(
+                                    children: [
+                                      TextSpan(
+                                        text:
+                                            '${localizations?.translate('createdBy') ?? 'Created by'}: ',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 12,
+                                          color: theme.colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                      TextSpan(
+                                        text: _creatorHeaderText(_lead!, localizations)!,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 13,
+                                          color: theme.colorScheme.onSurface,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   Wrap(
                     spacing: 8,
@@ -656,10 +746,10 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                             (localizations?.translate('noFeedback') ?? 'No Feedback'),
                         color: Colors.grey.shade700,
                       ),
-                      if (_lead!.budget > 0)
+                      if (formatLeadBudgetLine(_lead!.budget, _lead!.budgetMax).isNotEmpty)
                         _buildInfoChip(
                           icon: Icons.attach_money,
-                          label: NumberFormatter.formatCurrency(_lead!.budget),
+                          label: formatLeadBudgetLine(_lead!.budget, _lead!.budgetMax),
                           color: const Color(0xFF16A34A),
                         ),
                     ],
@@ -968,6 +1058,14 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
           ),
           const SizedBox(height: 12),
           _buildDetailCard(
+            icon: Icons.person_pin_outlined,
+            label: localizations?.translate('createdBy') ?? 'Created by',
+            value: _getCreatorDisplayValue(lead, localizations),
+            iconColor: const Color(0xFF64748B),
+            useActionStyleIcon: true,
+          ),
+          const SizedBox(height: 12),
+          _buildDetailCard(
             icon: Icons.category_outlined,
             label: localizations?.translate('type') ?? 'Type',
             value: lead.type,
@@ -977,7 +1075,10 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
           _buildDetailCard(
             icon: Icons.attach_money_outlined,
             label: localizations?.translate('budget') ?? 'Budget',
-            value: NumberFormatter.formatCurrency(lead.budget),
+            value: () {
+              final s = formatLeadBudgetLine(lead.budget, lead.budgetMax);
+              return s.isEmpty ? '—' : s;
+            }(),
             iconColor: const Color(0xFF10B981),
           ),
           const SizedBox(height: 12),
@@ -995,6 +1096,15 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                 ? lead.leadCompanyName!
                 : '—',
             iconColor: const Color(0xFF6366F1),
+          ),
+          const SizedBox(height: 12),
+          _buildDetailCard(
+            icon: Icons.badge_outlined,
+            label: localizations?.translate('profession') ?? 'Profession',
+            value: (lead.profession != null && lead.profession!.trim().isNotEmpty)
+                ? lead.profession!
+                : '—',
+            iconColor: const Color(0xFF8B5CF6),
           ),
           // Phone Numbers Section with WhatsApp and Call buttons
           const SizedBox(height: 12),

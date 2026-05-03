@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/lead_model.dart';
+import '../core/utils/budget_range_utils.dart';
 
 /// Field keys for column mapping (empty = skip).
 typedef LeadImportFieldKey = String;
@@ -30,11 +31,12 @@ class LeadsExcelService {
   static const List<String> _sourceKeys = ['source', 'مصدر', 'المصدر', 'origin'];
   static const List<String> _campaignKeys = ['campaign', 'حملة', 'الحملة'];
   static const List<String> _createdAtKeys = ['created at', 'تاريخ الإنشاء', 'creation date', 'date', 'تاريخ', 'created_at'];
+  static const List<String> _professionKeys = ['profession', 'job', 'occupation', 'career', 'المهنة', 'مهنة', 'وظيفة'];
 
   /// All mappable field keys (including empty for "skip"). Order matches display.
   static const List<LeadImportFieldKey> fieldKeys = [
     '', 'name', 'phone', 'budget', 'type', 'priority',
-    'status', 'communicationWay', 'assignedTo', 'source', 'campaign', 'createdAt',
+    'status', 'communicationWay', 'assignedTo', 'source', 'campaign', 'createdAt', 'profession',
   ];
 
   /// Build initial column mapping from headers (auto-detect where possible).
@@ -54,6 +56,7 @@ class LeadsExcelService {
     final sourceIdx = _findColumnIndex(headers, _sourceKeys);
     final campaignIdx = _findColumnIndex(headers, _campaignKeys);
     final createdAtIdx = _findColumnIndex(headers, _createdAtKeys);
+    final professionIdx = _findColumnIndex(headers, _professionKeys);
     if (nameIdx >= 0) mapping[headers[nameIdx]] = 'name';
     if (phoneIdx >= 0) mapping[headers[phoneIdx]] = 'phone';
     if (budgetIdx >= 0) mapping[headers[budgetIdx]] = 'budget';
@@ -65,6 +68,7 @@ class LeadsExcelService {
     if (sourceIdx >= 0) mapping[headers[sourceIdx]] = 'source';
     if (campaignIdx >= 0) mapping[headers[campaignIdx]] = 'campaign';
     if (createdAtIdx >= 0) mapping[headers[createdAtIdx]] = 'createdAt';
+    if (professionIdx >= 0) mapping[headers[professionIdx]] = 'profession';
     return mapping;
   }
 
@@ -164,7 +168,7 @@ class LeadsExcelService {
       if (name.isEmpty && phone.isEmpty) continue;
 
       final budgetVal = row[headerByField['budget']] ?? '';
-      final budget = budgetVal.isEmpty ? null : double.tryParse(budgetVal);
+      final parsedBudget = parseBudgetCell(budgetVal.toString());
       var type = (row[headerByField['type']] ?? '').toLowerCase();
       if (type != 'fresh' && type != 'cold') type = 'fresh';
       if (type.isEmpty) type = 'fresh';
@@ -178,6 +182,7 @@ class LeadsExcelService {
       final sourceVal = row[headerByField['source']] ?? '';
       final campaignVal = row[headerByField['campaign']] ?? '';
       final createdAtVal = row[headerByField['createdAt']] ?? '';
+      final professionVal = row[headerByField['profession']] ?? '';
 
       final statusId = statuses != null ? _resolveStatusId(statusVal, statuses) : null;
       final channelId = channels != null ? _resolveChannelId(channelVal, channels) : null;
@@ -186,7 +191,8 @@ class LeadsExcelService {
       result.add({
         'name': name,
         'phone': phone,
-        'budget': budget,
+        'budget': parsedBudget.budget,
+        'budget_max': parsedBudget.budgetMax,
         'type': type,
         'priority': priority,
         'status_id': statusId,
@@ -195,6 +201,7 @@ class LeadsExcelService {
         'source': sourceVal.trim().isEmpty ? null : sourceVal.trim(),
         'campaign': campaignVal.trim().isEmpty ? null : campaignVal.trim(),
         'created_at': createdAtVal.trim().isEmpty ? null : createdAtVal.trim(),
+        'profession': professionVal.trim().isEmpty ? null : professionVal.trim(),
       });
     }
     return result;
@@ -251,7 +258,7 @@ class LeadsExcelService {
       if (name.isEmpty && phone.isEmpty) continue;
 
       final budgetVal = budgetIdx >= 0 && budgetIdx < row.length ? _cellValue(row[budgetIdx]) : '';
-      final budget = budgetVal.isEmpty ? null : (double.tryParse(budgetVal));
+      final parsedBudget = parseBudgetCell(budgetVal);
       var type = typeIdx >= 0 && typeIdx < row.length ? _cellValue(row[typeIdx]).toLowerCase() : 'fresh';
       if (type != 'fresh' && type != 'cold') type = 'fresh';
       var priority = priorityIdx >= 0 && priorityIdx < row.length ? _cellValue(row[priorityIdx]).toLowerCase() : 'medium';
@@ -260,7 +267,8 @@ class LeadsExcelService {
       rows.add({
         'name': name,
         'phone': phone,
-        'budget': budget,
+        'budget': parsedBudget.budget,
+        'budget_max': parsedBudget.budgetMax,
         'type': type,
         'priority': priority,
       });
@@ -277,7 +285,7 @@ class LeadsExcelService {
     final excel = Excel.createExcel();
     final sheetName = excel.getDefaultSheet() ?? 'Sheet1';
     final sheet = excel[sheetName];
-    final headers = ['Name', 'Phone', 'Budget', 'Type', 'Priority', 'Status', 'Channel'];
+    final headers = ['Name', 'Phone', 'Budget', 'Type', 'Priority', 'Status', 'Channel', 'Profession'];
     for (int c = 0; c < headers.length; c++) {
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: 0)).value = TextCellValue(headers[c]);
     }
@@ -285,11 +293,13 @@ class LeadsExcelService {
       final lead = leads[r];
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: r + 1)).value = TextCellValue(lead.name);
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: r + 1)).value = TextCellValue(lead.phone);
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: r + 1)).value = DoubleCellValue(lead.budget);
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: r + 1)).value =
+          TextCellValue(formatLeadBudgetLine(lead.budget, lead.budgetMax));
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: r + 1)).value = TextCellValue(lead.type);
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: r + 1)).value = TextCellValue(lead.priority ?? '');
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: r + 1)).value = TextCellValue(lead.statusName ?? '');
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: r + 1)).value = TextCellValue(lead.communicationWay ?? '');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: r + 1)).value = TextCellValue(lead.profession ?? '');
     }
     final encoded = excel.encode();
     if (encoded == null || encoded.isEmpty) return;

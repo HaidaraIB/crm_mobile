@@ -8,6 +8,8 @@ import '../../models/user_model.dart';
 import '../../models/settings_model.dart';
 import '../../services/api_service.dart';
 import '../../services/error_logger.dart';
+import '../../core/utils/lead_assignee_users.dart';
+import '../../core/utils/budget_range_utils.dart';
 import '../../widgets/phone_input.dart';
 
 class AddLeadModal extends StatefulWidget {
@@ -24,7 +26,10 @@ class _AddLeadModalState extends State<AddLeadModal> {
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _budgetController = TextEditingController();
+  final _budgetMaxController = TextEditingController();
   final _companyNameController = TextEditingController();
+  final _professionController = TextEditingController();
+  final _notesController = TextEditingController();
   final ApiService _apiService = ApiService();
 
   String? _selectedType;
@@ -57,7 +62,10 @@ class _AddLeadModalState extends State<AddLeadModal> {
     _nameController.dispose();
     _phoneController.dispose();
     _budgetController.dispose();
+    _budgetMaxController.dispose();
     _companyNameController.dispose();
+    _professionController.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
@@ -71,7 +79,9 @@ class _AddLeadModalState extends State<AddLeadModal> {
       if (mounted) {
         setState(() {
           _currentUser = me;
-          _users = (usersData['results'] as List).cast<UserModel>();
+          _users = usersForLeadAssigneePicker(
+            (usersData['results'] as List).cast<UserModel>(),
+          );
           _channels = channels;
           _statuses = statuses;
           _isLoadingData = false;
@@ -188,19 +198,25 @@ class _AddLeadModalState extends State<AddLeadModal> {
               )['phone_number']
               as String;
 
+      final parsed = parseBudgetMinMaxFields(
+        _budgetController.text,
+        _budgetMaxController.text,
+      );
+
       final lead = await _apiService.createLead(
         name: _nameController.text.trim(),
         phone: primaryPhone,
         phoneNumbers: phoneNumbers,
-        budget: _budgetController.text.trim().isNotEmpty
-            ? double.tryParse(_budgetController.text.trim()) ?? 0
-            : null,
+        budget: parsed.budget,
+        budgetMax: parsed.budgetMax,
         assignedTo: _isDataEntry ? null : _selectedUserId,
         type: _selectedType ?? 'fresh',
         communicationWay: _selectedChannel,
         priority: _selectedPriority,
         status: _selectedStatus,
         leadCompanyName: _companyNameController.text.trim().isEmpty ? null : _companyNameController.text.trim(),
+        profession: _professionController.text.trim().isEmpty ? null : _professionController.text.trim(),
+        notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
       );
 
       if (mounted) {
@@ -348,6 +364,23 @@ class _AddLeadModalState extends State<AddLeadModal> {
                                 ),
                                 const SizedBox(height: 16),
 
+                                Text(
+                                  localizations?.translate('profession') ?? 'Profession',
+                                  style: theme.textTheme.titleMedium,
+                                ),
+                                const SizedBox(height: 8),
+                                TextFormField(
+                                  controller: _professionController,
+                                  decoration: InputDecoration(
+                                    hintText:
+                                        localizations?.translate('enterProfession') ?? 'Enter profession',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+
                                 // Phone Numbers
                                 Row(
                                   mainAxisAlignment:
@@ -485,6 +518,26 @@ class _AddLeadModalState extends State<AddLeadModal> {
 
                                 const SizedBox(height: 16),
 
+                                Text(
+                                  localizations?.translate('notes') ?? 'Notes',
+                                  style: theme.textTheme.titleMedium,
+                                ),
+                                const SizedBox(height: 8),
+                                TextFormField(
+                                  controller: _notesController,
+                                  decoration: InputDecoration(
+                                    hintText:
+                                        localizations?.translate('enterNotes') ??
+                                        'Enter notes...',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  minLines: 2,
+                                  maxLines: 5,
+                                ),
+                                const SizedBox(height: 16),
+
                                 // Budget
                                 Text(
                                   localizations?.translate('budget') ??
@@ -504,7 +557,26 @@ class _AddLeadModalState extends State<AddLeadModal> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
-                                  keyboardType: TextInputType.number,
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  localizations?.translate('budgetMaxOptional') ??
+                                      'Budget max (optional)',
+                                  style: theme.textTheme.titleSmall,
+                                ),
+                                const SizedBox(height: 8),
+                                TextFormField(
+                                  controller: _budgetMaxController,
+                                  decoration: InputDecoration(
+                                    hintText:
+                                        localizations?.translate('enterBudgetMax') ??
+                                        'Max amount (optional)',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                 ),
                                 const SizedBox(height: 16),
 

@@ -10,6 +10,7 @@ import '../../services/api_service.dart';
 import '../../widgets/inventory_card.dart';
 import '../../core/utils/specialization_helper.dart';
 import '../../core/utils/snackbar_helper.dart';
+import '../../core/utils/lead_assignee_users.dart';
 
 class DealFormScreen extends StatefulWidget {
   final DealModel? deal;
@@ -145,19 +146,21 @@ class _DealFormScreenState extends State<DealFormScreen> {
         units = await _apiService.getUnits();
       }
       
+      final pickable = usersForLeadAssigneePicker(users);
       setState(() {
         _leads = leads;
-        _users = users;
+        _users = pickable;
         _projects = projects;
         _units = units;
       });
-      
+
       // Initialize form state from deal or defaults
       if (widget.deal != null) {
         _initializeFormState();
       } else {
         _initializeDefaultFormState();
       }
+      _sanitizeDealUserDropdownFields();
     } catch (e) {
       debugPrint('Error loading data: $e');
       if (mounted) {
@@ -171,6 +174,23 @@ class _DealFormScreenState extends State<DealFormScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  /// Ensure employee / startedBy / closedBy reference users shown in the dropdowns.
+  void _sanitizeDealUserDropdownFields() {
+    if (_users.isEmpty) return;
+    setState(() {
+      void fix(String key) {
+        final id = int.tryParse(_formState[key] ?? '') ?? 0;
+        if (id <= 0 || !_users.any((u) => u.id == id)) {
+          _formState[key] = _users.first.id.toString();
+        }
+      }
+
+      fix('employee');
+      fix('startedBy');
+      fix('closedBy');
+    });
   }
 
   void _initializeDefaultFormState() {

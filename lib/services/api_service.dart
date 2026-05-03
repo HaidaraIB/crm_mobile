@@ -34,6 +34,86 @@ class SubscriptionInactiveException implements Exception {
   String toString() => message;
 }
 
+/// Owner email/phone verification required before login or 2FA (matches CRM API envelope).
+class LoginVerificationAction {
+  const LoginVerificationAction({
+    required this.id,
+    required this.label,
+    required this.href,
+    required this.description,
+  });
+
+  final String id;
+  final String label;
+  final String href;
+  final String description;
+}
+
+class LoginVerificationRequiredException implements Exception {
+  LoginVerificationRequiredException({
+    required this.message,
+    required this.businessCode,
+    this.hint,
+    this.actions = const [],
+    this.changeCredentialsNote,
+    this.verifyEmailUrl,
+    this.verifyPhoneUrl,
+  });
+
+  final String message;
+  final String businessCode;
+  final String? hint;
+  final List<LoginVerificationAction> actions;
+  final String? changeCredentialsNote;
+  final String? verifyEmailUrl;
+  final String? verifyPhoneUrl;
+
+  @override
+  String toString() => message;
+
+  static bool isBusinessCode(dynamic code) {
+    return ApiEnvelope.codeEquals(code, 'email_not_verified') ||
+        ApiEnvelope.codeEquals(code, 'phone_not_verified') ||
+        ApiEnvelope.codeEquals(code, 'email_phone_not_verified');
+  }
+
+  static List<LoginVerificationAction> _parseActions(dynamic raw) {
+    if (raw is! List) return const [];
+    final out = <LoginVerificationAction>[];
+    for (final item in raw) {
+      if (item is! Map) continue;
+      final m = Map<String, dynamic>.from(item);
+      out.add(
+        LoginVerificationAction(
+          id: m['id']?.toString() ?? '',
+          label: m['label']?.toString() ?? 'Open',
+          href: m['href']?.toString() ?? '',
+          description: m['description']?.toString() ?? '',
+        ),
+      );
+    }
+    return out;
+  }
+
+  /// Build from [ApiEnvelope.errorContextFromBody] map when login/2FA returns 403 with structured error.
+  static LoginVerificationRequiredException? tryParse(Map<String, dynamic> error) {
+    if (!isBusinessCode(error['code'])) return null;
+    final rawMsg = '${error['message'] ?? error['error'] ?? ''}'.trim();
+    final msg = rawMsg.isNotEmpty
+        ? rawMsg
+        : 'Verification required before you can sign in.';
+    return LoginVerificationRequiredException(
+      message: msg,
+      businessCode: error['code']?.toString() ?? 'email_not_verified',
+      hint: error['hint']?.toString(),
+      actions: _parseActions(error['actions']),
+      changeCredentialsNote: error['change_credentials_note']?.toString(),
+      verifyEmailUrl: error['verify_email_url']?.toString(),
+      verifyPhoneUrl: error['verify_phone_url']?.toString(),
+    );
+  }
+}
+
 /// استثناء إرسال SMS من التكامل (Twilio)؛ يحمل [errorKey] للترجمة في الواجهة
 class SmsException implements Exception {
   SmsException(this.errorKey, this.fallbackMessage);
@@ -1127,6 +1207,121 @@ class ApiService {
     }
   }
 
+  /// POST /auth/pre-login/email/resend/ — password + username, no JWT.
+  Future<Map<String, dynamic>> preLoginEmailResend({
+    required String username,
+    required String password,
+  }) async {
+    final cleanBaseUrl =
+        baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final url = Uri.parse('$cleanBaseUrl/auth/pre-login/email/resend/');
+    final response = await http.post(
+      url,
+      headers: await _getHeaders(includeAuth: false),
+      body: jsonEncode({'username': username, 'password': password}),
+    );
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return _unwrapResponseMap(response);
+    }
+    final ctx = _errorContextFromBody(response.body);
+    throw Exception(ctx['message']?.toString() ?? 'Failed to resend verification email');
+  }
+
+  /// POST /auth/pre-login/email/change/
+  Future<Map<String, dynamic>> preLoginEmailChange({
+    required String username,
+    required String password,
+    required String newEmail,
+  }) async {
+    final cleanBaseUrl =
+        baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final url = Uri.parse('$cleanBaseUrl/auth/pre-login/email/change/');
+    final response = await http.post(
+      url,
+      headers: await _getHeaders(includeAuth: false),
+      body: jsonEncode({
+        'username': username,
+        'password': password,
+        'new_email': newEmail.trim().toLowerCase(),
+      }),
+    );
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return _unwrapResponseMap(response);
+    }
+    final ctx = _errorContextFromBody(response.body);
+    throw Exception(ctx['message']?.toString() ?? 'Failed to update email');
+  }
+
+  /// POST /auth/pre-login/phone/send-otp/
+  Future<Map<String, dynamic>> preLoginPhoneSendOtp({
+    required String username,
+    required String password,
+  }) async {
+    final cleanBaseUrl =
+        baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final url = Uri.parse('$cleanBaseUrl/auth/pre-login/phone/send-otp/');
+    final response = await http.post(
+      url,
+      headers: await _getHeaders(includeAuth: false),
+      body: jsonEncode({'username': username, 'password': password}),
+    );
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return _unwrapResponseMap(response);
+    }
+    final ctx = _errorContextFromBody(response.body);
+    throw Exception(ctx['message']?.toString() ?? 'Failed to send verification code');
+  }
+
+  /// POST /auth/pre-login/phone/verify-otp/
+  Future<Map<String, dynamic>> preLoginPhoneVerifyOtp({
+    required String username,
+    required String password,
+    required String code,
+  }) async {
+    final cleanBaseUrl =
+        baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final url = Uri.parse('$cleanBaseUrl/auth/pre-login/phone/verify-otp/');
+    final response = await http.post(
+      url,
+      headers: await _getHeaders(includeAuth: false),
+      body: jsonEncode({
+        'username': username,
+        'password': password,
+        'code': code.trim(),
+      }),
+    );
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return _unwrapResponseMap(response);
+    }
+    final ctx = _errorContextFromBody(response.body);
+    throw Exception(ctx['message']?.toString() ?? 'Verification failed');
+  }
+
+  /// POST /auth/pre-login/phone/change/
+  Future<Map<String, dynamic>> preLoginPhoneChange({
+    required String username,
+    required String password,
+    required String newPhone,
+  }) async {
+    final cleanBaseUrl =
+        baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final url = Uri.parse('$cleanBaseUrl/auth/pre-login/phone/change/');
+    final response = await http.post(
+      url,
+      headers: await _getHeaders(includeAuth: false),
+      body: jsonEncode({
+        'username': username,
+        'password': password,
+        'new_phone': newPhone.trim(),
+      }),
+    );
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return _unwrapResponseMap(response);
+    }
+    final ctx = _errorContextFromBody(response.body);
+    throw Exception(ctx['message']?.toString() ?? 'Failed to update phone');
+  }
+
   /// إنشاء جلسة دفع PayTabs للاشتراك
   /// POST /api/payments/create-paytabs-session/
   /// Returns: { payment_id, redirect_url, tran_ref }
@@ -1246,6 +1441,18 @@ class ApiService {
         SubscriptionInactiveException? subscriptionInactiveException;
         try {
           final error = _errorContextFromBody(response.body);
+          final loginVerification = LoginVerificationRequiredException.tryParse(error);
+          if (loginVerification != null) {
+            ErrorLogger().logError(
+              error: loginVerification.message,
+              endpoint: '/auth/login/',
+              method: 'POST',
+              requestData: {'username': username},
+              statusCode: response.statusCode,
+              responseBody: response.body,
+            );
+            throw loginVerification;
+          }
           // Check for API key errors first
           if (error.containsKey('error') &&
               error['error'] == 'Missing API key') {
@@ -1293,6 +1500,9 @@ class ApiService {
           debugPrint('Login error: $errorMessage');
           debugPrint('Response body: ${response.body}');
         } catch (e) {
+          if (e is LoginVerificationRequiredException) {
+            rethrow;
+          }
           errorMessage =
               '${_translateError('loginFailedWithStatus', locale: locale ?? const Locale('en'))} ${response.statusCode}';
           debugPrint('Failed to parse error response: $e');
@@ -1393,8 +1603,10 @@ class ApiService {
           }
 
           // Handle special error codes FIRST - before setting generic error message
-          // IMPORTANT: Check subscription status FIRST - if inactive, prevent 2FA code from being sent
-          if (ApiEnvelope.codeEquals(error['code'], 'subscription_inactive') ||
+          final loginVerification = LoginVerificationRequiredException.tryParse(error);
+          if (loginVerification != null) {
+            customException = loginVerification;
+          } else if (ApiEnvelope.codeEquals(error['code'], 'subscription_inactive') ||
               (error['error']?.toString().toLowerCase().contains(
                     'subscription',
                   ) ??
@@ -1467,6 +1679,9 @@ class ApiService {
     } catch (e, stackTrace) {
       // Rethrow subscription inactive (has subscriptionId) and other custom errors without logging
       if (e is SubscriptionInactiveException) {
+        rethrow;
+      }
+      if (e is LoginVerificationRequiredException) {
         rethrow;
       }
       bool isCustomError = false;
@@ -1569,6 +1784,11 @@ class ApiService {
               error['message'] ??
               errorMessage;
 
+          final loginVerification = LoginVerificationRequiredException.tryParse(error);
+          if (loginVerification != null) {
+            throw loginVerification;
+          }
+
           // Handle special error codes
           if (ApiEnvelope.codeEquals(
                 error['code'],
@@ -1591,6 +1811,9 @@ class ApiService {
             throw subscriptionError;
           }
         } catch (e) {
+          if (e is LoginVerificationRequiredException) {
+            rethrow;
+          }
           // Check if this is a custom error with code property
           try {
             if (e is Exception) {
@@ -1617,6 +1840,9 @@ class ApiService {
         throw Exception(errorMessage);
       }
     } catch (e, stackTrace) {
+      if (e is LoginVerificationRequiredException) {
+        rethrow;
+      }
       // Check if this is a custom error with code property
       try {
         if (e is Exception) {
@@ -2066,6 +2292,7 @@ class ApiService {
     required String phone,
     List<Map<String, dynamic>>? phoneNumbers,
     double? budget,
+    double? budgetMax,
     int? assignedTo,
     required String type,
     String? communicationWay, // Deprecated: use communicationWayId instead
@@ -2074,6 +2301,8 @@ class ApiService {
     String? status, // Deprecated: use statusId instead
     int? statusId, // Preferred: status ID
     String? leadCompanyName,
+    String? profession,
+    String? notes,
   }) async {
     // Get current user to retrieve company ID
     final currentUser = await getCurrentUser();
@@ -2095,6 +2324,7 @@ class ApiService {
     }
 
     if (budget != null) body['budget'] = budget;
+    if (budgetMax != null) body['budget_max'] = budgetMax;
     if (assignedTo != null && assignedTo > 0) body['assigned_to'] = assignedTo;
 
     // Use ID if provided, otherwise fall back to string (for backward compatibility)
@@ -2116,6 +2346,12 @@ class ApiService {
     // Always send lead_company_name when provided (including null/empty to clear)
     if (leadCompanyName != null) {
       body['lead_company_name'] = leadCompanyName.trim().isEmpty ? null : leadCompanyName.trim();
+    }
+    if (profession != null) {
+      body['profession'] = profession.trim().isEmpty ? null : profession.trim();
+    }
+    if (notes != null) {
+      body['notes'] = notes.trim().isEmpty ? null : notes.trim();
     }
 
     final response = await _makeRequest('POST', '/clients/', body: body);
@@ -2145,6 +2381,8 @@ class ApiService {
     String? phone,
     List<Map<String, dynamic>>? phoneNumbers,
     double? budget,
+    double? budgetMax,
+    bool sendBudgetMax = false,
     int? assignedTo,
     String? type,
     String? communicationWay, // Deprecated: use communicationWayId instead
@@ -2153,6 +2391,8 @@ class ApiService {
     String? status, // Deprecated: use statusId instead
     int? statusId, // Preferred: status ID
     String? leadCompanyName,
+    String? profession,
+    String? notes,
   }) async {
     final body = <String, dynamic>{};
 
@@ -2160,6 +2400,9 @@ class ApiService {
     if (phone != null) body['phone_number'] = phone;
     if (phoneNumbers != null) body['phone_numbers'] = phoneNumbers;
     if (budget != null) body['budget'] = budget;
+    if (sendBudgetMax) {
+      body['budget_max'] = budgetMax;
+    }
     if (assignedTo != null) {
       body['assigned_to'] = assignedTo > 0 ? assignedTo : null;
     }
@@ -2184,6 +2427,12 @@ class ApiService {
     // Always send lead_company_name when provided (so API can set or clear the field)
     if (leadCompanyName != null) {
       body['lead_company_name'] = leadCompanyName.trim().isEmpty ? null : leadCompanyName.trim();
+    }
+    if (profession != null) {
+      body['profession'] = profession.trim().isEmpty ? null : profession.trim();
+    }
+    if (notes != null) {
+      body['notes'] = notes.trim().isEmpty ? null : notes.trim();
     }
 
     final response = await _makeRequest('PATCH', '/clients/$id/', body: body);

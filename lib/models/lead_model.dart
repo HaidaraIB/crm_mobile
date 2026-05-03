@@ -6,6 +6,8 @@ class LeadModel {
   final String type; // 'Fresh', 'Cold', 'My', 'Rotated', 'All'
   final int assignedTo;
   final double budget;
+  /// Upper bound when budget is a range; null means single value ([budget] only).
+  final double? budgetMax;
   final String? communicationWay;
   final String? priority; // 'High', 'Medium', 'Low'
   final DateTime createdAt;
@@ -16,6 +18,10 @@ class LeadModel {
   final String? statusName;
   final List<PhoneNumber>? phoneNumbers;
   final String? leadCompanyName;
+  final String? profession;
+  /// CRM user id who created the lead (null for integrations / legacy).
+  final int? createdBy;
+  final String? createdByName;
 
   LeadModel({
     required this.id,
@@ -25,6 +31,7 @@ class LeadModel {
     required this.type,
     required this.assignedTo,
     required this.budget,
+    this.budgetMax,
     this.communicationWay,
     this.priority,
     required this.createdAt,
@@ -35,6 +42,9 @@ class LeadModel {
     this.statusName,
     this.phoneNumbers,
     this.leadCompanyName,
+    this.profession,
+    this.createdBy,
+    this.createdByName,
   });
   
   factory LeadModel.fromJson(Map<String, dynamic> json) {
@@ -53,6 +63,13 @@ class LeadModel {
         return double.tryParse(value) ?? 0.0;
       }
       return 0.0;
+    }
+
+    double? toDoubleOrNull(dynamic value) {
+      if (value == null) return null;
+      if (value is num) return value.toDouble();
+      if (value is String) return double.tryParse(value);
+      return null;
     }
     
     // Helper function to safely convert to int
@@ -76,7 +93,22 @@ class LeadModel {
     // If it's an ID, prefer the name from communication_way_name
     String? communicationWayValue = json['communication_way_name'] as String?;
     communicationWayValue ??= toStringOrNull(json['communication_way']) ?? toStringOrNull(json['communicationWay']);
-    
+
+    int? createdById;
+    final rawCreatedBy = json['created_by'] ?? json['createdBy'];
+    if (rawCreatedBy != null) {
+      if (rawCreatedBy is int) {
+        createdById = rawCreatedBy;
+      } else if (rawCreatedBy is num) {
+        createdById = rawCreatedBy.toInt();
+      } else {
+        createdById = int.tryParse(rawCreatedBy.toString());
+      }
+      if (createdById != null && createdById <= 0) createdById = null;
+    }
+    final createdByNameValue =
+        json['created_by_name'] as String? ?? json['createdByName'] as String?;
+
     return LeadModel(
       id: json['id'] as int,
       name: json['name'] as String? ?? '',
@@ -85,6 +117,7 @@ class LeadModel {
       type: toStringOrNull(json['type']) ?? 'All',
       assignedTo: toInt(json['assigned_to'] ?? json['assignedTo'], 0),
       budget: toDouble(json['budget']),
+      budgetMax: toDoubleOrNull(json['budget_max'] ?? json['budgetMax']),
       communicationWay: communicationWayValue,
       priority: toStringOrNull(json['priority']),
       createdAt: json['created_at'] != null 
@@ -107,6 +140,9 @@ class LeadModel {
               .toList()
           : null,
       leadCompanyName: json['lead_company_name'] as String?,
+      profession: json['profession'] as String?,
+      createdBy: createdById,
+      createdByName: createdByNameValue,
     );
   }
   
@@ -119,6 +155,7 @@ class LeadModel {
       'type': type,
       'assigned_to': assignedTo,
       'budget': budget,
+      if (budgetMax != null) 'budget_max': budgetMax,
       'communication_way': communicationWay,
       'priority': priority,
       'created_at': createdAt.toIso8601String(),
@@ -129,6 +166,9 @@ class LeadModel {
       'status_name': statusName,
       'phone_numbers': phoneNumbers?.map((e) => e.toJson()).toList(),
       'lead_company_name': leadCompanyName,
+      'profession': profession,
+      if (createdBy != null) 'created_by': createdBy,
+      if (createdByName != null) 'created_by_name': createdByName,
     };
   }
 }

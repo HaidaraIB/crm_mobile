@@ -8,6 +8,8 @@ import '../../models/user_model.dart';
 import '../../models/settings_model.dart';
 import '../../services/api_service.dart';
 import '../../services/error_logger.dart';
+import '../../core/utils/lead_assignee_users.dart';
+import '../../core/utils/budget_range_utils.dart';
 import '../../widgets/phone_input.dart';
 
 class CreateLeadScreen extends StatefulWidget {
@@ -24,7 +26,10 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _budgetController = TextEditingController();
+  final _budgetMaxController = TextEditingController();
   final _companyNameController = TextEditingController();
+  final _professionController = TextEditingController();
+  final _notesController = TextEditingController();
   final ApiService _apiService = ApiService();
 
   String? _selectedType;
@@ -58,7 +63,10 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
     _nameController.dispose();
     _phoneController.dispose();
     _budgetController.dispose();
+    _budgetMaxController.dispose();
     _companyNameController.dispose();
+    _professionController.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
@@ -69,9 +77,10 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
       final channels = await _apiService.getChannels();
       final statuses = await _apiService.getStatuses();
 
+      final allUsers = (usersData['results'] as List).cast<UserModel>();
       setState(() {
         _currentUser = me;
-        _users = (usersData['results'] as List).cast<UserModel>();
+        _users = usersForLeadAssigneePicker(allUsers);
         _channels = channels;
         _statuses = statuses;
         _isLoadingData = false;
@@ -266,19 +275,25 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
         statusId = status.id;
       }
 
+      final parsed = parseBudgetMinMaxFields(
+        _budgetController.text,
+        _budgetMaxController.text,
+      );
+
       final lead = await _apiService.createLead(
         name: _nameController.text.trim(),
         phone: primaryPhone,
         phoneNumbers: phoneNumbers,
-        budget: _budgetController.text.trim().isNotEmpty
-            ? double.tryParse(_budgetController.text.trim())
-            : null,
+        budget: parsed.budget,
+        budgetMax: parsed.budgetMax,
         assignedTo: _isDataEntry ? null : _selectedUserId,
         type: _selectedType ?? 'fresh',
         communicationWayId: channelId,
         priority: _selectedPriority,
         statusId: statusId,
         leadCompanyName: _companyNameController.text.trim().isEmpty ? null : _companyNameController.text.trim(),
+        profession: _professionController.text.trim().isEmpty ? null : _professionController.text.trim(),
+        notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
       );
 
       if (mounted) {
@@ -446,6 +461,23 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
                               ),
                               const SizedBox(height: 16),
 
+                              _buildTextField(
+                                label: localizations?.translate('profession') ?? 'Profession',
+                                controller: _professionController,
+                                hint: localizations?.translate('enterProfession') ?? 'Enter profession',
+                                onChanged: () {},
+                              ),
+                              const SizedBox(height: 16),
+                              _buildTextField(
+                                label: localizations?.translate('notes') ?? 'Notes',
+                                controller: _notesController,
+                                hint: localizations?.translate('enterNotes') ?? 'Enter notes...',
+                                onChanged: () {},
+                                minLines: 2,
+                                maxLines: 5,
+                              ),
+                              const SizedBox(height: 16),
+
                               // Budget
                               _buildTextField(
                                 label:
@@ -455,9 +487,21 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
                                 hint:
                                     localizations?.translate('enterBudget') ??
                                     'Enter budget',
-                                keyboardType: TextInputType.number,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                 error: _errors['budget'],
                                 onChanged: () => _clearError('budget'),
+                              ),
+                              const SizedBox(height: 16),
+                              _buildTextField(
+                                label:
+                                    localizations?.translate('budgetMaxOptional') ??
+                                    'Budget max (optional)',
+                                controller: _budgetMaxController,
+                                hint:
+                                    localizations?.translate('enterBudgetMax') ??
+                                    'Max amount (optional)',
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                onChanged: () {},
                               ),
                               const SizedBox(height: 16),
 
@@ -672,6 +716,8 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
     TextInputType? keyboardType,
     String? error,
     VoidCallback? onChanged,
+    int? minLines,
+    int? maxLines,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -691,6 +737,8 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
                 : null,
           ),
           keyboardType: keyboardType,
+          minLines: minLines,
+          maxLines: maxLines ?? 1,
           onChanged: (_) => onChanged?.call(),
         ),
         if (error != null)

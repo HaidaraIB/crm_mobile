@@ -9,6 +9,8 @@ import '../../models/settings_model.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
 import '../../services/leads_excel_service.dart';
+import '../../core/utils/lead_assignee_users.dart';
+import '../../core/utils/budget_range_utils.dart';
 
 class ImportLeadsScreen extends StatefulWidget {
   final VoidCallback? onImportDone;
@@ -28,7 +30,10 @@ class _ImportLeadsScreenState extends State<ImportLeadsScreen> {
   List<String> _headers = [];
   List<Map<String, String>> _rawRows = [];
   Map<String, LeadImportFieldKey> _columnMapping = {};
+  /// Pickable assignees only (excludes data_entry).
   List<UserModel> _users = [];
+  /// Full company user list for resolving names in the Excel column mapping.
+  List<UserModel> _importUserLookup = [];
   List<ChannelModel> _channels = [];
   List<StatusModel> _statuses = [];
   bool _isLoading = false;
@@ -56,7 +61,13 @@ class _ImportLeadsScreenState extends State<ImportLeadsScreen> {
       final statuses = await _apiService.getStatuses();
       final currentUser = await _apiService.getCurrentUser();
       if (!mounted) return;
-      final users = (usersData['results'] as List).cast<UserModel>();
+      final allUsers = (usersData['results'] as List).cast<UserModel>();
+      final pickable = usersForLeadAssigneePicker(allUsers);
+      int? defaultAssignee = currentUser.id;
+      if (currentUser.isDataEntry ||
+          !pickable.any((u) => u.id == defaultAssignee)) {
+        defaultAssignee = pickable.isNotEmpty ? pickable.first.id : null;
+      }
       StatusModel? defaultStatus;
       if (statuses.isNotEmpty) {
         try {
@@ -74,10 +85,11 @@ class _ImportLeadsScreenState extends State<ImportLeadsScreen> {
         }
       }
       setState(() {
-        _users = users;
+        _importUserLookup = allUsers;
+        _users = pickable;
         _channels = channels;
         _statuses = statuses.where((s) => !s.isHidden).toList();
-        _defaultAssignedTo = currentUser.id;
+        _defaultAssignedTo = defaultAssignee;
         _defaultStatusId = defaultStatus?.id;
         _defaultChannelId = defaultChannel?.id;
         _isLoading = false;
@@ -133,7 +145,7 @@ class _ImportLeadsScreenState extends State<ImportLeadsScreen> {
       _columnMapping,
       statuses: _statuses,
       channels: _channels,
-      users: _users,
+      users: _importUserLookup,
       userDisplayName: (u) => (u as UserModel).displayName,
     );
     setState(() {
@@ -194,11 +206,13 @@ class _ImportLeadsScreenState extends State<ImportLeadsScreen> {
           name: name,
           phone: phone,
           budget: row['budget'] as double?,
+          budgetMax: row['budget_max'] as double?,
           type: row['type'] as String? ?? 'fresh',
           priority: row['priority'] as String? ?? 'medium',
           assignedTo: assignedTo,
           statusId: statusId,
           communicationWayId: channelId,
+          profession: row['profession'] as String?,
         );
         ok++;
       } catch (e) {
@@ -409,7 +423,11 @@ class _ImportLeadsScreenState extends State<ImportLeadsScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text('${row['name']} • ${row['phone']}', style: const TextStyle(fontWeight: FontWeight.w600)),
-                                  if (row['budget'] != null) Text('Budget: ${row['budget']}'),
+                                  if (row['budget'] != null ||
+                                      row['budget_max'] != null)
+                                    Text(
+                                      'Budget: ${formatLeadBudgetLine((row['budget'] as num?)?.toDouble() ?? 0.0, (row['budget_max'] as num?)?.toDouble())}',
+                                    ),
                                   const SizedBox(height: 8),
                                   Row(
                                     children: [

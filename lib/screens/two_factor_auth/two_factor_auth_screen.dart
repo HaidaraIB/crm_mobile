@@ -16,6 +16,7 @@ import '../../services/api_service.dart';
 import '../../services/notification_service.dart';
 import '../home/home_screen.dart';
 import '../login/login_screen.dart';
+import '../../widgets/login_verification_gate_card.dart';
 
 class TwoFactorAuthScreen extends StatefulWidget {
   final String username;
@@ -40,6 +41,7 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
   bool _isRequesting = false;
   bool _trustDevice = true;
   String? _errorMessage;
+  LoginVerificationRequiredException? _verificationGate;
   String? _successMessage;
   int _countdown = 0;
   Timer? _countdownTimer;
@@ -125,6 +127,7 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
 
     setState(() {
       _errorMessage = null;
+      _verificationGate = null;
       _successMessage = null;
       _isRequesting = true;
     });
@@ -163,7 +166,12 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
           lowerError.contains('connection reset') ||
           lowerError.contains('timed out') ||
           lowerError.contains('clientexception');
-      if (isNetworkError) {
+      if (e is LoginVerificationRequiredException) {
+        setState(() {
+          _verificationGate = e;
+          _errorMessage = null;
+        });
+      } else if (isNetworkError) {
         setState(() {
           _errorMessage = '${AppLocalizations.of(context)?.translate('noInternetConnection') ?? 'No Internet Connection'}. ${AppLocalizations.of(context)?.translate('noInternetMessage') ?? 'Please check your internet connection and try again.'}';
         });
@@ -203,6 +211,7 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _verificationGate = null;
     });
 
     try {
@@ -277,6 +286,14 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
       }
     } catch (e) {
       if (!mounted) return;
+      if (e is LoginVerificationRequiredException) {
+        setState(() {
+          _verificationGate = e;
+          _errorMessage = null;
+          _isLoading = false;
+        });
+        return;
+      }
       final errorString = e.toString();
       final lowerError = errorString.toLowerCase();
       String errorMsg;
@@ -342,6 +359,7 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
     
     setState(() {
       _errorMessage = null;
+      _verificationGate = null;
     });
   }
 
@@ -414,6 +432,18 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 32),
+
+                    if (_verificationGate != null) ...[
+                      LoginVerificationGateCard(
+                        gate: _verificationGate!,
+                        onDismiss: () {
+                          setState(() => _verificationGate = null);
+                        },
+                        preloginUsername: widget.username,
+                        preloginPassword: widget.password,
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                     
                     // Error Message
                     if (_errorMessage != null)

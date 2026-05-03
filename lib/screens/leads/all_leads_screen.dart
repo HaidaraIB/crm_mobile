@@ -5,8 +5,9 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/api_error_helper.dart';
+import '../../core/utils/lead_assignee_users.dart';
 import '../../core/utils/snackbar_helper.dart';
-import '../../core/utils/number_formatter.dart';
+import '../../core/utils/budget_range_utils.dart';
 import '../../models/lead_model.dart';
 import '../../models/settings_model.dart';
 import '../../models/user_model.dart';
@@ -181,6 +182,28 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       // Should not reach here, but fallback
       return localizations?.translate('assigned') ?? 'Assigned';
     }
+  }
+
+  /// Creator label for list cards; null when unknown (integrations / legacy).
+  String? _creatorDisplayText(LeadModel lead, AppLocalizations? localizations) {
+    final id = lead.createdBy;
+    final apiName = lead.createdByName?.trim();
+    if (id != null && id > 0) {
+      if (_userCache.containsKey(id)) {
+        return _userCache[id]!.displayName;
+      }
+      try {
+        final user = _users.firstWhere((u) => u.id == id);
+        _userCache[id] = user;
+        return user.displayName;
+      } catch (e) {
+        if (apiName != null && apiName.isNotEmpty) return apiName;
+        _fetchUserById(id);
+        return localizations?.translate('loading') ?? 'Loading...';
+      }
+    }
+    if (apiName != null && apiName.isNotEmpty) return apiName;
+    return null;
   }
 
   Future<void> _fetchUserById(int userId) async {
@@ -1051,6 +1074,19 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                                   ),
                                 ),
                               ],
+                              if (lead.profession != null &&
+                                  lead.profession!.trim().isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  lead.profession!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -1168,6 +1204,71 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                       ),
                     ),
 
+                    if (_creatorDisplayText(lead, localizations) != null) ...[
+                      const SizedBox(height: 10),
+                      Center(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: MediaQuery.of(context).size.width * 0.86,
+                          ),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surfaceContainerHighest
+                                  .withValues(alpha: 0.55),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: theme.dividerColor.withValues(alpha: 0.45),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.person_pin_outlined,
+                                  size: 16,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text.rich(
+                                    TextSpan(
+                                      children: [
+                                        TextSpan(
+                                          text:
+                                              '${localizations?.translate('createdBy') ?? 'Created by'}: ',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 12,
+                                            color: theme.colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                        TextSpan(
+                                          text: _creatorDisplayText(
+                                            lead,
+                                            localizations,
+                                          )!,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 13,
+                                            color: theme.colorScheme.onSurface,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+
                     const SizedBox(height: 16),
 
                     /// INFO CHIPS
@@ -1192,10 +1293,10 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                           color: Colors.grey.shade700,
                         ),
 
-                        if (lead.budget > 0)
+                        if (formatLeadBudgetLine(lead.budget, lead.budgetMax).isNotEmpty)
                           _buildInfoChip(
                             icon: Icons.attach_money,
-                            label: NumberFormatter.formatCurrency(lead.budget),
+                            label: formatLeadBudgetLine(lead.budget, lead.budgetMax),
                             color: const Color(0xFF16A34A),
                           ),
                       ],
@@ -1584,7 +1685,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                                     localizations?.translate('all') ?? 'All',
                                   ),
                                 ),
-                                ..._users.map((user) {
+                                ...usersForLeadAssigneePicker(_users).map((user) {
                                   return DropdownMenuItem<int?>(
                                     value: user.id,
                                     child: Text(user.displayName),

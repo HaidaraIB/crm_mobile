@@ -8,6 +8,8 @@ import '../../models/user_model.dart';
 import '../../models/settings_model.dart';
 import '../../services/api_service.dart';
 import '../../services/error_logger.dart';
+import '../../core/utils/lead_assignee_users.dart';
+import '../../core/utils/budget_range_utils.dart';
 import '../../widgets/phone_input.dart';
 
 class EditLeadScreen extends StatefulWidget {
@@ -25,7 +27,10 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _budgetController = TextEditingController();
+  final _budgetMaxController = TextEditingController();
   final _companyNameController = TextEditingController();
+  final _professionController = TextEditingController();
+  final _notesController = TextEditingController();
   final ApiService _apiService = ApiService();
 
   String? _selectedType;
@@ -56,7 +61,14 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
     _budgetController.text = widget.lead.budget > 0
         ? widget.lead.budget.toString()
         : '';
+    _budgetMaxController.text = (widget.lead.budgetMax != null &&
+            widget.lead.budgetMax! > 0 &&
+            widget.lead.budgetMax != widget.lead.budget)
+        ? widget.lead.budgetMax!.toString()
+        : '';
     _companyNameController.text = widget.lead.leadCompanyName ?? '';
+    _professionController.text = widget.lead.profession ?? '';
+    _notesController.text = widget.lead.notes ?? '';
     _selectedType = widget.lead.type.toLowerCase();
     _selectedPriority = widget.lead.priority?.toLowerCase();
     _selectedStatus = widget.lead.statusName;
@@ -94,7 +106,10 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
     _nameController.dispose();
     _phoneController.dispose();
     _budgetController.dispose();
+    _budgetMaxController.dispose();
     _companyNameController.dispose();
+    _professionController.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
@@ -104,11 +119,17 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
       final channels = await _apiService.getChannels();
       final statuses = await _apiService.getStatuses();
 
+      final raw = (usersData['results'] as List).cast<UserModel>();
+      final pickable = usersForLeadAssigneePicker(raw);
       setState(() {
-        _users = (usersData['results'] as List).cast<UserModel>();
+        _users = pickable;
         _channels = channels;
         _statuses = statuses;
         _isLoadingData = false;
+        if (_selectedUserId != null &&
+            !_users.any((u) => u.id == _selectedUserId)) {
+          _selectedUserId = null;
+        }
         // Fallback to default channel/status when lead has none
         if (_channels.isNotEmpty && (_selectedChannel == null || _selectedChannel!.isEmpty)) {
           final defaultChannel = _channels.firstWhere(
@@ -292,20 +313,27 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
         statusId = status.id;
       }
 
+      final parsed = parseBudgetMinMaxFields(
+        _budgetController.text,
+        _budgetMaxController.text,
+      );
+
       final lead = await _apiService.updateLead(
         id: widget.lead.id,
         name: _nameController.text.trim(),
         phone: primaryPhone,
         phoneNumbers: phoneNumbers,
-        budget: _budgetController.text.trim().isNotEmpty
-            ? double.tryParse(_budgetController.text.trim())
-            : null,
+        budget: parsed.budget,
+        budgetMax: parsed.budgetMax,
+        sendBudgetMax: true,
         assignedTo: _selectedUserId,
         type: _selectedType,
         communicationWayId: channelId,
         priority: _selectedPriority,
         statusId: statusId,
         leadCompanyName: _companyNameController.text.trim().isEmpty ? null : _companyNameController.text.trim(),
+        profession: _professionController.text.trim().isEmpty ? null : _professionController.text.trim(),
+        notes: _notesController.text,
       );
 
       if (mounted) {
@@ -470,6 +498,23 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
                               ),
                               const SizedBox(height: 16),
 
+                              _buildTextField(
+                                label: localizations?.translate('profession') ?? 'Profession',
+                                controller: _professionController,
+                                hint: localizations?.translate('enterProfession') ?? 'Enter profession',
+                                onChanged: () {},
+                              ),
+                              const SizedBox(height: 16),
+                              _buildTextField(
+                                label: localizations?.translate('notes') ?? 'Notes',
+                                controller: _notesController,
+                                hint: localizations?.translate('enterNotes') ?? 'Enter notes...',
+                                onChanged: () {},
+                                minLines: 2,
+                                maxLines: 5,
+                              ),
+                              const SizedBox(height: 16),
+
                               // Budget
                               _buildTextField(
                                 label:
@@ -479,9 +524,21 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
                                 hint:
                                     localizations?.translate('enterBudget') ??
                                     'Enter budget',
-                                keyboardType: TextInputType.number,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                 error: _errors['budget'],
                                 onChanged: () => _clearError('budget'),
+                              ),
+                              const SizedBox(height: 16),
+                              _buildTextField(
+                                label:
+                                    localizations?.translate('budgetMaxOptional') ??
+                                    'Budget max (optional)',
+                                controller: _budgetMaxController,
+                                hint:
+                                    localizations?.translate('enterBudgetMax') ??
+                                    'Max amount (optional)',
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                onChanged: () {},
                               ),
                               const SizedBox(height: 16),
 
@@ -694,6 +751,8 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
     TextInputType? keyboardType,
     String? error,
     VoidCallback? onChanged,
+    int? minLines,
+    int? maxLines,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -713,6 +772,8 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
                 : null,
           ),
           keyboardType: keyboardType,
+          minLines: minLines,
+          maxLines: maxLines ?? 1,
           onChanged: (_) => onChanged?.call(),
         ),
         if (error != null)

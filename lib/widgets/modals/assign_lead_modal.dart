@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/api_error_helper.dart';
+import '../../core/utils/week_off_utils.dart';
+import '../../core/utils/lead_assignee_users.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
@@ -30,6 +32,7 @@ class _AssignLeadModalState extends State<AssignLeadModal> {
   bool _isLoading = false;
   bool _isLoadingUsers = true;
   List<UserModel> _users = [];
+  String _companyTz = 'UTC';
 
   @override
   void initState() {
@@ -44,12 +47,23 @@ class _AssignLeadModalState extends State<AssignLeadModal> {
   Future<void> _loadUsers() async {
     try {
       final usersData = await _apiService.getUsers();
+      final raw = (usersData['results'] as List).cast<UserModel>();
+      final pickable = usersForLeadAssigneePicker(raw);
       setState(() {
-        _users = (usersData['results'] as List).cast<UserModel>();
+        _users = pickable;
+        if (_users.isNotEmpty) {
+          _companyTz = _users.first.company?.timezone?.trim().isNotEmpty == true
+              ? _users.first.company!.timezone!
+              : 'UTC';
+        }
         _isLoadingUsers = false;
-        // Set selected user after loading if not already set
-        if (_selectedUserId == null && widget.currentAssignedUserId != null && widget.currentAssignedUserId! > 0) {
-          _selectedUserId = widget.currentAssignedUserId;
+        final cur = widget.currentAssignedUserId;
+        if (cur != null &&
+            cur > 0 &&
+            pickable.any((u) => u.id == cur)) {
+          _selectedUserId = cur;
+        } else {
+          _selectedUserId = null;
         }
       });
     } catch (e) {
@@ -175,10 +189,21 @@ class _AssignLeadModalState extends State<AssignLeadModal> {
                   ),
                   items: _users
                       .map(
-                        (user) => DropdownMenuItem(
-                          value: user.id,
-                          child: Text(user.displayName),
-                        ),
+                        (user) {
+                          final off = isUserOnWeeklyDayOff(
+                            user.weeklyDayOff,
+                            _companyTz,
+                          );
+                          return DropdownMenuItem<int>(
+                            value: user.id,
+                            enabled: !off,
+                            child: Text(
+                              off
+                                  ? '${user.displayName} (${localizations?.translate('weeklyDayOff') ?? 'Day off'})'
+                                  : user.displayName,
+                            ),
+                          );
+                        },
                       )
                       .toList(),
                   onChanged: (value) {

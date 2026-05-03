@@ -153,14 +153,6 @@ class _AddCallModalState extends State<AddCallModal> {
       return;
     }
     
-    if (_followUpDate == null) {
-      SnackbarHelper.showError(
-        context,
-        localizations?.translate('followUpDateRequired') ?? 'Follow up date is required',
-      );
-      return;
-    }
-    
     setState(() {
       _isSaving = true;
     });
@@ -372,41 +364,47 @@ class _AddCallModalState extends State<AddCallModal> {
                     ),
                     const SizedBox(height: 24),
                     
-                    // Follow Up Date
-                    Row(
-                      children: [
-                        Text(
-                          localizations?.translate('followUpDate') ?? 'Follow Up Date',
-                          style: theme.textTheme.titleMedium,
-                        ),
-                        const SizedBox(width: 4),
-                        const Text(
-                          '*',
-                          style: TextStyle(color: Colors.red),
-                        ),
-                      ],
+                    // Follow Up Date (optional)
+                    Text(
+                      localizations?.translate('followUpDate') ?? 'Follow Up Date',
+                      style: theme.textTheme.titleMedium,
                     ),
                     const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: _selectFollowUpDate,
-                        icon: const Icon(Icons.calendar_today),
-                        label: Text(
-                          _followUpDate != null
-                              ? _followUpDate!.toString().substring(0, 16)
-                              : localizations?.translate('selectFollowUpDate') ?? 'Select Follow Up Date',
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _selectFollowUpDate,
+                            icon: const Icon(Icons.calendar_today),
+                            label: Text(
+                              _followUpDate != null
+                                  ? _followUpDate!.toString().substring(0, 16)
+                                  : localizations?.translate('selectFollowUpDate') ?? 'Select Follow Up Date',
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              alignment: Alignment.center,
+                            ),
                           ),
-                          alignment: Alignment.center,
                         ),
-                      ),
+                        if (_followUpDate != null) ...[
+                          const SizedBox(width: 8),
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                _followUpDate = null;
+                              });
+                            },
+                            child: Text(
+                              localizations?.translate('removeFollowUpDate') ?? 'Remove',
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                    // Note: Follow up date is now required, so we don't show remove button
                     const SizedBox(height: 24),
                     
                     // Save Button

@@ -7,6 +7,8 @@ import '../../models/user_model.dart';
 import '../../models/settings_model.dart';
 import '../../services/api_service.dart';
 import '../../services/error_logger.dart';
+import '../../core/utils/lead_assignee_users.dart';
+import '../../core/utils/budget_range_utils.dart';
 import '../../widgets/phone_input.dart';
 
 class EditLeadModal extends StatefulWidget {
@@ -24,7 +26,10 @@ class _EditLeadModalState extends State<EditLeadModal> {
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _budgetController = TextEditingController();
+  final _budgetMaxController = TextEditingController();
   final _companyNameController = TextEditingController();
+  final _professionController = TextEditingController();
+  final _notesController = TextEditingController();
   final ApiService _apiService = ApiService();
 
   String? _selectedType;
@@ -54,7 +59,14 @@ class _EditLeadModalState extends State<EditLeadModal> {
     _budgetController.text = widget.lead.budget > 0
         ? widget.lead.budget.toString()
         : '';
+    _budgetMaxController.text = (widget.lead.budgetMax != null &&
+            widget.lead.budgetMax! > 0 &&
+            widget.lead.budgetMax != widget.lead.budget)
+        ? widget.lead.budgetMax!.toString()
+        : '';
     _companyNameController.text = widget.lead.leadCompanyName ?? '';
+    _professionController.text = widget.lead.profession ?? '';
+    _notesController.text = widget.lead.notes ?? '';
     _selectedType = widget.lead.type.toLowerCase();
     _selectedPriority = widget.lead.priority?.toLowerCase();
     _selectedStatus = widget.lead.statusName;
@@ -92,7 +104,10 @@ class _EditLeadModalState extends State<EditLeadModal> {
     _nameController.dispose();
     _phoneController.dispose();
     _budgetController.dispose();
+    _budgetMaxController.dispose();
     _companyNameController.dispose();
+    _professionController.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
@@ -103,11 +118,17 @@ class _EditLeadModalState extends State<EditLeadModal> {
       final statuses = await _apiService.getStatuses();
 
       if (mounted) {
+        final raw = (usersData['results'] as List).cast<UserModel>();
+        final pickable = usersForLeadAssigneePicker(raw);
         setState(() {
-          _users = (usersData['results'] as List).cast<UserModel>();
+          _users = pickable;
           _channels = channels;
           _statuses = statuses;
           _isLoadingData = false;
+          if (_selectedUserId != null &&
+              !_users.any((u) => u.id == _selectedUserId)) {
+            _selectedUserId = null;
+          }
         });
       }
     } catch (e) {
@@ -215,20 +236,27 @@ class _EditLeadModalState extends State<EditLeadModal> {
         statusId = status.id;
       }
 
+      final parsed = parseBudgetMinMaxFields(
+        _budgetController.text,
+        _budgetMaxController.text,
+      );
+
       final lead = await _apiService.updateLead(
         id: widget.lead.id,
         name: _nameController.text.trim(),
         phone: primaryPhone,
         phoneNumbers: phoneNumbers,
-        budget: _budgetController.text.trim().isNotEmpty
-            ? double.tryParse(_budgetController.text.trim())
-            : null,
+        budget: parsed.budget,
+        budgetMax: parsed.budgetMax,
+        sendBudgetMax: true,
         assignedTo: _selectedUserId,
         type: _selectedType,
         communicationWayId: channelId,
         priority: _selectedPriority,
         statusId: statusId,
         leadCompanyName: _companyNameController.text.trim().isEmpty ? null : _companyNameController.text.trim(),
+        profession: _professionController.text.trim().isEmpty ? null : _professionController.text.trim(),
+        notes: _notesController.text,
       );
 
       if (mounted) {
@@ -374,6 +402,43 @@ class _EditLeadModalState extends State<EditLeadModal> {
                                 ),
                                 const SizedBox(height: 16),
 
+                                Text(
+                                  localizations?.translate('profession') ?? 'Profession',
+                                  style: theme.textTheme.titleMedium,
+                                ),
+                                const SizedBox(height: 8),
+                                TextFormField(
+                                  controller: _professionController,
+                                  decoration: InputDecoration(
+                                    hintText:
+                                        localizations?.translate('enterProfession') ?? 'Enter profession',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+
+                                Text(
+                                  localizations?.translate('notes') ?? 'Notes',
+                                  style: theme.textTheme.titleMedium,
+                                ),
+                                const SizedBox(height: 8),
+                                TextFormField(
+                                  controller: _notesController,
+                                  decoration: InputDecoration(
+                                    hintText:
+                                        localizations?.translate('enterNotes') ??
+                                        'Enter notes...',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  minLines: 2,
+                                  maxLines: 5,
+                                ),
+                                const SizedBox(height: 16),
+
                                 // Phone Numbers
                                 Row(
                                   mainAxisAlignment:
@@ -510,7 +575,26 @@ class _EditLeadModalState extends State<EditLeadModal> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
-                                  keyboardType: TextInputType.number,
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  localizations?.translate('budgetMaxOptional') ??
+                                      'Budget max (optional)',
+                                  style: theme.textTheme.titleSmall,
+                                ),
+                                const SizedBox(height: 8),
+                                TextFormField(
+                                  controller: _budgetMaxController,
+                                  decoration: InputDecoration(
+                                    hintText:
+                                        localizations?.translate('enterBudgetMax') ??
+                                        'Max amount (optional)',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                 ),
                                 const SizedBox(height: 16),
 
