@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../../../core/utils/api_error_helper.dart';
 import '../../../core/theme/app_theme.dart';
@@ -25,6 +26,7 @@ class _AddStatusModalState extends State<AddStatusModal> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _autoDeleteHoursController = TextEditingController();
   final ApiService _apiService = ApiService();
 
   String _selectedColor = '#808080';
@@ -40,6 +42,7 @@ class _AddStatusModalState extends State<AddStatusModal> {
   void dispose() {
     _nameController.dispose();
     _descriptionController.dispose();
+    _autoDeleteHoursController.dispose();
     super.dispose();
   }
 
@@ -92,6 +95,10 @@ class _AddStatusModalState extends State<AddStatusModal> {
     });
 
     try {
+      final rawHours = _autoDeleteHoursController.text.trim();
+      final autoDeleteHours =
+          rawHours.isEmpty ? null : int.parse(rawHours);
+
       await _apiService.createStatus(
         name: _nameController.text.trim(),
         description: _descriptionController.text.trim().isEmpty 
@@ -101,6 +108,7 @@ class _AddStatusModalState extends State<AddStatusModal> {
         color: _selectedColor,
         isDefault: _isDefault,
         isHidden: _isHidden,
+        autoDeleteAfterHours: autoDeleteHours,
       );
 
       if (mounted) {
@@ -233,6 +241,36 @@ class _AddStatusModalState extends State<AddStatusModal> {
                             ),
                           ),
                           maxLines: 3,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          localizations?.translate('autoDeleteLeadStatusBody') ?? '',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _autoDeleteHoursController,
+                          decoration: InputDecoration(
+                            labelText: localizations?.translate('hoursInStatusLabel') ??
+                                'Hours in status before delete (optional)',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          validator: (value) {
+                            final t = value?.trim() ?? '';
+                            if (t.isEmpty) return null;
+                            final n = int.tryParse(t);
+                            if (n == null || n < 1) {
+                              return localizations?.translate('autoDeleteHoursValidation') ??
+                                  'Enter a whole number of at least 1, or leave empty to disable auto-delete.';
+                            }
+                            return null;
+                          },
                         ),
                         const SizedBox(height: 16),
                         // Category

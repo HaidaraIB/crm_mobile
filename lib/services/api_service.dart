@@ -3048,6 +3048,7 @@ class ApiService {
     required String color,
     required bool isDefault,
     required bool isHidden,
+    int? autoDeleteAfterHours,
   }) async {
     // Get current user to retrieve company ID
     final currentUser = await getCurrentUser();
@@ -3063,18 +3064,23 @@ class ApiService {
       normalizedCategory = 'follow_up';
     }
 
+    final body = <String, dynamic>{
+      'name': name,
+      'description': description,
+      'category': normalizedCategory,
+      'color': color,
+      'is_default': isDefault,
+      'is_hidden': isHidden,
+      'company': currentUser.company!.id,
+    };
+    if (autoDeleteAfterHours != null) {
+      body['auto_delete_after_hours'] = autoDeleteAfterHours;
+    }
+
     final response = await _makeRequest(
       'POST',
       '/settings/statuses/',
-      body: {
-        'name': name,
-        'description': description,
-        'category': normalizedCategory, // Use normalized lowercase category
-        'color': color,
-        'is_default': isDefault,
-        'is_hidden': isHidden,
-        'company': currentUser.company!.id, // Include company ID
-      },
+      body: body,
     );
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -3115,6 +3121,8 @@ class ApiService {
     required String color,
     required bool isDefault,
     required bool isHidden,
+    bool includeAutoDeleteAfterHours = false,
+    int? autoDeleteAfterHours,
   }) async {
     // Get current user to retrieve company ID
     final currentUser = await getCurrentUser();
@@ -3130,18 +3138,23 @@ class ApiService {
       normalizedCategory = 'follow_up';
     }
 
+    final body = <String, dynamic>{
+      'name': name,
+      'description': description,
+      'category': normalizedCategory,
+      'color': color,
+      'is_default': isDefault,
+      'is_hidden': isHidden,
+      'company': currentUser.company!.id,
+    };
+    if (includeAutoDeleteAfterHours) {
+      body['auto_delete_after_hours'] = autoDeleteAfterHours;
+    }
+
     final response = await _makeRequest(
       'PATCH',
       '/settings/statuses/$statusId/',
-      body: {
-        'name': name,
-        'description': description,
-        'category': normalizedCategory, // Use normalized lowercase category
-        'color': color,
-        'is_default': isDefault,
-        'is_hidden': isHidden,
-        'company': currentUser.company!.id, // Include company ID
-      },
+      body: body,
     );
 
     if (response.statusCode >= 200 && response.statusCode < 300) {

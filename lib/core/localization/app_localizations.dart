@@ -478,6 +478,12 @@ class AppLocalizations {
       'statusCreatedSuccessfully': 'Status created successfully',
       'statusUpdatedSuccessfully': 'Status updated successfully',
       'statusDeletedSuccessfully': 'Status deleted successfully',
+      'autoDeleteLeadStatusBody':
+          'Leads that stay in this status longer than the hours you set are permanently deleted (runs hourly). Leave empty to disable.',
+      'hoursInStatusLabel': 'Hours in status before delete (optional)',
+      'autoDeleteHoursValidation':
+          'Enter a whole number of at least 1, or leave empty to disable auto-delete.',
+      'autoDeleteSlidable': 'Auto-delete',
       'noChannelsAvailable': 'No channels available',
       'noStagesFound': 'No stages found',
       'noStatusesFound': 'No statuses found',
@@ -1539,6 +1545,12 @@ class AppLocalizations {
       'statusCreatedSuccessfully': 'تم إنشاء الحالة بنجاح',
       'statusUpdatedSuccessfully': 'تم تحديث الحالة بنجاح',
       'statusDeletedSuccessfully': 'تم حذف الحالة بنجاح',
+      'autoDeleteLeadStatusBody':
+          'يُحذف العملاء الذين يبقون في هذه الحالة أطول من الساعات التي تحددها نهائياً (كل ساعة). اتركه فارغاً للتعطيل.',
+      'hoursInStatusLabel': 'ساعات في الحالة قبل الحذف (اختياري)',
+      'autoDeleteHoursValidation':
+          'أدخل عدداً صحيحاً 1 فأكثر، أو اتركه فارغاً لتعطيل الحذف التلقائي.',
+      'autoDeleteSlidable': 'حذف تلقائي',
       'noChannelsAvailable': 'لا توجد قنوات متاحة',
       'noStagesFound': 'لم يتم العثور على مراحل',
       'noStatusesFound': 'لم يتم العثور على حالات',

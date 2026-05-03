@@ -126,7 +126,8 @@ class StatusModel {
   final String color; // Hex color code
   final bool isDefault;
   final bool isHidden;
-  
+  final int? autoDeleteAfterHours;
+
   StatusModel({
     required this.id,
     required this.name,
@@ -135,9 +136,17 @@ class StatusModel {
     required this.color,
     required this.isDefault,
     required this.isHidden,
+    this.autoDeleteAfterHours,
   });
-  
+
   factory StatusModel.fromJson(Map<String, dynamic> json) {
+    final rawHours = json['auto_delete_after_hours'] ?? json['autoDeleteAfterHours'];
+    int? hours;
+    if (rawHours is int) {
+      hours = rawHours;
+    } else if (rawHours is num) {
+      hours = rawHours.toInt();
+    }
     return StatusModel(
       id: json['id'] as int,
       name: json['name'] as String,
@@ -146,9 +155,10 @@ class StatusModel {
       color: json['color'] as String? ?? '#808080',
       isDefault: json['is_default'] as bool? ?? json['isDefault'] as bool? ?? false,
       isHidden: json['is_hidden'] as bool? ?? json['isHidden'] as bool? ?? false,
+      autoDeleteAfterHours: hours,
     );
   }
-  
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -158,9 +168,10 @@ class StatusModel {
       'color': color,
       'is_default': isDefault,
       'is_hidden': isHidden,
+      if (autoDeleteAfterHours != null) 'auto_delete_after_hours': autoDeleteAfterHours,
     };
   }
-  
+
   Map<String, dynamic> toCreateJson() {
     return {
       'name': name,
@@ -171,7 +182,7 @@ class StatusModel {
       'is_hidden': isHidden,
     };
   }
-  
+
   Map<String, dynamic> toUpdateJson() {
     return {
       'name': name,
@@ -180,6 +191,7 @@ class StatusModel {
       'color': color,
       'is_default': isDefault,
       'is_hidden': isHidden,
+      if (autoDeleteAfterHours != null) 'auto_delete_after_hours': autoDeleteAfterHours,
     };
   }
 }

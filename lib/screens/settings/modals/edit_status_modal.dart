@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../../../core/utils/api_error_helper.dart';
 import '../../../core/theme/app_theme.dart';
@@ -25,6 +26,7 @@ class _EditStatusModalState extends State<EditStatusModal> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   late TextEditingController _descriptionController;
+  late TextEditingController _autoDeleteHoursController;
   final ApiService _apiService = ApiService();
 
   late String _selectedColor;
@@ -41,6 +43,9 @@ class _EditStatusModalState extends State<EditStatusModal> {
     super.initState();
     _nameController = TextEditingController(text: widget.status.name);
     _descriptionController = TextEditingController(text: widget.status.description ?? '');
+    _autoDeleteHoursController = TextEditingController(
+      text: widget.status.autoDeleteAfterHours?.toString() ?? '',
+    );
     _selectedColor = widget.status.color;
     // Normalize category from backend (lowercase/follow_up) to dropdown format (capitalized)
     final categoryLower = widget.status.category.toLowerCase();
@@ -63,6 +68,7 @@ class _EditStatusModalState extends State<EditStatusModal> {
   void dispose() {
     _nameController.dispose();
     _descriptionController.dispose();
+    _autoDeleteHoursController.dispose();
     super.dispose();
   }
 
@@ -111,6 +117,10 @@ class _EditStatusModalState extends State<EditStatusModal> {
     });
 
     try {
+      final rawHours = _autoDeleteHoursController.text.trim();
+      final autoDeleteHours =
+          rawHours.isEmpty ? null : int.parse(rawHours);
+
       await _apiService.updateStatus(
         statusId: widget.status.id,
         name: _nameController.text.trim(),
@@ -121,6 +131,8 @@ class _EditStatusModalState extends State<EditStatusModal> {
         color: _selectedColor,
         isDefault: _isDefault,
         isHidden: _isHidden,
+        includeAutoDeleteAfterHours: true,
+        autoDeleteAfterHours: autoDeleteHours,
       );
 
       if (mounted) {
@@ -253,6 +265,36 @@ class _EditStatusModalState extends State<EditStatusModal> {
                             ),
                           ),
                           maxLines: 3,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          localizations?.translate('autoDeleteLeadStatusBody') ?? '',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _autoDeleteHoursController,
+                          decoration: InputDecoration(
+                            labelText: localizations?.translate('hoursInStatusLabel') ??
+                                'Hours in status before delete (optional)',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          validator: (value) {
+                            final t = value?.trim() ?? '';
+                            if (t.isEmpty) return null;
+                            final n = int.tryParse(t);
+                            if (n == null || n < 1) {
+                              return localizations?.translate('autoDeleteHoursValidation') ??
+                                  'Enter a whole number of at least 1, or leave empty to disable auto-delete.';
+                            }
+                            return null;
+                          },
                         ),
                         const SizedBox(height: 16),
                         // Category

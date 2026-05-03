@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/api_error_helper.dart';
@@ -68,6 +69,8 @@ class _StatusesSettingsScreenState extends State<StatusesSettingsScreen> {
         color: status.color,
         isDefault: true,
         isHidden: status.isHidden,
+        includeAutoDeleteAfterHours: true,
+        autoDeleteAfterHours: status.autoDeleteAfterHours,
       );
       if (!mounted) return;
       _loadStatuses();
@@ -321,6 +324,17 @@ class _StatusesSettingsScreenState extends State<StatusesSettingsScreen> {
                                       label: _getCategoryLabel(status.category, localizations),
                                       color: _getCategoryColor(status.category),
                                     ),
+                                    if (status.autoDeleteAfterHours != null &&
+                                        status.autoDeleteAfterHours! >= 1) ...[
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        '${localizations?.translate('autoDeleteSlidable') ?? 'Auto-delete'}: ${status.autoDeleteAfterHours}h',
+                                        style: theme.textTheme.labelSmall?.copyWith(
+                                          color: theme.colorScheme.error,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
                                     if (!status.isDefault) ...[
                                       const SizedBox(height: 6),
                                       Text(
