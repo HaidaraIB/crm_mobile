@@ -20,6 +20,8 @@ import '../models/inventory_model.dart';
 import '../models/deal_model.dart';
 import '../models/support_ticket_model.dart';
 import '../models/mobile_app_version_policy.dart';
+import 'device_fcm_token.dart'
+    show clearLocalPushRegistrationAfterLogout, resolveDeviceFcmTokenForUnregister;
 import 'error_logger.dart';
 
 /// طبقة HTTP موحّدة للتطبيق: [AuthTokenStorage] للرموز، [ApiEnvelope] لفك المظروف،
@@ -137,6 +139,8 @@ class ApiService {
   factory ApiService() => _instance;
   ApiService._internal();
   static const Duration _defaultCacheTtl = Duration(seconds: 60);
+  /// Matches CRM web full-sync default; capped by API [DRF_MAX_PAGE_SIZE].
+  static const int _defaultFullFetchPageSize = 100;
   final Map<String, _CacheEntry<dynamic>> _memoryCache = {};
 
   String get baseUrl => AppConstants.baseUrl;
@@ -353,6 +357,15 @@ class ApiService {
         (data.containsKey('count'));
   }
 
+  String _withDefaultListPageSizeIfNeeded(String cleanEndpoint) {
+    if (cleanEndpoint.contains('page=')) return cleanEndpoint;
+    if (cleanEndpoint.contains(RegExp(r'[&?]page_size='))) {
+      return cleanEndpoint;
+    }
+    final joiner = cleanEndpoint.contains('?') ? '&' : '?';
+    return '$cleanEndpoint${joiner}page_size=$_defaultFullFetchPageSize';
+  }
+
   Uri? _resolveNextPageUri(String nextUrl, String cleanBaseUrl) {
     if (nextUrl.isEmpty) return null;
     if (nextUrl.startsWith('http://') || nextUrl.startsWith('https://')) {
@@ -373,10 +386,14 @@ class ApiService {
     bool includeAuth = true,
   }) async {
     // Ensure endpoint starts with / and baseUrl doesn't end with /
-    final cleanEndpoint = endpoint.startsWith('/') ? endpoint : '/$endpoint';
+    var cleanEndpoint = endpoint.startsWith('/') ? endpoint : '/$endpoint';
     final cleanBaseUrl = baseUrl.endsWith('/')
         ? baseUrl.substring(0, baseUrl.length - 1)
         : baseUrl;
+    if (method.toUpperCase() == 'GET' &&
+        !cleanEndpoint.contains(RegExp(r'[&?]page='))) {
+      cleanEndpoint = _withDefaultListPageSizeIfNeeded(cleanEndpoint);
+    }
     final url = Uri.parse('$cleanBaseUrl$cleanEndpoint');
     final headers = await _getHeaders(includeAuth: includeAuth);
 
@@ -519,7 +536,7 @@ class ApiService {
     }
 
     if (method.toUpperCase() == 'GET' &&
-        !cleanEndpoint.contains('page=') &&
+        !cleanEndpoint.contains(RegExp(r'[&?]page=')) &&
         response.statusCode >= 200 &&
         response.statusCode < 300) {
       try {
@@ -667,6 +684,9 @@ class ApiService {
     await AuthTokenStorage.instance.clearSessionDataKeepTrustedDevice();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(AppConstants.isLoggedInKey);
+    // Drop FCM registration locally after session flags cleared so pushes stop
+    // for this install (handlers also ignore payloads when logged out).
+    await clearLocalPushRegistrationAfterLogout();
   }
 
   /// مسح الجلسة (رموز + تفضيلات تسجيل الدخول) — للاستخدام من واجهة تسجيل الخروج.
@@ -4487,32 +4507,50 @@ class ApiService {
     }
   }
 
-  /// إزالة FCM token الحالي من الخادم عند تسجيل الخروج (best effort).
-  Future<void> removeFCMTokenFromServer(String fcmToken) async {
+  /// Unregister this install's FCM token on the server (no JWT; uses ``X-API-Key``).
+  ///
+  /// Required when clearing the session because the access token may be missing
+  /// or expired, so [/users/remove-fcm-token/] would return 401.
+  Future<void> removeFCMTokenFromServerViaApiKey(String fcmToken) async {
     if (fcmToken.trim().isEmpty) return;
     try {
-      await _makeRequest(
-        'POST',
-        '/users/remove-fcm-token/',
-        body: {'fcm_token': fcmToken.trim()},
-        retryOn401: false,
-        timeout: const Duration(seconds: 4),
-      );
+      final cleanBaseUrl = baseUrl.endsWith('/')
+          ? baseUrl.substring(0, baseUrl.length - 1)
+          : baseUrl;
+      final url = Uri.parse('$cleanBaseUrl/users/remove-fcm-token-device/');
+      final headers = <String, String>{
+        'Content-Type': 'application/json',
+        'X-Client-Platform': 'mobile',
+      };
+      final apiKey = AppConstants.apiKey;
+      if (apiKey.isNotEmpty) {
+        headers['X-API-Key'] = apiKey;
+      }
+      await http
+          .post(
+            url,
+            headers: headers,
+            body: jsonEncode({'fcm_token': fcmToken.trim()}),
+          )
+          .timeout(const Duration(seconds: 8));
     } catch (_) {
-      // Intentional best-effort flow during logout.
+      // Best-effort (logout / session expiry).
     }
+  }
+
+  /// إزالة FCM token من الخادم (نفس الطريقة الموحّدة، تعمل بدون جلسة صالحة).
+  Future<void> removeFCMTokenFromServer(String fcmToken) async {
+    await removeFCMTokenFromServerViaApiKey(fcmToken);
   }
 
   Future<void> _removeCurrentDeviceFcmTokenBeforeLogout() async {
     try {
-      final accessToken = await AuthTokenStorage.instance.readAccessToken();
-      if (accessToken == null || accessToken.isEmpty) return;
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('fcm_token')?.trim() ?? '';
+      final raw = await resolveDeviceFcmTokenForUnregister();
+      final token = raw?.trim() ?? '';
       if (token.isEmpty) return;
-      await removeFCMTokenFromServer(token);
+      await removeFCMTokenFromServerViaApiKey(token);
     } catch (_) {
-      // Intentional best-effort flow during logout.
+      // Best-effort (logout / session expiry).
     }
   }
 

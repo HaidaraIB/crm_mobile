@@ -58,6 +58,8 @@ class AppTheme {
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
+        iconTheme: IconThemeData(color: Colors.white),
+        actionsIconTheme: IconThemeData(color: Colors.white),
       ),
       textTheme: textTheme,
       snackBarTheme: SnackBarThemeData(
@@ -103,7 +105,8 @@ class AppTheme {
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
-        iconTheme: IconThemeData(color: Color(0xFFD1D5DB)), // gray-300
+        iconTheme: IconThemeData(color: Colors.white),
+        actionsIconTheme: IconThemeData(color: Colors.white),
       ),
       iconTheme: const IconThemeData(
         color: Color(0xFFD1D5DB), // gray-300

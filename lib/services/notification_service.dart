@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -10,21 +11,44 @@ import '../models/notification_model.dart';
 import '../models/notification_settings_model.dart' as app_settings;
 import '../core/constants/app_constants.dart';
 import 'api_service.dart';
+import 'device_fcm_token.dart';
 
 /// معالج الإشعارات في الخلفية (يجب أن يكون top-level function)
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp();
+    }
+  } catch (e) {
+    debugPrint('FCM background: Firebase.initializeApp failed: $e');
+  }
+
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    if (!(prefs.getBool(AppConstants.isLoggedInKey) ?? false)) {
+      debugPrint(
+        '[FCM] Background remote message discarded — user not logged in',
+      );
+      return;
+    }
+  } catch (e) {
+    debugPrint('FCM background: login check failed — discarding ($e)');
+    return;
+  }
+
   debugPrint('Handling background message: ${message.messageId}');
-  debugPrint('Notification title: ${message.notification?.title}');
-  debugPrint('Notification body: ${message.notification?.body}');
-  debugPrint('Message data: ${message.data}');
-  // يمكن إضافة معالجة إضافية هنا
 }
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
+
+  static void _forgetCachedDeviceTokenAfterLogout() {
+    _instance._fcmToken = null;
+  }
 
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
@@ -61,6 +85,7 @@ class NotificationService {
 
   /// تهيئة خدمة الإشعارات
   Future<void> initialize() async {
+    onLocalFcmRegistrationCleared = _forgetCachedDeviceTokenAfterLogout;
     if (_initialized) return;
 
     try {
@@ -254,7 +279,11 @@ class NotificationService {
       // التحقق من وجود إشعار عند فتح التطبيق
       final initialMessage = await messaging.getInitialMessage();
       if (initialMessage != null) {
-        _handleNotificationOpened(initialMessage);
+        final prefs = await SharedPreferences.getInstance();
+        final loggedIn = prefs.getBool(AppConstants.isLoggedInKey) ?? false;
+        if (loggedIn) {
+          _handleNotificationOpened(initialMessage);
+        }
       }
         } catch (e) {
       debugPrint('⚠ Error initializing Firebase Messaging: $e');
@@ -264,6 +293,14 @@ class NotificationService {
 
   /// معالج الإشعارات في الواجهة الأمامية
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!(prefs.getBool(AppConstants.isLoggedInKey) ?? false)) {
+      debugPrint(
+        '[FCM] Foreground push ignored — user not logged in',
+      );
+      return;
+    }
+
     debugPrint('Received foreground message: ${message.messageId}');
     debugPrint('Notification title: ${message.notification?.title}');
     debugPrint('Notification body: ${message.notification?.body}');
@@ -286,16 +323,21 @@ class NotificationService {
 
   /// معالج فتح الإشعار
   void _handleNotificationOpened(RemoteMessage message) {
-    debugPrint('Notification opened: ${message.messageId}');
-    debugPrint('Notification title: ${message.notification?.title}');
-    debugPrint('Notification body: ${message.notification?.body}');
-    debugPrint('Message data: ${message.data}');
+    SharedPreferences.getInstance().then((prefs) {
+      if (!(prefs.getBool(AppConstants.isLoggedInKey) ?? false)) {
+        debugPrint(
+          '[FCM] NotificationOpened ignored — user not logged in',
+        );
+        return;
+      }
+      debugPrint('Notification opened: ${message.messageId}');
+      debugPrint('Notification title: ${message.notification?.title}');
+      debugPrint('Notification body: ${message.notification?.body}');
+      debugPrint('Message data: ${message.data}');
 
-    // استخدام RemoteMessage مباشرة (سيتم استخراج notification و data تلقائياً)
-    final payload = NotificationPayload.fromRemoteMessage(message);
-
-    // إرسال الإشعار إلى Stream للتنقل
-    _notificationStreamController?.add(payload);
+      final payload = NotificationPayload.fromRemoteMessage(message);
+      _notificationStreamController?.add(payload);
+    });
   }
 
   /// معالج النقر على الإشعار المحلي
@@ -373,7 +415,7 @@ class NotificationService {
       // حفظ Token في SharedPreferences
       if (_fcmToken != null) {
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('fcm_token', _fcmToken!);
+        await prefs.setString(kSharedPrefsFcmTokenKey, _fcmToken!);
         // إرسال التوكن فور الحصول عليه إذا كان المستخدم مسجل دخول (مهم خاصة على iOS حيث قد يتأخر التوكن)
         _sendTokenToServer(_fcmToken);
       }
@@ -397,7 +439,7 @@ class NotificationService {
   /// حفظ FCM Token محلياً
   Future<void> _saveFCMToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('fcm_token', token);
+    await prefs.setString(kSharedPrefsFcmTokenKey, token);
   }
 
   /// إرسال FCM Token إلى الخادم
@@ -541,7 +583,7 @@ class NotificationService {
               : 'User not logged in');
     }
 
-    final storedToken = prefs.getString('fcm_token');
+    final storedToken = prefs.getString(kSharedPrefsFcmTokenKey);
     final hasStored = storedToken != null && storedToken.isNotEmpty;
     addStep('9_token_in_prefs', 'Token in SharedPreferences', hasStored,
         hasStored ? 'Stored (length=${storedToken.length})' : 'Not stored or empty',

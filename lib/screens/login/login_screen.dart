@@ -327,7 +327,6 @@ class _LoginScreenState extends State<LoginScreen> {
               currentLocale.languageCode == 'ar'
                   ? Icons.translate
                   : Icons.language,
-              color: Theme.of(context).iconTheme.color,
             ),
             tooltip: currentLocale.languageCode == 'ar'
                 ? (localizations?.translate('switchToEnglish') ??
@@ -346,7 +345,6 @@ class _LoginScreenState extends State<LoginScreen> {
               currentTheme == ThemeMode.dark
                   ? Icons.light_mode
                   : Icons.dark_mode,
-              color: Theme.of(context).iconTheme.color,
             ),
             tooltip: currentTheme == ThemeMode.dark
                 ? (localizations?.translate('switchToLightMode') ??
