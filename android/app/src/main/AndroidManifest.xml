@@ -12,11 +12,9 @@
     <uses-permission android:name="android.permission.CALL_PHONE"/>
     <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
     
-    <!-- Image Picker Permissions -->
+    <!-- Gallery: use Android Photo Picker on API 33+ (no READ_MEDIA_* — Play policy). -->
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
     
     <!-- Optional features -->
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
