@@ -667,6 +667,10 @@ class ApiService {
 
         if (newAccessToken != null) {
           await AuthTokenStorage.instance.writeAccessToken(newAccessToken);
+          final newRefresh = data['refresh'] as String?;
+          if (newRefresh != null && newRefresh.isNotEmpty) {
+            await AuthTokenStorage.instance.writeRefreshToken(newRefresh);
+          }
           return true;
         }
       }
