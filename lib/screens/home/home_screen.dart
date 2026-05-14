@@ -5,11 +5,14 @@ import '../../core/utils/app_locales.dart';
 import '../../models/user_model.dart';
 import '../../services/notification_service.dart';
 import '../../services/api_service.dart';
+import '../../services/team_chat_away_service.dart';
+import '../../services/team_chat_unread_holder.dart';
 import '../../widgets/navigation_drawer.dart';
 import '../../widgets/bottom_navigation.dart';
 import '../calendar/calendar_screen.dart';
 import '../leads/all_leads_screen.dart';
 import '../notifications/notifications_screen.dart';
+import '../team_chat/team_chat_screen.dart';
 import 'dashboard_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -83,6 +86,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _currentIndex = 1;
         }
       });
+      TeamChatAwayService.instance.start();
     } catch (e) {
       debugPrint('Failed to load session user: $e');
     }
@@ -114,6 +118,56 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (e) {
       debugPrint('Warning: Failed to load unread notifications count: $e');
     }
+  }
+
+  /// Team chat entry in the app bar (replaces drawer shortcut). Unread badge matches [TeamChatUnreadHolder].
+  Widget _teamChatAppBarAction(AppLocalizations? localizations) {
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.chat_bubble_outline),
+          tooltip: localizations?.translate('teamChat') ?? 'Team Chat',
+          onPressed: () async {
+            await Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(
+                settings: const RouteSettings(name: 'TeamChatScreen'),
+                builder: (_) => const TeamChatScreen(),
+              ),
+            );
+          },
+        ),
+        ValueListenableBuilder<int>(
+          valueListenable: TeamChatUnreadHolder.totalUnread,
+          builder: (context, count, _) {
+            if (count <= 0) return const SizedBox.shrink();
+            return Positioned(
+              right: 8,
+              top: 8,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                ),
+                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                child: Text(
+                  count > 99 ? '99+' : '$count',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
   }
 
   /// إرسال FCM token إذا كان المستخدم مسجل دخول
@@ -204,6 +258,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     (_calendarKey.currentState as dynamic)?.refreshEvents();
                   },
                 ),
+                _teamChatAppBarAction(localizations),
               ],
             )
           : AppBar(
@@ -264,8 +319,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     },
                   ),
+                  _teamChatAppBarAction(localizations),
                 ],
-                if (_currentIndex == 0)
+                if (_currentIndex == 0) ...[
+                  _teamChatAppBarAction(localizations),
                   Stack(
                     children: [
                       IconButton(
@@ -312,6 +369,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                     ],
                   ),
+                ],
               ],
             ),
       drawer: NavigationDrawer(

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -12,6 +13,237 @@ import '../models/notification_settings_model.dart' as app_settings;
 import '../core/constants/app_constants.dart';
 import 'api_service.dart';
 import 'device_fcm_token.dart';
+import 'team_chat_away_service.dart';
+
+const int _kTenantChatMergedNotifIdBase = 1900000000;
+const int _kTenantChatMergeMaxLines = 5;
+const String _kTenantChatMergePrefsPrefix = 'tenant_chat_push_merge_v1_';
+
+const String _kAndroidChannelSoundMigrationPrefsKey =
+    'android_notif_channel_sound_v1_done';
+
+const List<String> _kAllAndroidNotificationChannelIds = <String>[
+  'general',
+  'leads',
+  'deals',
+  'tasks',
+  'reminders',
+  'whatsapp',
+  'campaigns',
+  'reports',
+  'system',
+  'tenant_chat',
+];
+
+/// Android `res/raw` basename without extension; null = platform default sound.
+String? _androidRawSoundBasenameForChannelId(String channelId) {
+  switch (channelId) {
+    case 'tenant_chat':
+      return 'notif_tenant_chat';
+    case 'leads':
+      return 'notif_leads';
+    case 'whatsapp':
+      return 'notif_whatsapp';
+    case 'campaigns':
+      return 'notif_campaigns';
+    case 'deals':
+      return 'notif_deals';
+    case 'tasks':
+      return 'notif_tasks';
+    case 'reminders':
+      return 'notif_reminders';
+    case 'reports':
+      return 'notif_reports';
+    case 'system':
+      return 'notif_system';
+    case 'general':
+      return null;
+    default:
+      return null;
+  }
+}
+
+RawResourceAndroidNotificationSound? _androidSoundForChannelId(
+  String channelId,
+) {
+  final base = _androidRawSoundBasenameForChannelId(channelId);
+  if (base == null) return null;
+  return RawResourceAndroidNotificationSound(base);
+}
+
+String? _iosSoundFileForChannelId(String channelId) {
+  final base = _androidRawSoundBasenameForChannelId(channelId);
+  if (base == null) return null;
+  return '$base.wav';
+}
+
+Future<void> _migrateAndroidNotificationChannelsForCustomSoundsOnce(
+  AndroidFlutterLocalNotificationsPlugin androidPlugin,
+) async {
+  final prefs = await SharedPreferences.getInstance();
+  if (prefs.getBool(_kAndroidChannelSoundMigrationPrefsKey) ?? false) {
+    return;
+  }
+  for (final id in _kAllAndroidNotificationChannelIds) {
+    try {
+      await androidPlugin.deleteNotificationChannel(id);
+    } catch (e, st) {
+      debugPrint('deleteNotificationChannel($id) failed: $e\n$st');
+    }
+  }
+  await prefs.setBool(_kAndroidChannelSoundMigrationPrefsKey, true);
+}
+
+String _tenantChatMergePrefsKey(int conversationId) =>
+    '$_kTenantChatMergePrefsPrefix$conversationId';
+
+String _tenantChatSinglePreviewLine(String raw) {
+  var s = raw.replaceAll('\n', ' ').trim();
+  if (s.length > 500) {
+    s = '${s.substring(0, 497)}...';
+  }
+  return s;
+}
+
+Future<List<String>> _readTenantChatMergeLines(
+  SharedPreferences prefs,
+  int conversationId,
+) async {
+  final raw = prefs.getString(_tenantChatMergePrefsKey(conversationId));
+  if (raw == null || raw.isEmpty) return [];
+  try {
+    final decoded = jsonDecode(raw);
+    if (decoded is List) {
+      return decoded
+          .map((e) => e.toString())
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+    }
+  } catch (_) {}
+  return [];
+}
+
+/// Stable Android/iOS notification id so the same conversation replaces one tray item.
+int _tenantChatMergedNotificationId(int conversationId) =>
+    _kTenantChatMergedNotifIdBase + conversationId;
+
+Future<List<String>> _appendTenantChatMergeLine(
+  SharedPreferences prefs,
+  int conversationId,
+  String line,
+) async {
+  final preview = _tenantChatSinglePreviewLine(line);
+  if (preview.isEmpty) {
+    return _readTenantChatMergeLines(prefs, conversationId);
+  }
+  final cur = await _readTenantChatMergeLines(prefs, conversationId);
+  final next = [...cur, preview];
+  final trimmed = next.length > _kTenantChatMergeMaxLines
+      ? next.sublist(next.length - _kTenantChatMergeMaxLines)
+      : next;
+  await prefs.setString(
+    _tenantChatMergePrefsKey(conversationId),
+    jsonEncode(trimmed),
+  );
+  return trimmed;
+}
+
+/// Android truncates plain [NotificationCompat] text in the shade; inbox / big text templates do not.
+StyleInformation? _androidMergedTenantChatStyle(List<String> lines) {
+  if (lines.isEmpty) return null;
+  if (lines.length > 1) {
+    return InboxStyleInformation(
+      lines,
+      summaryText: '${lines.length} messages',
+    );
+  }
+  final only = lines.first;
+  if (only.length > 80) {
+    return BigTextStyleInformation(only);
+  }
+  return null;
+}
+
+final FlutterLocalNotificationsPlugin _fcmBackgroundLocalNotifications =
+    FlutterLocalNotificationsPlugin();
+bool _fcmBackgroundLocalNotificationsInitialized = false;
+
+Future<void> _ensureFcmBackgroundLocalNotificationsInitialized() async {
+  if (_fcmBackgroundLocalNotificationsInitialized) return;
+
+  const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const iosSettings = DarwinInitializationSettings(
+    requestAlertPermission: false,
+    requestBadgePermission: false,
+    requestSoundPermission: false,
+  );
+  await _fcmBackgroundLocalNotifications.initialize(
+    const InitializationSettings(android: androidSettings, iOS: iosSettings),
+  );
+
+  final androidPlugin = _fcmBackgroundLocalNotifications
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+  if (androidPlugin != null) {
+    final tenantSound = _androidSoundForChannelId('tenant_chat');
+    final tenantChatChannel = AndroidNotificationChannel(
+      'tenant_chat',
+      'Team chat',
+      description: 'Messages from teammates (same sound as in-app chat alert)',
+      importance: Importance.high,
+      playSound: true,
+      sound: tenantSound,
+      enableVibration: true,
+    );
+    await androidPlugin.createNotificationChannel(tenantChatChannel);
+  }
+
+  _fcmBackgroundLocalNotificationsInitialized = true;
+}
+
+Future<void> _showTenantChatMergedFromBackground(NotificationPayload payload) async {
+  final cid = NotificationService._conversationIdFromPayload(payload);
+  if (cid == null) return;
+
+  await _ensureFcmBackgroundLocalNotificationsInitialized();
+  final prefs = await SharedPreferences.getInstance();
+  final lines = await _appendTenantChatMergeLine(prefs, cid, payload.body);
+  if (lines.isEmpty) return;
+
+  final title = payload.title.isNotEmpty ? payload.title : 'Team chat';
+  final mergedBody = lines.join('\n');
+  final nid = _tenantChatMergedNotificationId(cid);
+  final androidStyle = _androidMergedTenantChatStyle(lines);
+
+  await _fcmBackgroundLocalNotifications.show(
+    nid,
+    title,
+    mergedBody,
+    NotificationDetails(
+      android: AndroidNotificationDetails(
+        'tenant_chat',
+        'Team chat',
+        channelDescription: 'Messages from teammates',
+        importance: Importance.high,
+        priority: Priority.high,
+        playSound: true,
+        sound: _androidSoundForChannelId('tenant_chat'),
+        enableVibration: true,
+        icon: '@mipmap/ic_launcher',
+        styleInformation: androidStyle,
+      ),
+      iOS: DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+        sound: _iosSoundFileForChannelId('tenant_chat'),
+        subtitle: lines.length > 1 ? '${lines.length} messages' : null,
+      ),
+    ),
+    payload: NotificationService.notificationPayloadJsonForLocalTap(payload),
+  );
+}
 
 /// معالج الإشعارات في الخلفية (يجب أن يكون top-level function)
 @pragma('vm:entry-point')
@@ -39,6 +271,16 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   }
 
   debugPrint('Handling background message: ${message.messageId}');
+
+  final payload = NotificationPayload.fromRemoteMessage(message);
+  if (NotificationService.isTenantChatPush(payload)) {
+    try {
+      await _showTenantChatMergedFromBackground(payload);
+    } catch (e, st) {
+      debugPrint('[FCM] Background tenant_chat local notification failed: $e');
+      debugPrint('$st');
+    }
+  }
 }
 
 class NotificationService {
@@ -137,6 +379,15 @@ class NotificationService {
       onDidReceiveNotificationResponse: _onLocalNotificationTapped,
     );
 
+    final androidPlugin = _localNotifications
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+    if (androidPlugin != null) {
+      await _migrateAndroidNotificationChannelsForCustomSoundsOnce(
+        androidPlugin,
+      );
+    }
+
     // إنشاء قنوات الإشعارات
     await _createNotificationChannels();
   }
@@ -160,6 +411,7 @@ class NotificationService {
       description: 'Notifications about leads and clients',
       importance: Importance.high,
       playSound: true,
+      sound: RawResourceAndroidNotificationSound('notif_leads'),
       enableVibration: true,
     );
 
@@ -170,6 +422,7 @@ class NotificationService {
       description: 'Notifications about deals',
       importance: Importance.high,
       playSound: true,
+      sound: RawResourceAndroidNotificationSound('notif_deals'),
       enableVibration: true,
     );
 
@@ -180,6 +433,7 @@ class NotificationService {
       description: 'Task and reminder notifications',
       importance: Importance.high,
       playSound: true,
+      sound: RawResourceAndroidNotificationSound('notif_tasks'),
       enableVibration: true,
     );
 
@@ -190,6 +444,7 @@ class NotificationService {
       description: 'Reminder notifications',
       importance: Importance.high,
       playSound: true,
+      sound: RawResourceAndroidNotificationSound('notif_reminders'),
       enableVibration: true,
     );
 
@@ -200,6 +455,7 @@ class NotificationService {
       description: 'WhatsApp message notifications',
       importance: Importance.high,
       playSound: true,
+      sound: RawResourceAndroidNotificationSound('notif_whatsapp'),
       enableVibration: true,
     );
 
@@ -210,6 +466,7 @@ class NotificationService {
       description: 'Campaign performance notifications',
       importance: Importance.high,
       playSound: true,
+      sound: RawResourceAndroidNotificationSound('notif_campaigns'),
       enableVibration: true,
     );
 
@@ -220,6 +477,7 @@ class NotificationService {
       description: 'Report and analytics notifications',
       importance: Importance.high,
       playSound: true,
+      sound: RawResourceAndroidNotificationSound('notif_reports'),
       enableVibration: true,
     );
 
@@ -230,6 +488,18 @@ class NotificationService {
       description: 'System and subscription notifications',
       importance: Importance.high,
       playSound: true,
+      sound: RawResourceAndroidNotificationSound('notif_system'),
+      enableVibration: true,
+    );
+
+    // قناة إشعارات دردشة الفريق (نفس ملف الصوت المستخدم في التطبيق عند وصول رسالة)
+    const tenantChatChannel = AndroidNotificationChannel(
+      'tenant_chat',
+      'Team chat',
+      description: 'Messages from teammates (same sound as in-app chat alert)',
+      importance: Importance.high,
+      playSound: true,
+      sound: RawResourceAndroidNotificationSound('notif_tenant_chat'),
       enableVibration: true,
     );
 
@@ -248,6 +518,7 @@ class NotificationService {
       await androidPlugin.createNotificationChannel(campaignsChannel);
       await androidPlugin.createNotificationChannel(reportsChannel);
       await androidPlugin.createNotificationChannel(systemChannel);
+      await androidPlugin.createNotificationChannel(tenantChatChannel);
     }
   }
 
@@ -309,16 +580,35 @@ class NotificationService {
     // استخدام RemoteMessage مباشرة (سيتم استخراج notification و data تلقائياً)
     final payload = NotificationPayload.fromRemoteMessage(message);
 
-    // إرسال الإشعار إلى Stream
-    _notificationStreamController?.add(payload);
-
     // عرض إشعار محلي
     // استخدام title و body من payload (تم استخراجهما من message.notification)
+    if (_shouldSkipForegroundLocalNotificationForActiveTeamChat(payload)) {
+      debugPrint(
+        '[FCM] Foreground local notification skipped — team chat thread is open',
+      );
+      return;
+    }
     await showLocalNotification(
       title: payload.title.isNotEmpty ? payload.title : 'Notification',
       body: payload.body.isNotEmpty ? payload.body : '',
       payload: payload,
     );
+  }
+
+  static int? _conversationIdFromPayload(NotificationPayload p) {
+    final raw = p.data?['conversation_id'];
+    if (raw is int) return raw;
+    if (raw is num) return raw.toInt();
+    return int.tryParse('$raw');
+  }
+
+  static bool _shouldSkipForegroundLocalNotificationForActiveTeamChat(
+    NotificationPayload payload,
+  ) {
+    if (!_isTenantChatPush(payload)) return false;
+    final cid = _conversationIdFromPayload(payload);
+    return TeamChatAwayService.instance
+        .shouldSuppressForegroundTenantChatNotification(cid);
   }
 
   /// معالج فتح الإشعار
@@ -344,12 +634,26 @@ class NotificationService {
   void _onLocalNotificationTapped(NotificationResponse response) {
     debugPrint('Local notification tapped: ${response.payload}');
 
-    if (response.payload != null) {
-      try {
-        // يمكن إضافة معالجة إضافية هنا
-      } catch (e) {
-        debugPrint('Error parsing notification payload: $e');
-      }
+    final raw = response.payload;
+    if (raw == null || raw.trim().isEmpty) return;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return;
+      final map = Map<String, dynamic>.from(decoded);
+      final payload = NotificationPayload.fromJson(map);
+      _notificationStreamController?.add(payload);
+    } catch (e) {
+      debugPrint('Error parsing notification payload: $e');
+    }
+  }
+
+  static String? _notificationPayloadString(NotificationPayload? payload) {
+    if (payload == null) return null;
+    try {
+      return jsonEncode(payload.toJson());
+    } catch (e) {
+      debugPrint('Failed to encode notification payload: $e');
+      return null;
     }
   }
 
@@ -629,6 +933,41 @@ class NotificationService {
     }
   }
 
+  static bool _isTenantChatPush(NotificationPayload? payload) {
+    final k = payload?.data?['kind'];
+    return k == 'tenant_chat';
+  }
+
+  /// Exposed for the FCM background isolate entrypoint in this library.
+  static bool isTenantChatPush(NotificationPayload? payload) =>
+      _isTenantChatPush(payload);
+
+  static String? notificationPayloadJsonForLocalTap(NotificationPayload? payload) =>
+      _notificationPayloadString(payload);
+
+  /// Clears the merged push body cache for [conversationId] (e.g. when the user opens that thread).
+  Future<void> clearTenantChatPushMergeBuffer(int conversationId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_tenantChatMergePrefsKey(conversationId));
+    if (_initialized) {
+      try {
+        await _localNotifications.cancel(
+          _tenantChatMergedNotificationId(conversationId),
+        );
+      } catch (e) {
+        debugPrint('clearTenantChatPushMergeBuffer cancel failed: $e');
+      }
+    }
+  }
+
+  String _resolveAndroidChannelId(NotificationPayload? payload, String? explicitChannelId) {
+    if (explicitChannelId != null && explicitChannelId.isNotEmpty) {
+      return explicitChannelId;
+    }
+    if (_isTenantChatPush(payload)) return 'tenant_chat';
+    return _getChannelForType(payload?.type);
+  }
+
   /// عرض إشعار محلي
   Future<void> showLocalNotification({
     required String title,
@@ -639,39 +978,63 @@ class NotificationService {
   }) async {
     if (!_initialized) await initialize();
 
-    // التحقق من الإعدادات قبل إرسال الإشعار
-    if (payload?.type != null) {
+    final tenantChat = _isTenantChatPush(payload);
+
+    // إشعارات دردشة الفريق تتبع السيرفر (skip_settings_check) — لا تخفيها إذا كان "عام" معطلاً
+    if (!tenantChat && payload?.type != null) {
       final settings = await app_settings.NotificationSettings.load();
-      
-      // التحقق من تفعيل الإشعارات بشكل عام
+
       if (!settings.enabled) {
         debugPrint('⚠ Notifications are disabled in settings');
         return;
       }
-      
-      // التحقق من تفعيل نوع الإشعار المحدد
+
       if (!settings.isNotificationEnabled(payload!.type)) {
         debugPrint('⚠ Notification type ${payload.type.name} is disabled in settings');
         return;
       }
-      
-      // التحقق من وقت الإرسال
+
       if (!settings.timeSettings.canSendNow()) {
         debugPrint('⚠ Cannot send notification outside allowed time');
         return;
       }
     }
 
-    // تحديد قناة الإشعار بناءً على النوع
-    final notificationChannel = channelId ?? _getChannelForType(payload?.type);
+    final notificationChannel = _resolveAndroidChannelId(payload, channelId);
     final notificationImportance = importance ?? Importance.high;
+    final androidSound = _androidSoundForChannelId(notificationChannel);
+    final iosSound = _iosSoundFileForChannelId(notificationChannel);
 
-    final notificationId = payload?.notificationId ?? DateTime.now().millisecondsSinceEpoch.remainder(100000);
+    var displayTitle = title;
+    var displayBody = body;
+    var notificationId = payload?.notificationId ??
+        DateTime.now().millisecondsSinceEpoch.remainder(100000);
+    List<String>? tenantMergeLines;
+
+    if (tenantChat && payload != null) {
+      final cid = _conversationIdFromPayload(payload);
+      if (cid != null) {
+        final prefs = await SharedPreferences.getInstance();
+        final lines = await _appendTenantChatMergeLine(prefs, cid, body);
+        tenantMergeLines = lines;
+        if (lines.isNotEmpty) {
+          displayBody = lines.join('\n');
+        }
+        notificationId = _tenantChatMergedNotificationId(cid);
+      }
+    }
+
+    StyleInformation? androidStyle;
+    if (tenantMergeLines != null && tenantMergeLines.isNotEmpty) {
+      androidStyle = _androidMergedTenantChatStyle(tenantMergeLines);
+    } else if (tenantChat && displayBody.length > 80) {
+      androidStyle = BigTextStyleInformation(displayBody);
+    }
 
     await _localNotifications.show(
       notificationId,
-      title,
-      body,
+      displayTitle,
+      displayBody,
       NotificationDetails(
         android: AndroidNotificationDetails(
           notificationChannel,
@@ -680,16 +1043,22 @@ class NotificationService {
           importance: notificationImportance,
           priority: Priority.high,
           playSound: true,
+          sound: androidSound,
           enableVibration: true,
           icon: '@mipmap/ic_launcher',
+          styleInformation: androidStyle,
         ),
-        iOS: const DarwinNotificationDetails(
+        iOS: DarwinNotificationDetails(
           presentAlert: true,
           presentBadge: true,
           presentSound: true,
+          sound: iosSound,
+          subtitle: tenantMergeLines != null && tenantMergeLines.length > 1
+              ? '${tenantMergeLines.length} messages'
+              : null,
         ),
       ),
-      payload: payload?.toJson().toString(),
+      payload: _notificationPayloadString(payload),
     );
   }
 
@@ -735,8 +1104,12 @@ class NotificationService {
       case NotificationType.taskCreated:
       case NotificationType.taskCompleted:
       case NotificationType.taskReminder:
+      case NotificationType.callReminder:
         return 'tasks';
-      
+
+      case NotificationType.tenantChat:
+        return 'tenant_chat';
+
       // إشعارات التقارير
       case NotificationType.dailyReport:
       case NotificationType.weeklyReport:
@@ -773,6 +1146,8 @@ class NotificationService {
         return 'Report Notifications';
       case 'system':
         return 'System Notifications';
+      case 'tenant_chat':
+        return 'Team chat';
       case 'reminders':
         return 'Reminders';
       default:
@@ -797,6 +1172,8 @@ class NotificationService {
         return 'Report and analytics notifications';
       case 'system':
         return 'System and subscription notifications';
+      case 'tenant_chat':
+        return 'Messages from teammates';
       case 'reminders':
         return 'Reminder notifications';
       default:
@@ -830,18 +1207,20 @@ class NotificationService {
           importance: Importance.high,
           priority: Priority.high,
           playSound: true,
+          sound: _androidSoundForChannelId(notificationChannel),
           enableVibration: true,
         ),
-        iOS: const DarwinNotificationDetails(
+        iOS: DarwinNotificationDetails(
           presentAlert: true,
           presentBadge: true,
           presentSound: true,
+          sound: _iosSoundFileForChannelId(notificationChannel),
         ),
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
-      payload: payload?.toJson().toString(),
+      payload: _notificationPayloadString(payload),
     );
   }
 

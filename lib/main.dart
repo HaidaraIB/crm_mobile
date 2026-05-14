@@ -22,11 +22,14 @@ import 'screens/leads/all_leads_screen.dart';
 import 'screens/calendar/calendar_screen.dart';
 import 'screens/deals/deals_screen.dart';
 import 'screens/deals/view_deal_by_id_screen.dart';
+import 'screens/team_chat/team_chat_screen.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'services/notification_service.dart';
 import 'services/notification_router.dart';
 import 'services/api_service.dart';
+import 'services/team_chat_away_service.dart';
+import 'services/team_chat_route_observer.dart';
 import 'core/utils/snackbar_helper.dart';
 
 int? _routeIntArguments(Object? args) {
@@ -135,6 +138,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     super.didChangeAppLifecycleState(state);
     // عند استئناف التطبيق من الخلفية، إعادة إرسال FCM token إن وُجد (لمستخدمي iOS الذين تأخر توكنهم)
     if (state == AppLifecycleState.resumed) {
+      TeamChatAwayService.instance.setAppForeground(true);
       NotificationService().sendTokenToServerIfLoggedIn();
       ApiService().sendPresenceHeartbeat(source: 'mobile');
       _startPresenceHeartbeat();
@@ -142,6 +146,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
+      TeamChatAwayService.instance.setAppForeground(false);
       _presenceTimer?.cancel();
     }
   }
@@ -254,6 +259,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             builder: (context, themeState) {
               return MaterialApp(
                 navigatorKey: navigatorKey,
+                navigatorObservers: [teamChatRouteObserver],
                 title: 'LOOP CRM',
                 debugShowCheckedModeBanner: false,
                 theme: AppTheme.lightThemeFor(languageState.locale),
@@ -306,6 +312,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                       );
                     }
                     return ViewDealByIdScreen(dealId: id);
+                  },
+                  '/team-chat': (context) {
+                    final id = _routeIntArguments(
+                      ModalRoute.of(context)?.settings.arguments,
+                    );
+                    return TeamChatScreen(initialConversationId: id);
                   },
                   '/2fa': (context) {
                     // Get username, password, and token from arguments

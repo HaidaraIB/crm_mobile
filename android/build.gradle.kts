@@ -1,3 +1,7 @@
+import com.android.build.gradle.BaseExtension
+import org.gradle.api.JavaVersion
+import org.gradle.api.tasks.compile.JavaCompile
+
 buildscript {
     repositories {
         google()
@@ -27,25 +31,25 @@ subprojects {
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
 subprojects {
-    project.evaluationDependsOn(":app")
-    
-    // Configure Java compilation for all subprojects
-    tasks.withType<JavaCompile>().configureEach {
-        options.compilerArgs.add("-Xlint:-options")
+    // NOTE: Do not use evaluationDependsOn(":app") here — it can finalize subprojects before
+    // we can align JVM targets for Flutter plugins (e.g. audioplayers_android).
+
+    afterEvaluate {
+        if (!plugins.hasPlugin("com.android.library")) return@afterEvaluate
+        extensions.findByType<BaseExtension>()?.compileOptions {
+            sourceCompatibility = JavaVersion.VERSION_17
+            targetCompatibility = JavaVersion.VERSION_17
+        }
+        tasks.withType<JavaCompile>().configureEach {
+            sourceCompatibility = "17"
+            targetCompatibility = "17"
+        }
     }
-    
-    // Configure Kotlin compilation for all subprojects  
+
     tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
         kotlinOptions {
             jvmTarget = "17"
         }
-    }
-    
-    // Configure Java compilation for all subprojects to use Java 17
-    tasks.withType<JavaCompile>().configureEach {
-        sourceCompatibility = "17"
-        targetCompatibility = "17"
-        options.compilerArgs.add("-Xlint:-options")
     }
 }
 

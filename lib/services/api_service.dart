@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -19,6 +20,7 @@ import '../models/task_model.dart';
 import '../models/inventory_model.dart';
 import '../models/deal_model.dart';
 import '../models/support_ticket_model.dart';
+import '../models/tenant_chat_models.dart';
 import '../models/mobile_app_version_policy.dart';
 import 'device_fcm_token.dart'
     show clearLocalPushRegistrationAfterLogout, resolveDeviceFcmTokenForUnregister;
@@ -138,6 +140,8 @@ class ApiService {
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
   ApiService._internal();
+  /// One refresh at a time so parallel 401s do not invalidate a single-use refresh token.
+  static Future<void> _refreshTokenChain = Future.value();
   static const Duration _defaultCacheTtl = Duration(seconds: 60);
   /// Matches CRM web full-sync default; capped by API [DRF_MAX_PAGE_SIZE].
   static const int _defaultFullFetchPageSize = 100;
@@ -641,7 +645,19 @@ class ApiService {
     }
   }
 
-  Future<bool> _refreshToken() async {
+  Future<bool> _refreshToken() {
+    final completer = Completer<bool>();
+    _refreshTokenChain = _refreshTokenChain.then((_) async {
+      try {
+        completer.complete(await _refreshTokenOnce());
+      } catch (_) {
+        completer.complete(false);
+      }
+    });
+    return completer.future;
+  }
+
+  Future<bool> _refreshTokenOnce() async {
     try {
       final refreshToken = await _getRefreshToken();
       if (refreshToken == null) return false;
@@ -4370,6 +4386,292 @@ class ApiService {
       );
       rethrow;
     }
+  }
+
+  // ==================== Tenant chat (internal DMs) ====================
+
+  /// Headers for authenticated non-JSON GET (binary attachments).
+  Future<Map<String, String>> _getBinaryRequestHeaders() async {
+    final headers = <String, String>{};
+    final apiKey = AppConstants.apiKey;
+    if (apiKey.isNotEmpty) {
+      headers['X-API-Key'] = apiKey;
+    }
+    headers['X-Client-Platform'] = 'mobile';
+    final prefs = await SharedPreferences.getInstance();
+    final languageCode = prefs.getString(AppConstants.languageKey) ?? 'en';
+    headers['X-Language'] =
+        (languageCode == 'ar' || languageCode == 'en') ? languageCode : 'en';
+    final token = await _getAccessToken();
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    final trustedDeviceToken =
+        await AuthTokenStorage.instance.readTrustedDeviceToken();
+    if (trustedDeviceToken != null && trustedDeviceToken.trim().isNotEmpty) {
+      headers['X-Owner-Trusted-Device'] = trustedDeviceToken.trim();
+    }
+    return headers;
+  }
+
+  /// Download bytes from an absolute URL (e.g. [TenantChatMessage.attachmentUrl]) with auth.
+  Future<Uint8List> fetchAuthenticatedBinaryGet(String absoluteUrl) async {
+    Future<Uint8List> once(Map<String, String> headers) async {
+      final uri = Uri.parse(absoluteUrl);
+      final response = await http
+          .get(uri, headers: headers)
+          .timeout(const Duration(seconds: 60));
+      if (response.statusCode == 200) {
+        return response.bodyBytes;
+      }
+      throw Exception('HTTP ${response.statusCode}');
+    }
+
+    var headers = await _getBinaryRequestHeaders();
+    try {
+      return await once(headers);
+    } catch (_) {
+      if (await _refreshToken()) {
+        headers = await _getBinaryRequestHeaders();
+        return await once(headers);
+      }
+      rethrow;
+    }
+  }
+
+  /// `page=1` avoids [_makeRequest] auto-merge of all paginated pages.
+  Future<TenantChatConversationsPage> getTenantChatConversations() async {
+    final response = await _makeRequest(
+      'GET',
+      '/tenant-chat/conversations/?page=1&page_size=100',
+      timeout: const Duration(seconds: 20),
+    );
+    if (response.statusCode != 200) {
+      throw Exception(_translateError('teamChatCouldNotLoad', locale: null));
+    }
+    final data = _unwrapResponseMap(response);
+    final results = (data['results'] as List<dynamic>? ?? [])
+        .map((e) =>
+            TenantChatConversation.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+    return TenantChatConversationsPage(
+      count: (data['count'] as num?)?.toInt() ?? results.length,
+      next: data['next']?.toString(),
+      previous: data['previous']?.toString(),
+      results: results,
+    );
+  }
+
+  Future<TenantChatPeersPage> getTenantChatEligibleUsers() async {
+    final response = await _makeRequest(
+      'GET',
+      '/tenant-chat/conversations/eligible-users/?page=1&page_size=500',
+      timeout: const Duration(seconds: 15),
+    );
+    if (response.statusCode != 200) {
+      throw Exception(_translateError('teamChatCouldNotLoad', locale: null));
+    }
+    final data = _unwrapResponseMap(response);
+    final results = (data['results'] as List<dynamic>? ?? [])
+        .map((e) => TenantChatPeer.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+    return TenantChatPeersPage(
+      count: (data['count'] as num?)?.toInt() ?? results.length,
+      results: results,
+    );
+  }
+
+  Future<TenantChatConversation> startTenantChatConversation(int withUserId) async {
+    final response = await _makeRequest(
+      'POST',
+      '/tenant-chat/conversations/',
+      body: {'with_user_id': withUserId},
+      timeout: const Duration(seconds: 15),
+    );
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception(_translateError('teamChatCouldNotLoad', locale: null));
+    }
+    final data = _unwrapResponseMap(response);
+    return TenantChatConversation.fromJson(data);
+  }
+
+  Future<TenantChatMessagesPage> getTenantChatMessages(int conversationId) async {
+    final response = await _makeRequest(
+      'GET',
+      '/tenant-chat/conversations/$conversationId/messages/?page=1&page_size=100&ordering=created_at',
+      timeout: const Duration(seconds: 20),
+    );
+    if (response.statusCode != 200) {
+      throw Exception(_translateError('teamChatCouldNotLoad', locale: null));
+    }
+    final data = _unwrapResponseMap(response);
+    final results = (data['results'] as List<dynamic>? ?? [])
+        .map((e) =>
+            TenantChatMessage.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+    return TenantChatMessagesPage(
+      count: (data['count'] as num?)?.toInt() ?? results.length,
+      results: results,
+    );
+  }
+
+  Future<TenantChatMessage> sendTenantChatMessage(
+    int conversationId,
+    String body, {
+    int? replyToMessageId,
+    int? forwardFromMessageId,
+  }) async {
+    final payload = <String, dynamic>{'body': body};
+    if (replyToMessageId != null) {
+      payload['reply_to_message_id'] = replyToMessageId;
+    }
+    if (forwardFromMessageId != null) {
+      payload['forward_from_message_id'] = forwardFromMessageId;
+    }
+    final response = await _makeRequest(
+      'POST',
+      '/tenant-chat/conversations/$conversationId/messages/',
+      body: payload,
+      timeout: const Duration(seconds: 30),
+    );
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception(_translateError('teamChatCouldNotSend', locale: null));
+    }
+    final data = _unwrapResponseMap(response);
+    return TenantChatMessage.fromJson(data);
+  }
+
+  Future<TenantChatMessage> sendTenantChatMessageWithFile(
+    int conversationId,
+    String filePath, {
+    String? body,
+    int? replyToMessageId,
+  }) async {
+    final cleanBaseUrl = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
+    final url = Uri.parse(
+      '$cleanBaseUrl/tenant-chat/conversations/$conversationId/messages/',
+    );
+    final token = await _getAccessToken();
+    if (token == null) {
+      throw Exception(_translateError('notAuthenticated', locale: null));
+    }
+    final request = http.MultipartRequest('POST', url);
+    request.headers['Authorization'] = 'Bearer $token';
+    final apiKey = AppConstants.apiKey;
+    if (apiKey.isNotEmpty) {
+      request.headers['X-API-Key'] = apiKey;
+    }
+    request.headers['X-Client-Platform'] = 'mobile';
+    final prefs = await SharedPreferences.getInstance();
+    final languageCode = prefs.getString(AppConstants.languageKey) ?? 'en';
+    request.headers['X-Language'] =
+        (languageCode == 'ar' || languageCode == 'en') ? languageCode : 'en';
+    final trustedDeviceToken =
+        await AuthTokenStorage.instance.readTrustedDeviceToken();
+    if (trustedDeviceToken != null && trustedDeviceToken.trim().isNotEmpty) {
+      request.headers['X-Owner-Trusted-Device'] = trustedDeviceToken.trim();
+    }
+    request.files.add(await http.MultipartFile.fromPath('file', filePath));
+    if (body != null && body.trim().isNotEmpty) {
+      request.fields['body'] = body.trim();
+    }
+    if (replyToMessageId != null) {
+      request.fields['reply_to_message_id'] = '$replyToMessageId';
+    }
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+    if (response.statusCode == 401) {
+      final refreshed = await _refreshToken();
+      if (refreshed) {
+        return sendTenantChatMessageWithFile(
+          conversationId,
+          filePath,
+          body: body,
+          replyToMessageId: replyToMessageId,
+        );
+      }
+      await _clearTokens();
+      _navigateToLogin('session_expired');
+      throw Exception(_translateError('sessionExpired', locale: null));
+    }
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception(_translateError('teamChatCouldNotSend', locale: null));
+    }
+    final data = _unwrapResponseMap(response);
+    return TenantChatMessage.fromJson(data);
+  }
+
+  Future<void> pinTenantChatMessage(int conversationId, int messageId) async {
+    final response = await _makeRequest(
+      'POST',
+      '/tenant-chat/conversations/$conversationId/pin-message/',
+      body: {'message_id': messageId},
+      timeout: const Duration(seconds: 15),
+    );
+    if (response.statusCode != 200) {
+      throw Exception(_translateError('teamChatCouldNotSend', locale: null));
+    }
+  }
+
+  Future<void> unpinTenantChatMessage(int conversationId, int messageId) async {
+    final response = await _makeRequest(
+      'POST',
+      '/tenant-chat/conversations/$conversationId/unpin-message/',
+      body: {'message_id': messageId},
+      timeout: const Duration(seconds: 15),
+    );
+    if (response.statusCode != 200) {
+      throw Exception(_translateError('teamChatCouldNotSend', locale: null));
+    }
+  }
+
+  Future<int?> markTenantChatRead(int conversationId, int messageId) async {
+    final response = await _makeRequest(
+      'POST',
+      '/tenant-chat/conversations/$conversationId/mark-read/',
+      body: {'message_id': messageId},
+      timeout: const Duration(seconds: 15),
+    );
+    if (response.statusCode != 200) {
+      return null;
+    }
+    final data = _unwrapResponseMap(response);
+    return (data['last_read_message_id'] as num?)?.toInt();
+  }
+
+  Future<TenantChatPeerPresenceResponse> getTenantChatPeerPresence(
+    int conversationId,
+  ) async {
+    try {
+      final response = await _makeRequest(
+        'GET',
+        '/tenant-chat/conversations/$conversationId/peer-presence/',
+        timeout: const Duration(seconds: 10),
+      );
+      if (response.statusCode != 200) {
+        return const TenantChatPeerPresenceResponse();
+      }
+      final data = _unwrapResponseMap(response);
+      return TenantChatPeerPresenceResponse.fromJson(data);
+    } catch (_) {
+      return const TenantChatPeerPresenceResponse();
+    }
+  }
+
+  Future<void> postTenantChatPeerPresence(
+    int conversationId,
+    String action,
+  ) async {
+    try {
+      await _makeRequest(
+        'POST',
+        '/tenant-chat/conversations/$conversationId/peer-presence/',
+        body: {'action': action},
+        timeout: const Duration(seconds: 10),
+      );
+    } catch (_) {}
   }
 
   // Owners CRUD

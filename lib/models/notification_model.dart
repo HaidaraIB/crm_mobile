@@ -54,7 +54,9 @@ enum NotificationType {
   taskCompleted, // تم إكمال مهمة
   /// 📞 تذكير مكالمة
   callReminder, // تذكير بموعد مكالمة متابعة
-  
+  /// 💬 دردشة الفريق (FCM يستخدم غالباً type عام + data.kind=tenant_chat)
+  tenantChat,
+
   // ==================== إشعارات الصفقات ====================
   /// تم إنشاء صفقة جديدة
   dealCreated, // تم إنشاء صفقة جديدة
@@ -131,18 +133,37 @@ class NotificationPayload {
     return NotificationType.unknown;
   }
 
+  static NotificationType _resolveType(String? typeString, Map<String, dynamic> data) {
+    if (data['kind'] == 'tenant_chat') return NotificationType.tenantChat;
+    return _parseNotificationType(typeString ?? 'unknown');
+  }
+
   /// إنشاء من JSON (من FCM)
   factory NotificationPayload.fromJson(Map<String, dynamic> json) {
-    final typeString = json['type'] as String? ?? 'unknown';
-    final type = _parseNotificationType(typeString);
+    Map<String, dynamic>? dataMap;
+    final rawData = json['data'];
+    if (rawData is Map) {
+      dataMap = Map<String, dynamic>.from(rawData);
+    }
+    final type = _resolveType(json['type'] as String?, dataMap ?? {});
+
+    int? nid;
+    final rawNid = json['notification_id'];
+    if (rawNid is int) {
+      nid = rawNid;
+    } else if (rawNid is num) {
+      nid = rawNid.toInt();
+    } else if (rawNid is String) {
+      nid = int.tryParse(rawNid.trim());
+    }
 
     return NotificationPayload(
       type: type,
       title: json['title'] as String? ?? '',
       body: json['body'] as String? ?? '',
-      data: json['data'] as Map<String, dynamic>?,
+      data: dataMap,
       imageUrl: json['image_url'] as String?,
-      notificationId: json['notification_id'] as int?,
+      notificationId: nid,
       timestamp: json['timestamp'] != null
           ? DateTime.tryParse(json['timestamp'] as String)
           : null,
@@ -178,7 +199,7 @@ class NotificationPayload {
     final finalBody = body.isNotEmpty ? body : (data['body'] as String? ?? '');
 
     final typeString = data['type'] as String? ?? 'unknown';
-    final type = _parseNotificationType(typeString);
+    final type = _resolveType(typeString, data);
 
     return NotificationPayload(
       type: type,

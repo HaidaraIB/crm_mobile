@@ -119,9 +119,29 @@ class _SplashScreenState extends State<SplashScreen>
           return;
         }
       } catch (_) {
-        // عند فشل جلب المستخدم (شبكة/توكن) ننتقل للرئيسية كالسابق
         if (!mounted) return;
+        // If [ApiService] cleared the session (expired refresh, 401 handling), do not open Home —
+        // that would remount Team Chat and repeat 401 → FCM unregister → "session expired" in a loop.
+        final prefsNow = await SharedPreferences.getInstance();
+        if (!mounted) return;
+        final stillLoggedInFlag =
+            prefsNow.getBool(AppConstants.isLoggedInKey) ?? false;
+        final hasAccessToken = await ApiService().hasStoredAccessToken();
+        if (!mounted) return;
+        if (!stillLoggedInFlag || !hasAccessToken) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => LoginScreen(
+                logoutReason:
+                    !hasAccessToken ? 'session_expired' : null,
+              ),
+            ),
+          );
+          return;
+        }
+        // Transient failure while credentials remain (e.g. network): allow entry as before.
       }
+      if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => const HomeScreen(),

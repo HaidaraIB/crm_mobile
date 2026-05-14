@@ -412,6 +412,8 @@ class _NotificationSettingsScreenState
         return 'taskCompleted';
       case NotificationType.callReminder:
         return 'callReminder';
+      case NotificationType.tenantChat:
+        return 'teamChat';
       case NotificationType.dealCreated:
         return 'dealCreated';
       case NotificationType.dealUpdated:

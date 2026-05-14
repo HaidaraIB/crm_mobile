@@ -14,7 +14,10 @@
     
     <!-- Gallery: use Android Photo Picker on API 33+ (no READ_MEDIA_* — Play policy). -->
     <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
+    <!-- Gal: legacy public dir writes on API 23–29 (MediaStore DATA column). -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29"/>
     
     <!-- Optional features -->
     <uses-feature android:name="android.hardware.camera" android:required="false"/>

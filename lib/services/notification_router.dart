@@ -89,6 +89,11 @@ class NotificationRouter {
         navigator.pushNamed('/calendar');
         break;
 
+      case NotificationType.tenantChat:
+        final conversationId = _intFromPayload(payload.data?['conversation_id']);
+        navigator.pushNamed('/team-chat', arguments: conversationId);
+        break;
+
       // ==================== إشعارات الصفقات ====================
       case NotificationType.dealCreated:
       case NotificationType.dealUpdated:
@@ -188,7 +193,9 @@ class NotificationRouter {
         return Icons.alarm;
       case NotificationType.callReminder:
         return Icons.phone;
-      
+      case NotificationType.tenantChat:
+        return Icons.chat_bubble_outline;
+
       // إشعارات الصفقات
       case NotificationType.dealCreated:
       case NotificationType.dealUpdated:
@@ -276,7 +283,9 @@ class NotificationRouter {
         return Colors.red;
       case NotificationType.callReminder:
         return Colors.green;
-      
+      case NotificationType.tenantChat:
+        return Colors.indigo;
+
       // إشعارات الصفقات
       case NotificationType.dealCreated:
       case NotificationType.dealUpdated:
@@ -362,7 +371,9 @@ class NotificationRouter {
         return 'تذكير مهمة';
       case NotificationType.callReminder:
         return 'تذكير مكالمة';
-      
+      case NotificationType.tenantChat:
+        return 'دردشة الفريق';
+
       case NotificationType.dealCreated:
         return 'صفقة جديدة';
       case NotificationType.dealUpdated:

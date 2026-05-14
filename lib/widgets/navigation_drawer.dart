@@ -14,6 +14,8 @@ import '../screens/inventory/services_inventory_screen.dart';
 import '../screens/inventory/products_inventory_screen.dart';
 import '../screens/deals/deals_screen.dart';
 import '../screens/support/support_tickets_screen.dart';
+import '../services/team_chat_away_service.dart';
+import '../services/team_chat_unread_holder.dart';
 import '../models/user_model.dart';
 import '../services/api_service.dart';
 
@@ -447,6 +449,8 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
   }
 
   Future<void> _performLogout() async {
+    TeamChatAwayService.instance.stop();
+    TeamChatUnreadHolder.setTotal(0);
     await ApiService().clearAuthSession();
 
     if (!mounted) return;
