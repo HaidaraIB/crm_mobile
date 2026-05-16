@@ -49,8 +49,9 @@ class NumberFormatter {
       }
     }
 
-    // Create number format with thousand separators
+    // Latin digits and separators (matches CRM web `numberingSystem: 'latn'`) for ar/en UI.
     final formatter = NumberFormat.currency(
+      locale: 'en',
       decimalDigits: decimalPlaces,
       symbol: '', // Remove currency symbol
     );

@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'deal_terminology_overrides.dart';
+import 'inventory_terminology_overrides.dart';
+import 'medical_lexicon.dart';
+import 'medical_translation_overrides.dart';
 
 class AppLocalizations {
   final Locale locale;
@@ -93,6 +97,7 @@ class AppLocalizations {
       "invalidDomain": "Invalid domain format",
       "specialization": "Specialization",
       "realEstate": "Real Estate",
+      "medicalServices": "Medical services",
       "services": "Services",
       "products": "Products",
       "firstName": "First Name",
@@ -152,7 +157,7 @@ class AppLocalizations {
       'goodAfternoon': 'Good Afternoon',
       'goodEvening': 'Good Evening',
       'goodNight': 'Good Night',
-      'readyForWork': 'Ready for Work, Make customers happy!',
+      'readyForWork': 'Ready for work — let\'s make today productive.',
       'noLeadsYet': 'No leads yet',
       'createYourFirstLead': 'Create your first lead',
       'leadsOverview': 'Leads Overview',
@@ -883,6 +888,8 @@ class AppLocalizations {
       'taskReminder': 'Task Reminder',
       'taskCompleted': 'Task Completed',
       'callReminder': 'Call Reminder',
+      'visitReminder': 'Visit reminder',
+      'receptionVisitReminder': 'Reception visit reminder',
       'dealCreated': 'Deal Created',
       'dealUpdated': 'Deal Updated',
       'dealClosed': 'Deal Closed',
@@ -1231,6 +1238,7 @@ class AppLocalizations {
       "invalidDomain": "تنسيق النطاق غير صحيح",
       "specialization": "التخصص",
       "realEstate": "العقارات",
+      "medicalServices": "خدمات طبية",
       "services": "الخدمات",
       "products": "المنتجات",
       "firstName": "الاسم الأول",
@@ -1289,7 +1297,7 @@ class AppLocalizations {
       'goodAfternoon': 'مساء الخير',
       'goodEvening': 'مساء الخير',
       'goodNight': 'ليلة سعيدة',
-      'readyForWork': 'جاهز للعمل، اجعل العملاء سعداء!',
+      'readyForWork': 'جاهز للعمل — لنجعل اليوم مثمراً.',
       'noLeadsYet': 'لا عملاء بعد',
       'createYourFirstLead': 'أنشئ أول عميل',
       'leadsOverview': 'نظرة على العملاء',
@@ -2016,6 +2024,8 @@ class AppLocalizations {
       'taskReminder': 'تذكير مهمة',
       'taskCompleted': 'مهمة مكتملة',
       'callReminder': 'تذكير مكالمة',
+      'visitReminder': 'تذكير موعد زيارة',
+      'receptionVisitReminder': 'تذكير استقبال — موعد زيارة',
       'dealCreated': 'صفقة جديدة',
       'dealUpdated': 'تحديث صفقة',
       'dealClosed': 'إغلاق صفقة',
@@ -2282,6 +2292,24 @@ class AppLocalizations {
   };
 
   String translate(String key) {
+    final spec = MedicalLexicon.companySpecialization;
+    final deal = dealTerminologyLookup(spec, locale.languageCode, key);
+    if (deal != null && deal.isNotEmpty) {
+      return deal;
+    }
+    final inventory = inventoryTerminologyLookup(spec, locale.languageCode, key);
+    if (inventory != null && inventory.isNotEmpty) {
+      return inventory;
+    }
+    if (MedicalLexicon.isMedicalTenant) {
+      final lang = locale.languageCode;
+      final byLang = kMedicalTranslationOverrides[lang] ??
+          kMedicalTranslationOverrides['en'];
+      final over = byLang?[key];
+      if (over != null && over.isNotEmpty) {
+        return over;
+      }
+    }
     return _localizedValues[locale.languageCode]?[key] ??
         _localizedValues['en']?[key] ??
         key;

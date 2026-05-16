@@ -582,7 +582,7 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
                         localizations?.translate('originalValue') ??
                         'Original Value',
                     value: originalValue > 0
-                        ? NumberFormat('#,##0').format(originalValue)
+                        ? NumberFormat('#,##0', 'en').format(originalValue)
                         : '-',
                   ),
                   if (discountPercentage > 0)
@@ -599,7 +599,7 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
                       label:
                           localizations?.translate('discountAmount') ??
                           'Discount Amount',
-                      value: NumberFormat('#,##0').format(discountAmount),
+                      value: NumberFormat('#,##0', 'en').format(discountAmount),
                     ),
                   if (salesCommissionPercentage > 0)
                     InfoRow(
@@ -617,9 +617,7 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
                       label:
                           localizations?.translate('salesCommissionAmount') ??
                           'Sales Commission Amount',
-                      value: NumberFormat(
-                        '#,##0',
-                      ).format(salesCommissionAmount),
+                      value: NumberFormat('#,##0', 'en').format(salesCommissionAmount),
                     ),
                   const Divider(),
                   Row(
@@ -644,7 +642,7 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
                       ),
                       Text(
                         totalValue > 0
-                            ? NumberFormat('#,##0').format(totalValue)
+                            ? NumberFormat('#,##0', 'en').format(totalValue)
                             : '-',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,

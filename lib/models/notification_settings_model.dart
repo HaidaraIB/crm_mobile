@@ -65,6 +65,8 @@ class NotificationSettings {
       NotificationType.taskReminder: true,
       NotificationType.taskCompleted: true,
       NotificationType.callReminder: true,
+      NotificationType.visitReminder: true,
+      NotificationType.receptionVisitReminder: true,
       NotificationType.tenantChat: true,
 
       // إشعارات الصفقات - مفعلة افتراضياً

@@ -50,11 +50,24 @@ class UserModel {
     return roleLower == 'supervisor';
   }
 
+  bool get isDoctor {
+    final roleLower = role.toLowerCase();
+    return roleLower == 'doctor';
+  }
+
+  bool get isReception {
+    final roleLower = role.toLowerCase();
+    return roleLower == 'reception';
+  }
+
   // Check if user is employee (sales); excludes data_entry.
   bool get isEmployee {
     final roleLower = role.toLowerCase();
     return roleLower == 'employee';
   }
+
+  /// Doctor or sales employee: API scopes "my assigned" leads the same way.
+  bool get isAssignedClinicalStaff => isEmployee || isDoctor;
 
   /// Lead intake role: list/create/import only (API: `data_entry`).
   bool get isDataEntry {
@@ -75,6 +88,8 @@ class UserModel {
     if (isAdmin) return 'ADMIN';
     if (isSupervisor) return 'SUPERVISOR';
     if (isDataEntry) return 'DATA_ENTRY';
+    if (isReception) return 'RECEPTION';
+    if (isDoctor) return 'DOCTOR';
     return 'EMPLOYEE';
   }
   
@@ -166,7 +181,7 @@ class CompanyModel {
   final int id;
   final String name;
   final String? domain;
-  final String specialization; // 'real_estate', 'services', 'products'
+  final String specialization; // 'real_estate', 'services', 'products', 'medical'
   final bool? autoAssignEnabled;
   final bool? reAssignEnabled;
   final int? reAssignHours;

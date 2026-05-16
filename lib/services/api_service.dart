@@ -8,6 +8,7 @@ import '../core/api/api_envelope.dart';
 import '../core/constants/app_constants.dart';
 import '../core/storage/auth_token_storage.dart';
 import '../core/localization/app_localizations.dart';
+import '../core/localization/medical_lexicon.dart';
 import '../core/utils/api_error_helper.dart';
 import '../core/utils/app_locales.dart';
 import '../models/lead_model.dart';
@@ -707,6 +708,7 @@ class ApiService {
     // Drop FCM registration locally after session flags cleared so pushes stop
     // for this install (handlers also ignore payloads when logged out).
     await clearLocalPushRegistrationAfterLogout();
+    MedicalLexicon.clear();
   }
 
   /// مسح الجلسة (رموز + تفضيلات تسجيل الدخول) — للاستخدام من واجهة تسجيل الخروج.
@@ -1928,13 +1930,17 @@ class ApiService {
   }) async {
     const cacheKey = 'current_user';
     final cached = _cacheGet<UserModel>(cacheKey, forceRefresh: forceRefresh);
-    if (cached != null) return cached;
+    if (cached != null) {
+      MedicalLexicon.setCompanySpecialization(cached.company?.specialization);
+      return cached;
+    }
 
     final response = await _makeRequest('GET', '/users/me/');
 
     if (response.statusCode == 200) {
       final data = _unwrapResponseMap(response);
       final user = UserModel.fromJson(data);
+      MedicalLexicon.setCompanySpecialization(user.company?.specialization);
       _cacheSet<UserModel>(cacheKey, user, ttl: cacheTtl);
       return user;
     } else {
@@ -1995,6 +2001,7 @@ class ApiService {
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final data = _unwrapResponseMap(response);
         final user = UserModel.fromJson(data);
+        MedicalLexicon.setCompanySpecialization(user.company?.specialization);
         _invalidateUserCache();
         return user;
       } else {
@@ -2034,7 +2041,7 @@ class ApiService {
   }) async {
     // Get current user to check role
     final currentUser = await getCurrentUser(forceRefresh: forceRefresh);
-    final isEmployee = currentUser.isEmployee;
+    final isEmployee = currentUser.isAssignedClinicalStaff;
 
     final queryParams = <String, String>{};
     if (status != null && status != 'All') queryParams['status'] = status;

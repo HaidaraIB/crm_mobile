@@ -362,7 +362,7 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
           ),
           const SizedBox(height: 8),
           Text(
-            localizations?.translate('readyForWork') ?? 'Ready for Work, Make customers happy!',
+            localizations?.translate('readyForWork') ?? 'Ready for work — let\'s make today productive.',
             style: const TextStyle(
               color: Colors.white70,
               fontSize: 14,

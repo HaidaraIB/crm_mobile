@@ -74,6 +74,32 @@ class SettingsDefaultChip extends StatelessWidget {
   }
 }
 
+/// Hint text for double-tap "Set as default" — readable on dark backgrounds.
+class SettingsSetAsDefaultHint extends StatelessWidget {
+  const SettingsSetAsDefaultHint({
+    super.key,
+    required this.label,
+  });
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    return Text(
+      label,
+      style: theme.textTheme.labelSmall?.copyWith(
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        color: isDark ? Colors.white.withValues(alpha: 0.9) : AppTheme.primaryColor,
+      ),
+      softWrap: false,
+      overflow: TextOverflow.visible,
+    );
+  }
+}
+
 /// Small chip for priority/category/required badges with custom color.
 class SettingsLabelChip extends StatelessWidget {
   const SettingsLabelChip({

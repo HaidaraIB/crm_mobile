@@ -53,7 +53,7 @@ class _SettingsScreenState extends State<SettingsScreen> with TickerProviderStat
           final hasSettingsPerm = user.hasSupervisorPermission('can_manage_settings');
           final spec = user.company?.specialization ?? '';
           final showVisitTypesTab = (isAdmin || hasSettingsPerm) &&
-              (spec == 'real_estate' || spec == 'services');
+              (spec == 'real_estate' || spec == 'services' || spec == 'medical');
           final tabCount = (isAdmin || hasSettingsPerm)
               ? (5 + (showVisitTypesTab ? 1 : 0))
               : 1;
@@ -79,7 +79,7 @@ class _SettingsScreenState extends State<SettingsScreen> with TickerProviderStat
     final canManageSettings = isAdmin || hasSettingsPerm;
     final spec = _currentUser?.company?.specialization ?? '';
     final showVisitTypesTab = canManageSettings &&
-        (spec == 'real_estate' || spec == 'services');
+        (spec == 'real_estate' || spec == 'services' || spec == 'medical');
 
     if (_tabController == null) {
       return const Scaffold(

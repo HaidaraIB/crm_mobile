@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/app_locales.dart';
 import '../../models/tenant_chat_models.dart';
 import 'team_chat_common.dart';
 import 'team_chat_media.dart';
@@ -189,7 +190,9 @@ class TeamChatMessageBubble extends StatelessWidget {
         ? AppTheme.primaryColor.withValues(alpha: 0.92)
         : scheme.surfaceContainerHigh;
     final fg = mine ? Colors.white : scheme.onSurface;
-    final timeStr = DateFormat.Hm(lang == 'ar' ? 'ar' : 'en').format(DateTime.parse(message.createdAt));
+    final timeStr = DateFormat.Hm(
+      AppLocales.intlDateFormat(AppLocales.fromLanguageCode(lang)),
+    ).format(DateTime.parse(message.createdAt));
     final groupHeaderRole =
         !mine && isCompanyGroup ? tenantChatPeerRoleLabel(message.sender.role, tr) : '';
 

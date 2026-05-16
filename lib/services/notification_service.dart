@@ -19,8 +19,10 @@ const int _kTenantChatMergedNotifIdBase = 1900000000;
 const int _kTenantChatMergeMaxLines = 5;
 const String _kTenantChatMergePrefsPrefix = 'tenant_chat_push_merge_v1_';
 
+/// Bump this when Android channels must be deleted and recreated (e.g. custom
+/// sounds not applied because channels existed with default sound first).
 const String _kAndroidChannelSoundMigrationPrefsKey =
-    'android_notif_channel_sound_v1_done';
+    'android_notif_channel_sound_v2_done';
 
 const List<String> _kAllAndroidNotificationChannelIds = <String>[
   'general',
@@ -1105,6 +1107,8 @@ class NotificationService {
       case NotificationType.taskCompleted:
       case NotificationType.taskReminder:
       case NotificationType.callReminder:
+      case NotificationType.visitReminder:
+      case NotificationType.receptionVisitReminder:
         return 'tasks';
 
       case NotificationType.tenantChat:

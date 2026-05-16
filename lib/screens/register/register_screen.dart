@@ -1073,6 +1073,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
               value: 'products',
               child: Text(localizations?.translate('products') ?? 'Products'),
             ),
+            DropdownMenuItem(
+              value: 'medical',
+              child: Text(
+                localizations?.translate('medicalServices') ??
+                    'Medical services',
+              ),
+            ),
           ],
           onChanged: (value) {
             if (value != null) {

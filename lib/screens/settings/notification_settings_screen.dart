@@ -212,6 +212,8 @@ class _NotificationSettingsScreenState
               NotificationType.taskReminder,
               NotificationType.taskCompleted,
               NotificationType.callReminder,
+              NotificationType.visitReminder,
+              NotificationType.receptionVisitReminder,
             ],
           ),
 
@@ -412,6 +414,10 @@ class _NotificationSettingsScreenState
         return 'taskCompleted';
       case NotificationType.callReminder:
         return 'callReminder';
+      case NotificationType.visitReminder:
+        return 'visitReminder';
+      case NotificationType.receptionVisitReminder:
+        return 'receptionVisitReminder';
       case NotificationType.tenantChat:
         return 'teamChat';
       case NotificationType.dealCreated:

@@ -298,12 +298,9 @@ class _StagesSettingsScreenState extends State<StagesSettingsScreen> {
                                     ],
                                     if (!stage.isDefault) ...[
                                       const SizedBox(height: 6),
-                                      Text(
-                                        '${localizations?.translate('setAsDefault') ?? 'Set as default'} (double-tap)',
-                                        style: theme.textTheme.labelSmall?.copyWith(
-                                          color: theme.colorScheme.primary,
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                                      SettingsSetAsDefaultHint(
+                                        label:
+                                            '${localizations?.translate('setAsDefault') ?? 'Set as default'} (double-tap)',
                                       ),
                                     ],
                                   ],

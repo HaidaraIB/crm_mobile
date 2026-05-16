@@ -136,6 +136,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
   bool _canModifyLead(LeadModel lead) {
     if (_currentUser == null) return false;
     if (_currentUser!.isDataEntry) return false;
+    if (_currentUser!.isReception) return true;
     if (_currentUser!.isAdmin) return true;
     if (_currentUser!.hasSupervisorPermission('can_manage_leads')) return true;
     return lead.assignedTo == _currentUser!.id;

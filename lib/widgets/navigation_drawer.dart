@@ -76,7 +76,7 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
   /// True if user can see the Inventory section (admin always; supervisor only if they have the permission matching company specialization).
   bool _canAccessInventory(UserModel? user) {
     if (user == null || user.company == null) return false;
-    if (user.isDataEntry) return false;
+    if (user.isDataEntry || user.isReception) return false;
     if (user.isAdmin) return true;
     if (user.isSupervisor) {
       final spec = user.company!.specialization;
@@ -160,7 +160,7 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
 
           // Menu Items
           Expanded(
-            child: _currentUser?.isDataEntry == true
+            child: (_currentUser?.isDataEntry == true || _currentUser?.isReception == true)
                 ? ListView(
                     padding: EdgeInsets.zero,
                     children: [
@@ -297,7 +297,7 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
                       ),
                     ],
                     // Services specialization items
-                    if (SpecializationHelper.isServices(_currentUser)) ...[
+                    if (SpecializationHelper.hasServiceInventory(_currentUser)) ...[
                       _buildSubMenuItem(
                         context,
                         title:

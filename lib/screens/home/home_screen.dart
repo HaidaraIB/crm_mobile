@@ -82,7 +82,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       setState(() {
         _sessionUser = user;
-        if (user.isDataEntry) {
+        if (user.isDataEntry || user.isReception) {
           _currentIndex = 1;
         }
       });
@@ -258,7 +258,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     (_calendarKey.currentState as dynamic)?.refreshEvents();
                   },
                 ),
-                _teamChatAppBarAction(localizations),
               ],
             )
           : AppBar(
@@ -319,7 +318,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     },
                   ),
-                  _teamChatAppBarAction(localizations),
                 ],
                 if (_currentIndex == 0) ...[
                   _teamChatAppBarAction(localizations),

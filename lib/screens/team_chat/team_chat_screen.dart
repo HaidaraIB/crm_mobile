@@ -11,6 +11,7 @@ import 'package:intl/intl.dart' hide TextDirection;
 import 'package:record/record.dart';
 
 import '../../core/localization/app_localizations.dart';
+import '../../core/utils/app_locales.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/tenant_chat_models.dart';
 import '../../services/api_service.dart';
@@ -949,11 +950,11 @@ class _TeamChatScreenState extends State<TeamChatScreen>
     final yest = today.subtract(const Duration(days: 1));
     if (dayStart == today) return _t('teamChatDayToday');
     if (dayStart == yest) return _t('teamChatDayYesterday');
-    final loc = lang == 'ar' ? 'ar' : 'en';
+    final intlLoc = AppLocales.intlDateFormat(AppLocales.fromLanguageCode(lang));
     final sameYear = dayStart.year == now.year;
     return sameYear
-        ? DateFormat.MMMMd(loc).format(dayStart)
-        : DateFormat.yMMMd(loc).format(dayStart);
+        ? DateFormat.MMMMd(intlLoc).format(dayStart)
+        : DateFormat.yMMMd(intlLoc).format(dayStart);
   }
 
   String? _groupMembersLine(TenantChatConversation c) {
@@ -993,14 +994,14 @@ class _TeamChatScreenState extends State<TeamChatScreen>
     try {
       final dt = DateTime.parse(raw);
       final now = DateTime.now();
-      final loc = lang == 'ar' ? 'ar' : 'en';
+      final intlLoc = AppLocales.intlDateFormat(AppLocales.fromLanguageCode(lang));
       if (_dayKey(_startOfLocalDay(dt)) == _dayKey(_startOfLocalDay(now))) {
-        return DateFormat.Hm(loc).format(dt);
+        return DateFormat.Hm(intlLoc).format(dt);
       }
       if (dt.year == now.year) {
-        return DateFormat.MMMd(loc).format(dt);
+        return DateFormat.MMMd(intlLoc).format(dt);
       }
-      return DateFormat.yMMMd(loc).format(dt);
+      return DateFormat.yMMMd(intlLoc).format(dt);
     } catch (_) {
       return '';
     }

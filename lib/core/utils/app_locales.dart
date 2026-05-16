@@ -5,9 +5,10 @@ abstract final class AppLocales {
   static const Locale arabic = Locale('ar', 'EG');
   static const Locale english = Locale('en');
 
-  /// ICU locale string for [intl] [DateFormat] (underscore), not Flutter's [Locale] constructor.
+  /// ICU locale for [intl] [DateFormat] (underscore form). `u-nu-latn` forces Western digits (0–9)
+  /// while keeping Arabic month/weekday names for `ar`.
   static String intlDateFormat(Locale locale) {
-    if (locale.languageCode == 'ar') return 'ar_EG';
+    if (locale.languageCode == 'ar') return 'ar_EG_u_nu_latn';
     return 'en';
   }
 

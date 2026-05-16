@@ -54,6 +54,10 @@ enum NotificationType {
   taskCompleted, // تم إكمال مهمة
   /// 📞 تذكير مكالمة
   callReminder, // تذكير بموعد مكالمة متابعة
+  /// موعد زيارة / متابعة (طبية وغيرها)
+  visitReminder,
+  /// تذكير استقبال لموعد زيارة (عيادة)
+  receptionVisitReminder,
   /// 💬 دردشة الفريق (FCM يستخدم غالباً type عام + data.kind=tenant_chat)
   tenantChat,
 
