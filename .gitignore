@@ -56,5 +56,6 @@ app.*.map.json
 # Firebase configuration files (DO NOT COMMIT THESE)
 **/google-services.json
 **/GoogleService-Info.plist
+upload-to-drive-service-account.json
 
 .vscode/

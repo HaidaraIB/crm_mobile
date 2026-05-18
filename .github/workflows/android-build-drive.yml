@@ -1,0 +1,158 @@
+name: Android Release to Google Drive
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "lib/**"
+      - "android/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - ".github/workflows/android-build-drive.yml"
+      - "scripts/upload_to_gdrive.py"
+
+  workflow_dispatch:
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Accept Android licenses
+        run: yes | flutter doctor --android-licenses || true
+
+      - name: Decode Android keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "ERROR: ANDROID_KEYSTORE_BASE64 secret is not set"
+            exit 1
+          fi
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/crm-release-key.jks
+          ls -la android/crm-release-key.jks
+
+      - name: Create key.properties
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_PASSWORD" ] || [ -z "$ANDROID_KEY_PASSWORD" ] || [ -z "$ANDROID_KEY_ALIAS" ]; then
+            echo "ERROR: Android signing secrets are not set (ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_PASSWORD, ANDROID_KEY_ALIAS)"
+            exit 1
+          fi
+          cat > android/key.properties <<EOF
+          storePassword=${ANDROID_KEYSTORE_PASSWORD}
+          keyPassword=${ANDROID_KEY_PASSWORD}
+          keyAlias=${ANDROID_KEY_ALIAS}
+          storeFile=crm-release-key.jks
+          EOF
+
+      - name: Create .env for production
+        env:
+          BASE_URL: ${{ secrets.BASE_URL }}
+          API_KEY_MOBILE: ${{ secrets.API_KEY_MOBILE }}
+          API_KEY: ${{ secrets.API_KEY }}
+        run: |
+          if [ -z "$BASE_URL" ]; then
+            echo "ERROR: BASE_URL secret is not set"
+            exit 1
+          fi
+          MOBILE_KEY="${API_KEY_MOBILE:-$API_KEY}"
+          if [ -z "$MOBILE_KEY" ]; then
+            echo "ERROR: Set API_KEY_MOBILE or API_KEY secret"
+            exit 1
+          fi
+          {
+            echo "BASE_URL=$BASE_URL"
+            echo "API_KEY_MOBILE=$MOBILE_KEY"
+            echo "API_KEY=$MOBILE_KEY"
+          } > .env
+          echo "Created .env with BASE_URL and API keys"
+
+      - name: Create google-services.json
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+            echo "Wrote android/app/google-services.json from secret"
+          else
+            echo "GOOGLE_SERVICES_JSON not set; skipping (Firebase optional if not required at build time)"
+          fi
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Build release App Bundle
+        run: flutter build appbundle --release
+
+      - name: Rename artifacts
+        run: |
+          VERSION_LINE=$(grep '^version:' pubspec.yaml | head -1 | sed 's/^version:[[:space:]]*//' | sed 's/#.*//' | sed 's/[[:space:]]*$//' | tr -d '"' | tr -d "'")
+          if [ -z "$VERSION_LINE" ]; then
+            echo "ERROR: Could not read version from pubspec.yaml"
+            exit 1
+          fi
+          if echo "$VERSION_LINE" | grep -q '+'; then
+            BUILD_NAME="${VERSION_LINE%%+*}"
+            BUILD_NUM="${VERSION_LINE#*+}"
+            BUILD_NUM="${BUILD_NUM%%[[:space:]]#*}"
+            BUILD_NUM=$(echo "$BUILD_NUM" | sed 's/[[:space:]]*$//')
+          else
+            BUILD_NAME="$VERSION_LINE"
+            BUILD_NUM="1"
+            echo "WARNING: pubspec version has no +build suffix; using build number 1"
+          fi
+          if [ -z "$BUILD_NAME" ] || [ -z "$BUILD_NUM" ]; then
+            echo "ERROR: Invalid version in pubspec.yaml: $VERSION_LINE"
+            exit 1
+          fi
+          if ! echo "$BUILD_NUM" | grep -qE '^[0-9]+$'; then
+            echo "ERROR: Build number after + must be digits only. Got: '$BUILD_NUM'"
+            exit 1
+          fi
+          APK_OUT="LoopCRM ${BUILD_NAME}(${BUILD_NUM}).apk"
+          AAB_OUT="LoopCRM ${BUILD_NAME}(${BUILD_NUM}).aab"
+          cp build/app/outputs/flutter-apk/app-release.apk "$APK_OUT"
+          cp build/app/outputs/bundle/release/app-release.aab "$AAB_OUT"
+          echo "APK_OUT=$APK_OUT" >> "$GITHUB_ENV"
+          echo "AAB_OUT=$AAB_OUT" >> "$GITHUB_ENV"
+          ls -la "$APK_OUT" "$AAB_OUT"
+
+      - name: Upload to Google Drive
+        env:
+          GDRIVE_CREDENTIALS_JSON: ${{ secrets.GDRIVE_CREDENTIALS_JSON }}
+          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+        run: |
+          python -m pip install --quiet google-api-python-client google-auth
+          python scripts/upload_to_gdrive.py "$APK_OUT" "$AAB_OUT"
+
+      - name: Upload GitHub Actions artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release
+          path: |
+            LoopCRM *.apk
+            LoopCRM *.aab
+          if-no-files-found: error

@@ -140,6 +140,19 @@ The AAB will be located at:
   - OAuth2 or other authentication methods
   - Build flavors with different configurations
 
+## CI builds (GitHub Actions)
+
+On every push to `main` (when app code changes), GitHub Actions can build release APK/AAB and upload them to your shared Google Drive folder as:
+
+- `LoopCRM {version}({build}).apk` — e.g. `LoopCRM 1.6.0(19).apk`
+- `LoopCRM {version}({build}).aab` — e.g. `LoopCRM 1.6.0(19).aab`
+
+Version and build number come from `version:` in `pubspec.yaml` (e.g. `1.6.0+19`).
+
+**One-time setup:** see [GITHUB_ACTIONS_ANDROID_SETUP.md](GITHUB_ACTIONS_ANDROID_SETUP.md) (Google Cloud service account, Drive folder share, GitHub secrets).
+
+You can also trigger a build manually: **Actions → Android Release to Google Drive → Run workflow**.
+
 ## Next Steps
 
 After building the APK:
