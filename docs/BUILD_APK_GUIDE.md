@@ -149,7 +149,8 @@ On every push to `main` (when app code changes), GitHub Actions can build releas
 
 Version and build number come from `version:` in `pubspec.yaml` (e.g. `1.6.0+19`).
 
-**One-time setup:** see [GITHUB_ACTIONS_ANDROID_SETUP.md](GITHUB_ACTIONS_ANDROID_SETUP.md) (Google Cloud service account, Drive folder share, GitHub secrets).
+**One-time setup:** see [GITHUB_ACTIONS_ANDROID_SETUP.md](GITHUB_ACTIONS_ANDROID_SETUP.md).  
+Drive upload requires a **Shared drive** (Workspace) or **OAuth** — a normal My Drive folder shared with a service account will fail with `storageQuotaExceeded`.
 
 You can also trigger a build manually: **Actions → Android Release to Google Drive → Run workflow**.
 

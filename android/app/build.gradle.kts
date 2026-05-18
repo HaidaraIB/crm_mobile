@@ -8,6 +8,7 @@ plugins {
 }
 
 import java.io.File
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 // Load keystore properties
 val keystorePropertiesFile = rootProject.file("key.properties")
@@ -55,10 +56,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
         isCoreLibraryDesugaringEnabled = true
-    }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
     defaultConfig {
@@ -136,9 +133,9 @@ tasks.withType<JavaCompile>().configureEach {
     targetCompatibility = "17"
 }
 
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-    kotlinOptions {
-        jvmTarget = "17"
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
     }
 }
 
