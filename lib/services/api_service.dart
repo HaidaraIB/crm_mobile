@@ -10,6 +10,8 @@ import '../core/storage/auth_token_storage.dart';
 import '../core/localization/app_localizations.dart';
 import '../core/localization/medical_lexicon.dart';
 import '../core/utils/api_error_helper.dart';
+import '../core/utils/lead_location.dart';
+import '../core/utils/field_visit_api_errors.dart';
 import '../core/utils/app_locales.dart';
 import '../models/lead_model.dart';
 import '../models/user_model.dart';
@@ -17,6 +19,7 @@ import '../models/settings_model.dart';
 import '../models/client_task_model.dart';
 import '../models/client_call_model.dart';
 import '../models/client_visit_model.dart';
+import '../models/client_field_visit_model.dart';
 import '../models/task_model.dart';
 import '../models/inventory_model.dart';
 import '../models/deal_model.dart';
@@ -2295,6 +2298,131 @@ class ApiService {
     }
   }
 
+  Future<List<ClientFieldVisitModel>> getClientFieldVisits(int leadId) async {
+    final response = await _makeRequest(
+      'GET',
+      '/client-field-visits/?client=$leadId&ordering=-visit_datetime',
+    );
+
+    if (response.statusCode == 403) {
+      final err = _errorContextFromBody(response.body);
+      final code = err['code']?.toString();
+      if (code == 'field_visit_disabled') {
+        return <ClientFieldVisitModel>[];
+      }
+    }
+
+    if (response.statusCode == 200) {
+      final data = _unwrapResponseMap(response);
+      final resultsList = data['results'] as List?;
+      final results = resultsList != null
+          ? resultsList
+              .map((e) => ClientFieldVisitModel.fromJson(e as Map<String, dynamic>))
+              .toList()
+          : <ClientFieldVisitModel>[];
+      return results;
+    } else {
+      throw Exception(_translateError('failedToGetFieldVisits', locale: null));
+    }
+  }
+
+  /// Log a field visit with GPS validation (all specializations when enabled).
+  Future<ClientFieldVisitModel> createClientFieldVisit({
+    required int leadId,
+    required String summary,
+    required DateTime visitDatetime,
+    required double employeeLatitude,
+    required double employeeLongitude,
+    double? employeeLocationAccuracy,
+    DateTime? upcomingVisitDate,
+    String? clientLocationPhotoPath,
+  }) async {
+    final hasPhoto =
+        clientLocationPhotoPath != null && clientLocationPhotoPath.isNotEmpty;
+
+    if (!hasPhoto) {
+      final body = <String, dynamic>{
+        'client': leadId,
+        'summary': summary,
+        'visit_datetime': visitDatetime.toIso8601String(),
+        'employee_latitude': employeeLatitude.toStringAsFixed(6),
+        'employee_longitude': employeeLongitude.toStringAsFixed(6),
+      };
+      if (employeeLocationAccuracy != null) {
+        body['employee_location_accuracy'] = employeeLocationAccuracy;
+      }
+      if (upcomingVisitDate != null) {
+        body['upcoming_visit_date'] = upcomingVisitDate.toIso8601String();
+      }
+
+      final response = await _makeRequest('POST', '/client-field-visits/', body: body);
+      if (response.statusCode == 201) {
+        final data = _unwrapResponseMap(response);
+        return ClientFieldVisitModel.fromJson(data);
+      }
+      throw _fieldVisitCreateException(response);
+    }
+
+    final cleanBaseUrl = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
+    final url = Uri.parse('$cleanBaseUrl/client-field-visits/');
+    final token = await _getAccessToken();
+    if (token == null) {
+      throw Exception(_translateError('notAuthenticated', locale: null));
+    }
+
+    try {
+      final request = http.MultipartRequest('POST', url);
+      request.headers['Authorization'] = 'Bearer $token';
+      final apiKey = AppConstants.apiKey;
+      if (apiKey.isNotEmpty) {
+        request.headers['X-API-Key'] = apiKey;
+      }
+      request.fields['client'] = leadId.toString();
+      request.fields['summary'] = summary;
+      request.fields['visit_datetime'] = visitDatetime.toIso8601String();
+      request.fields['employee_latitude'] = employeeLatitude.toStringAsFixed(6);
+      request.fields['employee_longitude'] = employeeLongitude.toStringAsFixed(6);
+      if (employeeLocationAccuracy != null) {
+        request.fields['employee_location_accuracy'] =
+            employeeLocationAccuracy.toString();
+      }
+      if (upcomingVisitDate != null) {
+        request.fields['upcoming_visit_date'] =
+            upcomingVisitDate.toIso8601String();
+      }
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'client_location_photo',
+          clientLocationPhotoPath,
+        ),
+      );
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      if (response.statusCode == 201) {
+        final data = _unwrapResponseMap(response);
+        return ClientFieldVisitModel.fromJson(data);
+      }
+      throw _fieldVisitCreateException(response);
+    } catch (e, stackTrace) {
+      if (e is FieldVisitCreateException) rethrow;
+      ErrorLogger().logError(
+        error: e.toString(),
+        stackTrace: stackTrace.toString(),
+        endpoint: '/client-field-visits/',
+        method: 'POST',
+      );
+      rethrow;
+    }
+  }
+
+  FieldVisitCreateException _fieldVisitCreateException(http.Response response) {
+    final err = _errorContextFromBody(response.body);
+    return FieldVisitCreateException.fromApiError(err);
+  }
+
   // Get all client calls for calendar
   Future<List<ClientCallModel>> getAllClientCalls() async {
     final response = await _makeRequest('GET', '/client-calls/');
@@ -2350,6 +2478,8 @@ class ApiService {
     String? leadCompanyName,
     String? profession,
     String? notes,
+    double? locationLatitude,
+    double? locationLongitude,
   }) async {
     // Get current user to retrieve company ID
     final currentUser = await getCurrentUser();
@@ -2401,6 +2531,13 @@ class ApiService {
       body['notes'] = notes.trim().isEmpty ? null : notes.trim();
     }
 
+    body.addAll(
+      buildLeadLocationApiBody(
+        latitude: locationLatitude,
+        longitude: locationLongitude,
+      ),
+    );
+
     final response = await _makeRequest('POST', '/clients/', body: body);
 
     if (response.statusCode == 201) {
@@ -2440,6 +2577,9 @@ class ApiService {
     String? leadCompanyName,
     String? profession,
     String? notes,
+    double? locationLatitude,
+    double? locationLongitude,
+    bool sendLeadLocation = false,
   }) async {
     final body = <String, dynamic>{};
 
@@ -2480,6 +2620,15 @@ class ApiService {
     }
     if (notes != null) {
       body['notes'] = notes.trim().isEmpty ? null : notes.trim();
+    }
+
+    if (sendLeadLocation) {
+      body.addAll(
+        buildLeadLocationApiBody(
+          latitude: locationLatitude,
+          longitude: locationLongitude,
+        ),
+      );
     }
 
     final response = await _makeRequest('PATCH', '/clients/$id/', body: body);

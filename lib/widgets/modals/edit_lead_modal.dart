@@ -659,6 +659,13 @@ class _EditLeadModalState extends State<EditLeadModal> {
                                       ),
                                     ),
                                     DropdownMenuItem(
+                                      value: 'hot',
+                                      child: Text(
+                                        localizations?.translate('hot') ??
+                                            'Hot',
+                                      ),
+                                    ),
+                                    DropdownMenuItem(
                                       value: 'cold',
                                       child: Text(
                                         localizations?.translate('cold') ??

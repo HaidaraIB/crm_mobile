@@ -3,7 +3,7 @@ class LeadModel {
   final String name;
   final String phone;
   final String? status;
-  final String type; // 'Fresh', 'Cold', 'My', 'Rotated', 'All'
+  final String type; // 'fresh', 'hot', 'cold', etc.
   final int assignedTo;
   final double budget;
   /// Upper bound when budget is a range; null means single value ([budget] only).
@@ -22,6 +22,8 @@ class LeadModel {
   /// CRM user id who created the lead (null for integrations / legacy).
   final int? createdBy;
   final String? createdByName;
+  final double? locationLatitude;
+  final double? locationLongitude;
 
   LeadModel({
     required this.id,
@@ -45,6 +47,8 @@ class LeadModel {
     this.profession,
     this.createdBy,
     this.createdByName,
+    this.locationLatitude,
+    this.locationLongitude,
   });
   
   factory LeadModel.fromJson(Map<String, dynamic> json) {
@@ -143,6 +147,8 @@ class LeadModel {
       profession: json['profession'] as String?,
       createdBy: createdById,
       createdByName: createdByNameValue,
+      locationLatitude: toDoubleOrNull(json['location_latitude']),
+      locationLongitude: toDoubleOrNull(json['location_longitude']),
     );
   }
   
@@ -169,6 +175,8 @@ class LeadModel {
       'profession': profession,
       if (createdBy != null) 'created_by': createdBy,
       if (createdByName != null) 'created_by_name': createdByName,
+      if (locationLatitude != null) 'location_latitude': locationLatitude,
+      if (locationLongitude != null) 'location_longitude': locationLongitude,
     };
   }
 }

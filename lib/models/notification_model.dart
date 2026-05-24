@@ -58,6 +58,10 @@ enum NotificationType {
   visitReminder,
   /// تذكير استقبال لموعد زيارة (عيادة)
   receptionVisitReminder,
+  /// تذكير زيارة ميدانية
+  fieldVisitReminder,
+  /// تذكير استقبال لزيارة ميدانية
+  receptionFieldVisitReminder,
   /// 💬 دردشة الفريق (FCM يستخدم غالباً type عام + data.kind=tenant_chat)
   tenantChat,
 

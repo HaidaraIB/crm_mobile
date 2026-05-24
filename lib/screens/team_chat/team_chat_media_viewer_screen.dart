@@ -9,6 +9,7 @@ import 'package:video_player/video_player.dart';
 
 import '../../core/localization/app_localizations.dart';
 import '../../core/utils/snackbar_helper.dart';
+import '../../services/api_service.dart';
 import 'team_chat_common.dart';
 
 /// Full-screen viewer for team chat images (pinch zoom) and videos (Chewie controls + save).
@@ -18,11 +19,18 @@ class TeamChatMediaViewerScreen extends StatefulWidget {
   TeamChatMediaViewerScreen._({
     super.key,
     this.imageBytes,
+    this.imageUrl,
+    this.imageFilePath,
     this.videoFilePath,
     this.suggestedFilename,
   }) : assert(
-          (imageBytes != null && videoFilePath == null) ||
-              (imageBytes == null && videoFilePath != null),
+          [
+            imageBytes != null,
+            imageUrl != null,
+            imageFilePath != null,
+            videoFilePath != null,
+          ].where((x) => x).length ==
+              1,
         );
 
   factory TeamChatMediaViewerScreen.image({
@@ -33,6 +41,30 @@ class TeamChatMediaViewerScreen extends StatefulWidget {
     return TeamChatMediaViewerScreen._(
       key: key,
       imageBytes: imageBytes,
+      suggestedFilename: suggestedFilename,
+    );
+  }
+
+  factory TeamChatMediaViewerScreen.networkImage({
+    Key? key,
+    required String imageUrl,
+    String? suggestedFilename,
+  }) {
+    return TeamChatMediaViewerScreen._(
+      key: key,
+      imageUrl: imageUrl,
+      suggestedFilename: suggestedFilename,
+    );
+  }
+
+  factory TeamChatMediaViewerScreen.fileImage({
+    Key? key,
+    required String imageFilePath,
+    String? suggestedFilename,
+  }) {
+    return TeamChatMediaViewerScreen._(
+      key: key,
+      imageFilePath: imageFilePath,
       suggestedFilename: suggestedFilename,
     );
   }
@@ -50,10 +82,13 @@ class TeamChatMediaViewerScreen extends StatefulWidget {
   }
 
   final Uint8List? imageBytes;
+  final String? imageUrl;
+  final String? imageFilePath;
   final String? videoFilePath;
   final String? suggestedFilename;
 
-  bool get isImage => imageBytes != null;
+  bool get isImage =>
+      imageBytes != null || imageUrl != null || imageFilePath != null;
 
   @override
   State<TeamChatMediaViewerScreen> createState() => _TeamChatMediaViewerScreenState();
@@ -63,6 +98,9 @@ class _TeamChatMediaViewerScreenState extends State<TeamChatMediaViewerScreen> {
   VideoPlayerController? _video;
   ChewieController? _chewie;
   bool _videoFailed = false;
+  Uint8List? _loadedImageBytes;
+  bool _imageLoadFailed = false;
+  bool _imageLoading = false;
 
   static final List<DeviceOrientation> _allOrientations =
       List<DeviceOrientation>.unmodifiable(DeviceOrientation.values);
@@ -70,8 +108,33 @@ class _TeamChatMediaViewerScreenState extends State<TeamChatMediaViewerScreen> {
   @override
   void initState() {
     super.initState();
-    if (!widget.isImage) {
+    if (widget.imageUrl != null) {
+      _loadNetworkImage();
+    } else if (!widget.isImage) {
       _initVideo();
+    }
+  }
+
+  Future<void> _loadNetworkImage() async {
+    final url = widget.imageUrl;
+    if (url == null) return;
+    setState(() {
+      _imageLoading = true;
+      _imageLoadFailed = false;
+    });
+    try {
+      final bytes = await ApiService().fetchAuthenticatedBinaryGet(url);
+      if (!mounted) return;
+      setState(() {
+        _loadedImageBytes = bytes;
+        _imageLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _imageLoadFailed = true;
+        _imageLoading = false;
+      });
     }
   }
 
@@ -152,8 +215,27 @@ class _TeamChatMediaViewerScreenState extends State<TeamChatMediaViewerScreen> {
     }
   }
 
+  Future<Uint8List?> _resolveImageBytesForSave() async {
+    if (widget.imageBytes != null) return widget.imageBytes;
+    if (_loadedImageBytes != null) return _loadedImageBytes;
+    final path = widget.imageFilePath;
+    if (path != null) {
+      final file = File(path);
+      if (await file.exists()) return file.readAsBytes();
+    }
+    final url = widget.imageUrl;
+    if (url != null) {
+      try {
+        return await ApiService().fetchAuthenticatedBinaryGet(url);
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   Future<void> _saveImage() async {
-    final bytes = widget.imageBytes;
+    final bytes = await _resolveImageBytesForSave();
     if (bytes == null) return;
     final loc = AppLocalizations.of(context);
     try {
@@ -259,7 +341,51 @@ class _TeamChatMediaViewerScreenState extends State<TeamChatMediaViewerScreen> {
   }
 
   Widget _buildImageBody() {
-    final bytes = widget.imageBytes!;
+    final loc = AppLocalizations.of(context);
+    final filePath = widget.imageFilePath;
+
+    if (filePath != null) {
+      final file = File(filePath);
+      return LayoutBuilder(
+        builder: (context, cons) {
+          return InteractiveViewer(
+            minScale: 1,
+            maxScale: 5,
+            boundaryMargin: const EdgeInsets.all(24),
+            child: Center(
+              child: Image.file(
+                file,
+                fit: BoxFit.contain,
+                gaplessPlayback: true,
+                errorBuilder: (_, __, ___) => _imageError(loc),
+              ),
+            ),
+          );
+        },
+      );
+    }
+
+    if (widget.imageUrl != null) {
+      if (_imageLoading) {
+        return const Center(
+          child: SizedBox(
+            width: 36,
+            height: 36,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Colors.white70,
+            ),
+          ),
+        );
+      }
+      if (_imageLoadFailed || _loadedImageBytes == null) {
+        return _imageError(loc);
+      }
+    }
+
+    final bytes = widget.imageBytes ?? _loadedImageBytes;
+    if (bytes == null) return _imageError(loc);
+
     return LayoutBuilder(
       builder: (context, cons) {
         return InteractiveViewer(
@@ -275,6 +401,20 @@ class _TeamChatMediaViewerScreenState extends State<TeamChatMediaViewerScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _imageError(AppLocalizations? loc) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Text(
+          loc?.translate('teamChatMediaCouldNotLoad') ??
+              'Could not load this media.',
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Colors.white70),
+        ),
+      ),
     );
   }
 

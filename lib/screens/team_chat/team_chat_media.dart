@@ -10,6 +10,7 @@ import 'package:video_player/video_player.dart';
 
 import '../../core/localization/app_localizations.dart';
 import '../../services/api_service.dart';
+import '../../widgets/media/open_app_media_viewer.dart';
 import 'team_chat_common.dart';
 import 'team_chat_media_viewer_screen.dart';
 
@@ -157,13 +158,10 @@ class _TenantChatMemoryImageState extends State<TenantChatMemoryImage> {
   void _openViewer() {
     final b = _bytes;
     if (b == null) return;
-    Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (ctx) => TeamChatMediaViewerScreen.image(
-          imageBytes: b,
-          suggestedFilename: widget.suggestedFilename,
-        ),
-      ),
+    openAppImageViewer(
+      context,
+      imageBytes: b,
+      suggestedFilename: widget.suggestedFilename,
     );
   }
 

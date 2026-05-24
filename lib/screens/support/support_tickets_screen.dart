@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart' hide TextDirection;
-import 'package:url_launcher/url_launcher.dart';
-import '../../core/constants/app_constants.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/app_locales.dart';
 import '../../core/utils/snackbar_helper.dart';
+import '../../core/utils/media_url_utils.dart';
 import '../../models/support_ticket_model.dart';
 import '../../services/api_service.dart';
+import '../../widgets/media/open_app_media_viewer.dart';
 
 class SupportTicketsScreen extends StatefulWidget {
   const SupportTicketsScreen({super.key});
@@ -457,15 +457,7 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
 
   /// Build full image URL for attachment (API may return relative path).
   String? _attachmentImageUrl(SupportTicketAttachment a) {
-    String? raw = a.url ?? a.file;
-    if (raw == null || raw.isEmpty) return null;
-    raw = raw.trim();
-    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
-    String base = AppConstants.baseUrl.trim();
-    if (base.endsWith('/')) base = base.substring(0, base.length - 1);
-    final origin = base.contains('/api') ? base.substring(0, base.indexOf('/api')) : base;
-    final path = raw.startsWith('/') ? raw : '/$raw';
-    return '$origin$path';
+    return resolveMediaUrl(a.url ?? a.file);
   }
 
   Widget _buildAttachmentPlaceholder(BuildContext context, int index) {
@@ -574,13 +566,13 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
                     final a = entry.value;
                     final imageUrl = _attachmentImageUrl(a);
                     return InkWell(
-                      onTap: () async {
-                        if (imageUrl != null) {
-                          final uri = Uri.tryParse(imageUrl);
-                          if (uri != null && await canLaunchUrl(uri)) {
-                            await launchUrl(uri, mode: LaunchMode.externalApplication);
-                          }
-                        }
+                      onTap: () {
+                        if (imageUrl == null) return;
+                        openAppImageViewer(
+                          context,
+                          imageUrl: imageUrl,
+                          suggestedFilename: mediaFilenameFromUrl(imageUrl),
+                        );
                       },
                       borderRadius: BorderRadius.circular(8),
                       child: ClipRRect(

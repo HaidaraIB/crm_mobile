@@ -187,6 +187,10 @@ class CompanyModel {
   final int? reAssignHours;
   final SubscriptionModel? subscription;
   final String? timezone;
+  final bool? fieldVisitAllowed;
+  final bool? fieldVisitEnabled;
+  final bool? fieldVisitAdminAllowed;
+  final String? fieldVisitAdminMessage;
 
   CompanyModel({
     required this.id,
@@ -198,6 +202,10 @@ class CompanyModel {
     this.reAssignHours,
     this.subscription,
     this.timezone,
+    this.fieldVisitAllowed,
+    this.fieldVisitEnabled,
+    this.fieldVisitAdminAllowed,
+    this.fieldVisitAdminMessage,
   });
   
   factory CompanyModel.fromJson(Map<String, dynamic> json) {
@@ -210,6 +218,10 @@ class CompanyModel {
       reAssignEnabled: json['re_assign_enabled'] as bool? ?? json['reAssignEnabled'] as bool?,
       reAssignHours: json['re_assign_hours'] as int? ?? json['reAssignHours'] as int?,
       timezone: json['timezone'] as String?,
+      fieldVisitAllowed: json['field_visit_allowed'] as bool?,
+      fieldVisitEnabled: json['field_visit_enabled'] as bool?,
+      fieldVisitAdminAllowed: json['field_visit_admin_allowed'] as bool?,
+      fieldVisitAdminMessage: json['field_visit_admin_message'] as String?,
       subscription: json['subscription'] != null
           ? SubscriptionModel.fromJson(json['subscription'] as Map<String, dynamic>)
           : null,
@@ -226,6 +238,10 @@ class CompanyModel {
       're_assign_enabled': reAssignEnabled,
       're_assign_hours': reAssignHours,
       if (timezone != null) 'timezone': timezone,
+      if (fieldVisitAllowed != null) 'field_visit_allowed': fieldVisitAllowed,
+      if (fieldVisitEnabled != null) 'field_visit_enabled': fieldVisitEnabled,
+      if (fieldVisitAdminAllowed != null) 'field_visit_admin_allowed': fieldVisitAdminAllowed,
+      if (fieldVisitAdminMessage != null) 'field_visit_admin_message': fieldVisitAdminMessage,
       'subscription': subscription?.toJson(),
     };
   }

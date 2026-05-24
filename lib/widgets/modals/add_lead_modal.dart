@@ -634,6 +634,13 @@ class _AddLeadModalState extends State<AddLeadModal> {
                                       ),
                                     ),
                                     DropdownMenuItem(
+                                      value: 'hot',
+                                      child: Text(
+                                        localizations?.translate('hot') ??
+                                            'Hot',
+                                      ),
+                                    ),
+                                    DropdownMenuItem(
                                       value: 'cold',
                                       child: Text(
                                         localizations?.translate('cold') ??

@@ -5,7 +5,9 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/api_error_helper.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../core/utils/budget_range_utils.dart';
+import '../../core/utils/field_visit_access.dart';
 import '../../models/lead_model.dart';
+import '../../models/client_field_visit_model.dart';
 import '../../models/settings_model.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
@@ -13,11 +15,15 @@ import '../../widgets/modals/assign_lead_modal.dart';
 import '../../widgets/modals/add_action_modal.dart';
 import '../../widgets/modals/add_call_modal.dart';
 import '../../widgets/modals/add_visit_modal.dart';
+import '../../widgets/modals/add_field_visit_modal.dart';
 import '../../widgets/modals/send_sms_modal.dart';
 import '../../widgets/phone_input.dart';
 import '../../widgets/lead_contact_action_button.dart';
 import '../../widgets/lead_status_badge.dart';
 import '../../widgets/scrolling_single_line_text.dart';
+import '../../widgets/lead_location_map_picker.dart';
+import '../../widgets/media/open_app_media_viewer.dart';
+import '../../core/utils/media_url_utils.dart';
 import 'edit_lead_screen.dart';
 
 /// Formats phone for display so the plus sign always appears at the start (works in both LTR and RTL).
@@ -47,6 +53,9 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
   List<UserModel> _users = [];
   UserModel? _currentUser;
   bool _leadWasUpdated = false;
+  List<ClientFieldVisitModel> _fieldVisits = [];
+  bool _isLoadingFieldVisits = false;
+  String? _fieldVisitsError;
   final Map<String, bool> _updatingPrimaryMap = {}; // Track which phone numbers are being set as primary
   
   @override
@@ -64,6 +73,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
       setState(() {
         _currentUser = user;
       });
+      await _loadFieldVisits();
     } catch (e) {
       debugPrint('Failed to load current user: $e');
     }
@@ -72,6 +82,30 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
   bool _companySupportsVisits() {
     final s = _currentUser?.company?.specialization;
     return s == 'real_estate' || s == 'services';
+  }
+
+  bool _fieldVisitsAllowed() => isFieldVisitAllowed(_currentUser?.company);
+
+  Future<void> _loadFieldVisits() async {
+    if (!_fieldVisitsAllowed() || _lead == null) return;
+    setState(() {
+      _isLoadingFieldVisits = true;
+      _fieldVisitsError = null;
+    });
+    try {
+      final visits = await _apiService.getClientFieldVisits(_lead!.id);
+      if (!mounted) return;
+      setState(() {
+        _fieldVisits = visits;
+        _isLoadingFieldVisits = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _fieldVisitsError = e.toString();
+        _isLoadingFieldVisits = false;
+      });
+    }
   }
 
   // Check if user can edit/delete this lead
@@ -280,6 +314,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
         _lead = lead;
         _isLoading = false;
       });
+      await _loadFieldVisits();
     } catch (e) {
       setState(() {
         _errorMessage = ApiErrorHelper.toUserMessage(context, e);
@@ -850,29 +885,108 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                       ),
                     ],
                   ),
-                  if (_companySupportsVisits()) ...[
+                  if (_companySupportsVisits() || _fieldVisitsAllowed()) ...[
                     const SizedBox(height: 10),
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder: (context) => AddVisitModal(
-                            leadId: _lead!.id,
-                            onSave: (_, __, ___) => _loadLead(),
+                    if (_companySupportsVisits() && _fieldVisitsAllowed())
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AddVisitModal(
+                                    leadId: _lead!.id,
+                                    onSave: (_, __, ___) => _loadLead(),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.place_outlined),
+                              label: Text(
+                                localizations?.translate('addVisit') ?? 'Add Visit',
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                            ),
                           ),
-                        );
-                      },
-                      icon: const Icon(Icons.place_outlined),
-                      label: Text(
-                        localizations?.translate('addVisit') ?? 'Add Visit',
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AddFieldVisitModal(
+                                    leadId: _lead!.id,
+                                    leadName: _lead!.name,
+                                    onSave: _loadFieldVisits,
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.map_outlined),
+                              label: Text(
+                                localizations?.translate('addFieldVisit') ??
+                                    'Add field visit',
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    else if (_companySupportsVisits())
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) => AddVisitModal(
+                              leadId: _lead!.id,
+                              onSave: (_, __, ___) => _loadLead(),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.place_outlined),
+                        label: Text(
+                          localizations?.translate('addVisit') ?? 'Add Visit',
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                      )
+                    else
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) => AddFieldVisitModal(
+                              leadId: _lead!.id,
+                              leadName: _lead!.name,
+                              onSave: _loadFieldVisits,
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.map_outlined),
+                        label: Text(
+                          localizations?.translate('addFieldVisit') ??
+                              'Add field visit',
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
                         ),
                       ),
-                    ),
                   ],
                 ],
               ),
@@ -1119,11 +1233,195 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
               isMultiline: true,
             ),
           ],
+          if (lead.locationLatitude != null && lead.locationLongitude != null) ...[
+            const SizedBox(height: 20),
+            LeadLocationMapPicker(
+              latitude: lead.locationLatitude,
+              longitude: lead.locationLongitude,
+              readOnly: true,
+              onChanged: (_, __) {},
+            ),
+          ],
+          if (_fieldVisitsAllowed()) ...[
+            const SizedBox(height: 28),
+            _buildFieldVisitsSection(localizations),
+          ],
         ],
       ),
     );
   }
-  
+
+  Widget _buildFieldVisitsSection(AppLocalizations? localizations) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          localizations?.translate('fieldVisitHistory') ?? 'Field visits',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: theme.textTheme.titleLarge?.color ?? theme.colorScheme.onSurface,
+            letterSpacing: -0.3,
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (_isLoadingFieldVisits)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: CircularProgressIndicator(),
+            ),
+          )
+        else if (_fieldVisitsError != null)
+          Text(
+            _fieldVisitsError!,
+            style: TextStyle(color: Colors.red[700]),
+          )
+        else if (_fieldVisits.isEmpty)
+          Text(
+            localizations?.translate('noFieldVisitsYet') ?? 'No field visits yet',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          )
+        else
+          ..._fieldVisits.map((visit) => _buildFieldVisitCard(visit, localizations)),
+      ],
+    );
+  }
+
+  Widget _buildFieldVisitCard(
+    ClientFieldVisitModel visit,
+    AppLocalizations? localizations,
+  ) {
+    final theme = Theme.of(context);
+    final photoUrl = visit.clientLocationPhotoUrl;
+    final visitDate = visit.visitDatetime;
+    final upcoming = visit.upcomingVisitDate;
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFF059669).withValues(alpha: 0.25),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.map_outlined, color: Color(0xFF059669), size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      visit.summary,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      localizations?.translate('fieldVisitLogged') ?? 'Field visit logged',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    if (visit.createdByUsername != null &&
+                        visit.createdByUsername!.isNotEmpty)
+                      Text(
+                        visit.createdByUsername!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (visitDate != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF059669).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                visitDate.toString().substring(0, 16),
+                style: const TextStyle(
+                  color: Color(0xFF059669),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
+          if (upcoming != null) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(
+                  Icons.event_available,
+                  size: 16,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    '${localizations?.translate('upcomingVisitDate') ?? 'Next visit'}: '
+                    '${upcoming.toString().substring(0, 16)}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (photoUrl != null && photoUrl.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: () {
+                final resolved = resolveMediaUrl(photoUrl);
+                if (resolved == null) return;
+                openAppImageViewer(
+                  context,
+                  imageUrl: resolved,
+                  suggestedFilename: mediaFilenameFromUrl(resolved),
+                );
+              },
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  photoUrl,
+                  height: 120,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildPhoneNumbersSection(LeadModel lead, AppLocalizations? localizations) {
     final theme = Theme.of(context);
     final List<PhoneNumber> allPhones = [];

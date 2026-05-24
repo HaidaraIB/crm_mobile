@@ -91,6 +91,8 @@ class NotificationRouter {
       case NotificationType.callReminder:
       case NotificationType.visitReminder:
       case NotificationType.receptionVisitReminder:
+      case NotificationType.fieldVisitReminder:
+      case NotificationType.receptionFieldVisitReminder:
         final leadId = _intFromPayload(payload.data?['lead_id']);
         if (leadId != null) {
           navigator.pushNamed('/leads/details', arguments: leadId);
@@ -207,6 +209,10 @@ class NotificationRouter {
         return Icons.event_available;
       case NotificationType.receptionVisitReminder:
         return Icons.support_agent;
+      case NotificationType.fieldVisitReminder:
+        return Icons.map_outlined;
+      case NotificationType.receptionFieldVisitReminder:
+        return Icons.support_agent;
       case NotificationType.tenantChat:
         return Icons.chat_bubble_outline;
 
@@ -301,6 +307,10 @@ class NotificationRouter {
         return Colors.teal;
       case NotificationType.receptionVisitReminder:
         return Colors.cyan;
+      case NotificationType.fieldVisitReminder:
+        return const Color(0xFF059669);
+      case NotificationType.receptionFieldVisitReminder:
+        return Colors.cyan;
       case NotificationType.tenantChat:
         return Colors.indigo;
 
@@ -393,6 +403,10 @@ class NotificationRouter {
         return 'تذكير موعد زيارة';
       case NotificationType.receptionVisitReminder:
         return 'تذكير استقبال — موعد زيارة';
+      case NotificationType.fieldVisitReminder:
+        return 'تذكير زيارة ميدانية';
+      case NotificationType.receptionFieldVisitReminder:
+        return 'تذكير استقبال — زيارة ميدانية';
       case NotificationType.tenantChat:
         return 'دردشة الفريق';
 

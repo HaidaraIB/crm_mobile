@@ -8,6 +8,8 @@ import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/api_error_helper.dart';
 import '../../core/utils/snackbar_helper.dart';
+import '../../core/utils/media_url_utils.dart';
+import '../../widgets/media/open_app_media_viewer.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/phone_input.dart';
@@ -338,21 +340,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     Stack(
                       children: [
-                        CircleAvatar(
-                          radius: 60,
-                          backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
-                          backgroundImage: _selectedImage != null
-                              ? FileImage(_selectedImage!)
-                              : (_profilePhotoUrl != null && _profilePhotoUrl!.isNotEmpty)
-                                  ? NetworkImage(_profilePhotoUrl!)
-                                  : null,
-                          child: _selectedImage == null && (_profilePhotoUrl == null || _profilePhotoUrl!.isEmpty)
-                              ? Icon(
-                                  Icons.person,
-                                  size: 60,
-                                  color: theme.colorScheme.primary,
-                                )
-                              : null,
+                        GestureDetector(
+                          onTap: () {
+                            if (_selectedImage != null) {
+                              openAppImageViewer(
+                                context,
+                                imageFilePath: _selectedImage!.path,
+                                suggestedFilename: 'profile_photo.jpg',
+                              );
+                            } else if (_profilePhotoUrl != null &&
+                                _profilePhotoUrl!.isNotEmpty) {
+                              final resolved =
+                                  resolveMediaUrl(_profilePhotoUrl);
+                              if (resolved == null) return;
+                              openAppImageViewer(
+                                context,
+                                imageUrl: resolved,
+                                suggestedFilename:
+                                    mediaFilenameFromUrl(resolved),
+                              );
+                            }
+                          },
+                          child: CircleAvatar(
+                            radius: 60,
+                            backgroundColor:
+                                theme.colorScheme.primary.withValues(alpha: 0.1),
+                            backgroundImage: _selectedImage != null
+                                ? FileImage(_selectedImage!)
+                                : (_profilePhotoUrl != null &&
+                                        _profilePhotoUrl!.isNotEmpty)
+                                    ? NetworkImage(_profilePhotoUrl!)
+                                    : null,
+                            child: _selectedImage == null &&
+                                    (_profilePhotoUrl == null ||
+                                        _profilePhotoUrl!.isEmpty)
+                                ? Icon(
+                                    Icons.person,
+                                    size: 60,
+                                    color: theme.colorScheme.primary,
+                                  )
+                                : null,
+                          ),
                         ),
                         Positioned(
                           bottom: 0,

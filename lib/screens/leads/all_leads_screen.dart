@@ -8,6 +8,7 @@ import '../../core/utils/api_error_helper.dart';
 import '../../core/utils/lead_assignee_users.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../core/utils/budget_range_utils.dart';
+import '../../core/utils/field_visit_access.dart';
 import '../../models/lead_model.dart';
 import '../../models/settings_model.dart';
 import '../../models/user_model.dart';
@@ -15,6 +16,7 @@ import '../../services/api_service.dart';
 import '../../widgets/modals/add_action_modal.dart';
 import '../../widgets/modals/add_call_modal.dart';
 import '../../widgets/modals/add_visit_modal.dart';
+import '../../widgets/modals/add_field_visit_modal.dart';
 import '../../widgets/modals/send_sms_modal.dart';
 import '../../widgets/modals/assign_lead_modal.dart';
 import '../../widgets/lead_contact_action_button.dart';
@@ -522,6 +524,17 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       builder: (context) => AddVisitModal(
         leadId: lead.id,
         onSave: (_, __, ___) => _loadLeads(forceRefresh: true),
+      ),
+    );
+  }
+
+  void _showAddFieldVisitModal(LeadModel lead) {
+    showDialog(
+      context: context,
+      builder: (context) => AddFieldVisitModal(
+        leadId: lead.id,
+        leadName: lead.name,
+        onSave: () => _loadLeads(forceRefresh: true),
       ),
     );
   }
@@ -1352,21 +1365,81 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                               ),
                             ],
                           ),
-                          if (_companySupportsVisits()) ...[
+                          if (_companySupportsVisits() ||
+                              isFieldVisitAllowed(_currentUser?.company)) ...[
                             const SizedBox(height: 10),
-                            OutlinedButton.icon(
-                              onPressed: () => _showAddVisitModal(lead),
-                              icon: const Icon(Icons.place_outlined),
-                              label: Text(
-                                localizations?.translate('addVisit') ?? 'Add Visit',
-                              ),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
+                            if (_companySupportsVisits() &&
+                                isFieldVisitAllowed(_currentUser?.company))
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      onPressed: () => _showAddVisitModal(lead),
+                                      icon: const Icon(Icons.place_outlined),
+                                      label: Text(
+                                        localizations?.translate('addVisit') ??
+                                            'Add Visit',
+                                      ),
+                                      style: OutlinedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 14,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(14),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      onPressed: () => _showAddFieldVisitModal(lead),
+                                      icon: const Icon(Icons.map_outlined),
+                                      label: Text(
+                                        localizations?.translate('addFieldVisit') ??
+                                            'Add field visit',
+                                      ),
+                                      style: OutlinedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 14,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(14),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            else if (_companySupportsVisits())
+                              OutlinedButton.icon(
+                                onPressed: () => _showAddVisitModal(lead),
+                                icon: const Icon(Icons.place_outlined),
+                                label: Text(
+                                  localizations?.translate('addVisit') ?? 'Add Visit',
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                ),
+                              )
+                            else
+                              OutlinedButton.icon(
+                                onPressed: () => _showAddFieldVisitModal(lead),
+                                icon: const Icon(Icons.map_outlined),
+                                label: Text(
+                                  localizations?.translate('addFieldVisit') ??
+                                      'Add field visit',
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
                                 ),
                               ),
-                            ),
                           ],
                         ],
                       ),

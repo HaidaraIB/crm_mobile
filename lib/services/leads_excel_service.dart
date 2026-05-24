@@ -170,7 +170,7 @@ class LeadsExcelService {
       final budgetVal = row[headerByField['budget']] ?? '';
       final parsedBudget = parseBudgetCell(budgetVal.toString());
       var type = (row[headerByField['type']] ?? '').toLowerCase();
-      if (type != 'fresh' && type != 'cold') type = 'fresh';
+      if (type != 'fresh' && type != 'hot' && type != 'cold') type = 'fresh';
       if (type.isEmpty) type = 'fresh';
       var priority = (row[headerByField['priority']] ?? '').toLowerCase();
       if (!['low', 'medium', 'high'].contains(priority)) priority = 'medium';
@@ -260,7 +260,7 @@ class LeadsExcelService {
       final budgetVal = budgetIdx >= 0 && budgetIdx < row.length ? _cellValue(row[budgetIdx]) : '';
       final parsedBudget = parseBudgetCell(budgetVal);
       var type = typeIdx >= 0 && typeIdx < row.length ? _cellValue(row[typeIdx]).toLowerCase() : 'fresh';
-      if (type != 'fresh' && type != 'cold') type = 'fresh';
+      if (type != 'fresh' && type != 'hot' && type != 'cold') type = 'fresh';
       var priority = priorityIdx >= 0 && priorityIdx < row.length ? _cellValue(row[priorityIdx]).toLowerCase() : 'medium';
       if (!['low', 'medium', 'high'].contains(priority)) priority = 'medium';
 

@@ -47,6 +47,8 @@
 		<true/>
 		<key>UIStatusBarHidden</key>
 		<false/>
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>This app uses your location to verify field visits (الزيارة الميدانية) when you log them.</string>
 		<key>NSCameraUsageDescription</key>
 		<string>This app uses the camera to take a profile photo.</string>
 		<key>NSPhotoLibraryUsageDescription</key>

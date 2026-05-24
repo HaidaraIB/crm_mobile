@@ -11,6 +11,7 @@ import '../../services/error_logger.dart';
 import '../../core/utils/lead_assignee_users.dart';
 import '../../core/utils/budget_range_utils.dart';
 import '../../widgets/phone_input.dart';
+import '../../widgets/lead_location_map_picker.dart';
 
 class EditLeadScreen extends StatefulWidget {
   final LeadModel lead;
@@ -47,6 +48,8 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
 
   List<Map<String, dynamic>> _phoneNumbers = [];
   final Map<String, String> _errors = {};
+  double? _locationLatitude;
+  double? _locationLongitude;
 
   @override
   void initState() {
@@ -76,6 +79,8 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
     _selectedUserId = widget.lead.assignedTo > 0
         ? widget.lead.assignedTo
         : null;
+    _locationLatitude = widget.lead.locationLatitude;
+    _locationLongitude = widget.lead.locationLongitude;
 
     if (widget.lead.phoneNumbers != null &&
         widget.lead.phoneNumbers!.isNotEmpty) {
@@ -334,6 +339,9 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
         leadCompanyName: _companyNameController.text.trim().isEmpty ? null : _companyNameController.text.trim(),
         profession: _professionController.text.trim().isEmpty ? null : _professionController.text.trim(),
         notes: _notesController.text,
+        locationLatitude: _locationLatitude,
+        locationLongitude: _locationLongitude,
+        sendLeadLocation: true,
       );
 
       if (mounted) {
@@ -514,6 +522,17 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
                                 maxLines: 5,
                               ),
                               const SizedBox(height: 16),
+                              LeadLocationMapPicker(
+                                latitude: _locationLatitude,
+                                longitude: _locationLongitude,
+                                onChanged: (lat, lng) {
+                                  setState(() {
+                                    _locationLatitude = lat;
+                                    _locationLongitude = lng;
+                                  });
+                                },
+                              ),
+                              const SizedBox(height: 16),
 
                               // Budget
                               _buildTextField(
@@ -586,6 +605,13 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
                                     child: Text(
                                       localizations?.translate('fresh') ??
                                           'Fresh',
+                                    ),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'hot',
+                                    child: Text(
+                                      localizations?.translate('hot') ??
+                                          'Hot',
                                     ),
                                   ),
                                   DropdownMenuItem(
