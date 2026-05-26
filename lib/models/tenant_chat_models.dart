@@ -358,10 +358,20 @@ class TenantChatPeersPage {
 
 class TenantChatMessagesPage {
   final int count;
+  final String? next;
+  final String? previous;
   final List<TenantChatMessage> results;
+  final bool hasOlder;
+  final bool hasNewer;
+  final int? anchorId;
 
   const TenantChatMessagesPage({
     required this.count,
+    this.next,
+    this.previous,
     required this.results,
+    this.hasOlder = false,
+    this.hasNewer = false,
+    this.anchorId,
   });
 }

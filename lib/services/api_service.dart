@@ -4429,13 +4429,13 @@ class ApiService {
   /// GET /api/support-tickets/ - list current user's support tickets (paginated).
   Future<Map<String, dynamic>> getSupportTickets({
     int? page,
-    int? pageSize,
+    int pageSize = 100,
     bool forceRefresh = false,
     Duration cacheTtl = _defaultCacheTtl,
   }) async {
     final queryParams = <String, String>{};
     if (page != null) queryParams['page'] = page.toString();
-    if (pageSize != null) queryParams['page_size'] = pageSize.toString();
+    queryParams['page_size'] = pageSize.toString();
     final queryString =
         queryParams.isEmpty ? '' : '?${queryParams.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&')}';
     final cacheKey = _cacheKey('support_tickets', queryParams);
@@ -4651,10 +4651,25 @@ class ApiService {
     return TenantChatConversation.fromJson(data);
   }
 
-  Future<TenantChatMessagesPage> getTenantChatMessages(int conversationId) async {
+  Future<TenantChatMessagesPage> getTenantChatMessages(
+    int conversationId, {
+    String ordering = 'created_at',
+    int? page,
+    int? pageSize,
+    int? beforeId,
+    int? afterId,
+    int? aroundId,
+  }) async {
+    final qp = <String, String>{'ordering': ordering};
+    if (page != null) qp['page'] = '$page';
+    qp['page_size'] = '$pageSize';
+    if (beforeId != null) qp['before_id'] = '$beforeId';
+    if (afterId != null) qp['after_id'] = '$afterId';
+    if (aroundId != null) qp['around_id'] = '$aroundId';
+    final q = qp.entries.map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value)}').join('&');
     final response = await _makeRequest(
       'GET',
-      '/tenant-chat/conversations/$conversationId/messages/?page=1&page_size=100&ordering=created_at',
+      '/tenant-chat/conversations/$conversationId/messages/${q.isEmpty ? '' : '?$q'}',
       timeout: const Duration(seconds: 20),
     );
     if (response.statusCode != 200) {
@@ -4667,7 +4682,12 @@ class ApiService {
         .toList();
     return TenantChatMessagesPage(
       count: (data['count'] as num?)?.toInt() ?? results.length,
+      next: data['next']?.toString(),
+      previous: data['previous']?.toString(),
       results: results,
+      hasOlder: data['has_older'] as bool? ?? false,
+      hasNewer: data['has_newer'] as bool? ?? false,
+      anchorId: (data['anchor_id'] as num?)?.toInt(),
     );
   }
 

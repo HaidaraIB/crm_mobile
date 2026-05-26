@@ -236,7 +236,7 @@ class _TeamChatMediaViewerScreenState extends State<TeamChatMediaViewerScreen> {
 
   Future<void> _saveImage() async {
     final bytes = await _resolveImageBytesForSave();
-    if (bytes == null) return;
+    if (bytes == null || !mounted) return;
     final loc = AppLocalizations.of(context);
     try {
       await _ensureGalleryAccess();

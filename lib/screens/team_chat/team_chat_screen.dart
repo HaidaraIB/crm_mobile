@@ -23,40 +23,13 @@ import '../../utils/compress_image_for_chat.dart';
 import 'team_chat_common.dart';
 import 'team_chat_composer.dart';
 import 'team_chat_conversation_tile.dart';
-import 'team_chat_message_bubble.dart';
+import 'team_chat_thread_pane.dart';
 
 DateTime _startOfLocalDay(DateTime d) =>
     DateTime(d.year, d.month, d.day);
 
 String _dayKey(DateTime d) =>
     '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-
-/// ListView only lays out visible children (+ [cacheExtent]). Far-off rows have no
-/// [GlobalKey.currentContext] until we scroll them near the viewport.
-const double _teamChatJumpDaySepBlockPx = 56;
-const double _teamChatJumpListTopPadPx = 6;
-
-bool _tenantMessagesPayloadEqual(List<TenantChatMessage> a, List<TenantChatMessage> b) {
-  if (identical(a, b)) return true;
-  if (a.length != b.length) return false;
-  for (var i = 0; i < a.length; i++) {
-    final x = a[i];
-    final y = b[i];
-    if (x.id != y.id) return false;
-    if (x.readByPeer != y.readByPeer) return false;
-    if (x.body != y.body) return false;
-    if (x.createdAt != y.createdAt) return false;
-    if (x.sender.id != y.sender.id) return false;
-    if (x.attachmentKind != y.attachmentKind) return false;
-    if (x.attachmentUrl != y.attachmentUrl) return false;
-    if (x.attachmentWidth != y.attachmentWidth) return false;
-    if (x.attachmentHeight != y.attachmentHeight) return false;
-    if (x.originalFilename != y.originalFilename) return false;
-    if (x.replyTo?.id != y.replyTo?.id) return false;
-    if (x.forwardedFrom?.id != y.forwardedFrom?.id) return false;
-  }
-  return true;
-}
 
 bool _tenantPinnedSummariesEqual(
   List<TenantChatPinnedMessageSummary> a,
@@ -115,43 +88,6 @@ bool _tenantConversationsPayloadEqual(List<TenantChatConversation> a, List<Tenan
   return true;
 }
 
-List<List<TenantChatMessage>> _groupTenantMessagesByDay(List<TenantChatMessage> messages) {
-  final groups = <String, List<TenantChatMessage>>{};
-  for (final m in messages) {
-    final d = DateTime.parse(m.createdAt);
-    groups.putIfAbsent(_dayKey(d), () => []).add(m);
-  }
-  final keys = groups.keys.toList()..sort();
-  return [for (final k in keys) groups[k]!];
-}
-
-/// One visual row in the thread list: day chip or message bubble.
-final class _ChatThreadRow {
-  const _ChatThreadRow.daySeparator(this.dayStart) : message = null, sameSenderAsPrevious = false;
-  const _ChatThreadRow.message(this.message, {required this.sameSenderAsPrevious}) : dayStart = null;
-
-  final DateTime? dayStart;
-  final TenantChatMessage? message;
-  final bool sameSenderAsPrevious;
-
-  bool get isDaySeparator => dayStart != null;
-}
-
-List<_ChatThreadRow> _computeChatThreadRows(List<TenantChatMessage> messages) {
-  if (messages.isEmpty) return const [];
-  final out = <_ChatThreadRow>[];
-  for (final list in _groupTenantMessagesByDay(messages)) {
-    out.add(_ChatThreadRow.daySeparator(_startOfLocalDay(DateTime.parse(list.first.createdAt))));
-    for (var j = 0; j < list.length; j++) {
-      final m = list[j];
-      final prev = j > 0 ? list[j - 1] : null;
-      final sameSender = prev != null && prev.sender.id == m.sender.id;
-      out.add(_ChatThreadRow.message(m, sameSenderAsPrevious: sameSender));
-    }
-  }
-  return out;
-}
-
 class TeamChatScreen extends StatefulWidget {
   const TeamChatScreen({super.key, this.initialConversationId});
 
@@ -166,14 +102,12 @@ class _TeamChatScreenState extends State<TeamChatScreen>
     with RouteAware, WidgetsBindingObserver {
   final ApiService _api = ApiService();
   final TextEditingController _draft = TextEditingController();
-  final ScrollController _scroll = ScrollController();
-  final Map<int, GlobalKey> _messageItemKeys = {};
+  final GlobalKey<TeamChatThreadPaneState> _threadPaneKey =
+      GlobalKey<TeamChatThreadPaneState>();
 
   List<TenantChatConversation> _conversations = [];
-  List<TenantChatMessage> _messages = [];
   int? _selectedId;
   bool _loadingConv = true;
-  bool _loadingMsg = false;
   String? _loadError;
 
   TenantChatMessage? _replyTo;
@@ -189,54 +123,20 @@ class _TeamChatScreenState extends State<TeamChatScreen>
   String? _voiceTempPath;
 
   Timer? _convTimer;
-  Timer? _msgTimer;
   Timer? _presencePollTimer;
   Timer? _presenceHeartbeatTimer;
   Timer? _typingDebounceTimer;
-  Timer? _markReadDebounce;
-
   int _readCursor = 0;
-  int _pendingMarkReadId = 0;
-  /// User wants the transcript tail (new messages / late media layout). Not the same as "geometrically
-  /// near bottom" — [maxScrollExtent] grows as images load, which would falsely clear a geometry-only flag.
-  bool _stickToTail = true;
-  bool _tailSnapPostFrameScheduled = false;
-  bool _showScrollFab = false;
-  int _peerBelowFab = 0;
-
   String _localPresence = kTenantChatPresenceIdle;
   bool _draftTypingSignal = false;
 
   int? _currentUserId;
   TenantChatPeerPresenceResponse? _presenceResponse;
 
-  /// Recomputed only when [_messages] identity changes — avoids O(n) row allocations every rebuild.
-  List<TenantChatMessage>? _threadRowsMessagesRef;
-  List<_ChatThreadRow>? _threadRowsCache;
-
-  static const double _nearBottomPx = 80;
-  static const double _avgRowPx = 58;
-
-  /// Same idea as web [threadFabUnreadCount]: geometric peer-below vs server [unreadCount] for this thread.
-  int _fabUnreadDisplayCount() {
-    final id = _selectedId;
-    var server = 0;
-    if (id != null) {
-      for (final c in _conversations) {
-        if (c.id == id) {
-          server = c.unreadCount;
-          break;
-        }
-      }
-    }
-    return _peerBelowFab > server ? _peerBelowFab : server;
-  }
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _scroll.addListener(_onScroll);
     _draft.addListener(_onDraftChanged);
     TeamChatAwayService.instance.setTeamChatVisible(true);
     _syncTeamChatAwayContext();
@@ -284,14 +184,11 @@ class _TeamChatScreenState extends State<TeamChatScreen>
   void dispose() {
     teamChatRouteObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
-    _scroll.removeListener(_onScroll);
     _draft.removeListener(_onDraftChanged);
     _convTimer?.cancel();
-    _msgTimer?.cancel();
     _presencePollTimer?.cancel();
     _presenceHeartbeatTimer?.cancel();
     _typingDebounceTimer?.cancel();
-    _markReadDebounce?.cancel();
     _voiceCapTimer?.cancel();
     unawaited(_stopVoiceInternal(finalize: false, allowSetState: false));
     if (_selectedId != null) {
@@ -309,7 +206,6 @@ class _TeamChatScreenState extends State<TeamChatScreen>
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
-      _msgTimer?.cancel();
       _presencePollTimer?.cancel();
     } else if (state == AppLifecycleState.resumed) {
       _startThreadTimers();
@@ -329,23 +225,15 @@ class _TeamChatScreenState extends State<TeamChatScreen>
     _syncTeamChatAwayContext();
     // Do not snap the thread here: [didPopNext] runs when any route pushed on top
     // (e.g. image/video viewer) is popped — user expects the prior scroll offset.
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _processScrollFabAndRead();
-    });
   }
 
   /// Snap to the latest messages when this route is first shown ([didPush]).
   /// Not used when returning from overlays (see [didPopNext]).
   void _snapThreadToBottomOnOpen() {
     if (_selectedId == null) return;
-    _stickToTail = true;
     SchedulerBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _scrollToBottom(animated: false);
-      _processScrollFabAndRead();
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _scheduleTailSnapIfSticking();
-      });
+      unawaited(_threadPaneKey.currentState?.scrollToBottom(animated: false));
     });
   }
 
@@ -414,14 +302,9 @@ class _TeamChatScreenState extends State<TeamChatScreen>
         break;
       }
     }
-    _stickToTail = true;
     _readCursor = row?.lastReadMessageId ?? 0;
-    _messageItemKeys.clear();
-    _threadRowsCache = null;
-    _threadRowsMessagesRef = null;
     setState(() {
       _selectedId = id;
-      _messages = [];
       _replyTo = null;
       _forwardSourceId = null;
       _pendingAttachmentPath = null;
@@ -429,29 +312,18 @@ class _TeamChatScreenState extends State<TeamChatScreen>
       _presenceResponse = null;
     });
     _syncTeamChatAwayContext();
-    _msgTimer?.cancel();
     _presencePollTimer?.cancel();
     _syncReadCursorFromServer();
-    await _loadMessages();
     _startThreadTimers();
     if (mounted) {
       SchedulerBinding.instance.addPostFrameCallback((_) {
-        _scrollToBottom(animated: false);
-        _processScrollFabAndRead();
-        // Second frame: first [jumpTo] may run before full child layout; metrics also cover async media.
-        SchedulerBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _scheduleTailSnapIfSticking();
-        });
+        unawaited(_threadPaneKey.currentState?.scrollToBottom(animated: false));
       });
     }
   }
 
   void _startThreadTimers() {
     if (!_foreground || _selectedId == null) return;
-    _msgTimer?.cancel();
-    _msgTimer = Timer.periodic(const Duration(milliseconds: 2800), (_) {
-      if (_foreground) unawaited(_loadMessages(silent: true));
-    });
     _presencePollTimer?.cancel();
     _presencePollTimer = Timer.periodic(const Duration(milliseconds: 2600), (_) async {
       if (!_foreground || _selectedId == null) return;
@@ -469,37 +341,6 @@ class _TeamChatScreenState extends State<TeamChatScreen>
     if (!mounted) return;
     if (tenantChatPresenceResponsesEqual(_presenceResponse, r)) return;
     setState(() => _presenceResponse = r);
-  }
-
-  Future<void> _loadMessages({bool silent = false}) async {
-    final id = _selectedId;
-    if (id == null) return;
-    if (!silent && mounted) setState(() => _loadingMsg = true);
-    try {
-      final page = await _api.getTenantChatMessages(id);
-      if (!mounted || _selectedId != id) return;
-      final sorted = [...page.results]..sort(
-          (a, b) => DateTime.parse(a.createdAt).compareTo(DateTime.parse(b.createdAt)),
-        );
-      if (silent && _tenantMessagesPayloadEqual(_messages, sorted)) {
-        return;
-      }
-      setState(() {
-        _messages = sorted;
-        _loadingMsg = false;
-      });
-      if (_stickToTail) {
-        SchedulerBinding.instance.addPostFrameCallback((_) {
-          _scrollToBottom(animated: false);
-        });
-      }
-    } catch (e) {
-      if (!mounted || _selectedId != id) return;
-      setState(() {
-        _loadingMsg = false;
-        if (!silent) _loadError = e.toString();
-      });
-    }
   }
 
   void _onDraftChanged() {
@@ -543,133 +384,6 @@ class _TeamChatScreenState extends State<TeamChatScreen>
         unawaited(_api.postTenantChatPeerPresence(_selectedId!, _localPresence));
       });
     }
-  }
-
-  void _onScroll() {
-    if (!_scroll.hasClients) return;
-    _processScrollFabAndRead();
-  }
-
-  /// When the scrollable's content size changes (e.g. decoded images), re-apply tail if we're following it.
-  bool _onThreadScrollMetricsNotification(ScrollMetricsNotification n) {
-    if (n.metrics.axis != Axis.vertical) return false;
-    _scheduleTailSnapIfSticking();
-    return false;
-  }
-
-  void _scheduleTailSnapIfSticking() {
-    if (!_stickToTail) return;
-    if (_tailSnapPostFrameScheduled) return;
-    _tailSnapPostFrameScheduled = true;
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      _tailSnapPostFrameScheduled = false;
-      if (!mounted || !_stickToTail || !_scroll.hasClients) return;
-      final max = _scroll.position.maxScrollExtent;
-      if (_scroll.position.pixels < max - 2) {
-        _scroll.jumpTo(max);
-      }
-      _processScrollFabAndRead();
-    });
-  }
-
-  /// Sync tail-follow intent from user-driven scroll only (not from content height changes).
-  bool _onThreadScrollInteractionNotification(ScrollNotification n) {
-    if (n.metrics.axis != Axis.vertical) return false;
-    final m = n.metrics;
-    final fromBottom = m.maxScrollExtent - m.pixels;
-    if (n is ScrollUpdateNotification && n.dragDetails != null) {
-      _stickToTail = fromBottom <= _nearBottomPx;
-    } else if (n is ScrollEndNotification) {
-      _stickToTail = fromBottom <= _nearBottomPx;
-    }
-    return false;
-  }
-
-  int _estimateMaxVisibleMessageId() {
-    if (_messages.isEmpty || !_scroll.hasClients) return 0;
-    final pos = _scroll.position;
-    final nearBottom = pos.maxScrollExtent - pos.pixels < _nearBottomPx;
-    if (nearBottom) return _messages.last.id;
-    final lastIdx =
-        ((pos.pixels + pos.viewportDimension) / _avgRowPx).floor().clamp(0, _messages.length - 1);
-    var maxId = 0;
-    for (var i = 0; i <= lastIdx; i++) {
-      if (_messages[i].id > maxId) maxId = _messages[i].id;
-    }
-    return maxId;
-  }
-
-  int _countPeerBelowViewport() {
-    final uid = _currentUserId;
-    if (uid == null || !_scroll.hasClients || _messages.isEmpty) return 0;
-    final pos = _scroll.position;
-    final line = pos.pixels + pos.viewportDimension - 10;
-    final firstIdx = (pos.pixels / _avgRowPx).floor().clamp(0, _messages.length - 1);
-    double y = firstIdx * _avgRowPx;
-    var n = 0;
-    for (var i = firstIdx; i < _messages.length; i++) {
-      final m = _messages[i];
-      if (m.sender.id == uid) continue;
-      if (m.id <= _readCursor) continue;
-      if (y > line) n++;
-      y += _avgRowPx;
-    }
-    return n;
-  }
-
-  void _processScrollFabAndRead() {
-    if (!mounted || _selectedId == null || _currentUserId == null) return;
-    if (!_scroll.hasClients || _messages.isEmpty) {
-      if (_showScrollFab || _peerBelowFab != 0) {
-        setState(() {
-          _showScrollFab = false;
-          _peerBelowFab = 0;
-        });
-      }
-      return;
-    }
-    final pos = _scroll.position;
-    final near = pos.maxScrollExtent - pos.pixels < _nearBottomPx;
-    final peerBelow = near ? 0 : _countPeerBelowViewport();
-    final showFab = !near;
-    if (_showScrollFab != showFab || _peerBelowFab != peerBelow) {
-      setState(() {
-        _showScrollFab = showFab;
-        _peerBelowFab = peerBelow;
-      });
-    }
-
-    final markTarget =
-        near ? _messages.last.id : _estimateMaxVisibleMessageId();
-    if (markTarget <= _readCursor) return;
-    _pendingMarkReadId = _pendingMarkReadId > markTarget ? _pendingMarkReadId : markTarget;
-    _markReadDebounce?.cancel();
-    _markReadDebounce = Timer(const Duration(milliseconds: 160), () async {
-      final pid = _pendingMarkReadId;
-      _pendingMarkReadId = 0;
-      final sid = _selectedId;
-      if (sid == null || pid <= _readCursor) return;
-      final newCursor = await _api.markTenantChatRead(sid, pid);
-      if (!mounted) return;
-      if (newCursor != null) {
-        _readCursor = newCursor > _readCursor ? newCursor : _readCursor;
-      } else {
-        _readCursor = pid > _readCursor ? pid : _readCursor;
-      }
-      await _refreshConversations(silent: true);
-      if (mounted) setState(() {});
-    });
-  }
-
-  void _scrollToBottom({bool animated = true}) {
-    if (!_scroll.hasClients) return;
-    final max = _scroll.position.maxScrollExtent;
-    if (animated) {
-      _scroll.animateTo(max, duration: const Duration(milliseconds: 280), curve: Curves.easeOut);
-    } else {
-      _scroll.jumpTo(max);
-    }
-    _stickToTail = true;
   }
 
   Future<void> _send() async {
@@ -720,11 +434,7 @@ class _TeamChatScreenState extends State<TeamChatScreen>
         _pendingAttachmentPath = null;
       });
       await _refreshConversations(silent: true);
-      await _loadMessages(silent: true);
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        _scrollToBottom(animated: false);
-        _processScrollFabAndRead();
-      });
+      await _threadPaneKey.currentState?.onMessageSent();
     } catch (e) {
       if (mounted) {
         SnackbarHelper.showError(
@@ -746,7 +456,7 @@ class _TeamChatScreenState extends State<TeamChatScreen>
     if (x == null || !mounted) return;
     setState(() => _pendingAttachmentPath = x.path);
     _updateDerivedPresence();
-    _bumpScrollIfNearBottom();
+    unawaited(_threadPaneKey.currentState?.scrollToBottom(animated: true));
   }
 
   Future<void> _pickFile() async {
@@ -754,7 +464,7 @@ class _TeamChatScreenState extends State<TeamChatScreen>
     if (r == null || r.files.single.path == null || !mounted) return;
     setState(() => _pendingAttachmentPath = r.files.single.path);
     _updateDerivedPresence();
-    _bumpScrollIfNearBottom();
+    unawaited(_threadPaneKey.currentState?.scrollToBottom(animated: true));
   }
 
   Future<void> _toggleVoice() async {
@@ -811,7 +521,7 @@ class _TeamChatScreenState extends State<TeamChatScreen>
       if (await f.exists() && await f.length() > 0 && allowSetState && mounted) {
         setState(() => _pendingAttachmentPath = _voiceTempPath);
         _updateDerivedPresence();
-        _bumpScrollIfNearBottom();
+        unawaited(_threadPaneKey.currentState?.scrollToBottom(animated: true));
       }
     }
     _voiceTempPath = null;
@@ -875,7 +585,9 @@ class _TeamChatScreenState extends State<TeamChatScreen>
                 _forwardCaption.clear();
               });
               await _refreshConversations(silent: true);
-              if (_selectedId != null) await _loadMessages(silent: true);
+              if (_selectedId == targetId) {
+                await _threadPaneKey.currentState?.onMessageSent();
+              }
             }
           } catch (_) {
             if (mounted) {
@@ -944,19 +656,6 @@ class _TeamChatScreenState extends State<TeamChatScreen>
     return loc?.translate(key) ?? key;
   }
 
-  String _daySep(DateTime dayStart, String lang) {
-    final now = DateTime.now();
-    final today = _startOfLocalDay(now);
-    final yest = today.subtract(const Duration(days: 1));
-    if (dayStart == today) return _t('teamChatDayToday');
-    if (dayStart == yest) return _t('teamChatDayYesterday');
-    final intlLoc = AppLocales.intlDateFormat(AppLocales.fromLanguageCode(lang));
-    final sameYear = dayStart.year == now.year;
-    return sameYear
-        ? DateFormat.MMMMd(intlLoc).format(dayStart)
-        : DateFormat.yMMMd(intlLoc).format(dayStart);
-  }
-
   String? _groupMembersLine(TenantChatConversation c) {
     final mc = c.memberCount ?? 0;
     final oc = c.onlineCount ?? 0;
@@ -1008,20 +707,9 @@ class _TeamChatScreenState extends State<TeamChatScreen>
   }
 
   void _setReplyTo(TenantChatMessage? m) {
-    final nearBottom = _scroll.hasClients &&
-        (_scroll.position.maxScrollExtent - _scroll.position.pixels <
-            _nearBottomPx + 120);
     setState(() => _replyTo = m);
-    if (m != null && nearBottom) {
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        if (_scroll.hasClients) {
-          _scrollToBottom(animated: true);
-        }
-        SchedulerBinding.instance.addPostFrameCallback((_) => _processScrollFabAndRead());
-      });
-    } else if (m != null) {
-      SchedulerBinding.instance.addPostFrameCallback((_) => _processScrollFabAndRead());
+    if (m != null) {
+      unawaited(_threadPaneKey.currentState?.scrollToBottom(animated: true));
     }
   }
 
@@ -1083,133 +771,7 @@ class _TeamChatScreenState extends State<TeamChatScreen>
   }
 
   void _jumpToMessageId(int id) {
-    // Jumping up must opt out of tail-follow; otherwise scroll-metrics tail snap or the next
-    // silent reload scroll-to-bottom immediately cancels the jump.
-    _stickToTail = false;
-    unawaited(_jumpToMessageIdImpl(id));
-  }
-
-  List<_ChatThreadRow> _threadRowsForCurrentMessages() {
-    if (identical(_threadRowsMessagesRef, _messages) && _threadRowsCache != null) {
-      return _threadRowsCache!;
-    }
-    _threadRowsMessagesRef = _messages;
-    _threadRowsCache = _computeChatThreadRows(_messages);
-    return _threadRowsCache!;
-  }
-
-  double _approxAttachmentBlockHeightForJump(TenantChatMessage m, double maxBubbleWidth) {
-    final k = m.attachmentKind ?? '';
-    if (k == 'image' || k == 'video') {
-      final iw = (m.attachmentWidth ?? 280).toDouble().clamp(40, 2000);
-      final ih = (m.attachmentHeight ?? 200).toDouble().clamp(40, 4000);
-      final aspect = ih / iw;
-      final w = maxBubbleWidth.clamp(120, 600);
-      return (w * aspect).clamp(96, 320);
-    }
-    if (k == 'audio') return 92;
-    return 48;
-  }
-
-  double _approxBubbleHeightForJump(
-    TenantChatMessage m,
-    TenantChatMessage? prev,
-    double maxBubbleWidth,
-  ) {
-    var h = (prev != null && prev.sender.id == m.sender.id) ? 2.0 : 8.0;
-    h += 16;
-    if (m.forwardedFrom != null) h += 52;
-    if (m.replyTo != null) h += 102;
-    if (m.attachmentUrl != null && m.attachmentKind != null) {
-      h += _approxAttachmentBlockHeightForJump(m, maxBubbleWidth);
-    }
-    final body = m.body.trim();
-    if (body.isNotEmpty) {
-      final approxCharsPerLine = (maxBubbleWidth / 8).floor().clamp(18, 44);
-      final lines = (body.length / approxCharsPerLine).ceil().clamp(1, 12);
-      h += lines * 19.0;
-    }
-    h += 24;
-    return h;
-  }
-
-  /// Sum of heights of list children before the bubble with [messageId] (same order as [_buildMessageList]).
-  double _estimatedScrollOffsetBeforeMessage(int messageId, double maxBubbleWidth) {
-    var y = _teamChatJumpListTopPadPx;
-    for (final dayList in _groupTenantMessagesByDay(_messages)) {
-      y += _teamChatJumpDaySepBlockPx;
-      TenantChatMessage? prev;
-      for (final m in dayList) {
-        if (m.id == messageId) return y;
-        y += _approxBubbleHeightForJump(m, prev, maxBubbleWidth);
-        prev = m;
-      }
-    }
-    return y;
-  }
-
-  Future<void> _jumpToMessageIdImpl(int id) async {
-    if (!_messages.any((m) => m.id == id)) return;
-    if (!mounted) return;
-    final maxW = MediaQuery.sizeOf(context).width * 0.82;
-
-    Future<bool> tryEnsureVisible() async {
-      final ctx = _messageItemKeys[id]?.currentContext;
-      if (ctx == null) return false;
-      await Scrollable.ensureVisible(
-        ctx,
-        duration: const Duration(milliseconds: 340),
-        curve: Curves.easeInOut,
-        alignment: 0.12,
-      );
-      return true;
-    }
-
-    await WidgetsBinding.instance.endOfFrame;
-    if (!mounted) return;
-    if (await tryEnsureVisible()) return;
-
-    if (!_scroll.hasClients) return;
-    final maxExtent = _scroll.position.maxScrollExtent;
-    final base = _estimatedScrollOffsetBeforeMessage(id, maxW).clamp(0.0, maxExtent);
-
-    // Lazy ListView: bracket scroll positions until the target row is laid out and [tryEnsureVisible] succeeds.
-    final deltas = <double>[
-      0,
-      -220,
-      220,
-      -440,
-      440,
-      -700,
-      700,
-      -1000,
-      1000,
-      -1400,
-      1400,
-      -1900,
-      1900,
-    ];
-    for (final d in deltas) {
-      if (!mounted || !_scroll.hasClients) return;
-      final off = (base + d).clamp(0.0, _scroll.position.maxScrollExtent);
-      _scroll.jumpTo(off);
-      await WidgetsBinding.instance.endOfFrame;
-      await WidgetsBinding.instance.endOfFrame;
-      if (!mounted) return;
-      if (await tryEnsureVisible()) return;
-    }
-  }
-
-  void _bumpScrollIfNearBottom() {
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_scroll.hasClients) return;
-      final near =
-          _scroll.position.maxScrollExtent - _scroll.position.pixels < _nearBottomPx + 120;
-      if (near) {
-        _scrollToBottom(animated: true);
-        SchedulerBinding.instance.addPostFrameCallback((_) => _processScrollFabAndRead());
-      }
-    });
+    unawaited(_threadPaneKey.currentState?.jumpToMessage(id));
   }
 
   @override
@@ -1402,6 +964,7 @@ class _TeamChatScreenState extends State<TeamChatScreen>
                   return ListTile(
                     dense: true,
                     title: Text(p.body, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    onTap: () => _jumpToMessageId(p.messageId),
                     trailing: IconButton(
                       icon: const Icon(Icons.push_pin_outlined),
                       onPressed: () => _unpin(p.messageId),
@@ -1412,137 +975,27 @@ class _TeamChatScreenState extends State<TeamChatScreen>
             ),
           ),
         Expanded(
-          child: Stack(
-            clipBehavior: Clip.hardEdge,
-            alignment: Alignment.bottomRight,
-            children: [
-              Positioned.fill(child: _buildMessageList(lang)),
-              if (_showScrollFab)
-                Positioned(
-                  right: 12,
-                  bottom: 12,
-                  child: Builder(
-                    builder: (context) {
-                      final fabUnread = _fabUnreadDisplayCount();
-                      final scheme = Theme.of(context).colorScheme;
-                      return FloatingActionButton.small(
-                        heroTag: 'tc_scroll',
-                        onPressed: () {
-                          _scrollToBottom();
-                          SchedulerBinding.instance.addPostFrameCallback((_) => _processScrollFabAndRead());
-                        },
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          alignment: Alignment.center,
-                          children: [
-                            const Icon(Icons.keyboard_arrow_down_rounded),
-                            if (fabUnread > 0)
-                              Positioned(
-                                right: -6,
-                                top: -6,
-                                child: CircleAvatar(
-                                  radius: 9,
-                                  backgroundColor: scheme.primary,
-                                  child: Text(
-                                    fabUnread > 99 ? '99+' : '$fabUnread',
-                                    style: const TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w700),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
+          child: _currentUserId == null
+              ? const Center(child: CircularProgressIndicator())
+              : TeamChatThreadPane(
+                  key: _threadPaneKey,
+                  conversationId: _selectedId!,
+                  currentUserId: _currentUserId!,
+                  isCompanyGroup: selected?.isCompanyGroup ?? false,
+                  readCursor: _readCursor,
+                  serverUnreadCount: selected?.unreadCount ?? 0,
+                  lang: lang,
+                  onReadCursorAdvanced: (id) {
+                    if (id > _readCursor) _readCursor = id;
+                  },
+                  onReply: _setReplyTo,
+                  onForward: _openForward,
+                  onPin: _pin,
+                  onJumpToPinned: _jumpToMessageId,
                 ),
-            ],
-          ),
         ),
         _buildComposer(),
       ],
-    );
-  }
-
-  Widget _buildMessageList(String lang) {
-    if (_loadingMsg && _messages.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    TenantChatConversation? threadConv;
-    for (final c in _conversations) {
-      if (c.id == _selectedId) {
-        threadConv = c;
-        break;
-      }
-    }
-    final threadIsCompanyGroup = threadConv?.isCompanyGroup ?? false;
-    final scheme = Theme.of(context).colorScheme;
-    final rows = _threadRowsForCurrentMessages();
-    return Container(
-      color: scheme.surfaceContainerLowest,
-      child: NotificationListener<ScrollMetricsNotification>(
-        onNotification: _onThreadScrollMetricsNotification,
-        child: NotificationListener<ScrollNotification>(
-          onNotification: _onThreadScrollInteractionNotification,
-          child: ListView.builder(
-            controller: _scroll,
-            itemCount: rows.length,
-            // Widen layout cache so "jump to quoted" can resolve [GlobalKey] for rows a bit above the viewport.
-            cacheExtent: 1800,
-            padding: const EdgeInsets.fromLTRB(8, 6, 8, 12),
-            itemBuilder: (context, index) {
-              final row = rows[index];
-              if (row.isDaySeparator) {
-                final dayStart = row.dayStart!;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: scheme.surfaceContainerHigh.withValues(alpha: 0.92),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Text(
-                        _daySep(dayStart, lang),
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w500,
-                          color: scheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              }
-              final m = row.message!;
-              return RepaintBoundary(
-                child: TeamChatMessageBubble(
-                  key: _messageItemKeys.putIfAbsent(m.id, () => GlobalKey()),
-                  message: m,
-                  mine: m.sender.id == _currentUserId,
-                  lang: lang,
-                  sameSenderAsPrevious: row.sameSenderAsPrevious,
-                  isCompanyGroup: threadIsCompanyGroup,
-                  tr: _t,
-                  onReply: () => _setReplyTo(m),
-                  onForward: () => _openForward(m),
-                  onPin: () => _pin(m),
-                  onJump: _jumpToMessageId,
-                  labelCouldNotLoad: _t('teamChatCouldNotLoad'),
-                  labelReply: _t('teamChatReply'),
-                  labelForward: _t('teamChatForward'),
-                  labelPin: _t('teamChatPin'),
-                  labelForwarded: _t('teamChatForwarded'),
-                  labelJumpFwd: _t('teamChatJumpToForwardedMessage'),
-                  labelJumpQ: _t('teamChatJumpToQuotedMessage'),
-                  labelRead: _t('teamChatRead'),
-                  labelDelivered: _t('teamChatDelivered'),
-                ),
-              );
-            },
-          ),
-        ),
-      ),
     );
   }
 
