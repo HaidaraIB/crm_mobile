@@ -22,10 +22,14 @@ class ChatScrollService {
   final int nearBottomRowThreshold;
   final double atBottomTrailingEdge;
 
+  /// Viewport fraction kept below the last bubble when snapped to tail (~10–12px).
+  static const double tailComposerGapFraction = 0.014;
+
   bool stickToTail = true;
   bool userDragging = false;
   bool scrollActive = false;
   Completer<void>? _activeAnimation;
+  int _tailSnapGeneration = 0;
 
   int _itemCount = 0;
   void updateItemCount(int count) => _itemCount = count;
@@ -99,8 +103,12 @@ class ChatScrollService {
 
   Future<void> scrollToBottom({bool animated = true}) async {
     if (!itemScrollController.isAttached || _itemCount == 0) return;
-    cancelActiveAnimations();
     stickToTail = true;
+    if (userDragging || scrollActive) {
+      scheduleSnapTailAfterScrollEnd(_itemCount);
+      return;
+    }
+    cancelActiveAnimations();
     final last = _itemCount - 1;
     itemScrollController.jumpTo(index: last, alignment: 0);
     await _alignLastRowBottomToViewport(animated: animated);
@@ -112,7 +120,7 @@ class ChatScrollService {
 
     Future<void> alignOnce() async {
       if (!itemScrollController.isAttached) return;
-      final alignment = _tailBottomAlignment(last);
+      final alignment = _tailBottomAlignmentWithGap(last);
       if (alignment == null) return;
       if (!animated) {
         itemScrollController.jumpTo(index: last, alignment: alignment);
@@ -146,6 +154,12 @@ class ChatScrollService {
     return null;
   }
 
+  double? _tailBottomAlignmentWithGap(int lastIndex) {
+    final base = _tailBottomAlignment(lastIndex);
+    if (base == null) return null;
+    return (base - tailComposerGapFraction).clamp(0.0, 1.0);
+  }
+
   Future<void> scrollToRowIndex(int index, {double alignment = 0.18}) async {
     if (!itemScrollController.isAttached || index < 0 || index >= _itemCount) {
       return;
@@ -159,12 +173,26 @@ class ChatScrollService {
     );
   }
 
+  static const double _anchorEdgeEpsilon = 0.02;
+  static const int _maxAnchorRestorePasses = 3;
+
   ChatAnchorSnapshot? snapshotTopAnchor(List<ChatListRow> rows) {
     final positions = itemPositionsListener.itemPositions.value;
     if (positions.isEmpty || rows.isEmpty) return null;
     final visible = positions.where((p) => p.itemTrailingEdge > 0).toList()
       ..sort((a, b) => a.itemLeadingEdge.compareTo(b.itemLeadingEdge));
     if (visible.isEmpty) return null;
+
+    for (final pos in visible) {
+      if (pos.index < 0 || pos.index >= rows.length) continue;
+      final row = rows[pos.index];
+      if (row is! ChatMessageRow) continue;
+      return ChatAnchorSnapshot(
+        rowIndex: pos.index,
+        messageId: row.message.id,
+        itemLeadingEdge: pos.itemLeadingEdge.clamp(0.0, 1.0),
+      );
+    }
 
     for (final pos in visible) {
       if (pos.index < 0 || pos.index >= rows.length) continue;
@@ -218,33 +246,60 @@ class ChatScrollService {
     );
   }
 
-  Future<void> restoreTopAnchorDeferred(
+  bool _isAnchorVerified(
+    ChatAnchorSnapshot snapshot,
+    List<ChatListRow> rows, {
+    required int rowCountDelta,
+  }) {
+    final targetIndex = _resolveRestoreIndex(
+      snapshot,
+      rows,
+      rowCountDelta: rowCountDelta,
+    );
+    if (targetIndex < 0 || targetIndex >= rows.length) return false;
+
+    for (final p in itemPositionsListener.itemPositions.value) {
+      if (p.index != targetIndex) continue;
+      final edge = p.itemLeadingEdge.clamp(0.0, 1.0);
+      return (edge - snapshot.itemLeadingEdge).abs() <= _anchorEdgeEpsilon;
+    }
+    return false;
+  }
+
+  /// Restores viewport after older rows are prepended.
+  ///
+  /// Waits for layout with the new [itemCount], then applies at most two
+  /// [jumpTo] calls. Does not listen to [itemPositions] — that caused a
+  /// feedback loop (each jumpTo re-fired the listener = visible double jump).
+  Future<void> restoreTopAnchorAfterPrepend(
     ChatAnchorSnapshot? snapshot,
     List<ChatListRow> rows, {
     required int rowCountDelta,
   }) async {
     if (snapshot == null || rows.isEmpty) return;
 
-    Future<void> tryRestore() async {
+    for (var pass = 0; pass < _maxAnchorRestorePasses; pass++) {
+      await SchedulerBinding.instance.endOfFrame;
       if (!itemScrollController.isAttached) return;
+
       _applyTopAnchor(snapshot, rows, rowCountDelta: rowCountDelta);
+
+      if (_isAnchorVerified(snapshot, rows, rowCountDelta: rowCountDelta)) {
+        return;
+      }
     }
-
-    final first = Completer<void>();
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      unawaited(tryRestore().whenComplete(first.complete));
-    });
-    await first.future;
-
-    if (!itemScrollController.isAttached) return;
-    if (itemPositionsListener.itemPositions.value.isNotEmpty) return;
-
-    final second = Completer<void>();
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      unawaited(tryRestore().whenComplete(second.complete));
-    });
-    await second.future;
   }
+
+  Future<void> restoreTopAnchorDeferred(
+    ChatAnchorSnapshot? snapshot,
+    List<ChatListRow> rows, {
+    required int rowCountDelta,
+  }) =>
+      restoreTopAnchorAfterPrepend(
+        snapshot,
+        rows,
+        rowCountDelta: rowCountDelta,
+      );
 
   bool handleScrollNotification(ScrollNotification n, int itemCount) {
     if (n.metrics.axis != Axis.vertical) return false;
@@ -256,15 +311,53 @@ class ChatScrollService {
         userDragging = true;
         stickToTail = false;
         cancelActiveAnimations();
+        _tailSnapGeneration++;
       }
     } else if (n is ScrollUpdateNotification && n.dragDetails != null) {
       if (!atBottom) stickToTail = false;
     } else if (n is ScrollEndNotification) {
       scrollActive = false;
       userDragging = false;
-      stickToTail = atBottom;
+      final metrics = metricsFor(itemCount);
+      stickToTail = metrics.atBottom || metrics.nearBottom;
+      if (stickToTail) {
+        scheduleSnapTailAfterScrollEnd(itemCount);
+      }
     }
     return false;
+  }
+
+  /// Schedules tail re-align after the drag gesture fully ends.
+  ///
+  /// Must not call [ItemScrollController.jumpTo] from [ScrollNotification]
+  /// handlers — that races the scrollable's `_drag` lifecycle and triggers
+  /// `'_drag == null': is not true`.
+  void scheduleSnapTailAfterScrollEnd(int itemCount) {
+    final generation = ++_tailSnapGeneration;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (generation != _tailSnapGeneration) return;
+      if (userDragging || scrollActive) return;
+      _applySnapTail(itemCount);
+    });
+  }
+
+  void _applySnapTail(int itemCount) {
+    if (!itemScrollController.isAttached || itemCount == 0) return;
+    final last = itemCount - 1;
+    final alignment = _tailBottomAlignmentWithGap(last);
+    if (alignment != null) {
+      itemScrollController.jumpTo(index: last, alignment: alignment);
+      return;
+    }
+    itemScrollController.jumpTo(index: last, alignment: 0);
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (userDragging || scrollActive) return;
+      if (!itemScrollController.isAttached) return;
+      final a = _tailBottomAlignmentWithGap(last);
+      if (a != null) {
+        itemScrollController.jumpTo(index: last, alignment: a);
+      }
+    });
   }
 
   void snapTailIfNeeded(int itemCount) {
@@ -273,12 +366,12 @@ class ChatScrollService {
     final metrics = metricsFor(itemCount);
     if (metrics.atBottom) return;
     final last = itemCount - 1;
-    final alignment = _tailBottomAlignment(last);
+    final alignment = _tailBottomAlignmentWithGap(last);
     if (alignment == null) {
       itemScrollController.jumpTo(index: last, alignment: 0);
       SchedulerBinding.instance.addPostFrameCallback((_) {
         if (!stickToTail || userDragging || scrollActive) return;
-        final a = _tailBottomAlignment(last);
+        final a = _tailBottomAlignmentWithGap(last);
         if (a != null) {
           itemScrollController.jumpTo(index: last, alignment: a);
         }

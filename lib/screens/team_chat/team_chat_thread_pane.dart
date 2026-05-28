@@ -56,14 +56,15 @@ class TeamChatThreadPane extends StatefulWidget {
 
 class TeamChatThreadPaneState extends State<TeamChatThreadPane> {
   TeamChatEngineBundle? _engine;
-  Timer? _pollTimer;
   Timer? _markReadDebounce;
   Timer? _positionsDebounce;
   int _pendingMarkReadId = 0;
   int _localReadCursor = 0;
   bool _loadingOlderInFlight = false;
-  bool _tailScrollSettled = false;
+  final ValueNotifier<bool> _tailScrollSettled = ValueNotifier(false);
   final ValueNotifier<bool> _olderSpinner = ValueNotifier(false);
+  /// Hides the list while prepending older rows so SPL's index shift isn't visible.
+  final ValueNotifier<bool> _prependMask = ValueNotifier(false);
 
   ChatThreadCubit<TenantEngineMessage> get _cubit => _engine!.threadCubit;
   ChatScrollService get _scroll => _engine!.scrollService;
@@ -93,7 +94,7 @@ class TeamChatThreadPaneState extends State<TeamChatThreadPane> {
   }
 
   void _initEngine() {
-    _tailScrollSettled = false;
+    _tailScrollSettled.value = false;
     _engine = TeamChatCoordinatorFactory.create(
       api: ApiService(),
       conversationId: widget.conversationId,
@@ -110,23 +111,21 @@ class TeamChatThreadPaneState extends State<TeamChatThreadPane> {
       if (!mounted) return;
       _markTailScrollSettled();
     }));
-    _pollTimer = Timer.periodic(const Duration(milliseconds: 2800), (_) {
-      unawaited(_onPollTick());
-    });
+    _cubit.startPolling();
   }
 
   void _markTailScrollSettled() {
-    if (_tailScrollSettled) return;
+    if (_tailScrollSettled.value) return;
     void trySettle() {
       if (!mounted) return;
       final count = _cubit.state.rows.length;
       if (_scroll.metricsFor(count).atBottom || _scroll.stickToTail) {
-        setState(() => _tailScrollSettled = true);
+        _tailScrollSettled.value = true;
         return;
       }
       SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || _tailScrollSettled) return;
-        setState(() => _tailScrollSettled = true);
+        if (!mounted || _tailScrollSettled.value) return;
+        _tailScrollSettled.value = true;
       });
     }
 
@@ -134,11 +133,12 @@ class TeamChatThreadPaneState extends State<TeamChatThreadPane> {
   }
 
   void _disposeEngine() {
-    _pollTimer?.cancel();
-    _pollTimer = null;
+    _engine?.threadCubit.stopPolling();
     _markReadDebounce?.cancel();
     _positionsDebounce?.cancel();
+    _tailScrollSettled.dispose();
     _olderSpinner.dispose();
+    _prependMask.dispose();
     _engine?.itemPositionsListener.itemPositions.removeListener(_onItemPositionsChanged);
     _engine?.dispose();
     _engine = null;
@@ -151,12 +151,26 @@ class TeamChatThreadPaneState extends State<TeamChatThreadPane> {
   }
 
   Future<void> onMessageSent() async {
-    _scroll.stickToTail = true;
     await _cubit.pollNewer();
     if (!mounted) return;
+    await _scrollToTailAfterNewRows();
+  }
+
+  /// Same tail alignment as [onMessageSent] — used when poll appends messages at the bottom.
+  Future<void> _scrollToTailAfterNewRows() async {
+    _scroll.stickToTail = true;
+    if (!mounted || _engine == null) return;
     final count = _cubit.state.rows.length;
     _scroll.updateItemCount(count);
+    await SchedulerBinding.instance.endOfFrame;
+    if (!mounted || _engine == null) return;
     await _scroll.scrollToBottom(animated: false);
+  }
+
+  bool _shouldFollowIncomingTail(int itemCount) {
+    if (_scroll.stickToTail) return true;
+    final metrics = _scroll.metricsFor(itemCount);
+    return metrics.atBottom || metrics.nearBottom;
   }
 
   Future<void> scrollToBottom({bool animated = true}) {
@@ -201,18 +215,12 @@ class TeamChatThreadPaneState extends State<TeamChatThreadPane> {
     return widget.serverUnreadCount;
   }
 
-  Future<void> _onPollTick() async {
+  void _onPollNewerRows() {
     if (!mounted || _engine == null || _loadingOlderInFlight) return;
-    final stick = _scroll.stickToTail;
-    await _cubit.pollNewer();
-    if (!mounted) return;
     final count = _cubit.state.rows.length;
     _scroll.updateItemCount(count);
-    if (stick) {
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _scroll.snapTailIfNeeded(count);
-      });
-    }
+    if (!_shouldFollowIncomingTail(count)) return;
+    unawaited(_scrollToTailAfterNewRows());
   }
 
   void _onItemPositionsChanged() {
@@ -241,27 +249,32 @@ class TeamChatThreadPaneState extends State<TeamChatThreadPane> {
     if (_loadingOlderInFlight || _engine == null) return;
     _loadingOlderInFlight = true;
     _olderSpinner.value = true;
+    _prependMask.value = true;
+    await SchedulerBinding.instance.endOfFrame;
+
     final rowsBefore = _cubit.state.rows;
     final anchor = _scroll.snapshotTopAnchor(rowsBefore);
-    final loaded = await _cubit.loadOlder();
-    if (!mounted || _engine == null) {
-      _loadingOlderInFlight = false;
-      _olderSpinner.value = false;
-      return;
+    try {
+      final loaded = await _cubit.loadOlder();
+      if (!mounted || _engine == null) return;
+
+      final rowsAfter = _cubit.state.rows;
+      _scroll.updateItemCount(rowsAfter.length);
+      if (loaded && anchor != null && rowsAfter.length > rowsBefore.length) {
+        final delta = rowsAfter.length - rowsBefore.length;
+        await _scroll.restoreTopAnchorAfterPrepend(
+          anchor,
+          rowsAfter,
+          rowCountDelta: delta,
+        );
+      }
+    } finally {
+      if (mounted) {
+        _prependMask.value = false;
+        _loadingOlderInFlight = false;
+        _olderSpinner.value = false;
+      }
     }
-    final rowsAfter = _cubit.state.rows;
-    _scroll.updateItemCount(rowsAfter.length);
-    if (loaded && anchor != null && rowsAfter.length > rowsBefore.length) {
-      final delta = rowsAfter.length - rowsBefore.length;
-      await _scroll.restoreTopAnchorDeferred(
-        anchor,
-        rowsAfter,
-        rowCountDelta: delta,
-      );
-    }
-    if (!mounted) return;
-    _loadingOlderInFlight = false;
-    _olderSpinner.value = false;
   }
 
   bool _sameSenderAsPrevious(List<ChatListRow> rows, int index) {
@@ -302,13 +315,15 @@ class TeamChatThreadPaneState extends State<TeamChatThreadPane> {
     });
   }
 
-  int? _lastMessageId(ChatThreadState state) {
-    for (var i = state.rows.length - 1; i >= 0; i--) {
-      final row = state.rows[i];
+  int? _tailMessageId(List<ChatListRow> rows) {
+    for (var i = rows.length - 1; i >= 0; i--) {
+      final row = rows[i];
       if (row is ChatMessageRow) return row.message.id;
     }
     return null;
   }
+
+  int? _lastMessageId(ChatThreadState state) => _tailMessageId(state.rows);
 
   int _maxVisibleMessageId(ChatThreadState state) {
     final positions = _engine!.itemPositionsListener.itemPositions.value;
@@ -360,7 +375,13 @@ class TeamChatThreadPaneState extends State<TeamChatThreadPane> {
     final scheme = Theme.of(context).colorScheme;
     return BlocProvider<ChatThreadCubit<TenantEngineMessage>>.value(
       value: _cubit,
-      child: BlocBuilder<ChatThreadCubit<TenantEngineMessage>, ChatThreadState>(
+      child: BlocListener<ChatThreadCubit<TenantEngineMessage>, ChatThreadState>(
+        listenWhen: (prev, next) =>
+            !next.loading &&
+            prev.rows.isNotEmpty &&
+            _tailMessageId(prev.rows) != _tailMessageId(next.rows),
+        listener: (_, __) => _onPollNewerRows(),
+        child: BlocBuilder<ChatThreadCubit<TenantEngineMessage>, ChatThreadState>(
         buildWhen: (prev, next) =>
             prev.loading != next.loading ||
             prev.rows != next.rows ||
@@ -385,7 +406,12 @@ class TeamChatThreadPaneState extends State<TeamChatThreadPane> {
                   child: ValueListenableBuilder<int?>(
                     valueListenable: _highlight.highlightedMessageId,
                     builder: (context, highlightedId, _) {
-                      return ChatMessageListView(
+                      return ValueListenableBuilder<bool>(
+                        valueListenable: _prependMask,
+                        builder: (context, maskList, _) {
+                          return Opacity(
+                            opacity: maskList ? 0 : 1,
+                            child: ChatMessageListView(
                         rows: state.rows,
                         itemScrollController: _engine!.itemScrollController,
                         itemPositionsListener: _engine!.itemPositionsListener,
@@ -463,6 +489,9 @@ class TeamChatThreadPaneState extends State<TeamChatThreadPane> {
                             ),
                           ),
                         ),
+                      ),
+                          );
+                        },
                       );
                     },
                   ),
@@ -512,27 +541,33 @@ class TeamChatThreadPaneState extends State<TeamChatThreadPane> {
                   );
                 },
               ),
-              ValueListenableBuilder<Iterable<ItemPosition>>(
-                valueListenable: _engine!.itemPositionsListener.itemPositions,
-                builder: (context, _, __) {
-                  final metrics = _scroll.metricsFor(state.rows.length);
-                  if (!_tailScrollSettled && _scroll.stickToTail) {
-                    return const SizedBox.shrink();
-                  }
-                  if (metrics.atBottom) return const SizedBox.shrink();
-                  return Positioned(
-                    right: 12,
-                    bottom: 12,
-                    child: ChatScrollFab(
-                      unreadCount: _fabUnreadBadge(state),
-                      onTap: () => unawaited(_onScrollFabTap()),
-                    ),
+              ValueListenableBuilder<bool>(
+                valueListenable: _tailScrollSettled,
+                builder: (context, settled, _) {
+                  return ValueListenableBuilder<Iterable<ItemPosition>>(
+                    valueListenable: _engine!.itemPositionsListener.itemPositions,
+                    builder: (context, __, ___) {
+                      final metrics = _scroll.metricsFor(state.rows.length);
+                      if (!settled && _scroll.stickToTail) {
+                        return const SizedBox.shrink();
+                      }
+                      if (metrics.atBottom) return const SizedBox.shrink();
+                      return Positioned(
+                        right: 12,
+                        bottom: 12,
+                        child: ChatScrollFab(
+                          unreadCount: _fabUnreadBadge(state),
+                          onTap: () => unawaited(_onScrollFabTap()),
+                        ),
+                      );
+                    },
                   );
                 },
               ),
             ],
           );
         },
+      ),
       ),
     );
   }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../models/chat_list_row.dart';
@@ -37,6 +39,9 @@ class ChatThreadCubit<T extends ChatMessage> extends Cubit<ChatThreadState> {
   final MessageRegistry<T> registry;
   final bool Function(T current, T? previous) sameSender;
   final bool Function(T message) isFirstUnreadPeerMessage;
+
+  Timer? _pollTimer;
+  bool _pollTickInFlight = false;
 
   List<ChatListRow> _buildRows() => registry.buildRows(
         sameSender: sameSender,
@@ -103,6 +108,28 @@ class ChatThreadCubit<T extends ChatMessage> extends Cubit<ChatThreadState> {
     }
   }
 
+  void startPolling({Duration interval = const Duration(milliseconds: 2800)}) {
+    stopPolling();
+    _pollTimer = Timer.periodic(interval, (_) {
+      unawaited(_pollTick());
+    });
+  }
+
+  void stopPolling() {
+    _pollTimer?.cancel();
+    _pollTimer = null;
+  }
+
+  Future<void> _pollTick() async {
+    if (_pollTickInFlight || isClosed) return;
+    _pollTickInFlight = true;
+    try {
+      await pollNewer();
+    } finally {
+      _pollTickInFlight = false;
+    }
+  }
+
   Future<void> pollNewer() async {
     if (registry.length == 0 || state.loading) return;
     final lastId = registry.orderedIds.last;
@@ -140,4 +167,10 @@ class ChatThreadCubit<T extends ChatMessage> extends Cubit<ChatThreadState> {
   }
 
   T? messageById(int id) => registry.byId(id);
+
+  @override
+  Future<void> close() {
+    stopPolling();
+    return super.close();
+  }
 }

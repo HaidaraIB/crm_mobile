@@ -37,7 +37,8 @@ class ChatMessageListView extends StatelessWidget {
   final WidgetBuilder unreadBuilder;
   final NotificationListenerCallback<ScrollNotification>? onScrollNotification;
 
-  static const EdgeInsets listPadding = EdgeInsets.fromLTRB(8, 6, 8, 12);
+  /// Gap above the composer; keep modest — large values amplify overscroll gaps.
+  static const EdgeInsets listPadding = EdgeInsets.fromLTRB(8, 6, 8, 10);
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +50,7 @@ class ChatMessageListView extends StatelessWidget {
         itemScrollController: itemScrollController,
         itemPositionsListener: itemPositionsListener,
         padding: listPadding,
-        physics: const BouncingScrollPhysics(
+        physics: const ClampingScrollPhysics(
           parent: AlwaysScrollableScrollPhysics(),
         ),
         minCacheExtent: 480,
