@@ -49,6 +49,11 @@
 		<false/>
 		<key>NSLocationWhenInUseUsageDescription</key>
 		<string>This app uses your location to verify field visits (الزيارة الميدانية) when you log them.</string>
+		<key>NSLocationTemporaryUsageDescriptionDictionary</key>
+		<dict>
+			<key>PreciseMapPin</key>
+			<string>Precise location is used to place the map pin at your current position.</string>
+		</dict>
 		<key>NSCameraUsageDescription</key>
 		<string>This app uses the camera to take a profile photo.</string>
 		<key>NSPhotoLibraryUsageDescription</key>

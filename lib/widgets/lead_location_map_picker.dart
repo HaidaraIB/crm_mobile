@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../core/localization/app_localizations.dart';
 import '../core/theme/app_theme.dart';
+import '../core/utils/device_location.dart';
 import '../core/utils/lead_location.dart';
+import 'location_issue_dialog.dart';
 
 const _cartoTileUrl =
     'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
@@ -76,32 +77,7 @@ class _LeadLocationMapPickerState extends State<LeadLocationMapPicker> {
     });
 
     try {
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        setState(() {
-          _locError = _t('locationServicesDisabled', 'Location services disabled');
-        });
-        return;
-      }
-
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        setState(() {
-          _locError = _t('locationPermissionDenied', 'Location permission denied');
-        });
-        return;
-      }
-
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 20),
-        ),
-      );
+      final position = await getAccurateDevicePosition();
 
       if (!widget.readOnly) {
         widget.onChanged(position.latitude, position.longitude);
@@ -110,6 +86,10 @@ class _LeadLocationMapPickerState extends State<LeadLocationMapPicker> {
         LatLng(position.latitude, position.longitude),
         16,
       );
+    } on DeviceLocationException catch (e) {
+      if (mounted) {
+        await showDeviceLocationIssueDialog(context, e.failure);
+      }
     } catch (_) {
       setState(() {
         _locError = _t('employeeLocationRequired', 'Could not get location');
@@ -204,6 +184,7 @@ class _LeadLocationMapPickerState extends State<LeadLocationMapPicker> {
                   subdomains: const ['a', 'b', 'c', 'd'],
                   userAgentPackageName: 'com.loopcrm.mobile',
                   maxZoom: 20,
+                  retinaMode: RetinaMode.isHighDensity(context),
                 ),
                 if (_hasMarker)
                   MarkerLayer(
@@ -212,6 +193,7 @@ class _LeadLocationMapPickerState extends State<LeadLocationMapPicker> {
                         point: LatLng(widget.latitude!, widget.longitude!),
                         width: 40,
                         height: 40,
+                        alignment: Alignment.bottomCenter,
                         child: Icon(
                           Icons.location_on,
                           color: AppTheme.primaryColor,

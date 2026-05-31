@@ -1,13 +1,14 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/api_error_helper.dart';
+import '../../core/utils/device_location.dart';
 import '../../core/utils/field_visit_api_errors.dart';
+import '../location_issue_dialog.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../services/api_service.dart';
 import '../../utils/compress_image_for_chat.dart';
@@ -216,39 +217,23 @@ class _AddFieldVisitModalState extends State<AddFieldVisitModal> {
     }
   }
 
-  Future<Position?> _getCurrentPosition() async {
-    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      setState(() {
-        _generalError = _t(
-          'locationServicesDisabled',
-          'Location services are disabled',
-        );
-      });
+  Future<({double latitude, double longitude, double accuracy})?>
+      _getCurrentPosition() async {
+    try {
+      final position = await getAccurateDevicePosition();
+      return (
+        latitude: position.latitude,
+        longitude: position.longitude,
+        accuracy: position.accuracy,
+      );
+    } on DeviceLocationException catch (e) {
+      if (mounted) {
+        await showDeviceLocationIssueDialog(context, e.failure);
+      }
+      return null;
+    } catch (_) {
       return null;
     }
-
-    var permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
-      setState(() {
-        _generalError = _t(
-          'locationPermissionDenied',
-          'Location permission denied',
-        );
-      });
-      return null;
-    }
-
-    return Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        timeLimit: Duration(seconds: 20),
-      ),
-    );
   }
 
   bool _validateForm() {
