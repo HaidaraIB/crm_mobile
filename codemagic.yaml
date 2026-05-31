@@ -25,6 +25,7 @@ workflows:
     scripts:
       - name: Get Flutter dependencies
         script: |
+          flutter config --no-enable-swift-package-manager
           flutter pub get
       - name: Install CocoaPods dependencies
         script: |
@@ -129,15 +130,7 @@ workflows:
             --release \
             --export-options-plist /tmp/ExportOptions.plist \
             --build-name="$PUBSPEC_BUILD_NAME" \
-            --build-number="$BUILD_NUM" || true
-          if [ ! -d build/ios/ipa ] || [ -z "$(ls -A build/ios/ipa 2>/dev/null)" ]; then
-            echo "=== Flutter export failed, running xcodebuild -exportArchive manually ==="
-            mkdir -p build/ios/ipa
-            xcodebuild -exportArchive \
-              -archivePath build/ios/archive/Runner.xcarchive \
-              -exportPath build/ios/ipa \
-              -exportOptionsPlist /tmp/ExportOptions.plist
-          fi
+            --build-number="$BUILD_NUM"
           echo "=== After build: looking for IPA ==="
           ls -la build/ios/ipa/ 2>/dev/null || true
           find . -name "*.ipa" -type f 2>/dev/null || true
