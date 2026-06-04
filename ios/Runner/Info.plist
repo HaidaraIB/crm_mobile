@@ -49,6 +49,8 @@
 		<false/>
 		<key>NSLocationWhenInUseUsageDescription</key>
 		<string>This app uses your location to verify field visits (الزيارة الميدانية) when you log them.</string>
+		<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+		<string>This app uses your location to verify field visits and place lead locations on the map while you use the app.</string>
 		<key>NSLocationTemporaryUsageDescriptionDictionary</key>
 		<dict>
 			<key>PreciseMapPin</key>
