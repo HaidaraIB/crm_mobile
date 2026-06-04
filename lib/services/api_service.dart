@@ -26,6 +26,8 @@ import '../models/deal_model.dart';
 import '../models/support_ticket_model.dart';
 import '../models/tenant_chat_models.dart';
 import '../models/mobile_app_version_policy.dart';
+import '../models/maintenance_status.dart';
+import '../screens/splash/maintenance_screen.dart';
 import 'device_fcm_token.dart'
     show clearLocalPushRegistrationAfterLogout, resolveDeviceFcmTokenForUnregister;
 import 'error_logger.dart';
@@ -517,6 +519,29 @@ class ApiService {
       }
     }
 
+    // Handle 503 maintenance mode
+    if (response.statusCode == 503) {
+      String? code;
+      String? maintenanceMessage;
+      try {
+        final raw = ApiEnvelope.tryDecodeMap(response.body);
+        if (raw != null) {
+          if (raw['success'] == false && raw['error'] is Map) {
+            final e = raw['error'] as Map;
+            code = e['code']?.toString();
+          }
+          maintenanceMessage = ApiEnvelope.errorMessageFromRoot(raw);
+        }
+      } catch (_) {}
+      if (code == 'maintenance_mode') {
+        _navigateToMaintenance(maintenanceMessage ?? '');
+        throw Exception(
+          maintenanceMessage ??
+              _translateError('maintenanceModeMessage', locale: null),
+        );
+      }
+    }
+
     // Handle 403 Forbidden - subscription inactive (like web: clear and redirect)
     // Skip for /users/me/ which is used to check subscription status
     if (response.statusCode == 403 && !cleanEndpoint.contains('users/me')) {
@@ -605,6 +630,17 @@ class ApiService {
     }
 
     return response;
+  }
+
+  void _navigateToMaintenance(String message) {
+    final key = AppConstants.navigatorKey;
+    if (key?.currentContext == null) return;
+    Navigator.of(key!.currentContext!).pushAndRemoveUntil(
+      MaterialPageRoute<void>(
+        builder: (_) => MaintenanceScreen(message: message),
+      ),
+      (route) => false,
+    );
   }
 
   /// Navigate to login and clear stack (auto-logout like web).
@@ -1911,6 +1947,21 @@ class ApiService {
     }
   }
 
+  /// Public maintenance status (no JWT). Used for startup gate.
+  Future<MaintenanceStatus> fetchMaintenanceStatus() async {
+    final response = await _makeRequest(
+      'GET',
+      '/public/maintenance-status/',
+      includeAuth: false,
+      retryOn401: false,
+    );
+    if (response.statusCode == 200) {
+      final data = _unwrapResponseMap(response);
+      return MaintenanceStatus.fromJson(data);
+    }
+    throw Exception('Maintenance status HTTP ${response.statusCode}');
+  }
+
   /// Public mobile policy (no JWT). Used for forced-update gate.
   Future<MobileAppVersionPolicy> fetchMobileAppVersionPolicy() async {
     final response = await _makeRequest(
@@ -2231,6 +2282,49 @@ class ApiService {
       );
       throw SmsException(errorKey ?? 'failedToSendSms', fallback);
     }
+  }
+
+  /// Queue click-to-dial via office PBX (ZYCOO connector).
+  /// POST /integrations/pbx/dial/
+  Future<void> pbxDial({
+    required int clientId,
+    required String phoneNumber,
+  }) async {
+    final response = await _makeRequest(
+      'POST',
+      '/integrations/pbx/dial/',
+      body: <String, dynamic>{
+        'client': clientId,
+        'phone_number': phoneNumber,
+      },
+      timeout: const Duration(seconds: 15),
+    );
+
+    if (response.statusCode != 201) {
+      final data = _errorContextFromBody(response.body);
+      throw Exception(
+        _resolveApiErrorMessage(data, fallbackKey: 'pbxDialFailed'),
+      );
+    }
+  }
+
+  /// GET /integrations/pbx/settings/
+  Future<Map<String, dynamic>?> getPbxSettings() async {
+    final response = await _makeRequest('GET', '/integrations/pbx/settings/');
+    if (response.statusCode == 403 || response.statusCode == 404) {
+      return null;
+    }
+    if (response.statusCode != 200) {
+      return null;
+    }
+    final decoded = jsonDecode(response.body);
+    if (decoded is Map && decoded['data'] is Map) {
+      return Map<String, dynamic>.from(decoded['data'] as Map);
+    }
+    if (decoded is Map<String, dynamic>) {
+      return decoded;
+    }
+    return null;
   }
 
   // Get client calls for a lead

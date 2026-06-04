@@ -86,6 +86,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
   final Map<int, UserModel> _userCache =
       {}; // Cache for users fetched individually
   UserModel? _currentUser;
+  bool _pbxEnabled = false;
 
   // Filter state
   String? _selectedType; // 'fresh', 'cold', or null for all
@@ -106,6 +107,17 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     _loadLeads();
     _loadStatuses();
     _loadUsers();
+    _loadPbxSettings();
+  }
+
+  Future<void> _loadPbxSettings() async {
+    try {
+      final settings = await _apiService.getPbxSettings();
+      if (!mounted) return;
+      setState(() {
+        _pbxEnabled = settings?['is_enabled'] == true;
+      });
+    } catch (_) {}
   }
 
   @override
@@ -457,6 +469,27 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
           context,
           localizations?.translate('couldNotOpenWhatsApp') ??
               'Could not open WhatsApp',
+        );
+      }
+    }
+  }
+
+  Future<void> _pbxDial(int clientId, String phoneNumber) async {
+    try {
+      await _apiService.pbxDial(clientId: clientId, phoneNumber: phoneNumber);
+      if (mounted) {
+        final localizations = AppLocalizations.of(context);
+        SnackbarHelper.showSuccess(
+          context,
+          localizations?.translate('pbxDialQueued') ??
+              'Call queued — your desk phone should ring shortly.',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        SnackbarHelper.showError(
+          context,
+          ApiErrorHelper.toUserMessage(context, e),
         );
       }
     }
@@ -1065,10 +1098,8 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
 
                               Directionality(
                                 textDirection: TextDirection.ltr,
-                                child: Text(
-                                  _formatPhoneForDisplay(lead.phone),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                child: ScrollingSingleLineText(
+                                  text: _formatPhoneForDisplay(lead.phone),
                                   style: TextStyle(
                                     fontSize: 13,
                                     color: Colors.grey.shade600,
@@ -1109,8 +1140,10 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                         if (_currentUser?.isDataEntry != true)
                           _LeadQuickActions(
                             lead: lead,
+                            pbxEnabled: _pbxEnabled,
                             onWhatsapp: () => _openWhatsApp(lead.phone),
                             onCall: () => _makeCall(lead.phone),
+                            onPbxDial: () => _pbxDial(lead.id, lead.phone),
                             onSms: () => _showSendSMSModal(lead),
                           ),
 
@@ -1933,14 +1966,18 @@ class _LeadAvatar extends StatelessWidget {
 
 class _LeadQuickActions extends StatelessWidget {
   final LeadModel lead;
+  final bool pbxEnabled;
   final VoidCallback onWhatsapp;
   final VoidCallback onCall;
+  final VoidCallback onPbxDial;
   final VoidCallback onSms;
 
   const _LeadQuickActions({
     required this.lead,
+    required this.pbxEnabled,
     required this.onWhatsapp,
     required this.onCall,
+    required this.onPbxDial,
     required this.onSms,
   });
 
@@ -1965,6 +2002,15 @@ class _LeadQuickActions extends StatelessWidget {
           icon: Icons.phone_outlined,
           onPressed: onCall,
         ),
+        if (pbxEnabled) ...[
+          const SizedBox(width: 8),
+          LeadContactActionButton(
+            accentColor: Colors.indigo,
+            icon: Icons.phone_in_talk_outlined,
+            onPressed: onPbxDial,
+            tooltip: loc?.translate('dialViaPbx') ?? 'Dial via PBX',
+          ),
+        ],
         const SizedBox(width: 8),
         LeadContactActionButton(
           accentColor: AppTheme.smsButtonColor,

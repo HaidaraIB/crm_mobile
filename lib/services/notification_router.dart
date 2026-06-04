@@ -101,6 +101,16 @@ class NotificationRouter {
         }
         break;
 
+      case NotificationType.pbxIncomingCall:
+      case NotificationType.pbxCallMissed:
+        final pbxLeadId = _intFromPayload(payload.data?['lead_id'] ?? payload.data?['client_id']);
+        if (pbxLeadId != null) {
+          navigator.pushNamed('/leads/details', arguments: pbxLeadId);
+        } else {
+          navigator.pushNamed('/leads');
+        }
+        break;
+
       case NotificationType.tenantChat:
         final conversationId = _intFromPayload(payload.data?['conversation_id']);
         navigator.pushNamed('/team-chat', arguments: conversationId);
@@ -205,6 +215,10 @@ class NotificationRouter {
         return Icons.alarm;
       case NotificationType.callReminder:
         return Icons.phone;
+      case NotificationType.pbxIncomingCall:
+        return Icons.phone_in_talk;
+      case NotificationType.pbxCallMissed:
+        return Icons.phone_missed;
       case NotificationType.visitReminder:
         return Icons.event_available;
       case NotificationType.receptionVisitReminder:
@@ -303,6 +317,10 @@ class NotificationRouter {
         return Colors.red;
       case NotificationType.callReminder:
         return Colors.green;
+      case NotificationType.pbxIncomingCall:
+        return Colors.green;
+      case NotificationType.pbxCallMissed:
+        return Colors.red;
       case NotificationType.visitReminder:
         return Colors.teal;
       case NotificationType.receptionVisitReminder:
@@ -399,6 +417,10 @@ class NotificationRouter {
         return 'تذكير مهمة';
       case NotificationType.callReminder:
         return 'تذكير مكالمة';
+      case NotificationType.pbxIncomingCall:
+        return 'مكالمة واردة';
+      case NotificationType.pbxCallMissed:
+        return 'مكالمة فائتة';
       case NotificationType.visitReminder:
         return 'تذكير موعد زيارة';
       case NotificationType.receptionVisitReminder:

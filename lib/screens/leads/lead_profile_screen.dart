@@ -57,6 +57,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
   bool _isLoadingFieldVisits = false;
   String? _fieldVisitsError;
   final Map<String, bool> _updatingPrimaryMap = {}; // Track which phone numbers are being set as primary
+  bool _pbxEnabled = false;
   
   @override
   void initState() {
@@ -65,6 +66,17 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
     _loadLead();
     _loadStatuses();
     _loadUsers();
+    _loadPbxSettings();
+  }
+
+  Future<void> _loadPbxSettings() async {
+    try {
+      final settings = await _apiService.getPbxSettings();
+      if (!mounted) return;
+      setState(() {
+        _pbxEnabled = settings?['is_enabled'] == true;
+      });
+    } catch (_) {}
   }
   
   Future<void> _loadCurrentUser() async {
@@ -345,6 +357,24 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
       }
     }
   }
+
+  Future<void> _pbxDial(String phoneNumber) async {
+    if (_lead == null) return;
+    try {
+      await _apiService.pbxDial(clientId: _lead!.id, phoneNumber: phoneNumber);
+      if (mounted) {
+        SnackbarHelper.showSuccess(
+          context,
+          AppLocalizations.of(context)?.translate('pbxDialQueued') ??
+              'Call queued — your desk phone should ring shortly.',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        SnackbarHelper.showError(context, ApiErrorHelper.toUserMessage(context, e));
+      }
+    }
+  }
   
   Future<void> _openWhatsApp(String phoneNumber) async {
     try {
@@ -609,10 +639,8 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                             const SizedBox(height: 4),
                             Directionality(
                               textDirection: TextDirection.ltr,
-                              child: Text(
-                                _formatPhoneForDisplay(_lead!.phone),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                              child: ScrollingSingleLineText(
+                                text: _formatPhoneForDisplay(_lead!.phone),
                                 style: TextStyle(
                                   fontSize: 13,
                                   color: Colors.grey.shade600,
@@ -1093,6 +1121,15 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
           icon: Icons.phone_outlined,
           onPressed: () => _makeCall(_lead!.phone),
         ),
+        if (_pbxEnabled) ...[
+          const SizedBox(width: 8),
+          LeadContactActionButton(
+            accentColor: Colors.indigo,
+            icon: Icons.phone_in_talk_outlined,
+            onPressed: () => _pbxDial(_lead!.phone),
+            tooltip: localizations?.translate('dialViaPbx') ?? 'Dial via PBX',
+          ),
+        ],
         const SizedBox(width: 8),
         LeadContactActionButton(
           accentColor: AppTheme.smsButtonColor,

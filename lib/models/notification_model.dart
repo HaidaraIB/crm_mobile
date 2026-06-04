@@ -54,6 +54,10 @@ enum NotificationType {
   taskCompleted, // تم إكمال مهمة
   /// 📞 تذكير مكالمة
   callReminder, // تذكير بموعد مكالمة متابعة
+  /// مكالمة واردة من PBX
+  pbxIncomingCall,
+  /// مكالمة فائتة من PBX
+  pbxCallMissed,
   /// موعد زيارة / متابعة (طبية وغيرها)
   visitReminder,
   /// تذكير استقبال لموعد زيارة (عيادة)

@@ -450,6 +450,13 @@ class AppLocalizations {
           'Unable to connect to the server. Please try again later',
       'errorOccurred': 'An error occurred',
       'tryAgain': 'Try Again',
+      'maintenanceModeTitle': 'System under maintenance',
+      'maintenanceModeMessage':
+          'The system is under maintenance. Please try again later.',
+      'maintenanceModeRetry': 'Try again',
+      'maintenanceModeChecking': 'Checking system status…',
+      'maintenanceModeStillActive':
+          'The system is still under maintenance. Please try again later.',
       'primary': 'Primary',
       'setAsPrimary': 'Set as Primary',
       'doubleTapToSetPrimary': 'Double-tap a number to set it as primary',
@@ -698,6 +705,11 @@ class AppLocalizations {
       'semiFinished': 'Semi-Finished',
       'paymentMethod': 'Payment Method',
       'cannotMakeCall': 'Cannot make call',
+      'dialViaPbx': 'Dial via PBX',
+      'pbxDialQueued': 'Call queued — your desk phone should ring shortly.',
+      'pbxDialFailed': 'Failed to queue call via PBX',
+      'incomingCall': 'Incoming call',
+      'pbxMissedCall': 'Missed call',
       // Inventory - Services
       'noServicesFound': 'No services found',
       'noServicePackagesFound': 'No service packages found',
@@ -1642,6 +1654,13 @@ class AppLocalizations {
           'تعذر الاتصال بالخادم. يرجى المحاولة مرة أخرى لاحقاً',
       'errorOccurred': 'حدث خطأ',
       'tryAgain': 'حاول مرة أخرى',
+      'maintenanceModeTitle': 'النظام قيد الصيانة',
+      'maintenanceModeMessage':
+          'النظام قيد الصيانة حالياً. يرجى المحاولة لاحقاً.',
+      'maintenanceModeRetry': 'إعادة المحاولة',
+      'maintenanceModeChecking': 'جاري التحقق من حالة النظام…',
+      'maintenanceModeStillActive':
+          'لا يزال النظام قيد الصيانة. يرجى المحاولة لاحقاً.',
       'primary': 'أساسي',
       'setAsPrimary': 'تعيين كأساسي',
       'doubleTapToSetPrimary': 'اضغط مرتين على الرقم لتعيينه كأساسي',
@@ -1874,6 +1893,11 @@ class AppLocalizations {
       'semiFinished': 'منتهي جزئياً',
       'paymentMethod': 'طريقة الدفع',
       'cannotMakeCall': 'لا يمكن إجراء المكالمة',
+      'dialViaPbx': 'اتصال عبر البدّالة',
+      'pbxDialQueued': 'تمت جدولة المكالمة — يرجى انتظار رنين هاتفك.',
+      'pbxDialFailed': 'فشل الاتصال عبر البدّالة',
+      'incomingCall': 'مكالمة واردة',
+      'pbxMissedCall': 'مكالمة فائتة',
       // Inventory - Services
       'noServicesFound': 'لم يتم العثور على خدمات',
       'noServicePackagesFound': 'لم يتم العثور على باقات خدمات',

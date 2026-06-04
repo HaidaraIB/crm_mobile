@@ -8,11 +8,13 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/app_locales.dart';
 import '../../services/api_service.dart';
 import '../../services/app_version_gate.dart';
+import '../../services/maintenance_gate.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../login/login_screen.dart';
 import '../home/home_screen.dart';
 import '../payment/subscription_payment_screen.dart';
 import 'force_update_screen.dart';
+import 'maintenance_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -60,6 +62,17 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _navigateToNextScreen() async {
+    final maintenance = await MaintenanceGate.evaluate();
+    if (!mounted) return;
+    if (maintenance.outcome == MaintenanceGateOutcome.blocked) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) => MaintenanceScreen(message: maintenance.message),
+        ),
+      );
+      return;
+    }
+
     final gate = await AppVersionGate.evaluate();
     if (!mounted) return;
     if (gate.outcome != AppVersionGateOutcome.allowed) {
