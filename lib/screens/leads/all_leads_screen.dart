@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/localization/app_localizations.dart';
@@ -74,10 +72,10 @@ class AllLeadsScreen extends StatefulWidget {
 class _AllLeadsScreenState extends State<AllLeadsScreen> {
   final ApiService _apiService = ApiService();
   final TextEditingController _searchController = TextEditingController();
-  Timer? _searchDebounce;
   List<LeadModel> _leads = [];
   List<LeadModel> _filteredLeads = [];
   bool _isLoading = true;
+  bool _isListLoading = false;
   String? _errorMessage;
   List<StatusModel> _statuses = [];
   final Map<int, bool> _updatingStatusMap =
@@ -330,24 +328,39 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
 
   @override
   void dispose() {
-    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
-  void _scheduleLeadsReloadFromSearch() {
-    _searchDebounce?.cancel();
-    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
-      if (!mounted) return;
-      _loadLeads();
-    });
+  void _submitSearch() {
+    final trimmed = _searchController.text.trim();
+    if (trimmed != _searchController.text) {
+      _searchController.text = trimmed;
+      _searchController.selection = TextSelection.collapsed(
+        offset: trimmed.length,
+      );
+    }
+    _loadLeads();
   }
 
-  Future<void> _loadLeads({bool forceRefresh = false}) async {
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() {});
+    _loadLeads();
+  }
+
+  Future<void> _loadLeads({
+    bool forceRefresh = false,
+  }) async {
     try {
       if (!mounted) return;
+      final useFullScreenLoader = _leads.isEmpty && _errorMessage == null;
       setState(() {
-        _isLoading = true;
+        if (useFullScreenLoader) {
+          _isLoading = true;
+        } else {
+          _isListLoading = true;
+        }
         _errorMessage = null;
       });
 
@@ -386,14 +399,23 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       setState(() {
         _leads = filteredLeads;
         _isLoading = false;
+        _isListLoading = false;
       });
       _filterLeads();
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _errorMessage = _getErrorMessage(e);
-        _isLoading = false;
-      });
+      if (_leads.isEmpty) {
+        setState(() {
+          _errorMessage = _getErrorMessage(e);
+          _isLoading = false;
+          _isListLoading = false;
+        });
+      } else {
+        setState(() {
+          _isListLoading = false;
+        });
+        SnackbarHelper.showError(context, _getErrorMessage(e));
+      }
     }
   }
 
@@ -795,57 +817,101 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                 ],
               )
             : null,
-        body: _isLoading
+        body: _isLoading && _leads.isEmpty
             ? const Center(child: CircularProgressIndicator())
-            : _errorMessage != null
+            : _errorMessage != null && _leads.isEmpty
             ? _buildErrorWidget(context, localizations, theme)
             : Column(
                 children: [
                   // Search Bar
                   Padding(
                     padding: const EdgeInsets.all(16),
-                    child: TextField(
-                      controller: _searchController,
-                      onChanged: (_) => _scheduleLeadsReloadFromSearch(),
-                      decoration: InputDecoration(
-                        hintText:
-                            localizations?.translate('searchLeadsByNameOrPhone') ??
-                            'Search by name or phone',
-                        prefixIcon: const Icon(Icons.search),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _searchController,
+                            textInputAction: TextInputAction.search,
+                            onSubmitted: (_) => _submitSearch(),
+                            onChanged: (_) => setState(() {}),
+                            decoration: InputDecoration(
+                              hintText:
+                                  localizations?.translate(
+                                    'searchLeadsPlaceholderEnter',
+                                  ) ??
+                                  localizations?.translate(
+                                    'searchLeadsByNameOrPhone',
+                                  ) ??
+                                  'Search by name or phone',
+                              prefixIcon: const Icon(Icons.search),
+                              suffixIcon: _searchController.text.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear),
+                                      tooltip:
+                                          localizations?.translate('clear') ??
+                                          'Clear',
+                                      onPressed: _clearSearch,
+                                    )
+                                  : null,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: _submitSearch,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 16,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Text(
+                            localizations?.translate('search') ?? 'Search',
+                          ),
+                        ),
+                      ],
                     ),
                   ),
 
                   // Leads List
                   Expanded(
-                    child: RefreshIndicator(
-                      onRefresh: () => _loadLeads(forceRefresh: true),
-                      child: _filteredLeads.isEmpty
-                          ? Center(
-                              child: Text(
-                                localizations?.translate('noLeadsFound') ??
-                                    'No leads found',
-                                style: theme.textTheme.bodyLarge,
-                              ),
-                            )
-                          : ListView.builder(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                              ),
-                              itemCount: _filteredLeads.length,
-                              itemBuilder: (context, index) {
-                                final lead = _filteredLeads[index];
-                                return _buildLeadCard(
-                                  context,
-                                  lead,
-                                  localizations,
-                                );
-                              },
-                            ),
-                    ),
+                    child: _isListLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : RefreshIndicator(
+                            onRefresh: () => _loadLeads(forceRefresh: true),
+                            child: _filteredLeads.isEmpty
+                                ? Center(
+                                    child: Text(
+                                      localizations?.translate(
+                                            'noLeadsFound',
+                                          ) ??
+                                          'No leads found',
+                                      style: theme.textTheme.bodyLarge,
+                                    ),
+                                  )
+                                : ListView.builder(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                    ),
+                                    itemCount: _filteredLeads.length,
+                                    itemBuilder: (context, index) {
+                                      final lead = _filteredLeads[index];
+                                      return _buildLeadCard(
+                                        context,
+                                        lead,
+                                        localizations,
+                                      );
+                                    },
+                                  ),
+                          ),
                   ),
                 ],
               ),

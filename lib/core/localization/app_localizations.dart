@@ -162,7 +162,10 @@ class AppLocalizations {
       'createYourFirstLead': 'Create your first lead',
       'leadsOverview': 'Leads Overview',
       'typeToSearch': 'Type to search...',
+      'search': 'Search',
       'searchLeadsByNameOrPhone': 'Search by name or phone',
+      'searchLeadsPlaceholderEnter':
+          'Name or phone — tap Search or press Enter',
       'add': 'Add',
       'addAction': 'Add Action',
       'addProduct': 'Add Product',
@@ -1353,7 +1356,10 @@ class AppLocalizations {
       'createYourFirstLead': 'أنشئ أول عميل',
       'leadsOverview': 'نظرة على العملاء',
       'typeToSearch': 'اكتب للبحث...',
+      'search': 'بحث',
       'searchLeadsByNameOrPhone': 'البحث بالاسم أو رقم الهاتف',
+      'searchLeadsPlaceholderEnter':
+          'الاسم أو الهاتف — اضغط بحث أو Enter',
       'add': 'إضافة',
       'addAction': 'إضافة إجراء',
       'addProduct': 'إضافة منتج',
