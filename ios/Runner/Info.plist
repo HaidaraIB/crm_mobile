@@ -63,12 +63,14 @@
 		<key>NSPhotoLibraryAddUsageDescription</key>
 		<string>This app can save photos to your library.</string>
 		<key>NSMicrophoneUsageDescription</key>
-		<string>This app uses the microphone for team chat voice messages.</string>
+		<string>This app uses the microphone for VoIP calls and team chat voice messages.</string>
 		<key>FirebaseAppDelegateProxyEnabled</key>
 		<true/>
 		<key>UIBackgroundModes</key>
 		<array>
 			<string>remote-notification</string>
+			<string>voip</string>
+			<string>audio</string>
 		</array>
 	</dict>
 </plist>

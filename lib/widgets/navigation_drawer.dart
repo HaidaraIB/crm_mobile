@@ -18,6 +18,7 @@ import '../services/team_chat_away_service.dart';
 import '../services/team_chat_unread_holder.dart';
 import '../models/user_model.dart';
 import '../services/api_service.dart';
+import '../services/softphone_service.dart';
 
 class NavigationDrawer extends StatefulWidget {
   final VoidCallback? onProfileUpdated;
@@ -451,6 +452,7 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
   Future<void> _performLogout() async {
     TeamChatAwayService.instance.stop();
     TeamChatUnreadHolder.setTotal(0);
+    await SoftphoneService.instance.shutdownOnLogout();
     await ApiService().clearAuthSession();
 
     if (!mounted) return;

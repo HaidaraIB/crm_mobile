@@ -101,6 +101,10 @@ class NotificationRouter {
         }
         break;
 
+      case NotificationType.softphoneIncomingCall:
+        // CallKit UI is shown by SoftphonePushHandler; no navigation needed.
+        break;
+
       case NotificationType.pbxIncomingCall:
       case NotificationType.pbxCallMissed:
         final pbxLeadId = _intFromPayload(payload.data?['lead_id'] ?? payload.data?['client_id']);
@@ -216,6 +220,7 @@ class NotificationRouter {
       case NotificationType.callReminder:
         return Icons.phone;
       case NotificationType.pbxIncomingCall:
+      case NotificationType.softphoneIncomingCall:
         return Icons.phone_in_talk;
       case NotificationType.pbxCallMissed:
         return Icons.phone_missed;
@@ -318,6 +323,7 @@ class NotificationRouter {
       case NotificationType.callReminder:
         return Colors.green;
       case NotificationType.pbxIncomingCall:
+      case NotificationType.softphoneIncomingCall:
         return Colors.green;
       case NotificationType.pbxCallMissed:
         return Colors.red;
@@ -421,6 +427,8 @@ class NotificationRouter {
         return 'مكالمة واردة';
       case NotificationType.pbxCallMissed:
         return 'مكالمة فائتة';
+      case NotificationType.softphoneIncomingCall:
+        return 'مكالمة واردة (هاتف)';
       case NotificationType.visitReminder:
         return 'تذكير موعد زيارة';
       case NotificationType.receptionVisitReminder:

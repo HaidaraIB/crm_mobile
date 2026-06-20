@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/localization/app_localizations.dart';
@@ -7,10 +9,13 @@ import '../../core/utils/lead_assignee_users.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../core/utils/budget_range_utils.dart';
 import '../../core/utils/field_visit_access.dart';
+import '../../core/utils/lead_phone_utils.dart';
+import '../../core/utils/pbx_dial_availability.dart';
 import '../../models/lead_model.dart';
 import '../../models/settings_model.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
+import '../../services/softphone_service.dart';
 import '../../widgets/modals/add_action_modal.dart';
 import '../../widgets/modals/add_call_modal.dart';
 import '../../widgets/modals/add_visit_modal.dart';
@@ -25,14 +30,6 @@ import 'edit_lead_screen.dart';
 import 'import_leads_screen.dart';
 import 'lead_profile_screen.dart';
 import '../../services/leads_excel_service.dart';
-
-/// Formats phone for display so the plus sign always appears at the start (works in both LTR and RTL).
-String _formatPhoneForDisplay(String? raw) {
-  if (raw == null || raw.isEmpty) return '';
-  final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
-  if (digits.isEmpty) return raw;
-  return '+$digits';
-}
 
 /// Label/checkmark color on selected filter chips (readable on tinted fills).
 Color _filterChipOnBase(Color baseColor) {
@@ -84,7 +81,8 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
   final Map<int, UserModel> _userCache =
       {}; // Cache for users fetched individually
   UserModel? _currentUser;
-  bool _pbxEnabled = false;
+  PbxDialAvailability _dialAvailability = PbxDialAvailability.unavailable;
+  StreamSubscription<SoftphoneRegState>? _softphoneRegSub;
 
   // Filter state
   String? _selectedType; // 'fresh', 'cold', or null for all
@@ -105,15 +103,24 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     _loadLeads();
     _loadStatuses();
     _loadUsers();
-    _loadPbxSettings();
+    _softphoneRegSub = SoftphoneService.instance.registrationState.listen((_) {
+      _loadPbxSettings();
+    });
   }
 
   Future<void> _loadPbxSettings() async {
+    if (_currentUser == null) return;
     try {
       final settings = await _apiService.getPbxSettings();
+      final extensions = await _apiService.getPbxExtensions();
       if (!mounted) return;
       setState(() {
-        _pbxEnabled = settings?['is_enabled'] == true;
+        _dialAvailability = PbxDialAvailability.fromSettings(
+          settings: settings,
+          extensions: extensions,
+          currentUser: _currentUser,
+          regState: SoftphoneService.instance.currentRegState,
+        );
       });
     } catch (_) {}
   }
@@ -139,6 +146,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       setState(() {
         _currentUser = user;
       });
+      await _loadPbxSettings();
     } catch (e) {
       debugPrint('Failed to load current user: $e');
     }
@@ -328,6 +336,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
 
   @override
   void dispose() {
+    _softphoneRegSub?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -505,6 +514,27 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
           context,
           localizations?.translate('pbxDialQueued') ??
               'Call queued — your desk phone should ring shortly.',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        SnackbarHelper.showError(
+          context,
+          ApiErrorHelper.toUserMessage(context, e),
+        );
+      }
+    }
+  }
+
+  Future<void> _softphoneDial(String phoneNumber) async {
+    try {
+      await SoftphoneService.instance.dial(phoneNumber);
+      if (mounted) {
+        final localizations = AppLocalizations.of(context);
+        SnackbarHelper.showSuccess(
+          context,
+          localizations?.translate('softphoneCalling') ??
+              'Calling via softphone…',
         );
       }
     } catch (e) {
@@ -1165,7 +1195,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                               Directionality(
                                 textDirection: TextDirection.ltr,
                                 child: ScrollingSingleLineText(
-                                  text: _formatPhoneForDisplay(lead.phone),
+                                  text: formatPhoneForDisplay(resolvePrimaryPhone(lead)),
                                   style: TextStyle(
                                     fontSize: 13,
                                     color: Colors.grey.shade600,
@@ -1206,10 +1236,11 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                         if (_currentUser?.isDataEntry != true)
                           _LeadQuickActions(
                             lead: lead,
-                            pbxEnabled: _pbxEnabled,
-                            onWhatsapp: () => _openWhatsApp(lead.phone),
-                            onCall: () => _makeCall(lead.phone),
-                            onPbxDial: () => _pbxDial(lead.id, lead.phone),
+                            dialAvailability: _dialAvailability,
+                            onWhatsapp: () => _openWhatsApp(resolvePrimaryPhone(lead)),
+                            onCall: () => _makeCall(resolvePrimaryPhone(lead)),
+                            onPbxDial: () => _pbxDial(lead.id, resolvePrimaryPhone(lead)),
+                            onSoftphoneDial: () => _softphoneDial(resolvePrimaryPhone(lead)),
                             onSms: () => _showSendSMSModal(lead),
                           ),
 
@@ -2032,18 +2063,20 @@ class _LeadAvatar extends StatelessWidget {
 
 class _LeadQuickActions extends StatelessWidget {
   final LeadModel lead;
-  final bool pbxEnabled;
+  final PbxDialAvailability dialAvailability;
   final VoidCallback onWhatsapp;
   final VoidCallback onCall;
   final VoidCallback onPbxDial;
+  final VoidCallback onSoftphoneDial;
   final VoidCallback onSms;
 
   const _LeadQuickActions({
     required this.lead,
-    required this.pbxEnabled,
+    required this.dialAvailability,
     required this.onWhatsapp,
     required this.onCall,
     required this.onPbxDial,
+    required this.onSoftphoneDial,
     required this.onSms,
   });
 
@@ -2068,7 +2101,15 @@ class _LeadQuickActions extends StatelessWidget {
           icon: Icons.phone_outlined,
           onPressed: onCall,
         ),
-        if (pbxEnabled) ...[
+        if (dialAvailability.showSoftphoneButton) ...[
+          const SizedBox(width: 8),
+          LeadContactActionButton(
+            accentColor: Colors.teal,
+            icon: Icons.phone_in_talk,
+            onPressed: onSoftphoneDial,
+            tooltip: loc?.translate('softphoneCall') ?? 'Softphone call',
+          ),
+        ] else if (dialAvailability.showPbxButton) ...[
           const SizedBox(width: 8),
           LeadContactActionButton(
             accentColor: Colors.indigo,

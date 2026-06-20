@@ -42,7 +42,14 @@
     java.lang.Object readResolve();
 }
 
-# Keep custom model classes (adjust package name if needed)
+# Flutter WebRTC / SIP softphone (release builds)
+-keep class com.hiennv.flutter_callkit_incoming.** { *; }
+-keep class org.webrtc.** { *; }
+-keep class com.cloudwebrtc.webrtc.** { *; }
+-dontwarn org.webrtc.**
+-dontwarn com.cloudwebrtc.webrtc.**
+
+# Keep custom model classes
 -keep class com.loopcrm.mobile.** { *; }
 
 # OkHttp

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/localization/app_localizations.dart';
@@ -6,11 +8,14 @@ import '../../core/utils/api_error_helper.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../core/utils/budget_range_utils.dart';
 import '../../core/utils/field_visit_access.dart';
+import '../../core/utils/lead_phone_utils.dart';
+import '../../core/utils/pbx_dial_availability.dart';
 import '../../models/lead_model.dart';
 import '../../models/client_field_visit_model.dart';
 import '../../models/settings_model.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
+import '../../services/softphone_service.dart';
 import '../../widgets/modals/assign_lead_modal.dart';
 import '../../widgets/modals/add_action_modal.dart';
 import '../../widgets/modals/add_call_modal.dart';
@@ -25,14 +30,6 @@ import '../../widgets/lead_location_map_picker.dart';
 import '../../widgets/media/open_app_media_viewer.dart';
 import '../../core/utils/media_url_utils.dart';
 import 'edit_lead_screen.dart';
-
-/// Formats phone for display so the plus sign always appears at the start (works in both LTR and RTL).
-String _formatPhoneForDisplay(String? raw) {
-  if (raw == null || raw.isEmpty) return '';
-  final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
-  if (digits.isEmpty) return raw;
-  return '+$digits';
-}
 
 class LeadProfileScreen extends StatefulWidget {
   final int leadId;
@@ -57,7 +54,8 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
   bool _isLoadingFieldVisits = false;
   String? _fieldVisitsError;
   final Map<String, bool> _updatingPrimaryMap = {}; // Track which phone numbers are being set as primary
-  bool _pbxEnabled = false;
+  PbxDialAvailability _dialAvailability = PbxDialAvailability.unavailable;
+  StreamSubscription<SoftphoneRegState>? _softphoneRegSub;
   
   @override
   void initState() {
@@ -66,15 +64,30 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
     _loadLead();
     _loadStatuses();
     _loadUsers();
-    _loadPbxSettings();
+    _softphoneRegSub = SoftphoneService.instance.registrationState.listen((_) {
+      _loadPbxSettings();
+    });
+  }
+
+  @override
+  void dispose() {
+    _softphoneRegSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadPbxSettings() async {
+    if (_currentUser == null) return;
     try {
       final settings = await _apiService.getPbxSettings();
+      final extensions = await _apiService.getPbxExtensions();
       if (!mounted) return;
       setState(() {
-        _pbxEnabled = settings?['is_enabled'] == true;
+        _dialAvailability = PbxDialAvailability.fromSettings(
+          settings: settings,
+          extensions: extensions,
+          currentUser: _currentUser,
+          regState: SoftphoneService.instance.currentRegState,
+        );
       });
     } catch (_) {}
   }
@@ -85,6 +98,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
       setState(() {
         _currentUser = user;
       });
+      await _loadPbxSettings();
       await _loadFieldVisits();
     } catch (e) {
       debugPrint('Failed to load current user: $e');
@@ -354,6 +368,23 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
           context,
           AppLocalizations.of(context)?.translate('cannotMakeCall') ?? 'Could not make call',
         );
+      }
+    }
+  }
+
+  Future<void> _softphoneDial(String phoneNumber) async {
+    try {
+      await SoftphoneService.instance.dial(phoneNumber);
+      if (mounted) {
+        SnackbarHelper.showSuccess(
+          context,
+          AppLocalizations.of(context)?.translate('softphoneCalling') ??
+              'Calling via softphone…',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        SnackbarHelper.showError(context, ApiErrorHelper.toUserMessage(context, e));
       }
     }
   }
@@ -640,7 +671,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                             Directionality(
                               textDirection: TextDirection.ltr,
                               child: ScrollingSingleLineText(
-                                text: _formatPhoneForDisplay(_lead!.phone),
+                                text: formatPhoneForDisplay(resolvePrimaryPhone(_lead!)),
                                 style: TextStyle(
                                   fontSize: 13,
                                   color: Colors.grey.shade600,
@@ -1106,27 +1137,36 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
   Widget _buildProfileQuickActions(AppLocalizations? localizations) {
     final whatsappLabel = localizations?.translate('whatsapp') ?? 'WhatsApp';
     final smsLabel = localizations?.translate('channelTypeSMS') ?? 'SMS';
+    final primaryPhone = resolvePrimaryPhone(_lead!);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         LeadContactActionButton(
           accentColor: LeadContactActionButton.whatsappGreen,
           isWhatsApp: true,
-          onPressed: () => _openWhatsApp(_lead!.phone),
+          onPressed: () => _openWhatsApp(primaryPhone),
           tooltip: whatsappLabel,
         ),
         const SizedBox(width: 8),
         LeadContactActionButton(
           accentColor: AppTheme.primaryColor,
           icon: Icons.phone_outlined,
-          onPressed: () => _makeCall(_lead!.phone),
+          onPressed: () => _makeCall(primaryPhone),
         ),
-        if (_pbxEnabled) ...[
+        if (_dialAvailability.showSoftphoneButton) ...[
+          const SizedBox(width: 8),
+          LeadContactActionButton(
+            accentColor: Colors.teal,
+            icon: Icons.phone_in_talk,
+            onPressed: () => _softphoneDial(primaryPhone),
+            tooltip: localizations?.translate('softphoneCall') ?? 'Softphone call',
+          ),
+        ] else if (_dialAvailability.showPbxButton) ...[
           const SizedBox(width: 8),
           LeadContactActionButton(
             accentColor: Colors.indigo,
             icon: Icons.phone_in_talk_outlined,
-            onPressed: () => _pbxDial(_lead!.phone),
+            onPressed: () => _pbxDial(primaryPhone),
             tooltip: localizations?.translate('dialViaPbx') ?? 'Dial via PBX',
           ),
         ],
@@ -1484,6 +1524,11 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
         ));
       }
     }
+
+    allPhones.sort((a, b) {
+      if (a.isPrimary == b.isPrimary) return 0;
+      return a.isPrimary ? -1 : 1;
+    });
     
     if (allPhones.isEmpty) {
       return _buildDetailCard(
@@ -1688,10 +1733,8 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                   // Phone Number (full width) - LTR so + stays at start in RTL locale
                   Directionality(
                     textDirection: TextDirection.ltr,
-                    child: Text(
-                      phone.phoneNumber,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    child: ScrollingSingleLineText(
+                      text: formatPhoneForDisplay(phone.phoneNumber),
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -1739,6 +1782,23 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
             icon: Icons.phone_outlined,
             onPressed: () => _makeCall(phone.phoneNumber),
           ),
+          if (_dialAvailability.showSoftphoneButton) ...[
+            const SizedBox(width: 8),
+            LeadContactActionButton(
+              accentColor: Colors.teal,
+              icon: Icons.phone_in_talk,
+              onPressed: () => _softphoneDial(phone.phoneNumber),
+              tooltip: localizations?.translate('softphoneCall') ?? 'Softphone call',
+            ),
+          ] else if (_dialAvailability.showPbxButton) ...[
+            const SizedBox(width: 8),
+            LeadContactActionButton(
+              accentColor: Colors.indigo,
+              icon: Icons.phone_in_talk_outlined,
+              onPressed: () => _pbxDial(phone.phoneNumber),
+              tooltip: localizations?.translate('dialViaPbx') ?? 'Dial via PBX',
+            ),
+          ],
           const SizedBox(width: 8),
           // SMS Button
           LeadContactActionButton(

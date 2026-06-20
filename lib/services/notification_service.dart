@@ -14,6 +14,8 @@ import '../core/constants/app_constants.dart';
 import 'api_service.dart';
 import 'device_fcm_token.dart';
 import 'team_chat_away_service.dart';
+import 'softphone_push_handler.dart';
+import 'softphone_service.dart';
 
 const int _kTenantChatMergedNotifIdBase = 1900000000;
 const int _kTenantChatMergeMaxLines = 5;
@@ -275,6 +277,18 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   debugPrint('Handling background message: ${message.messageId}');
 
   final payload = NotificationPayload.fromRemoteMessage(message);
+  if (payload.data?['kind'] == 'softphone_incoming_call' ||
+      payload.type == NotificationType.softphoneIncomingCall) {
+    try {
+      await SoftphonePushHandler.instance.handleIncomingPush(
+        Map<String, dynamic>.from(payload.data ?? {}),
+      );
+    } catch (e, st) {
+      debugPrint('[FCM] Background softphone push failed: $e');
+      debugPrint('$st');
+    }
+    return;
+  }
   if (NotificationService.isTenantChatPush(payload)) {
     try {
       await _showTenantChatMergedFromBackground(payload);
@@ -582,6 +596,14 @@ class NotificationService {
     // استخدام RemoteMessage مباشرة (سيتم استخراج notification و data تلقائياً)
     final payload = NotificationPayload.fromRemoteMessage(message);
 
+    if (payload.data?['kind'] == 'softphone_incoming_call' ||
+        payload.type == NotificationType.softphoneIncomingCall) {
+      await SoftphonePushHandler.instance.handleIncomingPush(
+        Map<String, dynamic>.from(payload.data ?? {}),
+      );
+      return;
+    }
+
     // عرض إشعار محلي
     // استخدام title و body من payload (تم استخراجهما من message.notification)
     if (_shouldSkipForegroundLocalNotificationForActiveTeamChat(payload)) {
@@ -732,6 +754,7 @@ class NotificationService {
         debugPrint('FCM Token refreshed: ${newToken.substring(0, 20)}...');
         _saveFCMToken(newToken);
         _sendTokenToServer(newToken);
+        unawaited(SoftphoneService.instance.refreshDeviceRegistration());
       });
 
       return _fcmToken;

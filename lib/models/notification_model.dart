@@ -58,6 +58,8 @@ enum NotificationType {
   pbxIncomingCall,
   /// مكالمة فائتة من PBX
   pbxCallMissed,
+  /// مكالمة واردة عبر الهاتف المدمج (VoIP push)
+  softphoneIncomingCall,
   /// موعد زيارة / متابعة (طبية وغيرها)
   visitReminder,
   /// تذكير استقبال لموعد زيارة (عيادة)
@@ -147,6 +149,9 @@ class NotificationPayload {
 
   static NotificationType _resolveType(String? typeString, Map<String, dynamic> data) {
     if (data['kind'] == 'tenant_chat') return NotificationType.tenantChat;
+    if (data['kind'] == 'softphone_incoming_call') {
+      return NotificationType.softphoneIncomingCall;
+    }
     return _parseNotificationType(typeString ?? 'unknown');
   }
 
