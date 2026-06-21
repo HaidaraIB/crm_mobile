@@ -49,7 +49,7 @@ import flutter_callkit_incoming
 
   override func application(
     _ application: UIApplication,
-    didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+    didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Foundation.Data
   ) {
     Messaging.messaging().apnsToken = deviceToken
   }
@@ -106,7 +106,7 @@ import flutter_callkit_incoming
       handle: caller,
       type: 0
     )
-    data.extra = extra
+    data.extra = extra as NSDictionary
 
     voipChannel?.invokeMethod("incomingVoipPush", arguments: extra)
 
