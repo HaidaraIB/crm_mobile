@@ -19,6 +19,14 @@ import 'softphone_voip_bridge.dart';
 
 enum SoftphoneRegState { idle, connecting, registered, error }
 
+enum SoftphoneErrorKind {
+  none,
+  micDenied,
+  notProvisioned,
+  transportFailed,
+  registrationFailed,
+}
+
 class SoftphoneCallInfo {
   final String id;
   final String remote;
@@ -41,22 +49,32 @@ class SoftphoneService implements SipUaHelperListener {
   final ApiService _api = ApiService();
 
   final _regStateController = StreamController<SoftphoneRegState>.broadcast();
+  final _errorController = StreamController<SoftphoneErrorKind>.broadcast();
   final _incomingController = StreamController<SoftphoneCallInfo>.broadcast();
   final _activeCallController = StreamController<SoftphoneCallInfo?>.broadcast();
 
   Stream<SoftphoneRegState> get registrationState => _regStateController.stream;
+  Stream<SoftphoneErrorKind> get errorKind => _errorController.stream;
   Stream<SoftphoneCallInfo> get incomingCalls => _incomingController.stream;
   Stream<SoftphoneCallInfo?> get activeCall => _activeCallController.stream;
 
   SoftphoneRegState _regState = SoftphoneRegState.idle;
   SoftphoneRegState get currentRegState => _regState;
+  SoftphoneErrorKind _errorKind = SoftphoneErrorKind.none;
+  SoftphoneErrorKind get lastErrorKind => _errorKind;
+  String? _lastErrorDetail;
+  String? get lastErrorDetail => _lastErrorDetail;
   SoftphoneCallInfo? _active;
   Call? _pendingIncoming;
   bool _started = false;
+  bool _listenerAttached = false;
   String? _activeCallKitId;
   Completer<Call?>? _incomingInviteCompleter;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
   List<ConnectivityResult> _lastConnectivity = const [];
+  Timer? _retryTimer;
+  int _autoRetryCount = 0;
+  static const int _maxAutoRetries = 2;
 
   bool get hasPendingIncomingInvite => _pendingIncoming != null;
 
@@ -80,6 +98,13 @@ class SoftphoneService implements SipUaHelperListener {
     await _registerDeviceTokens();
     await start(config);
     return true;
+  }
+
+  Future<void> retryRegistration() async {
+    _retryTimer?.cancel();
+    _autoRetryCount = 0;
+    await _teardownSip(resetToIdle: true);
+    await initializeIfEnabled();
   }
 
   Future<void> refreshDeviceRegistration() async {
@@ -126,17 +151,27 @@ class SoftphoneService implements SipUaHelperListener {
     if (_started) return;
     final mic = await Permission.microphone.request();
     if (!mic.isGranted) {
-      _setRegState(SoftphoneRegState.error);
+      _setError(SoftphoneErrorKind.micDenied);
       return;
     }
 
-    _helper.addSipUaHelperListener(this);
+    if (!_listenerAttached) {
+      _helper.addSipUaHelperListener(this);
+      _listenerAttached = true;
+    }
+
     final settings = UaSettings();
     settings.uri = config['sip_uri'] as String? ?? '';
     final cachedPwd = await SoftphoneCredentialsStorage.instance.readSipPassword();
     settings.password = (config['sip_password'] as String?)?.isNotEmpty == true
         ? config['sip_password'] as String
         : (cachedPwd ?? '');
+    final pwd = settings.password ?? '';
+    if (pwd.isEmpty) {
+      _setError(SoftphoneErrorKind.notProvisioned);
+      return;
+    }
+
     settings.displayName =
         config['display_name'] as String? ?? config['extension'] as String? ?? '';
     settings.userAgent = 'LOOP CRM Mobile';
@@ -154,6 +189,7 @@ class SoftphoneService implements SipUaHelperListener {
       settings.webSocketUrl = null;
     }
 
+    _clearError();
     _setRegState(SoftphoneRegState.connecting);
     SoftphoneTiming.instance.log('sip_register_sent');
     await _helper.start(settings);
@@ -194,24 +230,38 @@ class SoftphoneService implements SipUaHelperListener {
   }
 
   Future<void> stop() async {
-    if (!_started) return;
+    await _teardownSip(resetToIdle: true);
+  }
+
+  Future<void> _teardownSip({required bool resetToIdle}) async {
+    _retryTimer?.cancel();
+    _retryTimer = null;
     await _connectivitySub?.cancel();
     _connectivitySub = null;
-    _helper.removeSipUaHelperListener(this);
-    _helper.stop();
-    _started = false;
+    if (_started) {
+      if (_listenerAttached) {
+        _helper.removeSipUaHelperListener(this);
+        _listenerAttached = false;
+      }
+      _helper.stop();
+      _started = false;
+    }
     _active = null;
     _pendingIncoming = null;
     _incomingInviteCompleter = null;
     _activeCallController.add(null);
-    _setRegState(SoftphoneRegState.idle);
+    if (resetToIdle && _regState != SoftphoneRegState.error) {
+      _setRegState(SoftphoneRegState.idle);
+    }
   }
 
   Future<void> shutdownOnLogout() async {
     try {
       await FlutterCallkitIncoming.endAllCalls();
     } catch (_) {}
-    await stop();
+    _autoRetryCount = 0;
+    _clearError();
+    await _teardownSip(resetToIdle: true);
     await SoftphoneCredentialsStorage.instance.clear();
     try {
       await _api.unregisterSoftphoneDevice(
@@ -306,6 +356,35 @@ class SoftphoneService implements SipUaHelperListener {
     _regStateController.add(state);
   }
 
+  void _setError(SoftphoneErrorKind kind, {String? detail}) {
+    _errorKind = kind;
+    _lastErrorDetail = detail;
+    _errorController.add(kind);
+    _setRegState(SoftphoneRegState.error);
+    SoftphoneTiming.instance.log('softphone_error_${kind.name}');
+    debugPrint('Softphone error: $kind detail=${detail ?? ""}');
+  }
+
+  void _clearError() {
+    _errorKind = SoftphoneErrorKind.none;
+    _lastErrorDetail = null;
+    _errorController.add(SoftphoneErrorKind.none);
+  }
+
+  String _formatCause(dynamic cause) {
+    if (cause == null) return '';
+    return cause.toString();
+  }
+
+  void _scheduleAutoRetry() {
+    if (_autoRetryCount >= _maxAutoRetries) return;
+    _autoRetryCount += 1;
+    _retryTimer?.cancel();
+    _retryTimer = Timer(const Duration(seconds: 4), () {
+      unawaited(retryRegistration());
+    });
+  }
+
   void _completeIncomingInvite(Call call) {
     _pendingIncoming = call;
     SoftphonePushHandler.instance.onInviteReceived(_activeCallKitId);
@@ -360,17 +439,48 @@ class SoftphoneService implements SipUaHelperListener {
   @override
   void registrationStateChanged(RegistrationState state) {
     if (state.state == RegistrationStateEnum.REGISTERED) {
+      _autoRetryCount = 0;
+      _retryTimer?.cancel();
+      _clearError();
       _setRegState(SoftphoneRegState.registered);
       SoftphoneTiming.instance.log('sip_register_200');
     } else if (state.state == RegistrationStateEnum.UNREGISTERED) {
-      _setRegState(SoftphoneRegState.idle);
+      if (_regState != SoftphoneRegState.error) {
+        _setRegState(SoftphoneRegState.idle);
+      }
     } else if (state.state == RegistrationStateEnum.REGISTRATION_FAILED) {
-      _setRegState(SoftphoneRegState.error);
+      final detail = _formatCause(state.cause);
+      unawaited(_handleRegistrationFailed(detail));
     }
   }
 
+  Future<void> _handleRegistrationFailed(String detail) async {
+    await _teardownSip(resetToIdle: false);
+    _setError(SoftphoneErrorKind.registrationFailed, detail: detail);
+    _scheduleAutoRetry();
+  }
+
   @override
-  void transportStateChanged(TransportState state) {}
+  void transportStateChanged(TransportState state) {
+    if (state.state == TransportStateEnum.DISCONNECTED) {
+      final detail = _formatCause(state.cause);
+      SoftphoneTiming.instance.log('sip_transport_disconnected');
+      if (_regState == SoftphoneRegState.connecting ||
+          (_regState == SoftphoneRegState.registered && _active?.call == null)) {
+        unawaited(_handleTransportFailed(detail));
+      }
+    }
+  }
+
+  Future<void> _handleTransportFailed(String detail) async {
+    if (_regState == SoftphoneRegState.error &&
+        _errorKind == SoftphoneErrorKind.registrationFailed) {
+      return;
+    }
+    await _teardownSip(resetToIdle: false);
+    _setError(SoftphoneErrorKind.transportFailed, detail: detail);
+    _scheduleAutoRetry();
+  }
 
   @override
   void onNewMessage(SIPMessageRequest msg) {}
