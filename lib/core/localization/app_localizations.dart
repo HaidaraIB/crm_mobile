@@ -1000,6 +1000,16 @@ class AppLocalizations {
       'sending': 'Sending...',
       'couldNotOpenMessagingApp': 'Could not open messaging app',
       'to': 'To',
+      'smsSendPreviewTitle': 'Confirm SMS',
+      'smsSendPreviewSubtitle': 'Review the message below before sending.',
+      'smsSendPreviewConfirm': 'Confirm send',
+      'smsSendPreviewRecipient': 'To',
+      'smsSendPreviewMessage': 'Message',
+      'smsSendPreviewProvider': 'Provider',
+      'smsSendPreviewSenderId': 'Sender ID',
+      'smsSendPreviewSystemDefault': 'System default',
+      'sms_error_sender_id_not_approved':
+          'Sender ID is not approved in OTPIQ. Wait for approval or clear Sender ID in Integrations → SMS.',
       'sms_error_not_configured':
           'SMS is not set up or not enabled. Please configure it in Integrations.',
       'sms_error_credentials_incomplete':
@@ -2200,6 +2210,16 @@ class AppLocalizations {
       'sendViaCrm': 'إرسال عبر النظام',
       'sending': 'جاري الإرسال...',
       'couldNotOpenMessagingApp': 'تعذر فتح تطبيق الرسائل',
+      'smsSendPreviewTitle': 'تأكيد الرسالة القصيرة',
+      'smsSendPreviewSubtitle': 'راجع الرسالة أدناه قبل الإرسال.',
+      'smsSendPreviewConfirm': 'تأكيد الإرسال',
+      'smsSendPreviewRecipient': 'إلى',
+      'smsSendPreviewMessage': 'الرسالة',
+      'smsSendPreviewProvider': 'المزود',
+      'smsSendPreviewSenderId': 'معرّف المرسل',
+      'smsSendPreviewSystemDefault': 'الافتراضي للنظام',
+      'sms_error_sender_id_not_approved':
+          'معرّف المرسل غير معتمد في OTPIQ. انتظر الموافقة أو امسح معرّف المرسل من التكاملات → الرسائل القصيرة.',
       'to': 'إلى',
       'sms_error_not_configured':
           'إرسال الرسائل القصيرة غير مفعّل أو غير مضبوط. يرجى الإعداد من التكاملات.',

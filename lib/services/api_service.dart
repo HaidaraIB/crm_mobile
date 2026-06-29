@@ -2255,6 +2255,27 @@ class ApiService {
     }
   }
 
+  /// GET /integrations/twilio/settings/
+  Future<Map<String, dynamic>> getTwilioSettings() async {
+    final response = await _makeRequest(
+      'GET',
+      '/integrations/twilio/settings/',
+      timeout: const Duration(seconds: 15),
+    );
+
+    if (response.statusCode != 200) {
+      return {};
+    }
+
+    final decoded = jsonDecode(response.body);
+    if (decoded is Map<String, dynamic>) {
+      final data = decoded['data'];
+      if (data is Map<String, dynamic>) return data;
+      if (data is Map) return Map<String, dynamic>.from(data);
+    }
+    return {};
+  }
+
   /// Send SMS to a lead via Twilio (CRM integration).
   /// POST /integrations/twilio/send/
   Future<void> sendLeadSMS({

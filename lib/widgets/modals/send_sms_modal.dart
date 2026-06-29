@@ -25,11 +25,31 @@ class _SendSMSModalState extends State<SendSMSModal> {
   final ApiService _apiService = ApiService();
   final TextEditingController _messageController = TextEditingController();
   bool _isSending = false;
+  bool _showPreview = false;
+  Map<String, dynamic>? _smsSettings;
+  bool _loadingSettings = false;
 
   @override
   void dispose() {
     _messageController.dispose();
     super.dispose();
+  }
+
+  String _maskPhone(String phone) {
+    final digits = phone.replaceAll(RegExp(r'\D'), '');
+    if (digits.length <= 4) return '****';
+    return '***${digits.substring(digits.length - 4)}';
+  }
+
+  String _providerLabel(Map<String, dynamic>? settings) {
+    final provider = (settings?['provider'] as String?)?.toLowerCase() ?? 'twilio';
+    return provider == 'otpiq' ? 'OTPIQ' : 'Twilio';
+  }
+
+  String _senderLabel(AppLocalizations? loc, Map<String, dynamic>? settings) {
+    final sender = (settings?['sender_id'] as String?)?.trim() ?? '';
+    if (sender.isNotEmpty) return sender;
+    return loc?.translate('smsSendPreviewSystemDefault') ?? 'System default';
   }
 
   Future<void> _openMessagingApp() async {
@@ -56,6 +76,38 @@ class _SendSMSModalState extends State<SendSMSModal> {
         context,
         '${loc?.translate('couldNotOpenMessagingApp') ?? 'Could not open messaging app'}: $e',
       );
+    }
+  }
+
+  Future<void> _openPreview() async {
+    final localizations = AppLocalizations.of(context);
+    final message = _messageController.text.trim();
+    if (message.isEmpty) {
+      SnackbarHelper.showError(
+        context,
+        localizations?.translate('smsMessageRequired') ?? 'Please enter a message',
+      );
+      return;
+    }
+
+    setState(() {
+      _loadingSettings = true;
+      _showPreview = true;
+    });
+
+    try {
+      final settings = await _apiService.getTwilioSettings();
+      if (!mounted) return;
+      setState(() {
+        _smsSettings = settings;
+        _loadingSettings = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _smsSettings = {};
+        _loadingSettings = false;
+      });
     }
   }
 
@@ -94,17 +146,114 @@ class _SendSMSModalState extends State<SendSMSModal> {
       setState(() {
         _isSending = false;
       });
-      final String message = e is SmsException
+      final String errorMessage = e is SmsException
           ? (localizations?.translate(e.errorKey) ?? e.fallbackMessage)
           : e.toString().replaceFirst('Exception: ', '');
-      SnackbarHelper.showError(context, message);
+      SnackbarHelper.showError(context, errorMessage);
     }
+  }
+
+  Widget _previewRow(String label, String value) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          Text(value, style: theme.textTheme.bodyMedium),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    final message = _messageController.text.trim();
+
+    if (_showPreview) {
+      return Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          constraints: BoxConstraints(
+            maxWidth: 400,
+            maxHeight: MediaQuery.of(context).size.height * 0.7,
+          ),
+          padding: const EdgeInsets.all(24),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  localizations?.translate('smsSendPreviewTitle') ?? 'Confirm SMS',
+                  style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  localizations?.translate('smsSendPreviewSubtitle') ??
+                      'Review the message below before sending.',
+                  style: theme.textTheme.bodySmall,
+                ),
+                const SizedBox(height: 16),
+                _previewRow(
+                  localizations?.translate('smsSendPreviewRecipient') ?? 'To',
+                  _maskPhone(widget.phoneNumber),
+                ),
+                _previewRow(
+                  localizations?.translate('smsSendPreviewMessage') ?? 'Message',
+                  message,
+                ),
+                _previewRow(
+                  localizations?.translate('smsSendPreviewProvider') ?? 'Provider',
+                  _loadingSettings
+                      ? (localizations?.translate('loading') ?? 'Loading…')
+                      : _providerLabel(_smsSettings),
+                ),
+                _previewRow(
+                  localizations?.translate('smsSendPreviewSenderId') ?? 'Sender ID',
+                  _loadingSettings
+                      ? (localizations?.translate('loading') ?? 'Loading…')
+                      : _senderLabel(localizations, _smsSettings),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _isSending
+                            ? null
+                            : () => setState(() => _showPreview = false),
+                        child: Text(localizations?.translate('cancel') ?? 'Cancel'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: (_isSending || _loadingSettings) ? null : _sendViaCrm,
+                        style: FilledButton.styleFrom(backgroundColor: AppTheme.primaryColor),
+                        child: _isSending
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : Text(
+                                localizations?.translate('smsSendPreviewConfirm') ?? 'Confirm send',
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     return Dialog(
       shape: RoundedRectangleBorder(
@@ -173,35 +322,10 @@ class _SendSMSModalState extends State<SendSMSModal> {
               ),
               const SizedBox(height: 12),
               FilledButton.icon(
-                onPressed: _isSending ? null : _sendViaCrm,
-                icon: _isSending
-                    ? SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: theme.brightness == Brightness.dark
-                              ? Colors.white
-                              : Colors.black,
-                        ),
-                      )
-                    : Icon(
-                        Icons.send,
-                        size: 20,
-                        color: theme.brightness == Brightness.dark
-                            ? Colors.white
-                            : Colors.black,
-                      ),
+                onPressed: _isSending ? null : _openPreview,
+                icon: const Icon(Icons.arrow_forward, size: 20),
                 label: Text(
-                  _isSending
-                      ? (localizations?.translate('sending') ?? 'Sending...')
-                      : (localizations?.translate('sendViaCrm') ??
-                          'Send via CRM'),
-                  style: TextStyle(
-                    color: theme.brightness == Brightness.dark
-                        ? Colors.white
-                        : Colors.black,
-                  ),
+                  localizations?.translate('next') ?? 'Next',
                 ),
                 style: FilledButton.styleFrom(
                   backgroundColor: AppTheme.primaryColor,
