@@ -18,6 +18,8 @@ class UserModel {
   final String? language;
   /// 0=Mon .. 6=Sun; null = no fixed weekly day off.
   final int? weeklyDayOff;
+  final bool? isCompanyOwner;
+  final bool? loginTwoFactorEnabled;
 
   UserModel({
     required this.id,
@@ -36,6 +38,8 @@ class UserModel {
     this.supervisorIsActive,
     this.language,
     this.weeklyDayOff,
+    this.isCompanyOwner,
+    this.loginTwoFactorEnabled,
   });
 
   // Check if user is admin (handles multiple role formats)
@@ -43,6 +47,9 @@ class UserModel {
     final roleLower = role.toLowerCase();
     return roleLower == 'admin' || roleLower == 'owner';
   }
+
+  /// Company owner who can manage login 2FA preference.
+  bool get canManageLoginTwoFactor => isCompanyOwner == true || isAdmin;
 
   // Check if user is supervisor
   bool get isSupervisor {
@@ -153,6 +160,8 @@ class UserModel {
       weeklyDayOff: json['weekly_day_off'] == null
           ? null
           : (json['weekly_day_off'] as num?)?.toInt(),
+      isCompanyOwner: json['is_company_owner'] as bool? ?? json['isCompanyOwner'] as bool?,
+      loginTwoFactorEnabled: json['login_two_factor_enabled'] as bool? ?? json['loginTwoFactorEnabled'] as bool?,
     );
   }
   
@@ -173,6 +182,8 @@ class UserModel {
       if (supervisorPermissions != null) 'supervisor_permissions': {'is_active': supervisorIsActive, 'permissions': supervisorPermissions},
       if (language != null) 'language': language,
       if (weeklyDayOff != null) 'weekly_day_off': weeklyDayOff,
+      if (isCompanyOwner != null) 'is_company_owner': isCompanyOwner,
+      if (loginTwoFactorEnabled != null) 'login_two_factor_enabled': loginTwoFactorEnabled,
     };
   }
 }

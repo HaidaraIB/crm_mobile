@@ -1,6 +1,9 @@
-import com.android.build.gradle.BaseExtension
+import com.android.build.gradle.LibraryExtension
 import org.gradle.api.JavaVersion
+import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.jvm.toolchain.JavaLanguageVersion
+import org.gradle.jvm.toolchain.JavaToolchainService
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
@@ -33,24 +36,38 @@ subprojects {
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
 subprojects {
-    // NOTE: Do not use evaluationDependsOn(":app") here — it can finalize subprojects before
-    // we can align JVM targets for Flutter plugins (e.g. audioplayers_android).
+    pluginManager.withPlugin("com.android.library") {
+        extensions.configure<LibraryExtension>("android") {
+            compileOptions {
+                sourceCompatibility = JavaVersion.VERSION_21
+                targetCompatibility = JavaVersion.VERSION_21
+            }
+        }
+    }
 
     afterEvaluate {
-        if (!plugins.hasPlugin("com.android.library")) return@afterEvaluate
-        extensions.findByType<BaseExtension>()?.compileOptions {
-            sourceCompatibility = JavaVersion.VERSION_17
-            targetCompatibility = JavaVersion.VERSION_17
+        // flutter_callkit_incoming hardcodes `java { toolchain { languageVersion 17 } }`.
+        extensions.findByType(JavaPluginExtension::class.java)?.toolchain?.languageVersion?.set(
+            JavaLanguageVersion.of(21)
+        )
+        extensions.findByType(LibraryExtension::class.java)?.compileOptions {
+            sourceCompatibility = JavaVersion.VERSION_21
+            targetCompatibility = JavaVersion.VERSION_21
         }
+
         tasks.withType<JavaCompile>().configureEach {
-            sourceCompatibility = "17"
-            targetCompatibility = "17"
+            val toolchainService = extensions.findByType(JavaToolchainService::class.java) ?: return@configureEach
+            javaCompiler.set(
+                toolchainService.compilerFor {
+                    languageVersion.set(JavaLanguageVersion.of(21))
+                }
+            )
         }
     }
 
     tasks.withType<KotlinCompile>().configureEach {
         compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_17)
+            jvmTarget.set(JvmTarget.JVM_21)
         }
     }
 }

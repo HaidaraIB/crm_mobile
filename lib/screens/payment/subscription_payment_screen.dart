@@ -1,13 +1,18 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../core/constants/app_constants.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/bloc/theme/theme_bloc.dart';
 import '../../core/bloc/language/language_bloc.dart';
+import '../../core/storage/auth_token_storage.dart';
 import '../../core/utils/app_locales.dart';
 import '../../core/utils/api_error_helper.dart';
 import '../../core/utils/snackbar_helper.dart';
+import '../../models/user_model.dart';
 import '../../services/api_service.dart';
 import '../home/home_screen.dart';
 import '../login/login_screen.dart';
@@ -17,7 +22,7 @@ import 'subscription_plan_billing_picker_screen.dart';
 /// شاشة إتمام الدفع بعد التسجيل أو عند اشتراك غير مفعّل.
 /// اختيار طريقة الدفع ثم فتح صفحة الدفع، مع زر "أكملت الدفع" للتحقق من حالة الاشتراك.
 /// عند تمرير [loginUsername] و [loginPassword] (من شاشة تسجيل الدخول) نستخدم نفس آلية تسجيل الدخول
-/// (requestTwoFactorAuth) لمعرفة إن أصبح الاشتراك مفعّلاً ثم التوجيه لشاشة 2FA.
+/// لمعرفة إن أصبح الاشتراك مفعّلاً ثم التوجيه لشاشة 2FA أو الصفحة الرئيسية حسب إعداد المنصة.
 class SubscriptionPaymentScreen extends StatefulWidget {
   const SubscriptionPaymentScreen({
     super.key,
@@ -202,7 +207,7 @@ class _SubscriptionPaymentScreenState extends State<SubscriptionPaymentScreen> {
     }
   }
 
-  /// نفس آلية تسجيل الدخول: إن وُجدت بيانات الدخول نستدعي requestTwoFactorAuth لمعرفة إن الاشتراك مفعّل الآن،
+  /// نفس آلية تسجيل الدخول: إن وُجدت بيانات الدخول نستدعي login لمعرفة إن الاشتراك مفعّل الآن،
   /// وإلا نستدعي getCurrentUser() (عند القدوم من التسجيل أو السبلاش).
   Future<void> _checkPaymentAndContinue() async {
     setState(() {
@@ -216,21 +221,38 @@ class _SubscriptionPaymentScreenState extends State<SubscriptionPaymentScreen> {
     final hasLoginCredentials = username != null && username.isNotEmpty && password != null && password.isNotEmpty;
 
     if (hasLoginCredentials) {
-      // نفس ما يفعله تسجيل الدخول: requestTwoFactorAuth يتحقق من الاشتراك في الباكند
       try {
-        final language = context.read<LanguageBloc>().state.locale.languageCode;
-        final twoFAResponse = await apiService.requestTwoFactorAuth(username, password, language);
+        final locale = context.read<LanguageBloc>().state.locale;
+        final loginResponse = await apiService.login(username, password, locale: locale);
         if (!mounted) return;
         setState(() => _isCheckingStatus = false);
-        // الاشتراك مفعّل الآن — التوجيه لشاشة 2FA كسجل الدخول
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (_) => TwoFactorAuthScreen(
-              username: username,
-              password: password,
-              token: twoFAResponse['token'] as String?,
+
+        final requiresTwoFactorRaw = loginResponse['requires_two_factor'];
+        final requiresTwoFactor = requiresTwoFactorRaw == true ||
+            requiresTwoFactorRaw?.toString().toLowerCase() == 'true';
+
+        if (requiresTwoFactor) {
+          final token = loginResponse['token'] as String?;
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (_) => TwoFactorAuthScreen(
+                username: username,
+                password: password,
+                token: token,
+              ),
             ),
-          ),
+            (route) => false,
+          );
+          return;
+        }
+
+        final user = loginResponse['user'] as UserModel;
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool(AppConstants.isLoggedInKey, true);
+        await AuthTokenStorage.instance.writeUserJson(jsonEncode(user.toJson()));
+        if (!mounted) return;
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
           (route) => false,
         );
       } on SubscriptionInactiveException catch (_) {

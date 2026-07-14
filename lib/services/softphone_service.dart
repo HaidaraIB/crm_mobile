@@ -14,8 +14,7 @@ import 'softphone_push_handler.dart';
 import 'softphone_timing.dart';
 import 'softphone_voip_bridge.dart';
 
-// sip_ua 1.0.1 API assumptions: TransportType WS/TCP only; buildCallOptions(true)
-// positional; stop/mute/unmute return void.
+// sip_ua 1.1.0: Direction enum (incoming/outgoing); buildCallOptions(true) positional.
 
 enum SoftphoneRegState { idle, connecting, registered, error }
 
@@ -404,7 +403,7 @@ class SoftphoneService implements SipUaHelperListener {
       final info = SoftphoneCallInfo(
         id: call.id ?? remote,
         remote: remote,
-        inbound: call.direction == 'INCOMING',
+        inbound: call.direction == Direction.incoming,
         call: call,
       );
       _active = info;
@@ -423,7 +422,7 @@ class SoftphoneService implements SipUaHelperListener {
       unawaited(_endCallKitUi());
     }
     if (state.state == CallStateEnum.CALL_INITIATION &&
-        call.direction == 'INCOMING') {
+        call.direction == Direction.incoming) {
       _completeIncomingInvite(call);
       _incomingController.add(
         SoftphoneCallInfo(

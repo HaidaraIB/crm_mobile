@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -290,12 +291,27 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     return;
   }
   if (NotificationService.isTenantChatPush(payload)) {
+    // iOS team chat is delivered as an APNs alert with custom sound; Android merges locally.
+    if (Platform.isIOS) {
+      debugPrint(
+        '[FCM] Background tenant_chat skipped on iOS — APNs alert handles tray + sound',
+      );
+      return;
+    }
     try {
       await _showTenantChatMergedFromBackground(payload);
     } catch (e, st) {
       debugPrint('[FCM] Background tenant_chat local notification failed: $e');
       debugPrint('$st');
     }
+    return;
+  }
+
+  // Non-chat pushes include a system notification payload; avoid duplicate locals.
+  if (message.notification != null) {
+    debugPrint(
+      '[FCM] Background non-chat skipped — system notification already present',
+    );
   }
 }
 
@@ -553,6 +569,14 @@ class NotificationService {
         debugPrint('⚠ FirebaseMessaging not available');
         return;
       }
+
+      // Match Point: suppress FCM auto-banner in foreground; we show local notifications
+      // with the correct per-type sound instead of the default APNs presentation.
+      await messaging.setForegroundNotificationPresentationOptions(
+        alert: false,
+        badge: true,
+        sound: false,
+      );
 
       // تسجيل معالج الإشعارات في الخلفية
       FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);

@@ -493,7 +493,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 },
                 hintText: localizations?.translate('phone') ?? 'Phone',
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 16),
+
+              const SizedBox(height: 16),
 
               // Save Button
               ElevatedButton(

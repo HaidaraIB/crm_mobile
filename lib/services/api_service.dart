@@ -1651,6 +1651,32 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final data = _unwrapResponseMap(response);
+
+        final requiresTwoFactorRaw = data['requires_two_factor'];
+        final requiresTwoFactor = requiresTwoFactorRaw == true ||
+            requiresTwoFactorRaw?.toString().toLowerCase() == 'true';
+
+        if (requiresTwoFactor == false &&
+            data['access'] != null &&
+            data['refresh'] != null) {
+          final access = data['access']?.toString();
+          final refresh = data['refresh']?.toString();
+          if (access != null &&
+              access.trim().isNotEmpty &&
+              refresh != null &&
+              refresh.trim().isNotEmpty) {
+            await AuthTokenStorage.instance.writeTokens(
+              access: access,
+              refresh: refresh,
+            );
+            final userResponse = await getCurrentUser();
+            return {
+              'requires_two_factor': false,
+              'user': userResponse,
+            };
+          }
+        }
+
         return data;
       } else {
         String errorMessage = _translateError(
@@ -2009,6 +2035,7 @@ class ApiService {
     String? lastName,
     String? phone,
     String? profilePhotoPath,
+    bool? loginTwoFactorEnabled,
   }) async {
     final cleanEndpoint = '/users/$userId/';
     final cleanBaseUrl = baseUrl.endsWith('/')
@@ -2039,6 +2066,9 @@ class ApiService {
       }
       if (phone != null && phone.isNotEmpty) {
         request.fields['phone'] = phone;
+      }
+      if (loginTwoFactorEnabled != null) {
+        request.fields['login_two_factor_enabled'] = loginTwoFactorEnabled.toString();
       }
 
       if (profilePhotoPath != null && profilePhotoPath.isNotEmpty) {
