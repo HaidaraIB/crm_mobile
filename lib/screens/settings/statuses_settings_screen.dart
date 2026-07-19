@@ -172,12 +172,11 @@ class _StatusesSettingsScreenState extends State<StatusesSettingsScreen> {
     final localizations = AppLocalizations.of(context);
     final theme = Theme.of(context);
 
+    Widget body;
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_errorMessage != null) {
-      return Center(
+      body = const Center(child: CircularProgressIndicator());
+    } else if (_errorMessage != null) {
+      body = Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -194,194 +193,192 @@ class _StatusesSettingsScreenState extends State<StatusesSettingsScreen> {
           ],
         ),
       );
-    }
-
-    return Column(
-      children: [
-        // Add Button
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                localizations?.translate('availableStatuses') ?? 'Available Statuses',
-                style: theme.textTheme.titleLarge,
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.refresh),
-                    tooltip: localizations?.translate('refresh') ?? 'Refresh',
-                    onPressed: () => _loadStatuses(forceRefresh: true),
+    } else {
+      body = Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    localizations?.translate('availableStatuses') ?? 'Available Statuses',
+                    style: theme.textTheme.titleLarge,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                  showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (context) => AddStatusModal(
-                      onStatusCreated: () {
-                        _loadStatuses();
-                        Navigator.pop(context);
-                      },
-                      existingStatuses: _statuses,
-                    ),
-                  );
-                },
-                    icon: const Icon(Icons.add),
-                    label: Text(localizations?.translate('addStatus') ?? 'Add Status'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  tooltip: localizations?.translate('refresh') ?? 'Refresh',
+                  onPressed: () => _loadStatuses(forceRefresh: true),
+                ),
+              ],
+            ),
           ),
-        ),
-        // Statuses List
-        Expanded(
-          child: _statuses.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.label_outline,
-                        size: 64,
-                        color: theme.colorScheme.outline,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        localizations?.translate('noStatusesFound') ?? 'No statuses found',
-                        style: theme.textTheme.bodyLarge,
-                      ),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  itemCount: _statuses.length,
-                  itemBuilder: (context, index) {
-                    final status = _statuses[index];
-                    return SettingsListCard(
-                      child: InkWell(
-                        onDoubleTap: status.isDefault
-                            ? null
-                            : () => _setDefaultStatus(status),
-                        child: Padding(
-                          padding: SettingsListCard.listTilePadding,
-                          child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            CircleAvatar(
-                              backgroundColor: _parseColor(status.color),
-                              radius: 22,
-                            ),
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.only(left: 16),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Row(
+          Expanded(
+            child: _statuses.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.label_outline,
+                          size: 64,
+                          color: theme.colorScheme.outline,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          localizations?.translate('noStatusesFound') ?? 'No statuses found',
+                          style: theme.textTheme.bodyLarge,
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 88),
+                    itemCount: _statuses.length,
+                    itemBuilder: (context, index) {
+                      final status = _statuses[index];
+                      return SettingsListCard(
+                        child: InkWell(
+                          onDoubleTap: status.isDefault
+                              ? null
+                              : () => _setDefaultStatus(status),
+                          child: Padding(
+                            padding: SettingsListCard.listTilePadding,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                CircleAvatar(
+                                  backgroundColor: _parseColor(status.color),
+                                  radius: 22,
+                                ),
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(left: 16),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Flexible(
-                                          child: Text(
-                                            status.name,
-                                            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-                                            overflow: TextOverflow.ellipsis,
-                                            softWrap: true,
-                                            maxLines: 1,
-                                          ),
+                                        Row(
+                                          children: [
+                                            Flexible(
+                                              child: Text(
+                                                status.name,
+                                                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                                                overflow: TextOverflow.ellipsis,
+                                                softWrap: true,
+                                                maxLines: 1,
+                                              ),
+                                            ),
+                                            if (status.isDefault) ...[
+                                              const SizedBox(width: 8),
+                                              SettingsDefaultChip(
+                                                label: localizations?.translate('default') ?? 'Default',
+                                              ),
+                                            ],
+                                          ],
                                         ),
-                                        if (status.isDefault) ...[
-                                          const SizedBox(width: 8),
-                                          SettingsDefaultChip(
-                                            label: localizations?.translate('default') ?? 'Default',
+                                        if (status.description != null && status.description!.isNotEmpty) ...[
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            status.description!,
+                                            style: theme.textTheme.bodySmall?.copyWith(
+                                              color: theme.colorScheme.onSurfaceVariant,
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                        const SizedBox(height: 4),
+                                        SettingsLabelChip(
+                                          label: _getCategoryLabel(status.category, localizations),
+                                          color: _getCategoryColor(status.category),
+                                        ),
+                                        if (status.autoDeleteAfterHours != null &&
+                                            status.autoDeleteAfterHours! >= 1) ...[
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            '${localizations?.translate('autoDeleteSlidable') ?? 'Auto-delete'}: ${status.autoDeleteAfterHours}h',
+                                            style: theme.textTheme.labelSmall?.copyWith(
+                                              color: theme.colorScheme.error,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                        if (!status.isDefault) ...[
+                                          const SizedBox(height: 6),
+                                          SettingsSetAsDefaultHint(
+                                            label:
+                                                '${localizations?.translate('setAsDefault') ?? 'Set as default'} (double-tap)',
                                           ),
                                         ],
                                       ],
                                     ),
-                                    if (status.description != null && status.description!.isNotEmpty) ...[
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        status.description!,
-                                        style: theme.textTheme.bodySmall?.copyWith(
-                                          color: theme.colorScheme.onSurfaceVariant,
-                                        ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
-                                    const SizedBox(height: 4),
-                                    SettingsLabelChip(
-                                      label: _getCategoryLabel(status.category, localizations),
-                                      color: _getCategoryColor(status.category),
+                                  ),
+                                ),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.edit_outlined),
+                                      onPressed: () {
+                                        showModalBottomSheet(
+                                          context: context,
+                                          isScrollControlled: true,
+                                          backgroundColor: Colors.transparent,
+                                          builder: (context) => EditStatusModal(
+                                            status: status,
+                                            onStatusUpdated: () {
+                                              _loadStatuses();
+                                              Navigator.pop(context);
+                                            },
+                                          ),
+                                        );
+                                      },
                                     ),
-                                    if (status.autoDeleteAfterHours != null &&
-                                        status.autoDeleteAfterHours! >= 1) ...[
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        '${localizations?.translate('autoDeleteSlidable') ?? 'Auto-delete'}: ${status.autoDeleteAfterHours}h',
-                                        style: theme.textTheme.labelSmall?.copyWith(
-                                          color: theme.colorScheme.error,
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                                    if (!status.isDefault)
+                                      IconButton(
+                                        icon: Icon(Icons.delete_outline, color: theme.colorScheme.error),
+                                        onPressed: () => _deleteStatus(status.id),
                                       ),
-                                    ],
-                                    if (!status.isDefault) ...[
-                                      const SizedBox(height: 6),
-                                      SettingsSetAsDefaultHint(
-                                        label:
-                                            '${localizations?.translate('setAsDefault') ?? 'Set as default'} (double-tap)',
-                                      ),
-                                    ],
                                   ],
                                 ),
-                              ),
-                            ),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.edit_outlined),
-                                  onPressed: () {
-                                    showModalBottomSheet(
-                                      context: context,
-                                      isScrollControlled: true,
-                                      backgroundColor: Colors.transparent,
-                                      builder: (context) => EditStatusModal(
-                                        status: status,
-                                        onStatusUpdated: () {
-                                          _loadStatuses();
-                                          Navigator.pop(context);
-                                        },
-                                      ),
-                                    );
-                                  },
-                                ),
-                                if (!status.isDefault)
-                                  IconButton(
-                                    icon: Icon(Icons.delete_outline, color: theme.colorScheme.error),
-                                    onPressed: () => _deleteStatus(status.id),
-                                  ),
                               ],
                             ),
-                          ],
+                          ),
                         ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-        ),
-      ],
+                      );
+                    },
+                  ),
+          ),
+        ],
+      );
+    }
+
+    return Scaffold(
+      body: body,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder: (context) => AddStatusModal(
+              onStatusCreated: () {
+                _loadStatuses();
+                Navigator.pop(context);
+              },
+              existingStatuses: _statuses,
+            ),
+          );
+        },
+        backgroundColor: AppTheme.primaryColor,
+        tooltip: localizations?.translate('addStatus') ?? 'Add Status',
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 

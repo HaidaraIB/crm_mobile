@@ -57,8 +57,6 @@ await NotificationHelper.notifyLeadStatusChanged(
 await NotificationHelper.notifyLeadTransferred(
   leadId: 123,
   leadName: 'أحمد علي',
-  fromEmployee: 'محمد',
-  toEmployee: 'علي',
 );
 ```
 

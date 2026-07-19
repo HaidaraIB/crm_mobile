@@ -323,21 +323,17 @@ class NotificationHelper {
   static Future<void> notifyLeadTransferred({
     required int leadId,
     required String leadName,
-    required String fromEmployee,
-    required String toEmployee,
   }) async {
     await _notificationService.showLocalNotification(
       title: 'نقل عميل محتمل',
-      body: 'تم نقل العميل المحتمل من $fromEmployee إلى $toEmployee',
+      body: 'تم نقل العميل $leadName منك',
       payload: NotificationPayload(
         type: NotificationType.leadTransferred,
         title: 'نقل عميل محتمل',
-        body: 'تم نقل العميل المحتمل من $fromEmployee إلى $toEmployee',
+        body: 'تم نقل العميل $leadName منك',
         data: {
           'lead_id': leadId,
           'lead_name': leadName,
-          'from_employee': fromEmployee,
-          'to_employee': toEmployee,
         },
       ),
     );

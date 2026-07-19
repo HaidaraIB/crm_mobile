@@ -51,34 +51,39 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
 
     try {
-      // Get all stages to map stage IDs to names
-      final stages = await _apiService.getStages();
+      // Start independent calendar fetches together, then await (typed).
+      final stagesFuture = _apiService.getStages();
+      final callMethodsFuture = _apiService.getCallMethods();
+      final leadsFuture = _apiService.getLeads(forceRefresh: forceRefresh);
+      final dealsFuture = _apiService.getDeals(forceRefresh: forceRefresh);
+      final dealTasksFuture = _apiService.getAllTasks();
+      final clientTasksFuture = _apiService.getAllClientTasks();
+      final clientCallsFuture = _apiService.getAllClientCalls();
+
+      final stages = await stagesFuture;
+      final callMethods = await callMethodsFuture;
+      final leadsResponse = await leadsFuture;
+      final dealsResponse = await dealsFuture;
+      final dealTasks = await dealTasksFuture;
+      final clientTasks = await clientTasksFuture;
+      final clientCalls = await clientCallsFuture;
+
       final stageMap = <int, String>{};
       for (final stage in stages) {
         stageMap[stage.id] = stage.name;
       }
 
-      // Get all call methods to map call method IDs to names
-      final callMethods = await _apiService.getCallMethods();
       final callMethodMap = <int, String>{};
       for (final callMethod in callMethods) {
         callMethodMap[callMethod.id] = callMethod.name;
       }
 
-      // Get all leads to map lead IDs to names
-      final leadsResponse = await _apiService.getLeads(
-        forceRefresh: forceRefresh,
-      );
       final leads = leadsResponse['results'] as List<LeadModel>? ?? [];
       final leadMap = <int, LeadModel>{};
       for (final lead in leads) {
         leadMap[lead.id] = lead;
       }
 
-      // Get all deals to map deal IDs to client names
-      final dealsResponse = await _apiService.getDeals(
-        forceRefresh: forceRefresh,
-      );
       final deals = dealsResponse['results'] as List? ?? [];
       final dealMap = <int, Map<String, dynamic>>{};
       for (final deal in deals) {
@@ -101,8 +106,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       final events = <CalendarEvent>[];
       final localizations = mounted ? AppLocalizations.of(context) : null;
 
-      // 1. Get all deal tasks (Task model)
-      final dealTasks = await _apiService.getAllTasks();
+      // 1. Deal tasks (Task model)
       for (final task in dealTasks) {
         // Only add events for tasks with reminder dates
         if (task.reminderDate != null && dealMap.containsKey(task.deal)) {
@@ -156,8 +160,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         );
       }
 
-      // 2. Get all client tasks (ClientTask model)
-      final clientTasks = await _apiService.getAllClientTasks();
+      // 2. Client tasks (ClientTask model)
       for (final task in clientTasks) {
         // Only add events for tasks with reminder dates and valid leads
         if (task.reminderDate != null && leadMap.containsKey(task.client)) {
@@ -179,8 +182,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         }
       }
 
-      // 3. Get all client calls (ClientCall model)
-      final clientCalls = await _apiService.getAllClientCalls();
+      // 3. Client calls (ClientCall model)
       for (final call in clientCalls) {
         // Only add events for calls with follow-up dates and valid leads
         if (call.followUpDate != null && leadMap.containsKey(call.client)) {

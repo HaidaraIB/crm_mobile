@@ -171,11 +171,11 @@ class _VisitTypesSettingsScreenState extends State<VisitTypesSettingsScreen> {
     final localizations = AppLocalizations.of(context);
     final theme = Theme.of(context);
 
+    Widget body;
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (_errorMessage != null) {
-      return Center(
+      body = const Center(child: CircularProgressIndicator());
+    } else if (_errorMessage != null) {
+      body = Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -192,144 +192,144 @@ class _VisitTypesSettingsScreenState extends State<VisitTypesSettingsScreen> {
           ],
         ),
       );
-    }
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                localizations?.translate('visitTypes') ?? 'Visit types',
-                style: theme.textTheme.titleLarge,
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.refresh),
-                    tooltip: localizations?.translate('refresh') ?? 'Refresh',
-                    onPressed: () => _loadVisitTypes(forceRefresh: true),
+    } else {
+      body = Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    localizations?.translate('visitTypes') ?? 'Visit types',
+                    style: theme.textTheme.titleLarge,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
-                  ElevatedButton.icon(
-                    onPressed: _showAddModal,
-                    icon: const Icon(Icons.add),
-                    label: Text(localizations?.translate('addVisitType') ?? 'Add visit type'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  tooltip: localizations?.translate('refresh') ?? 'Refresh',
+                  onPressed: () => _loadVisitTypes(forceRefresh: true),
+                ),
+              ],
+            ),
           ),
-        ),
-        Expanded(
-          child: _visitTypes.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.place_outlined, size: 64, color: theme.colorScheme.outline),
-                      const SizedBox(height: 16),
-                      Text(
-                        localizations?.translate('noVisitTypesFound') ?? 'No visit types found',
-                        style: theme.textTheme.bodyLarge,
-                      ),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  itemCount: _visitTypes.length,
-                  itemBuilder: (context, index) {
-                    final vt = _visitTypes[index];
-                    return SettingsListCard(
-                      child: InkWell(
-                        onDoubleTap: vt.isDefault ? null : () => _setDefault(vt),
-                        child: Padding(
-                          padding: SettingsListCard.listTilePadding,
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              CircleAvatar(
-                                backgroundColor: _parseColor(vt.color),
-                                radius: 22,
-                              ),
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.only(left: 16),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Flexible(
-                                            child: Text(
-                                              vt.name,
-                                              style: theme.textTheme.titleMedium
-                                                  ?.copyWith(fontWeight: FontWeight.w600),
-                                              overflow: TextOverflow.ellipsis,
-                                              maxLines: 1,
+          Expanded(
+            child: _visitTypes.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.place_outlined, size: 64, color: theme.colorScheme.outline),
+                        const SizedBox(height: 16),
+                        Text(
+                          localizations?.translate('noVisitTypesFound') ?? 'No visit types found',
+                          style: theme.textTheme.bodyLarge,
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 88),
+                    itemCount: _visitTypes.length,
+                    itemBuilder: (context, index) {
+                      final vt = _visitTypes[index];
+                      return SettingsListCard(
+                        child: InkWell(
+                          onDoubleTap: vt.isDefault ? null : () => _setDefault(vt),
+                          child: Padding(
+                            padding: SettingsListCard.listTilePadding,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                CircleAvatar(
+                                  backgroundColor: _parseColor(vt.color),
+                                  radius: 22,
+                                ),
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(left: 16),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Flexible(
+                                              child: Text(
+                                                vt.name,
+                                                style: theme.textTheme.titleMedium
+                                                    ?.copyWith(fontWeight: FontWeight.w600),
+                                                overflow: TextOverflow.ellipsis,
+                                                maxLines: 1,
+                                              ),
                                             ),
-                                          ),
-                                          if (vt.isDefault) ...[
-                                            const SizedBox(width: 8),
-                                            SettingsDefaultChip(
-                                              label: localizations?.translate('default') ?? 'Default',
-                                            ),
+                                            if (vt.isDefault) ...[
+                                              const SizedBox(width: 8),
+                                              SettingsDefaultChip(
+                                                label: localizations?.translate('default') ?? 'Default',
+                                              ),
+                                            ],
                                           ],
-                                        ],
-                                      ),
-                                      if (vt.description != null && vt.description!.isNotEmpty) ...[
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          vt.description!,
-                                          style: theme.textTheme.bodySmall?.copyWith(
-                                            color: theme.colorScheme.onSurfaceVariant,
+                                        ),
+                                        if (vt.description != null && vt.description!.isNotEmpty) ...[
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            vt.description!,
+                                            style: theme.textTheme.bodySmall?.copyWith(
+                                              color: theme.colorScheme.onSurfaceVariant,
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
+                                        ],
+                                        if (!vt.isDefault) ...[
+                                          const SizedBox(height: 6),
+                                          SettingsSetAsDefaultHint(
+                                            label:
+                                                '${localizations?.translate('setAsDefault') ?? 'Set as default'} (double-tap)',
+                                          ),
+                                        ],
                                       ],
-                                      if (!vt.isDefault) ...[
-                                        const SizedBox(height: 6),
-                                        SettingsSetAsDefaultHint(
-                                          label:
-                                              '${localizations?.translate('setAsDefault') ?? 'Set as default'} (double-tap)',
-                                        ),
-                                      ],
-                                    ],
+                                    ),
                                   ),
                                 ),
-                              ),
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.edit_outlined),
-                                    onPressed: () => _showEditModal(vt),
-                                  ),
-                                  if (!vt.isDefault)
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
                                     IconButton(
-                                      icon: Icon(Icons.delete_outline, color: theme.colorScheme.error),
-                                      onPressed: () => _delete(vt),
+                                      icon: const Icon(Icons.edit_outlined),
+                                      onPressed: () => _showEditModal(vt),
                                     ),
-                                ],
-                              ),
-                            ],
+                                    if (!vt.isDefault)
+                                      IconButton(
+                                        icon: Icon(Icons.delete_outline, color: theme.colorScheme.error),
+                                        onPressed: () => _delete(vt),
+                                      ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  },
-                ),
-        ),
-      ],
+                      );
+                    },
+                  ),
+          ),
+        ],
+      );
+    }
+
+    return Scaffold(
+      body: body,
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showAddModal,
+        backgroundColor: AppTheme.primaryColor,
+        tooltip: localizations?.translate('addVisitType') ?? 'Add visit type',
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }

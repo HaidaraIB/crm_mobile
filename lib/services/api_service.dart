@@ -149,9 +149,13 @@ class ApiService {
   /// One refresh at a time so parallel 401s do not invalidate a single-use refresh token.
   static Future<void> _refreshTokenChain = Future.value();
   static const Duration _defaultCacheTtl = Duration(seconds: 60);
+  /// Default HTTP timeout for most API calls (mobile networks + Postgres latency).
+  static const Duration _defaultRequestTimeout = Duration(seconds: 15);
   /// Matches CRM web full-sync default; capped by API [DRF_MAX_PAGE_SIZE].
   static const int _defaultFullFetchPageSize = 100;
   final Map<String, _CacheEntry<dynamic>> _memoryCache = {};
+  /// Coalesce concurrent cold-start `/users/me/` calls into one in-flight request.
+  Future<UserModel>? _currentUserInFlight;
 
   String get baseUrl => AppConstants.baseUrl;
 
@@ -407,8 +411,8 @@ class ApiService {
     final url = Uri.parse('$cleanBaseUrl$cleanEndpoint');
     final headers = await _getHeaders(includeAuth: includeAuth);
 
-    // Default timeout of 5 seconds
-    final requestTimeout = timeout ?? const Duration(seconds: 5);
+    // Default timeout of 15 seconds (Postgres + mobile RTT; override per call for long ops)
+    final requestTimeout = timeout ?? _defaultRequestTimeout;
 
     http.Response response;
 
@@ -2015,6 +2019,26 @@ class ApiService {
       return cached;
     }
 
+    // Share one in-flight fetch across splash/home/dashboard/getLeads cold start.
+    if (!forceRefresh && _currentUserInFlight != null) {
+      return _currentUserInFlight!;
+    }
+
+    final future = _fetchAndCacheCurrentUser(cacheTtl: cacheTtl);
+    _currentUserInFlight = future;
+    try {
+      return await future;
+    } finally {
+      if (identical(_currentUserInFlight, future)) {
+        _currentUserInFlight = null;
+      }
+    }
+  }
+
+  Future<UserModel> _fetchAndCacheCurrentUser({
+    required Duration cacheTtl,
+  }) async {
+    const cacheKey = 'current_user';
     final response = await _makeRequest('GET', '/users/me/');
 
     if (response.statusCode == 200) {
@@ -5157,6 +5181,7 @@ class ApiService {
               'Failed to update FCM token with status ${response.statusCode}';
         }
         debugPrint('⚠ Warning: $errorMessage');
+        throw Exception(errorMessage);
       }
     } catch (e, stackTrace) {
       ErrorLogger().logError(
@@ -5166,7 +5191,8 @@ class ApiService {
         method: 'POST',
       );
       debugPrint('⚠ Error sending FCM token to server: $e');
-      // لا نرمي exception هنا لأن الإشعارات المحلية ستعمل حتى بدون إرسال Token
+      // Rethrow so callers do not log a false success after a timeout/failure.
+      rethrow;
     }
   }
 

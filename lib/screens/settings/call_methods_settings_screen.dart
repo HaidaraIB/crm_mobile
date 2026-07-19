@@ -178,12 +178,11 @@ class _CallMethodsSettingsScreenState extends State<CallMethodsSettingsScreen> {
     final localizations = AppLocalizations.of(context);
     final theme = Theme.of(context);
 
+    Widget body;
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_errorMessage != null) {
-      return Center(
+      body = const Center(child: CircularProgressIndicator());
+    } else if (_errorMessage != null) {
+      body = Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -200,150 +199,150 @@ class _CallMethodsSettingsScreenState extends State<CallMethodsSettingsScreen> {
           ],
         ),
       );
-    }
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                localizations?.translate('callMethods') ?? 'Call Methods',
-                style: theme.textTheme.titleLarge,
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.refresh),
-                    tooltip: localizations?.translate('refresh') ?? 'Refresh',
-                    onPressed: () => _loadCallMethods(forceRefresh: true),
+    } else {
+      body = Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    localizations?.translate('callMethods') ?? 'Call Methods',
+                    style: theme.textTheme.titleLarge,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
-                  ElevatedButton.icon(
-                    onPressed: _showAddCallMethodModal,
-                    icon: const Icon(Icons.add),
-                    label: Text(localizations?.translate('addCallMethod') ?? 'Add Call Method'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  tooltip: localizations?.translate('refresh') ?? 'Refresh',
+                  onPressed: () => _loadCallMethods(forceRefresh: true),
+                ),
+              ],
+            ),
           ),
-        ),
-        Expanded(
-          child: _callMethods.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.phone_in_talk_outlined,
-                        size: 64,
-                        color: theme.colorScheme.outline,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        localizations?.translate('noCallMethodsFound') ?? 'No call methods found',
-                        style: theme.textTheme.bodyLarge,
-                      ),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  itemCount: _callMethods.length,
-                  itemBuilder: (context, index) {
-                    final callMethod = _callMethods[index];
-                    return SettingsListCard(
-                      child: InkWell(
-                        onDoubleTap: callMethod.isDefault
-                            ? null
-                            : () => _setDefaultCallMethod(callMethod),
-                        child: Padding(
-                          padding: SettingsListCard.listTilePadding,
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              CircleAvatar(
-                                backgroundColor: _parseColor(callMethod.color),
-                                radius: 22,
-                              ),
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.only(left: 16),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Flexible(
-                                            child: Text(
-                                              callMethod.name,
-                                              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-                                              overflow: TextOverflow.ellipsis,
-                                              softWrap: true,
-                                              maxLines: 1,
+          Expanded(
+            child: _callMethods.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.phone_in_talk_outlined,
+                          size: 64,
+                          color: theme.colorScheme.outline,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          localizations?.translate('noCallMethodsFound') ?? 'No call methods found',
+                          style: theme.textTheme.bodyLarge,
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 88),
+                    itemCount: _callMethods.length,
+                    itemBuilder: (context, index) {
+                      final callMethod = _callMethods[index];
+                      return SettingsListCard(
+                        child: InkWell(
+                          onDoubleTap: callMethod.isDefault
+                              ? null
+                              : () => _setDefaultCallMethod(callMethod),
+                          child: Padding(
+                            padding: SettingsListCard.listTilePadding,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                CircleAvatar(
+                                  backgroundColor: _parseColor(callMethod.color),
+                                  radius: 22,
+                                ),
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(left: 16),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Flexible(
+                                              child: Text(
+                                                callMethod.name,
+                                                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                                                overflow: TextOverflow.ellipsis,
+                                                softWrap: true,
+                                                maxLines: 1,
+                                              ),
                                             ),
-                                          ),
-                                          if (callMethod.isDefault) ...[
-                                            const SizedBox(width: 8),
-                                            SettingsDefaultChip(
-                                              label: localizations?.translate('default') ?? 'Default',
-                                            ),
+                                            if (callMethod.isDefault) ...[
+                                              const SizedBox(width: 8),
+                                              SettingsDefaultChip(
+                                                label: localizations?.translate('default') ?? 'Default',
+                                              ),
+                                            ],
                                           ],
-                                        ],
-                                      ),
-                                      if (callMethod.description != null && callMethod.description!.isNotEmpty) ...[
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          callMethod.description!,
-                                          style: theme.textTheme.bodySmall?.copyWith(
-                                            color: theme.colorScheme.onSurfaceVariant,
+                                        ),
+                                        if (callMethod.description != null && callMethod.description!.isNotEmpty) ...[
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            callMethod.description!,
+                                            style: theme.textTheme.bodySmall?.copyWith(
+                                              color: theme.colorScheme.onSurfaceVariant,
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
+                                        ],
+                                        if (!callMethod.isDefault) ...[
+                                          const SizedBox(height: 6),
+                                          SettingsSetAsDefaultHint(
+                                            label:
+                                                '${localizations?.translate('setAsDefault') ?? 'Set as default'} (double-tap)',
+                                          ),
+                                        ],
                                       ],
-                                      if (!callMethod.isDefault) ...[
-                                        const SizedBox(height: 6),
-                                        SettingsSetAsDefaultHint(
-                                          label:
-                                              '${localizations?.translate('setAsDefault') ?? 'Set as default'} (double-tap)',
-                                        ),
-                                      ],
-                                    ],
+                                    ),
                                   ),
                                 ),
-                              ),
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.edit_outlined),
-                                    onPressed: () => _showEditCallMethodModal(callMethod),
-                                  ),
-                                  if (!callMethod.isDefault)
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
                                     IconButton(
-                                      icon: Icon(Icons.delete_outline, color: theme.colorScheme.error),
-                                      onPressed: () => _deleteCallMethod(callMethod),
+                                      icon: const Icon(Icons.edit_outlined),
+                                      onPressed: () => _showEditCallMethodModal(callMethod),
                                     ),
-                                ],
-                              ),
-                            ],
+                                    if (!callMethod.isDefault)
+                                      IconButton(
+                                        icon: Icon(Icons.delete_outline, color: theme.colorScheme.error),
+                                        onPressed: () => _deleteCallMethod(callMethod),
+                                      ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  },
-                ),
-        ),
-      ],
+                      );
+                    },
+                  ),
+          ),
+        ],
+      );
+    }
+
+    return Scaffold(
+      body: body,
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showAddCallMethodModal,
+        backgroundColor: AppTheme.primaryColor,
+        tooltip: localizations?.translate('addCallMethod') ?? 'Add Call Method',
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }

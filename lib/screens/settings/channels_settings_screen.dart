@@ -172,12 +172,11 @@ class _ChannelsSettingsScreenState extends State<ChannelsSettingsScreen> {
     final localizations = AppLocalizations.of(context);
     final theme = Theme.of(context);
 
+    Widget body;
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_errorMessage != null) {
-      return Center(
+      body = const Center(child: CircularProgressIndicator());
+    } else if (_errorMessage != null) {
+      body = Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -194,190 +193,188 @@ class _ChannelsSettingsScreenState extends State<ChannelsSettingsScreen> {
           ],
         ),
       );
-    }
-
-    return Column(
-      children: [
-        // Add Button
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                localizations?.translate('activeChannels') ?? 'Active Channels',
-                style: theme.textTheme.titleLarge,
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.refresh),
-                    tooltip: localizations?.translate('refresh') ?? 'Refresh',
-                    onPressed: () => _loadChannels(forceRefresh: true),
+    } else {
+      body = Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    localizations?.translate('activeChannels') ?? 'Active Channels',
+                    style: theme.textTheme.titleLarge,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                  showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (context) => AddChannelModal(
-                      onChannelCreated: () {
-                        _loadChannels();
-                        Navigator.pop(context);
-                      },
-                    ),
-                  );
-                },
-                    icon: const Icon(Icons.add),
-                    label: Text(localizations?.translate('addChannel') ?? 'Add Channel'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  tooltip: localizations?.translate('refresh') ?? 'Refresh',
+                  onPressed: () => _loadChannels(forceRefresh: true),
+                ),
+              ],
+            ),
           ),
-        ),
-        // Channels List
-        Expanded(
-          child: _channels.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.campaign_outlined,
-                        size: 64,
-                        color: theme.colorScheme.outline,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        localizations?.translate('noChannelsAvailable') ?? 'No channels available',
-                        style: theme.textTheme.bodyLarge,
-                      ),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  itemCount: _channels.length,
-                  itemBuilder: (context, index) {
-                    final channel = _channels[index];
-                    final priorityColor = channel.priority.toLowerCase() == 'high'
-                        ? Colors.red
-                        : channel.priority.toLowerCase() == 'medium'
-                            ? Colors.orange
-                            : Colors.green;
-                    return SettingsListCard(
-                      child: InkWell(
-                        onDoubleTap: channel.isDefault
-                            ? null
-                            : () => _setDefaultChannel(channel),
-                        child: Padding(
-                          padding: SettingsListCard.listTilePadding,
-                          child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            CircleAvatar(
-                              radius: 22,
-                              backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                              child: Icon(
-                                Icons.campaign_outlined,
-                                color: theme.colorScheme.onSurfaceVariant,
-                                size: 22,
-                              ),
-                            ),
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.only(left: 16),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Row(
+          Expanded(
+            child: _channels.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.campaign_outlined,
+                          size: 64,
+                          color: theme.colorScheme.outline,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          localizations?.translate('noChannelsAvailable') ?? 'No channels available',
+                          style: theme.textTheme.bodyLarge,
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 88),
+                    itemCount: _channels.length,
+                    itemBuilder: (context, index) {
+                      final channel = _channels[index];
+                      final priorityColor = channel.priority.toLowerCase() == 'high'
+                          ? Colors.red
+                          : channel.priority.toLowerCase() == 'medium'
+                              ? Colors.orange
+                              : Colors.green;
+                      return SettingsListCard(
+                        child: InkWell(
+                          onDoubleTap: channel.isDefault
+                              ? null
+                              : () => _setDefaultChannel(channel),
+                          child: Padding(
+                            padding: SettingsListCard.listTilePadding,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                CircleAvatar(
+                                  radius: 22,
+                                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                                  child: Icon(
+                                    Icons.campaign_outlined,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                    size: 22,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(left: 16),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Flexible(
-                                          child: Text(
-                                            channel.name,
-                                            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-                                            overflow: TextOverflow.ellipsis,
-                                            softWrap: true,
-                                            maxLines: 1,
-                                          ),
+                                        Row(
+                                          children: [
+                                            Flexible(
+                                              child: Text(
+                                                channel.name,
+                                                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                                                overflow: TextOverflow.ellipsis,
+                                                softWrap: true,
+                                                maxLines: 1,
+                                              ),
+                                            ),
+                                            if (channel.isDefault) ...[
+                                              const SizedBox(width: 8),
+                                              SettingsDefaultChip(
+                                                label: localizations?.translate('default') ?? 'Default',
+                                              ),
+                                            ],
+                                          ],
                                         ),
-                                        if (channel.isDefault) ...[
-                                          const SizedBox(width: 8),
-                                          SettingsDefaultChip(
-                                            label: localizations?.translate('default') ?? 'Default',
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          _getLocalizedChannelType(channel.type, localizations),
+                                          style: theme.textTheme.bodySmall?.copyWith(
+                                            color: theme.colorScheme.onSurfaceVariant,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                          maxLines: 1,
+                                        ),
+                                        const SizedBox(height: 4),
+                                        SettingsLabelChip(
+                                          label: _getLocalizedPriority(channel.priority, localizations),
+                                          color: priorityColor,
+                                        ),
+                                        if (!channel.isDefault) ...[
+                                          const SizedBox(height: 6),
+                                          SettingsSetAsDefaultHint(
+                                            label:
+                                                '${localizations?.translate('setAsDefault') ?? 'Set as default'} (double-tap)',
                                           ),
                                         ],
                                       ],
                                     ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      _getLocalizedChannelType(channel.type, localizations),
-                                      style: theme.textTheme.bodySmall?.copyWith(
-                                        color: theme.colorScheme.onSurfaceVariant,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                      maxLines: 1,
+                                  ),
+                                ),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.edit_outlined),
+                                      onPressed: () {
+                                        showModalBottomSheet(
+                                          context: context,
+                                          isScrollControlled: true,
+                                          backgroundColor: Colors.transparent,
+                                          builder: (context) => EditChannelModal(
+                                            channel: channel,
+                                            onChannelUpdated: () {
+                                              _loadChannels();
+                                              Navigator.pop(context);
+                                            },
+                                          ),
+                                        );
+                                      },
                                     ),
-                                    const SizedBox(height: 4),
-                                    SettingsLabelChip(
-                                      label: _getLocalizedPriority(channel.priority, localizations),
-                                      color: priorityColor,
-                                    ),
-                                    if (!channel.isDefault) ...[
-                                      const SizedBox(height: 6),
-                                      SettingsSetAsDefaultHint(
-                                        label:
-                                            '${localizations?.translate('setAsDefault') ?? 'Set as default'} (double-tap)',
+                                    if (!channel.isDefault)
+                                      IconButton(
+                                        icon: Icon(Icons.delete_outline, color: theme.colorScheme.error),
+                                        onPressed: () => _deleteChannel(channel),
                                       ),
-                                    ],
                                   ],
                                 ),
-                              ),
-                            ),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.edit_outlined),
-                                  onPressed: () {
-                                    showModalBottomSheet(
-                                      context: context,
-                                      isScrollControlled: true,
-                                      backgroundColor: Colors.transparent,
-                                      builder: (context) => EditChannelModal(
-                                        channel: channel,
-                                        onChannelUpdated: () {
-                                          _loadChannels();
-                                          Navigator.pop(context);
-                                        },
-                                      ),
-                                    );
-                                  },
-                                ),
-                                if (!channel.isDefault)
-                                  IconButton(
-                                    icon: Icon(Icons.delete_outline, color: theme.colorScheme.error),
-                                    onPressed: () => _deleteChannel(channel),
-                                  ),
                               ],
                             ),
-                          ],
+                          ),
                         ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-        ),
-      ],
+                      );
+                    },
+                  ),
+          ),
+        ],
+      );
+    }
+
+    return Scaffold(
+      body: body,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder: (context) => AddChannelModal(
+              onChannelCreated: () {
+                _loadChannels();
+                Navigator.pop(context);
+              },
+            ),
+          );
+        },
+        backgroundColor: AppTheme.primaryColor,
+        tooltip: localizations?.translate('addChannel') ?? 'Add Channel',
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }
