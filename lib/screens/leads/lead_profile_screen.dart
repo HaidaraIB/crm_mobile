@@ -134,13 +134,23 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
     }
   }
 
-  // Check if user can edit/delete this lead
+  // Check if user can edit this lead
   bool _canModifyLead() {
     if (_currentUser == null || _lead == null) return false;
     // Admin can modify any lead
     if (_currentUser!.isAdmin) return true;
     if (_currentUser!.hasSupervisorPermission('can_manage_leads')) return true;
     // Employee can only modify leads assigned to them
+    return _lead!.assignedTo == _currentUser!.id;
+  }
+
+  // Check if user can delete this lead (requires can_delete_clients for non-admins)
+  bool _canDeleteLead() {
+    if (_currentUser == null || _lead == null) return false;
+    if (_currentUser!.isDataEntry || _currentUser!.isReception) return false;
+    if (_currentUser!.isAdmin) return true;
+    if (!_currentUser!.canDeleteClients) return false;
+    if (_currentUser!.hasSupervisorPermission('can_manage_leads')) return true;
     return _lead!.assignedTo == _currentUser!.id;
   }
   
@@ -533,6 +543,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
               ),
               itemBuilder: (context) {
                 final canModify = _canModifyLead();
+                final canDelete = _canDeleteLead();
                 final canAssign = (_currentUser?.isAdmin ?? false) || (_currentUser?.hasSupervisorPermission('can_manage_leads') ?? false);
                 return [
                   if (canModify)
@@ -557,8 +568,8 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                         ],
                       ),
                     ),
-                  // Delete - only if can modify
-                  if (canModify)
+                  // Delete - only if can delete
+                  if (canDelete)
                     PopupMenuItem(
                       value: 'delete',
                       child: Row(

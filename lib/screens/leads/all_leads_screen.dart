@@ -152,12 +152,23 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     }
   }
 
-  // Check if user can edit/delete this lead
+  // Check if user can edit this lead
   bool _canModifyLead(LeadModel lead) {
     if (_currentUser == null) return false;
     if (_currentUser!.isDataEntry) return false;
     if (_currentUser!.isReception) return true;
     if (_currentUser!.isAdmin) return true;
+    if (_currentUser!.hasSupervisorPermission('can_manage_leads')) return true;
+    return lead.assignedTo == _currentUser!.id;
+  }
+
+  // Check if user can delete this lead (requires can_delete_clients for non-admins)
+  bool _canDeleteLead(LeadModel lead) {
+    if (_currentUser == null) return false;
+    if (_currentUser!.isDataEntry) return false;
+    if (_currentUser!.isReception) return false;
+    if (_currentUser!.isAdmin) return true;
+    if (!_currentUser!.canDeleteClients) return false;
     if (_currentUser!.hasSupervisorPermission('can_manage_leads')) return true;
     return lead.assignedTo == _currentUser!.id;
   }
@@ -1000,7 +1011,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                 if (!mounted) return;
                 SnackbarHelper.showError(
                   this.context,
-                  '${localizations?.translate('error') ?? 'Error'}: ${e.toString()}',
+                  ApiErrorHelper.toUserMessage(this.context, e),
                 );
               }
             },
@@ -1020,10 +1031,11 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     AppLocalizations? localizations,
   ) {
     final canModify = _canModifyLead(lead);
+    final canDelete = _canDeleteLead(lead);
     final canAssign =
         (_currentUser?.isAdmin ?? false) ||
         (_currentUser?.hasSupervisorPermission('can_manage_leads') ?? false);
-    if (!canModify && !canAssign) return;
+    if (!canModify && !canAssign && !canDelete) return;
 
     final theme = Theme.of(context);
     final menuItems = <PopupMenuEntry<String>>[
@@ -1057,7 +1069,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
             ],
           ),
         ),
-      if (canModify)
+      if (canDelete)
         PopupMenuItem<String>(
           value: 'delete',
           child: Row(

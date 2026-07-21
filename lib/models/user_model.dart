@@ -20,6 +20,8 @@ class UserModel {
   final int? weeklyDayOff;
   final bool? isCompanyOwner;
   final bool? loginTwoFactorEnabled;
+  /// When true, employee/supervisor may delete customers (clients).
+  final bool canDeleteClients;
 
   UserModel({
     required this.id,
@@ -40,6 +42,7 @@ class UserModel {
     this.weeklyDayOff,
     this.isCompanyOwner,
     this.loginTwoFactorEnabled,
+    this.canDeleteClients = false,
   });
 
   // Check if user is admin (handles multiple role formats)
@@ -162,6 +165,7 @@ class UserModel {
           : (json['weekly_day_off'] as num?)?.toInt(),
       isCompanyOwner: json['is_company_owner'] as bool? ?? json['isCompanyOwner'] as bool?,
       loginTwoFactorEnabled: json['login_two_factor_enabled'] as bool? ?? json['loginTwoFactorEnabled'] as bool?,
+      canDeleteClients: json['can_delete_clients'] == true || json['canDeleteClients'] == true,
     );
   }
   
@@ -184,6 +188,7 @@ class UserModel {
       if (weeklyDayOff != null) 'weekly_day_off': weeklyDayOff,
       if (isCompanyOwner != null) 'is_company_owner': isCompanyOwner,
       if (loginTwoFactorEnabled != null) 'login_two_factor_enabled': loginTwoFactorEnabled,
+      'can_delete_clients': canDeleteClients,
     };
   }
 }

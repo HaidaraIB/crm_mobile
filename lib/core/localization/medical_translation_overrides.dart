@@ -59,6 +59,8 @@ const Map<String, Map<String, String>> kMedicalTranslationOverrides = {
     'failedToCreateLead': 'Failed to create patient',
     'failedToUpdateLead': 'Failed to update patient',
     'failedToDeleteLead': 'Failed to delete patient',
+    'cannot_delete_clients':
+        'You do not have permission to delete patients.',
     'failedToAssignLeads': 'Failed to assign patients',
     'importLeads': 'Import patients (Excel)',
     'exportLeads': 'Export patients (Excel)',
@@ -129,6 +131,7 @@ const Map<String, Map<String, String>> kMedicalTranslationOverrides = {
     'failedToCreateLead': 'فشل إنشاء المريض',
     'failedToUpdateLead': 'فشل تحديث المريض',
     'failedToDeleteLead': 'فشل حذف المريض',
+    'cannot_delete_clients': 'ليس لديك صلاحية حذف المرضى.',
     'failedToAssignLeads': 'فشل تعيين المرضى',
     'importLeads': 'استيراد مرضى (Excel)',
     'exportLeads': 'تصدير مرضى (Excel)',

@@ -255,7 +255,8 @@ class ApiService {
     Map<String, dynamic> error, {
     required String fallbackKey,
   }) {
-    final errorKey = error['error_key']?.toString();
+    final errorKey =
+        error['error_key']?.toString() ?? error['code']?.toString();
     final rawMessage = (error['detail'] ?? error['error'] ?? error['message'])
         ?.toString()
         .trim();
@@ -267,6 +268,11 @@ class ApiService {
     }
 
     if (rawMessage != null && rawMessage.isNotEmpty) {
+      // Prefer a stable translation key when the API returns a known English message.
+      if (rawMessage == 'You do not have permission to delete customers.' ||
+          rawMessage == 'You do not have permission to delete customers') {
+        return _translateError('cannot_delete_clients', locale: null);
+      }
       return rawMessage;
     }
     return _translateError(fallbackKey, locale: null);
@@ -2904,10 +2910,13 @@ class ApiService {
 
     if (response.statusCode != 204) {
       final error = _errorContextFromBody(response.body);
+      final code = error['code']?.toString();
+      // Prefer stable error code so UI can localize via AppLocalizations.
+      if (code != null && code.isNotEmpty) {
+        throw Exception(code);
+      }
       throw Exception(
-        error['detail'] ??
-            error['message'] ??
-            _translateError('failedToDeleteLead', locale: null),
+        _resolveApiErrorMessage(error, fallbackKey: 'failedToDeleteLead'),
       );
     }
     _invalidateLeadsCache();

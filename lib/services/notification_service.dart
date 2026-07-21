@@ -25,7 +25,7 @@ const String _kTenantChatMergePrefsPrefix = 'tenant_chat_push_merge_v1_';
 /// Bump this when Android channels must be deleted and recreated (e.g. custom
 /// sounds not applied because channels existed with default sound first).
 const String _kAndroidChannelSoundMigrationPrefsKey =
-    'android_notif_channel_sound_v2_done';
+    'android_notif_channel_sound_v3_done';
 
 const List<String> _kAllAndroidNotificationChannelIds = <String>[
   'general',
@@ -38,6 +38,7 @@ const List<String> _kAllAndroidNotificationChannelIds = <String>[
   'reports',
   'system',
   'tenant_chat',
+  'team_activity',
 ];
 
 /// Android `res/raw` basename without extension; null = platform default sound.
@@ -45,6 +46,8 @@ String? _androidRawSoundBasenameForChannelId(String channelId) {
   switch (channelId) {
     case 'tenant_chat':
       return 'notif_tenant_chat';
+    case 'team_activity':
+      return 'notif_team_activity';
     case 'leads':
       return 'notif_leads';
     case 'whatsapp':
@@ -535,6 +538,17 @@ class NotificationService {
       enableVibration: true,
     );
 
+    // Owner team activity feed (نشاط الفريق)
+    const teamActivityChannel = AndroidNotificationChannel(
+      'team_activity',
+      'Team Activity',
+      description: 'Company owner alerts when teammates act on leads',
+      importance: Importance.high,
+      playSound: true,
+      sound: RawResourceAndroidNotificationSound('notif_team_activity'),
+      enableVibration: true,
+    );
+
     // إنشاء القنوات
     final androidPlugin = _localNotifications
         .resolvePlatformSpecificImplementation<
@@ -551,6 +565,7 @@ class NotificationService {
       await androidPlugin.createNotificationChannel(reportsChannel);
       await androidPlugin.createNotificationChannel(systemChannel);
       await androidPlugin.createNotificationChannel(tenantChatChannel);
+      await androidPlugin.createNotificationChannel(teamActivityChannel);
     }
   }
 
@@ -1014,7 +1029,8 @@ class NotificationService {
       return explicitChannelId;
     }
     if (_isTenantChatPush(payload)) return 'tenant_chat';
-    return _getChannelForType(payload?.type);
+    final action = payload?.data?['action']?.toString();
+    return _getChannelForType(payload?.type, action: action);
   }
 
   /// عرض إشعار محلي
@@ -1112,7 +1128,10 @@ class NotificationService {
   }
 
   /// تحديد قناة الإشعار بناءً على النوع
-  String _getChannelForType(NotificationType? type) {
+  ///
+  /// For [NotificationType.teamActivity], [action] selects the category channel
+  /// whose custom sound already exists (leads / tasks / deals).
+  String _getChannelForType(NotificationType? type, {String? action}) {
     if (type == null) return 'general';
 
     switch (type) {
@@ -1156,10 +1175,15 @@ class NotificationService {
       case NotificationType.callReminder:
       case NotificationType.visitReminder:
       case NotificationType.receptionVisitReminder:
+      case NotificationType.fieldVisitReminder:
+      case NotificationType.receptionFieldVisitReminder:
         return 'tasks';
 
       case NotificationType.tenantChat:
         return 'tenant_chat';
+
+      case NotificationType.teamActivity:
+        return _channelForTeamActivityAction(action);
 
       // إشعارات التقارير
       case NotificationType.dailyReport:
@@ -1177,6 +1201,27 @@ class NotificationService {
       
       default:
         return 'general';
+    }
+  }
+
+  /// Reuse category custom sounds for owner team-activity actions.
+  String _channelForTeamActivityAction(String? action) {
+    switch ((action ?? '').trim().toLowerCase()) {
+      case 'status_change':
+      case 'assignment':
+      case 'edit':
+      case 'lead_created':
+      case 'no_follow_up':
+        return 'leads';
+      case 'call_logged':
+      case 'visit_logged':
+      case 'field_visit_logged':
+      case 'task_created':
+        return 'tasks';
+      case 'deal_won':
+        return 'deals';
+      default:
+        return 'team_activity';
     }
   }
 
@@ -1199,6 +1244,8 @@ class NotificationService {
         return 'System Notifications';
       case 'tenant_chat':
         return 'Team chat';
+      case 'team_activity':
+        return 'Team Activity';
       case 'reminders':
         return 'Reminders';
       default:
@@ -1225,6 +1272,8 @@ class NotificationService {
         return 'System and subscription notifications';
       case 'tenant_chat':
         return 'Messages from teammates';
+      case 'team_activity':
+        return 'Company owner alerts when teammates act on leads';
       case 'reminders':
         return 'Reminder notifications';
       default:

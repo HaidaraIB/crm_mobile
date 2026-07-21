@@ -874,6 +874,11 @@ class AppLocalizations {
           'Customize notifications by type and time',
       'enableNotifications': 'Enable Notifications',
       'enableOrDisableAllNotifications': 'Enable or disable all notifications',
+      'preferences': 'Preferences',
+      'security': 'Security',
+      'companyOwnerNotifications': 'Company',
+      'teamActivityHint':
+          'Alerts when employees act on leads, update status, or are overdue on follow-up.',
       'leadNotifications': 'Lead Notifications',
       'coreNotifications': 'Core Notifications – appear first',
       'whatsappNotifications': 'WhatsApp Notifications',
@@ -1149,6 +1154,8 @@ class AppLocalizations {
       'failedToCreateLead': 'Failed to create lead',
       'failedToUpdateLead': 'Failed to update lead',
       'failedToDeleteLead': 'Failed to delete lead',
+      'cannot_delete_clients':
+          'You do not have permission to delete customers.',
       'failedToAssignLeads': 'Failed to assign leads',
       'weeklyDayOff': 'Weekly day off',
       'errorEmployeeWeeklyDayOff':
@@ -2090,6 +2097,11 @@ class AppLocalizations {
       'customizeNotificationsByTypeAndTime': 'تخصيص الإشعارات حسب النوع والوقت',
       'enableNotifications': 'تفعيل الإشعارات',
       'enableOrDisableAllNotifications': 'تفعيل أو إيقاف جميع الإشعارات',
+      'preferences': 'التفضيلات',
+      'security': 'الأمان',
+      'companyOwnerNotifications': 'الشركة',
+      'teamActivityHint':
+          'تنبيهات عند قيام الموظفين بإجراءات على العملاء أو تحديث الحالة أو التأخر في المتابعة.',
       'leadNotifications': 'إشعارات العملاء المحتملين',
       'coreNotifications': 'إشعارات أساسية – تظهر أولاً',
       'whatsappNotifications': 'إشعارات واتساب',
@@ -2358,6 +2370,7 @@ class AppLocalizations {
       'failedToCreateLead': 'فشل إنشاء العميل',
       'failedToUpdateLead': 'فشل تحديث العميل',
       'failedToDeleteLead': 'فشل حذف العميل',
+      'cannot_delete_clients': 'ليس لديك صلاحية حذف العملاء.',
       'failedToAssignLeads': 'فشل تعيين العملاء',
       'weeklyDayOff': 'يوم عطلة أسبوعي',
       'errorEmployeeWeeklyDayOff':

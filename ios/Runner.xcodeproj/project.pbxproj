@@ -16,6 +16,7 @@
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		97C147081CF9000F007C117D /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 97C147091CF9000F007C117D /* GoogleService-Info.plist */; };
 		A1F2E3D41CF9000F007C117B /* notif_tenant_chat.wav in Resources */ = {isa = PBXBuildFile; fileRef = A1F2E3D51CF9000F007C117B /* notif_tenant_chat.wav */; };
+		C1A000091CF9000F007C1171 /* notif_team_activity.wav in Resources */ = {isa = PBXBuildFile; fileRef = C1A000092CF9000F007C1171 /* notif_team_activity.wav */; };
 		C1A000011CF9000F007C1171 /* notif_leads.wav in Resources */ = {isa = PBXBuildFile; fileRef = C1A000012CF9000F007C1171 /* notif_leads.wav */; };
 		C1A000021CF9000F007C1171 /* notif_whatsapp.wav in Resources */ = {isa = PBXBuildFile; fileRef = C1A000022CF9000F007C1171 /* notif_whatsapp.wav */; };
 		C1A000031CF9000F007C1171 /* notif_campaigns.wav in Resources */ = {isa = PBXBuildFile; fileRef = C1A000032CF9000F007C1171 /* notif_campaigns.wav */; };
@@ -67,6 +68,7 @@
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		97C147091CF9000F007C117D /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		A1F2E3D51CF9000F007C117B /* notif_tenant_chat.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = notif_tenant_chat.wav; sourceTree = "<group>"; };
+		C1A000092CF9000F007C1171 /* notif_team_activity.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = notif_team_activity.wav; sourceTree = "<group>"; };
 		C1A000012CF9000F007C1171 /* notif_leads.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = notif_leads.wav; sourceTree = "<group>"; };
 		C1A000022CF9000F007C1171 /* notif_whatsapp.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = notif_whatsapp.wav; sourceTree = "<group>"; };
 		C1A000032CF9000F007C1171 /* notif_campaigns.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = notif_campaigns.wav; sourceTree = "<group>"; };
@@ -137,6 +139,7 @@
 				97C1470A1CF9000F007C117D /* Runner.entitlements */,
 				97C147091CF9000F007C117D /* GoogleService-Info.plist */,
 				A1F2E3D51CF9000F007C117B /* notif_tenant_chat.wav */,
+				C1A000092CF9000F007C1171 /* notif_team_activity.wav */,
 				C1A000012CF9000F007C1171 /* notif_leads.wav */,
 				C1A000022CF9000F007C1171 /* notif_whatsapp.wav */,
 				C1A000032CF9000F007C1171 /* notif_campaigns.wav */,
@@ -250,6 +253,7 @@
 				97C146FC1CF9000F007C117D /* Main.storyboard in Resources */,
 				97C147081CF9000F007C117D /* GoogleService-Info.plist in Resources */,
 				A1F2E3D41CF9000F007C117B /* notif_tenant_chat.wav in Resources */,
+				C1A000091CF9000F007C1171 /* notif_team_activity.wav in Resources */,
 				C1A000011CF9000F007C1171 /* notif_leads.wav in Resources */,
 				C1A000021CF9000F007C1171 /* notif_whatsapp.wav in Resources */,
 				C1A000031CF9000F007C1171 /* notif_campaigns.wav in Resources */,

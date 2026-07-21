@@ -54,6 +54,17 @@ class ApiErrorHelper {
           'Unable to connect to the server. Please try again later';
     }
     final cleaned = cleanException(error);
+    if (cleaned.isNotEmpty && loc != null) {
+      final byKey = loc.translate(cleaned);
+      if (byKey != cleaned) {
+        return byKey;
+      }
+      // Known English API messages → localization keys
+      if (cleaned == 'You do not have permission to delete customers.' ||
+          cleaned == 'You do not have permission to delete customers') {
+        return loc.translate('cannot_delete_clients');
+      }
+    }
     if (cleaned.isNotEmpty) return cleaned;
     return fallback ??
         (loc?.translate('anErrorOccurred') ?? 'An error occurred. Please try again.');

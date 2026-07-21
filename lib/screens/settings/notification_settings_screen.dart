@@ -6,7 +6,37 @@ import '../../services/notification_router.dart';
 import '../../services/api_service.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/utils/snackbar_helper.dart';
+import 'widgets/settings_group.dart';
+
+/// Notification types that are actually wired to backend events.
+/// Keep enum values for future use; only show these in settings UI.
+const Set<NotificationType> kVisibleNotificationSettingsTypes = {
+  NotificationType.newLead,
+  NotificationType.leadNoFollowUp,
+  NotificationType.leadStatusChanged,
+  NotificationType.leadAssigned,
+  NotificationType.leadTransferred,
+  NotificationType.leadReminder,
+  NotificationType.teamActivity,
+  NotificationType.whatsappMessageReceived,
+  NotificationType.whatsappWaitingResponse,
+  NotificationType.campaignLowPerformance,
+  NotificationType.campaignBudgetAlert,
+  NotificationType.taskReminder,
+  NotificationType.callReminder,
+  NotificationType.visitReminder,
+  NotificationType.receptionVisitReminder,
+  NotificationType.dealCreated,
+  NotificationType.dealClosed,
+  NotificationType.dealReminder,
+  NotificationType.dailyReport,
+  NotificationType.weeklyReport,
+  NotificationType.topEmployee,
+  NotificationType.subscriptionExpiring,
+  NotificationType.subscriptionExpired,
+};
 
 class NotificationSettingsScreen extends StatefulWidget {
   const NotificationSettingsScreen({super.key});
@@ -30,7 +60,6 @@ class _NotificationSettingsScreenState
   Future<void> _loadSettings({bool forceRefresh = false}) async {
     setState(() => _isLoading = true);
 
-    // محاولة تحميل الإعدادات من الخادم أولاً
     try {
       final prefs = await SharedPreferences.getInstance();
       final isLoggedIn = prefs.getBool(AppConstants.isLoggedInKey) ?? false;
@@ -42,11 +71,9 @@ class _NotificationSettingsScreenState
         );
 
         if (serverSettings != null) {
-          // استخدام الإعدادات من الخادم
           final settings = app_settings.NotificationSettings.fromServerMap(
             serverSettings,
           );
-          // حفظها محلياً أيضاً
           await settings.save(syncToServer: false);
           setState(() {
             _settings = settings;
@@ -56,11 +83,9 @@ class _NotificationSettingsScreenState
         }
       }
     } catch (e) {
-      // في حالة فشل التحميل من الخادم، نستخدم الإعدادات المحلية
       debugPrint('Warning: Failed to load settings from server: $e');
     }
 
-    // تحميل الإعدادات المحلية كبديل
     final settings = await app_settings.NotificationSettings.load();
     setState(() {
       _settings = settings;
@@ -82,16 +107,36 @@ class _NotificationSettingsScreenState
     }
   }
 
+  List<NotificationType> _visible(List<NotificationType> types) {
+    return types
+        .where(kVisibleNotificationSettingsTypes.contains)
+        .toList(growable: false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
 
     if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(
+            localizations?.translate('notificationSettings') ??
+                'Notification Settings',
+          ),
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
     }
 
     if (_settings == null) {
       return Scaffold(
+        appBar: AppBar(
+          title: Text(
+            localizations?.translate('notificationSettings') ??
+                'Notification Settings',
+          ),
+        ),
         body: Center(
           child: Text(
             localizations?.translate('errorLoadingSettings') ??
@@ -100,6 +145,8 @@ class _NotificationSettingsScreenState
         ),
       );
     }
+
+    final masterEnabled = _settings!.enabled;
 
     return Scaffold(
       appBar: AppBar(
@@ -116,177 +163,140 @@ class _NotificationSettingsScreenState
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
-          // تفعيل/إيقاف جميع الإشعارات
-          Card(
-            child: SwitchListTile(
-              title: Text(
-                localizations?.translate('enableNotifications') ??
+          SettingsGroup(
+            children: [
+              SettingsRow(
+                leading: SettingsLeadingIcon(
+                  icon: masterEnabled
+                      ? Icons.notifications_active_outlined
+                      : Icons.notifications_off_outlined,
+                  color: masterEnabled ? Colors.green : Colors.grey,
+                ),
+                title: localizations?.translate('enableNotifications') ??
                     'Enable Notifications',
-              ),
-              subtitle: Text(
-                localizations?.translate('enableOrDisableAllNotifications') ??
+                subtitle: localizations
+                        ?.translate('enableOrDisableAllNotifications') ??
                     'Enable or disable all notifications',
+                trailing: Switch.adaptive(
+                  value: masterEnabled,
+                  activeThumbColor: AppTheme.primaryColor,
+                  onChanged: (value) {
+                    setState(() => _settings!.enabled = value);
+                    _saveSettings();
+                  },
+                ),
               ),
-              value: _settings!.enabled,
-              onChanged: (value) {
-                setState(() {
-                  _settings!.enabled = value;
-                });
-                _saveSettings();
-              },
-              secondary: Icon(
-                _settings!.enabled
-                    ? Icons.notifications_active
-                    : Icons.notifications_off,
-                color: _settings!.enabled ? Colors.green : Colors.grey,
-              ),
-            ),
+            ],
           ),
-
-          const SizedBox(height: 16),
-
-          // إشعارات العملاء المحتملين
-          _buildSection(
-            context: context,
-            title:
-                '👤 ${localizations?.translate('leadNotifications') ?? 'Lead Notifications'}',
-            subtitle:
-                localizations?.translate('coreNotifications') ??
-                'Core Notifications – appear first',
-            types: [
+          SettingsGroup(
+            header: localizations?.translate('companyOwnerNotifications') ??
+                'Company',
+            footer: localizations?.translate('teamActivityHint') ??
+                'Team activity alerts for employee actions on leads, including overdue follow-ups.',
+            children: [
+              _typeSwitch(
+                NotificationType.teamActivity,
+                enabled: masterEnabled,
+                localizations: localizations,
+              ),
+            ],
+          ),
+          _sectionGroup(
+            header: localizations?.translate('leadNotifications') ??
+                'Lead Notifications',
+            types: _visible([
               NotificationType.newLead,
               NotificationType.leadNoFollowUp,
-              NotificationType.leadReengaged,
-              NotificationType.leadContactFailed,
               NotificationType.leadStatusChanged,
               NotificationType.leadAssigned,
               NotificationType.leadTransferred,
-              NotificationType.leadUpdated,
               NotificationType.leadReminder,
-              NotificationType.teamActivity,
-            ],
+            ]),
+            masterEnabled: masterEnabled,
+            localizations: localizations,
           ),
-
-          // إشعارات واتساب
-          _buildSection(
-            context: context,
-            title:
-                '💬 ${localizations?.translate('whatsappNotifications') ?? 'WhatsApp Notifications'}',
-            subtitle:
-                localizations?.translate('whatsappAutomation') ??
-                'WhatsApp Automation',
-            types: [
+          _sectionGroup(
+            header: localizations?.translate('whatsappNotifications') ??
+                'WhatsApp Notifications',
+            types: _visible([
               NotificationType.whatsappMessageReceived,
-              NotificationType.whatsappTemplateSent,
-              NotificationType.whatsappSendFailed,
               NotificationType.whatsappWaitingResponse,
-            ],
+            ]),
+            masterEnabled: masterEnabled,
+            localizations: localizations,
           ),
-
-          // إشعارات الحملات الإعلانية
-          _buildSection(
-            context: context,
-            title:
-                '📢 ${localizations?.translate('campaignNotifications') ?? 'Campaign Notifications'}',
-            subtitle:
-                localizations?.translate('adsPerformance') ?? 'Ads Performance',
-            types: [
-              NotificationType.campaignPerformance,
+          _sectionGroup(
+            header: localizations?.translate('campaignNotifications') ??
+                'Campaign Notifications',
+            types: _visible([
               NotificationType.campaignLowPerformance,
-              NotificationType.campaignStopped,
               NotificationType.campaignBudgetAlert,
-            ],
+            ]),
+            masterEnabled: masterEnabled,
+            localizations: localizations,
           ),
-
-          // إشعارات الفريق والمهام
-          _buildSection(
-            context: context,
-            title:
-                '👥 ${localizations?.translate('teamAndTasksNotifications') ?? 'Team & Tasks Notifications'}',
-            subtitle:
-                localizations?.translate('teamAndTasks') ?? 'Team & Tasks',
-            types: [
-              NotificationType.taskCreated,
+          _sectionGroup(
+            header: localizations?.translate('teamAndTasksNotifications') ??
+                'Team & Tasks Notifications',
+            types: _visible([
               NotificationType.taskReminder,
-              NotificationType.taskCompleted,
               NotificationType.callReminder,
               NotificationType.visitReminder,
               NotificationType.receptionVisitReminder,
-            ],
+            ]),
+            masterEnabled: masterEnabled,
+            localizations: localizations,
           ),
-
-          // إشعارات الصفقات
-          _buildSection(
-            context: context,
-            title:
-                '🤝 ${localizations?.translate('dealNotifications') ?? 'Deal Notifications'}',
-            subtitle: localizations?.translate('deals') ?? 'Deals',
-            types: [
+          _sectionGroup(
+            header: localizations?.translate('dealNotifications') ??
+                'Deal Notifications',
+            types: _visible([
               NotificationType.dealCreated,
-              NotificationType.dealUpdated,
               NotificationType.dealClosed,
               NotificationType.dealReminder,
-            ],
+            ]),
+            masterEnabled: masterEnabled,
+            localizations: localizations,
           ),
-
-          // إشعارات التقارير
-          _buildSection(
-            context: context,
-            title:
-                '📈 ${localizations?.translate('reportsNotifications') ?? 'Report Notifications'}',
-            subtitle:
-                localizations?.translate('reportsAndInsights') ??
-                'Reports & Insights',
-            types: [
+          _sectionGroup(
+            header: localizations?.translate('reportsNotifications') ??
+                'Report Notifications',
+            types: _visible([
               NotificationType.dailyReport,
               NotificationType.weeklyReport,
               NotificationType.topEmployee,
-            ],
+            ]),
+            masterEnabled: masterEnabled,
+            localizations: localizations,
           ),
-
-          // إشعارات النظام
-          _buildSection(
-            context: context,
-            title:
-                '🧾 ${localizations?.translate('systemNotifications') ?? 'System & Subscription Notifications'}',
-            subtitle:
-                localizations?.translate('systemAndSubscription') ??
-                'System & Subscription',
-            types: [
-              NotificationType.loginFromNewDevice,
-              NotificationType.systemUpdate,
+          _sectionGroup(
+            header: localizations?.translate('systemNotifications') ??
+                'System & Subscription Notifications',
+            types: _visible([
               NotificationType.subscriptionExpiring,
-              NotificationType.paymentFailed,
               NotificationType.subscriptionExpired,
-            ],
+            ]),
+            masterEnabled: masterEnabled,
+            localizations: localizations,
           ),
-
-          const SizedBox(height: 24),
-
-          // إعدادات الوقت
-          Card(
-            child: ExpansionTile(
-              leading: const Icon(Icons.access_time),
-              title: Text(
-                localizations?.translate('sendTimeSettings') ??
-                    'Send Time Settings',
-              ),
-              subtitle: Text(
-                _settings!.timeSettings.restrictTime
-                    ? (localizations?.translate('restrictedToSpecificTime') ??
-                          'Restricted to specific time')
-                    : (localizations?.translate('active24Hours') ??
-                          'Active 24 hours'),
-              ),
-              children: [
-                SwitchListTile(
-                  title: Text(
-                    localizations?.translate('restrictSendTime') ??
-                        'Restrict Send Time',
-                  ),
+          SettingsGroup(
+            header: localizations?.translate('sendTimeSettings') ??
+                'Send Time Settings',
+            footer: _settings!.timeSettings.restrictTime
+                ? (localizations?.translate('restrictedToSpecificTime') ??
+                    'Restricted to specific time')
+                : (localizations?.translate('active24Hours') ??
+                    'Active 24 hours'),
+            children: [
+              SettingsRow(
+                leading: const SettingsLeadingIcon(icon: Icons.access_time),
+                title: localizations?.translate('restrictSendTime') ??
+                    'Restrict Send Time',
+                trailing: Switch.adaptive(
                   value: _settings!.timeSettings.restrictTime,
+                  activeThumbColor: AppTheme.primaryColor,
                   onChanged: (value) {
                     setState(() {
                       _settings!.timeSettings.restrictTime = value;
@@ -294,80 +304,95 @@ class _NotificationSettingsScreenState
                     _saveSettings();
                   },
                 ),
-                if (_settings!.timeSettings.restrictTime) ...[
-                  ListTile(
-                    title: Text(
-                      localizations?.translate('startTime') ?? 'Start Time',
-                    ),
-                    trailing: Text('${_settings!.timeSettings.startHour}:00'),
-                    onTap: () => _selectTime(true),
+              ),
+              if (_settings!.timeSettings.restrictTime) ...[
+                SettingsRow(
+                  leading: const SettingsLeadingIcon(icon: Icons.schedule),
+                  title: localizations?.translate('startTime') ?? 'Start Time',
+                  trailing: Text(
+                    '${_settings!.timeSettings.startHour}:00',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppTheme.primaryColor,
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
-                  ListTile(
-                    title: Text(
-                      localizations?.translate('endTime') ?? 'End Time',
-                    ),
-                    trailing: Text('${_settings!.timeSettings.endHour}:00'),
-                    onTap: () => _selectTime(false),
+                  onTap: () => _selectTime(true),
+                ),
+                SettingsRow(
+                  leading: const SettingsLeadingIcon(icon: Icons.schedule),
+                  title: localizations?.translate('endTime') ?? 'End Time',
+                  trailing: Text(
+                    '${_settings!.timeSettings.endHour}:00',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppTheme.primaryColor,
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
-                ],
+                  onTap: () => _selectTime(false),
+                ),
               ],
-            ),
+            ],
           ),
-
         ],
       ),
     );
   }
 
-  Widget _buildSection({
-    required BuildContext context,
-    required String title,
-    required String subtitle,
+  Widget _sectionGroup({
+    required String header,
     required List<NotificationType> types,
+    required bool masterEnabled,
+    required AppLocalizations? localizations,
   }) {
-    final localizations = AppLocalizations.of(context);
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: ExpansionTile(
-        leading: Icon(
-          NotificationRouter.getIconForType(types.first),
-          color: NotificationRouter.getColorForType(types.first),
-        ),
-        title: Text(title),
-        subtitle: Text(subtitle),
-        children: types.map((type) {
-          final enabled = _settings!.isNotificationEnabled(type);
-          // الحصول على اسم النوع من الترجمة
-          final typeKey = _getNotificationTypeKey(type);
-          final typeName =
-              localizations?.translate(typeKey) ??
-              NotificationRouter.getTypeName(type);
-
-          return SwitchListTile(
-            title: Text(typeName),
-            value: enabled,
-            onChanged: _settings!.enabled
-                ? (value) {
-                    setState(() {
-                      _settings!.setNotificationEnabled(type, value);
-                    });
-                    _saveSettings();
-                  }
-                : null,
-            secondary: Icon(
-              NotificationRouter.getIconForType(type),
-              color: enabled
-                  ? NotificationRouter.getColorForType(type)
-                  : Colors.grey,
+    if (types.isEmpty) return const SizedBox.shrink();
+    return SettingsGroup(
+      header: header,
+      children: types
+          .map(
+            (type) => _typeSwitch(
+              type,
+              enabled: masterEnabled,
+              localizations: localizations,
             ),
-          );
-        }).toList(),
+          )
+          .toList(),
+    );
+  }
+
+  Widget _typeSwitch(
+    NotificationType type, {
+    required bool enabled,
+    required AppLocalizations? localizations,
+  }) {
+    final typeEnabled = _settings!.isNotificationEnabled(type);
+    final typeKey = _getNotificationTypeKey(type);
+    final typeName =
+        localizations?.translate(typeKey) ?? NotificationRouter.getTypeName(type);
+
+    return SettingsRow(
+      leading: SettingsLeadingIcon(
+        icon: NotificationRouter.getIconForType(type),
+        color: typeEnabled
+            ? NotificationRouter.getColorForType(type)
+            : Colors.grey,
+      ),
+      title: typeName,
+      enabled: enabled,
+      trailing: Switch.adaptive(
+        value: typeEnabled,
+        activeThumbColor: AppTheme.primaryColor,
+        onChanged: enabled
+            ? (value) {
+                setState(() {
+                  _settings!.setNotificationEnabled(type, value);
+                });
+                _saveSettings();
+              }
+            : null,
       ),
     );
   }
 
-  /// الحصول على مفتاح الترجمة لنوع الإشعار
   String _getNotificationTypeKey(NotificationType type) {
     switch (type) {
       case NotificationType.newLead:
@@ -473,5 +498,4 @@ class _NotificationSettingsScreenState
       _saveSettings();
     }
   }
-
 }

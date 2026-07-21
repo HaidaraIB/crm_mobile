@@ -13,31 +13,7 @@ import '../../core/utils/snackbar_helper.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
 import 'notification_settings_screen.dart';
-
-/// Icon tile used for Language / Theme / Notifications — readable on dark theme.
-Widget _settingsAccentIconBox(BuildContext context, {required Widget child}) {
-  final isDark = Theme.of(context).brightness == Brightness.dark;
-  return Container(
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: isDark
-          ? AppTheme.primaryColor.withValues(alpha: 0.30)
-          : AppTheme.primaryColor.withValues(alpha: 0.12),
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(
-        color: AppTheme.primaryColor.withValues(alpha: isDark ? 0.65 : 0.40),
-        width: isDark ? 1.5 : 1,
-      ),
-    ),
-    child: IconTheme(
-      data: IconThemeData(
-        size: 26,
-        color: isDark ? Colors.white : AppTheme.primaryColor,
-      ),
-      child: child,
-    ),
-  );
-}
+import 'widgets/settings_group.dart';
 
 class GeneralSettingsScreen extends StatefulWidget {
   const GeneralSettingsScreen({super.key});
@@ -120,312 +96,147 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
     }
   }
 
+  Future<void> _showLanguagePicker(Locale current) async {
+    final localizations = AppLocalizations.of(context);
+    final selected = await showModalBottomSheet<Locale>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) {
+        final theme = Theme.of(ctx);
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: Text(
+                  localizations?.translate('english') ?? 'English',
+                  style: theme.textTheme.bodyLarge,
+                ),
+                trailing: current.languageCode == 'en'
+                    ? Icon(Icons.check, color: AppTheme.primaryColor)
+                    : null,
+                onTap: () => Navigator.pop(ctx, AppLocales.english),
+              ),
+              ListTile(
+                title: Text(
+                  localizations?.translate('arabic') ?? 'Arabic',
+                  style: theme.textTheme.bodyLarge,
+                ),
+                trailing: current.languageCode == 'ar'
+                    ? Icon(Icons.check, color: AppTheme.primaryColor)
+                    : null,
+                onTap: () => Navigator.pop(ctx, AppLocales.arabic),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (selected != null && mounted) {
+      context.read<LanguageBloc>().add(ChangeLanguage(selected));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
-    final theme = Theme.of(context);
     final showTwoFactorSetting =
         !_isLoadingUser && (_currentUser?.canManageLoginTwoFactor ?? false);
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       children: [
-        // Language Section
-        Card(
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    _settingsAccentIconBox(
-                      context,
-                      child: const Icon(Icons.language_outlined),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            localizations?.translate('language') ?? 'Language',
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          BlocBuilder<LanguageBloc, LanguageState>(
-                            builder: (context, languageState) {
-                              return DropdownButtonFormField<Locale>(
-                                initialValue: languageState.locale,
-                                decoration: InputDecoration(
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                    borderSide: BorderSide(
-                                      color: theme.colorScheme.outline.withValues(alpha: 0.5),
-                                    ),
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                    borderSide: BorderSide(
-                                      color: theme.colorScheme.outline.withValues(alpha: 0.5),
-                                    ),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                    borderSide: BorderSide(
-                                      color: AppTheme.primaryColor,
-                                      width: 2,
-                                    ),
-                                  ),
-                                  filled: true,
-                                  fillColor: theme.colorScheme.surface,
-                                ),
-                                items: [
-                                  DropdownMenuItem<Locale>(
-                                    value: AppLocales.english,
-                                    child: Row(
-                                      children: [
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          localizations?.translate('english') ?? 'English',
-                                          style: theme.textTheme.bodyMedium,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  DropdownMenuItem<Locale>(
-                                    value: AppLocales.arabic,
-                                    child: Row(
-                                      children: [
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          localizations?.translate('arabic') ?? 'Arabic',
-                                          style: theme.textTheme.bodyMedium,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                                onChanged: (Locale? newLocale) {
-                                  if (newLocale != null) {
-                                    context.read<LanguageBloc>().add(ChangeLanguage(newLocale));
-                                  }
-                                },
-                                icon: Icon(
-                                  Icons.arrow_drop_down,
-                                  color: theme.colorScheme.onSurface,
-                                ),
-                                isExpanded: true,
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+        SettingsGroup(
+          header: localizations?.translate('preferences') ?? 'Preferences',
+          children: [
+            BlocBuilder<LanguageBloc, LanguageState>(
+              builder: (context, languageState) {
+                final isArabic = languageState.locale.languageCode == 'ar';
+                return SettingsRow(
+                  leading: const SettingsLeadingIcon(icon: Icons.language_outlined),
+                  title: localizations?.translate('language') ?? 'Language',
+                  subtitle: isArabic
+                      ? (localizations?.translate('arabic') ?? 'Arabic')
+                      : (localizations?.translate('english') ?? 'English'),
+                  trailing: const SettingsChevron(),
+                  onTap: () => _showLanguagePicker(languageState.locale),
+                );
+              },
             ),
-          ),
+            BlocBuilder<ThemeBloc, ThemeState>(
+              builder: (context, themeState) {
+                final isDarkMode = themeState.themeMode == ThemeMode.dark;
+                return SettingsRow(
+                  leading: SettingsLeadingIcon(
+                    icon: isDarkMode
+                        ? Icons.dark_mode_outlined
+                        : Icons.light_mode_outlined,
+                  ),
+                  title: localizations?.translate('theme') ?? 'Theme',
+                  subtitle: isDarkMode
+                      ? (localizations?.translate('darkMode') ?? 'Dark Mode')
+                      : (localizations?.translate('lightMode') ?? 'Light Mode'),
+                  trailing: Switch.adaptive(
+                    value: isDarkMode,
+                    activeThumbColor: AppTheme.primaryColor,
+                    onChanged: (_) {
+                      context.read<ThemeBloc>().add(const ToggleTheme());
+                    },
+                  ),
+                  onTap: () {
+                    context.read<ThemeBloc>().add(const ToggleTheme());
+                  },
+                );
+              },
+            ),
+          ],
         ),
-        const SizedBox(height: 16),
-        // Theme Section
-        Card(
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(16),
-            onTap: () {
-              context.read<ThemeBloc>().add(const ToggleTheme());
-            },
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      BlocBuilder<ThemeBloc, ThemeState>(
-                        builder: (context, themeState) {
-                          final isDarkMode = themeState.themeMode == ThemeMode.dark;
-                          return _settingsAccentIconBox(
-                            context,
-                            child: Icon(
-                              isDarkMode
-                                  ? Icons.dark_mode_outlined
-                                  : Icons.light_mode_outlined,
-                            ),
-                          );
-                        },
+        if (showTwoFactorSetting)
+          SettingsGroup(
+            header: localizations?.translate('security') ?? 'Security',
+            footer: localizations?.translate('loginTwoFactorSettingHint') ??
+                'When enabled, you will receive a verification code by email each time you sign in on a new device.',
+            children: [
+              SettingsRow(
+                leading: const SettingsLeadingIcon(icon: Icons.security_outlined),
+                title: localizations?.translate('loginTwoFactorSettingTitle') ??
+                    'Require two-factor authentication at login',
+                trailing: _isUpdatingTwoFactor
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Switch.adaptive(
+                        value: _loginTwoFactorEnabled,
+                        activeThumbColor: AppTheme.primaryColor,
+                        onChanged: _handleLoginTwoFactorToggle,
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              localizations?.translate('theme') ?? 'Theme',
-                              style: theme.textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            BlocBuilder<ThemeBloc, ThemeState>(
-                              builder: (context, themeState) {
-                                final isDarkMode = themeState.themeMode == ThemeMode.dark;
-                                return Text(
-                                  isDarkMode
-                                      ? (localizations?.translate('darkMode') ?? 'Dark Mode')
-                                      : (localizations?.translate('lightMode') ?? 'Light Mode'),
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      BlocBuilder<ThemeBloc, ThemeState>(
-                        builder: (context, themeState) {
-                          final isDarkMode = themeState.themeMode == ThemeMode.dark;
-                          return Switch(
-                            value: isDarkMode,
-                            onChanged: (value) {
-                              context.read<ThemeBloc>().add(const ToggleTheme());
-                            },
-                            activeThumbColor: AppTheme.primaryColor,
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ],
               ),
-            ),
+            ],
           ),
-        ),
-        const SizedBox(height: 16),
-        if (showTwoFactorSetting) ...[
-          Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+        SettingsGroup(
+          header: localizations?.translate('notifications') ?? 'Notifications',
+          children: [
+            SettingsRow(
+              leading: const SettingsLeadingIcon(icon: Icons.notifications_outlined),
+              title: localizations?.translate('notificationSettings') ??
+                  'Notification Settings',
+              subtitle: localizations?.translate('customizeNotificationsByTypeAndTime') ??
+                  'Customize notifications by type and time',
+              trailing: const SettingsChevron(),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const NotificationSettingsScreen(),
+                  ),
+                );
+              },
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _settingsAccentIconBox(
-                    context,
-                    child: const Icon(Icons.security_outlined),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          localizations?.translate('loginTwoFactorSettingTitle') ??
-                              'Require two-factor authentication at login',
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          localizations?.translate('loginTwoFactorSettingHint') ??
-                              'When enabled, you will receive a verification code by email each time you sign in on a new device.',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  _isUpdatingTwoFactor
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Switch(
-                          value: _loginTwoFactorEnabled,
-                          onChanged: _handleLoginTwoFactorToggle,
-                          activeThumbColor: AppTheme.primaryColor,
-                        ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-        ],
-        // Notifications Section
-        Card(
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(16),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const NotificationSettingsScreen(),
-                ),
-              );
-            },
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                children: [
-                  _settingsAccentIconBox(
-                    context,
-                    child: const Icon(Icons.notifications_outlined),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          localizations?.translate('notificationSettings') ?? 'Notification Settings',
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          localizations?.translate('customizeNotificationsByTypeAndTime') ??
-                              'Customize notifications by type and time',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    Icons.arrow_forward_ios,
-                    size: 16,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          ],
         ),
       ],
     );
