@@ -39,6 +39,9 @@ class NotificationRouter {
       case NotificationType.leadStatusChanged:
       case NotificationType.leadTransferred:
       case NotificationType.teamActivity:
+      case NotificationType.teamActivityAction:
+      case NotificationType.teamActivityStatus:
+      case NotificationType.teamActivityOverdue:
         final leadId = _intFromPayload(payload.data?['lead_id']);
         if (leadId != null) {
           navigator.pushNamed('/leads/details', arguments: leadId);
@@ -188,6 +191,9 @@ class NotificationRouter {
       case NotificationType.leadReminder:
         return Icons.notifications_active;
       case NotificationType.teamActivity:
+      case NotificationType.teamActivityAction:
+      case NotificationType.teamActivityStatus:
+      case NotificationType.teamActivityOverdue:
         return Icons.groups;
       
       // إشعارات واتساب
@@ -292,6 +298,9 @@ class NotificationRouter {
       case NotificationType.leadReminder:
         return Colors.redAccent;
       case NotificationType.teamActivity:
+      case NotificationType.teamActivityAction:
+      case NotificationType.teamActivityStatus:
+      case NotificationType.teamActivityOverdue:
         return Colors.indigo;
       
       // إشعارات واتساب
@@ -396,6 +405,12 @@ class NotificationRouter {
         return 'تذكير عميل';
       case NotificationType.teamActivity:
         return 'نشاط الفريق';
+      case NotificationType.teamActivityAction:
+        return 'إجراءات الموظف';
+      case NotificationType.teamActivityStatus:
+        return 'تحديث الحالة';
+      case NotificationType.teamActivityOverdue:
+        return 'تأخر المتابعة';
       
       case NotificationType.whatsappMessageReceived:
         return 'رسالة واتساب واردة';

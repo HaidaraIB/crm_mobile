@@ -28,6 +28,7 @@ import 'package:http/http.dart' as http;
 import 'services/notification_service.dart';
 import 'services/notification_router.dart';
 import 'services/api_service.dart';
+import 'models/notification_model.dart';
 import 'services/team_chat_away_service.dart';
 import 'services/team_chat_route_observer.dart';
 import 'core/utils/snackbar_helper.dart';
@@ -233,12 +234,27 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   /// إعداد مستمع الإشعارات
   void _setupNotificationListener() {
     NotificationService().notificationStream.listen((payload) {
-      // التنقل بناءً على نوع الإشعار
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (navigatorKey.currentState != null) {
-          NotificationRouter.navigateFromNotification(navigatorKey.currentState!.context, payload);
-        }
-      });
+      _navigateFromNotificationWhenReady(payload);
+    });
+  }
+
+  Future<void> _navigateFromNotificationWhenReady(
+    NotificationPayload payload, {
+    int attempt = 0,
+  }) async {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final nav = navigatorKey.currentState;
+      if (nav != null) {
+        NotificationRouter.navigateFromNotification(nav.context, payload);
+        return;
+      }
+      if (attempt >= 20) {
+        debugPrint('Notification navigation skipped: navigator not ready');
+        return;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      if (!mounted) return;
+      _navigateFromNotificationWhenReady(payload, attempt: attempt + 1);
     });
   }
 

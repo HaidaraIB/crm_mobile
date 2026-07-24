@@ -1054,8 +1054,16 @@ class NotificationService {
         return;
       }
 
-      if (!settings.isNotificationEnabled(payload!.type)) {
-        debugPrint('⚠ Notification type ${payload.type.name} is disabled in settings');
+      final typeToCheck = payload!.type == NotificationType.teamActivity
+          ? _settingsTypeForTeamActivityAction(
+              payload.data?['action']?.toString(),
+            )
+          : payload.type;
+
+      if (!settings.isNotificationEnabled(typeToCheck) &&
+          !(payload.type == NotificationType.teamActivity &&
+              settings.isNotificationEnabled(NotificationType.teamActivity))) {
+        debugPrint('⚠ Notification type ${typeToCheck.name} is disabled in settings');
         return;
       }
 
@@ -1183,6 +1191,9 @@ class NotificationService {
         return 'tenant_chat';
 
       case NotificationType.teamActivity:
+      case NotificationType.teamActivityAction:
+      case NotificationType.teamActivityStatus:
+      case NotificationType.teamActivityOverdue:
         return _channelForTeamActivityAction(action);
 
       // إشعارات التقارير
@@ -1222,6 +1233,23 @@ class NotificationService {
         return 'deals';
       default:
         return 'team_activity';
+    }
+  }
+
+  NotificationType _settingsTypeForTeamActivityAction(String? action) {
+    switch ((action ?? '').trim().toLowerCase()) {
+      case 'status_change':
+        return NotificationType.teamActivityStatus;
+      case 'no_follow_up':
+        return NotificationType.teamActivityOverdue;
+      case 'call_logged':
+      case 'visit_logged':
+      case 'field_visit_logged':
+      case 'task_created':
+      case 'deal_won':
+        return NotificationType.teamActivityAction;
+      default:
+        return NotificationType.teamActivity;
     }
   }
 

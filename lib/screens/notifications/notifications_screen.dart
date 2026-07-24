@@ -251,12 +251,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     // التنقل إلى الشاشة المناسبة
     final typeString = notification['type'] as String? ?? 'unknown';
-    final type = NotificationType.values.firstWhere(
-      (e) => e.name == typeString,
-      orElse: () => NotificationType.unknown,
-    );
+    // API returns snake_case (team_activity); FCM/local may use camelCase.
+    final type = NotificationPayload.parseNotificationType(typeString);
 
-    final data = notification['data'] as Map<String, dynamic>? ?? {};
+    final rawData = notification['data'];
+    final data = rawData is Map
+        ? Map<String, dynamic>.from(rawData)
+        : <String, dynamic>{};
     final title = notification['title'] as String? ?? '';
     final body = notification['body'] as String? ?? '';
 

@@ -24,6 +24,12 @@ enum NotificationType {
   leadReminder, // تذكير بموعد متابعة عميل
   /// نشاط فريق الشركة (للمالك)
   teamActivity, // إشعار نشاط عضو من الفريق
+  /// إعدادات فقط: إجراءات الموظف (مكالمة / مهمة / زيارة)
+  teamActivityAction,
+  /// إعدادات فقط: تحديث حالة العميل
+  teamActivityStatus,
+  /// إعدادات فقط: تأخر المتابعة
+  teamActivityOverdue,
   
   // ==================== إشعارات واتساب (WhatsApp Automation) ====================
   /// 📨 رسالة واردة
@@ -146,6 +152,10 @@ class NotificationPayload {
 
     return NotificationType.unknown;
   }
+
+  /// Public helper for inbox / API payloads (snake_case or camelCase).
+  static NotificationType parseNotificationType(String? rawType) =>
+      _parseNotificationType(rawType);
 
   static NotificationType _resolveType(String? typeString, Map<String, dynamic> data) {
     if (data['kind'] == 'tenant_chat') return NotificationType.tenantChat;

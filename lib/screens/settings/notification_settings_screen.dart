@@ -14,12 +14,14 @@ import 'widgets/settings_group.dart';
 /// Keep enum values for future use; only show these in settings UI.
 const Set<NotificationType> kVisibleNotificationSettingsTypes = {
   NotificationType.newLead,
+  NotificationType.teamActivityAction,
+  NotificationType.teamActivityStatus,
+  NotificationType.teamActivityOverdue,
   NotificationType.leadNoFollowUp,
   NotificationType.leadStatusChanged,
   NotificationType.leadAssigned,
   NotificationType.leadTransferred,
   NotificationType.leadReminder,
-  NotificationType.teamActivity,
   NotificationType.whatsappMessageReceived,
   NotificationType.whatsappWaitingResponse,
   NotificationType.campaignLowPerformance,
@@ -192,12 +194,27 @@ class _NotificationSettingsScreenState
           ),
           SettingsGroup(
             header: localizations?.translate('companyOwnerNotifications') ??
-                'Company',
+                'Team Activity',
             footer: localizations?.translate('teamActivityHint') ??
-                'Team activity alerts for employee actions on leads, including overdue follow-ups.',
+                'Owner alerts for new leads, employee actions, status changes, and overdue follow-ups.',
             children: [
               _typeSwitch(
-                NotificationType.teamActivity,
+                NotificationType.newLead,
+                enabled: masterEnabled,
+                localizations: localizations,
+              ),
+              _typeSwitch(
+                NotificationType.teamActivityAction,
+                enabled: masterEnabled,
+                localizations: localizations,
+              ),
+              _typeSwitch(
+                NotificationType.teamActivityStatus,
+                enabled: masterEnabled,
+                localizations: localizations,
+              ),
+              _typeSwitch(
+                NotificationType.teamActivityOverdue,
                 enabled: masterEnabled,
                 localizations: localizations,
               ),
@@ -207,7 +224,6 @@ class _NotificationSettingsScreenState
             header: localizations?.translate('leadNotifications') ??
                 'Lead Notifications',
             types: _visible([
-              NotificationType.newLead,
               NotificationType.leadNoFollowUp,
               NotificationType.leadStatusChanged,
               NotificationType.leadAssigned,
@@ -415,6 +431,12 @@ class _NotificationSettingsScreenState
         return 'leadReminder';
       case NotificationType.teamActivity:
         return 'teamActivity';
+      case NotificationType.teamActivityAction:
+        return 'teamActivityAction';
+      case NotificationType.teamActivityStatus:
+        return 'teamActivityStatus';
+      case NotificationType.teamActivityOverdue:
+        return 'teamActivityOverdue';
       case NotificationType.whatsappMessageReceived:
         return 'whatsappMessageReceived';
       case NotificationType.whatsappTemplateSent:
