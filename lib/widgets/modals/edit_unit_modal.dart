@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
+import '../app_switch.dart';
 
 class EditUnitModal extends StatefulWidget {
   final Unit unit;
@@ -624,7 +625,7 @@ class _EditUnitModalState extends State<EditUnitModal> {
                             ),
                             const SizedBox(height: 16),
                             // Sold toggle
-                            SwitchListTile(
+                            AppSwitchListTile(
                               title: Text(
                                 localizations?.translate('sold') ?? 'Sold',
                               ),

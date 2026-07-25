@@ -7,6 +7,7 @@ import '../../../core/utils/snackbar_helper.dart';
 import '../../../models/settings_model.dart';
 import '../../../services/api_service.dart';
 import '../../../services/error_logger.dart';
+import '../../../widgets/app_switch.dart';
 
 class EditStatusModal extends StatefulWidget {
   final StatusModel status;
@@ -386,7 +387,7 @@ class _EditStatusModalState extends State<EditStatusModal> {
                         ),
                         const SizedBox(height: 16),
                         // Is Default
-                        SwitchListTile(
+                        AppSwitchListTile(
                           title: Text(localizations?.translate('default') ?? 'Default'),
                           value: _isDefault,
                           onChanged: (value) {
@@ -396,7 +397,7 @@ class _EditStatusModalState extends State<EditStatusModal> {
                           },
                         ),
                         // Is Hidden
-                        SwitchListTile(
+                        AppSwitchListTile(
                           title: Text(localizations?.translate('hidden') ?? 'Hidden'),
                           value: _isHidden,
                           onChanged: (value) {

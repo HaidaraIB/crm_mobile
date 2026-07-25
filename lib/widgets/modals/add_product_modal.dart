@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
+import '../app_switch.dart';
 
 class AddProductModal extends StatefulWidget {
   final Function(Product)? onProductCreated;
@@ -392,7 +393,7 @@ class _AddProductModalState extends State<AddProductModal> {
                             ),
                             const SizedBox(height: 16),
                             // Active toggle
-                            SwitchListTile(
+                            AppSwitchListTile(
                               title: Text(localizations?.translate('active') ?? 'Active'),
                               value: _isActive,
                               onChanged: (value) {

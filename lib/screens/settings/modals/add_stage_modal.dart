@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/snackbar_helper.dart';
 import '../../../services/api_service.dart';
 import '../../../services/error_logger.dart';
+import '../../../widgets/app_switch.dart';
 
 class AddStageModal extends StatefulWidget {
   final VoidCallback? onStageCreated;
@@ -245,7 +246,7 @@ class _AddStageModalState extends State<AddStageModal> {
                         ),
                         const SizedBox(height: 16),
                         // Required
-                        SwitchListTile(
+                        AppSwitchListTile(
                           title: Text(localizations?.translate('required') ?? 'Required'),
                           value: _isRequired,
                           onChanged: (value) {
@@ -255,7 +256,7 @@ class _AddStageModalState extends State<AddStageModal> {
                           },
                         ),
                         // Auto Advance
-                        SwitchListTile(
+                        AppSwitchListTile(
                           title: Text(localizations?.translate('autoAdvance') ?? 'Auto Advance'),
                           value: _autoAdvance,
                           onChanged: (value) {
@@ -265,7 +266,7 @@ class _AddStageModalState extends State<AddStageModal> {
                           },
                         ),
                         // Default
-                        SwitchListTile(
+                        AppSwitchListTile(
                           title: Text(localizations?.translate('default') ?? 'Default'),
                           value: _isDefault,
                           onChanged: (value) {

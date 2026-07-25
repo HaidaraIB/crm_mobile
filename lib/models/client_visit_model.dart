@@ -2,20 +2,24 @@ class ClientVisitModel {
   final int id;
   final int client;
   final int? visitType;
+  final String? visitTypeName;
   final String summary;
   final DateTime? visitDatetime;
   final DateTime? upcomingVisitDate;
   final int createdBy;
+  final String? createdByUsername;
   final DateTime createdAt;
 
   ClientVisitModel({
     required this.id,
     required this.client,
     this.visitType,
+    this.visitTypeName,
     required this.summary,
     this.visitDatetime,
     this.upcomingVisitDate,
     required this.createdBy,
+    this.createdByUsername,
     required this.createdAt,
   });
 
@@ -28,6 +32,7 @@ class ClientVisitModel {
               ? json['visit_type'] as int
               : (json['visit_type'] as Map<String, dynamic>)['id'] as int)
           : null,
+      visitTypeName: json['visit_type_name'] as String?,
       summary: json['summary'] as String? ?? '',
       visitDatetime: json['visit_datetime'] != null
           ? DateTime.parse(json['visit_datetime'] as String)
@@ -36,6 +41,7 @@ class ClientVisitModel {
           ? DateTime.parse(json['upcoming_visit_date'] as String)
           : null,
       createdBy: json['created_by'] as int? ?? json['createdBy'] as int? ?? 0,
+      createdByUsername: json['created_by_username'] as String?,
       createdAt: DateTime.parse(
         (json['created_at'] as String?) ??
             (json['createdAt'] as String?) ??

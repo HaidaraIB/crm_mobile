@@ -24,6 +24,7 @@ import '../../widgets/modals/send_sms_modal.dart';
 import '../../widgets/modals/assign_lead_modal.dart';
 import '../../widgets/lead_contact_action_button.dart';
 import '../../widgets/lead_status_badge.dart';
+import '../../widgets/lead_assignee_badge.dart';
 import '../../widgets/scrolling_single_line_text.dart';
 import 'create_lead_screen.dart';
 import 'edit_lead_screen.dart';
@@ -77,6 +78,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
   List<StatusModel> _statuses = [];
   final Map<int, bool> _updatingStatusMap =
       {}; // Track which leads are updating status
+  final Map<int, bool> _updatingAssigneeMap = {};
   List<UserModel> _users = [];
   final Map<int, UserModel> _userCache =
       {}; // Cache for users fetched individually
@@ -171,6 +173,13 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     if (!_currentUser!.canDeleteClients) return false;
     if (_currentUser!.hasSupervisorPermission('can_manage_leads')) return true;
     return lead.assignedTo == _currentUser!.id;
+  }
+
+  /// Matches web Assign button: owner/admin or supervisor with can_manage_leads.
+  bool _canAssignLead() {
+    if (_currentUser == null) return false;
+    return _currentUser!.isAdmin ||
+        _currentUser!.hasSupervisorPermission('can_manage_leads');
   }
 
   Future<void> _loadUsers() async {
@@ -342,6 +351,58 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
           '${localizations?.translate('failedToUpdateStatus') ?? 'Failed to update status'}: ${e.toString()}',
         );
       }
+    }
+  }
+
+  Future<void> _updateAssignee(LeadModel lead, int? userId) async {
+    final currentId = lead.assignedTo > 0 ? lead.assignedTo : null;
+    if (currentId == userId) return;
+
+    if (!mounted) return;
+    setState(() {
+      _updatingAssigneeMap[lead.id] = true;
+    });
+
+    try {
+      await _apiService.assignLeads(
+        clientIds: [lead.id],
+        userId: userId,
+      );
+
+      final updatedLead = await _apiService.getLeadById(lead.id);
+
+      if (!mounted) return;
+      setState(() {
+        final index = _leads.indexWhere((l) => l.id == lead.id);
+        if (index != -1) {
+          _leads[index] = updatedLead;
+        }
+        final filteredIndex = _filteredLeads.indexWhere((l) => l.id == lead.id);
+        if (filteredIndex != -1) {
+          _filteredLeads[filteredIndex] = updatedLead;
+        }
+        _updatingAssigneeMap[lead.id] = false;
+      });
+
+      final localizations = AppLocalizations.of(context);
+      SnackbarHelper.showSuccess(
+        context,
+        userId == null
+            ? (localizations?.translate('leadsUnassignedSuccessfully') ??
+                'Leads unassigned successfully')
+            : (localizations?.translate('leadsAssignedSuccessfully') ??
+                'Leads assigned successfully'),
+        duration: const Duration(seconds: 2),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _updatingAssigneeMap[lead.id] = false;
+      });
+      SnackbarHelper.showError(
+        context,
+        ApiErrorHelper.toUserMessage(context, e),
+      );
     }
   }
 
@@ -1032,9 +1093,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
   ) {
     final canModify = _canModifyLead(lead);
     final canDelete = _canDeleteLead(lead);
-    final canAssign =
-        (_currentUser?.isAdmin ?? false) ||
-        (_currentUser?.hasSupervisorPermission('can_manage_leads') ?? false);
+    final canAssign = _canAssignLead();
     if (!canModify && !canAssign && !canDelete) return;
 
     final theme = Theme.of(context);
@@ -1271,94 +1330,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                     const SizedBox(height: 14),
 
                     /// Assigned user
-                    Center(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(context).size.width * 0.86,
-                        ),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: lead.assignedTo > 0
-                                ? (theme.brightness == Brightness.dark
-                                    ? AppTheme.primaryColor.withValues(alpha: 0.25)
-                                    : AppTheme.primaryColor)
-                                : theme.colorScheme.tertiaryContainer.withValues(
-                                    alpha: 0.85,
-                                  ),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: lead.assignedTo > 0
-                                  ? (theme.brightness == Brightness.dark
-                                      ? AppTheme.primaryColor.withValues(alpha: 0.8)
-                                      : Color.lerp(
-                                          AppTheme.primaryColor,
-                                          Colors.black,
-                                          0.18,
-                                        )!)
-                                  : Colors.transparent,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                lead.assignedTo > 0
-                                    ? Icons.person
-                                    : Icons.person_outline,
-                                size: 16,
-                                color: lead.assignedTo > 0
-                                    ? Colors.white
-                                    : theme.colorScheme.onTertiaryContainer,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text.rich(
-                                  TextSpan(
-                                    children: [
-                                      TextSpan(
-                                        text:
-                                            '${localizations?.translate('assignedTo') ?? 'Assigned To'}: ',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 12,
-                                          color: lead.assignedTo > 0
-                                              ? Colors.white
-                                              : theme
-                                                  .colorScheme
-                                                  .onTertiaryContainer,
-                                        ),
-                                      ),
-                                      TextSpan(
-                                        text: _getAssignedUserName(
-                                          lead.assignedTo > 0
-                                              ? lead.assignedTo
-                                              : null,
-                                          localizations,
-                                        ),
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 13,
-                                          color: lead.assignedTo > 0
-                                              ? Colors.white
-                                              : theme
-                                                  .colorScheme
-                                                  .onTertiaryContainer,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+                    _buildAssigneeDropdown(lead, localizations),
 
                     if (_creatorDisplayText(lead, localizations) != null) ...[
                       const SizedBox(height: 10),
@@ -1680,6 +1652,37 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       accentColor: AppTheme.primaryColor,
       label: lead.statusName!,
       parseColor: _parseColor,
+    );
+  }
+
+  Widget _buildAssigneeDropdown(LeadModel lead, AppLocalizations? localizations) {
+    final isAssigned = lead.assignedTo > 0;
+    final canAssign = _canAssignLead();
+    final labelPrefix =
+        '${localizations?.translate('assignedTo') ?? 'Assigned To'}: ';
+    final nameLabel = _getAssignedUserName(
+      isAssigned ? lead.assignedTo : null,
+      localizations,
+    );
+    final companyTz =
+        _currentUser?.company?.timezone?.trim().isNotEmpty == true
+            ? _currentUser!.company!.timezone!
+            : 'UTC';
+
+    return LeadAssigneeBadge(
+      accentColor: AppTheme.primaryColor,
+      label: '$labelPrefix$nameLabel',
+      selectedUserId: isAssigned ? lead.assignedTo : null,
+      isLoading: _updatingAssigneeMap[lead.id] ?? false,
+      unassignLabel: localizations?.translate('unassign') ?? 'Unassign',
+      weeklyDayOffLabel:
+          localizations?.translate('weeklyDayOff') ?? 'Day off',
+      companyTimeZone: companyTz,
+      users: canAssign
+          ? usersForLeadAssigneePicker(_users, currentUser: _currentUser)
+          : null,
+      onAssigneeSelected:
+          canAssign ? (userId) => _updateAssignee(lead, userId) : null,
     );
   }
 

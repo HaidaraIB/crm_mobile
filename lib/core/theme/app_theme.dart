@@ -5,6 +5,56 @@ class AppTheme {
   // Primary Purple Color
   static const Color primaryColor = Color(0xFF4215AA);
 
+  /// Lighter primary for icons/checks on dark surfaces (keeps contrast).
+  static const Color primaryAccentDark = Color(0xFFB794F6);
+
+  /// Primary accent that stays visible on the current surface brightness.
+  static Color primaryAccent(Brightness brightness) =>
+      brightness == Brightness.dark ? primaryAccentDark : primaryColor;
+
+  /// High-contrast switch colors for light/dark surfaces.
+  static SwitchThemeData switchThemeFor(Brightness brightness) {
+    final isDark = brightness == Brightness.dark;
+    return SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
+          return isDark ? const Color(0xFF6B7280) : const Color(0xFFD1D5DB);
+        }
+        if (states.contains(WidgetState.selected)) {
+          return Colors.white;
+        }
+        return isDark ? const Color(0xFFE5E7EB) : const Color(0xFFF9FAFB);
+      }),
+      trackColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
+          return isDark
+              ? const Color(0xFF374151).withValues(alpha: 0.6)
+              : const Color(0xFFE5E7EB);
+        }
+        if (states.contains(WidgetState.selected)) {
+          return primaryColor;
+        }
+        // Off track must stay clearly lighter than dark card surfaces.
+        return isDark ? const Color(0xFF6B7280) : const Color(0xFFD1D5DB);
+      }),
+      trackOutlineColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected) ||
+            states.contains(WidgetState.disabled)) {
+          return Colors.transparent;
+        }
+        return const Color(0xFF9CA3AF);
+      }),
+      overlayColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.pressed) ||
+            states.contains(WidgetState.focused) ||
+            states.contains(WidgetState.hovered)) {
+          return primaryColor.withValues(alpha: 0.12);
+        }
+        return Colors.transparent;
+      }),
+    );
+  }
+
   /// Blue color for SMS button (matches web app)
   static const Color smsButtonColor = Color(0xFF2563EB);
 
@@ -70,6 +120,7 @@ class AppTheme {
             .bodyMedium
             ?.copyWith(color: const Color(0xFF111827), fontWeight: FontWeight.w500),
       ),
+      switchTheme: switchThemeFor(Brightness.light),
     );
   }
 
@@ -166,6 +217,7 @@ class AppTheme {
         fontWeight: FontWeight.w500,
       ),
     ),
+    switchTheme: switchThemeFor(Brightness.dark),
   );
   }
 

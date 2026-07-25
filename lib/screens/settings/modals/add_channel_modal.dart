@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/snackbar_helper.dart';
 import '../../../services/api_service.dart';
 import '../../../services/error_logger.dart';
+import '../../../widgets/app_switch.dart';
 
 class AddChannelModal extends StatefulWidget {
   final VoidCallback? onChannelCreated;
@@ -272,7 +273,7 @@ class _AddChannelModalState extends State<AddChannelModal> {
                           },
                         ),
                         const SizedBox(height: 16),
-                        SwitchListTile(
+                        AppSwitchListTile(
                           title: Text(localizations?.translate('default') ?? 'Default'),
                           value: _isDefault,
                           onChanged: (value) {

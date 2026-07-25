@@ -8,14 +8,24 @@ import '../../core/utils/api_error_helper.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../core/utils/budget_range_utils.dart';
 import '../../core/utils/field_visit_access.dart';
+import '../../core/utils/lead_assignee_users.dart';
 import '../../core/utils/lead_phone_utils.dart';
 import '../../core/utils/pbx_dial_availability.dart';
 import '../../models/lead_model.dart';
+import '../../models/client_call_model.dart';
+import '../../models/client_event_model.dart';
 import '../../models/client_field_visit_model.dart';
+import '../../models/client_task_model.dart';
+import '../../models/client_visit_model.dart';
+import '../../models/lead_sms_message_model.dart';
+import '../../models/lead_whatsapp_message_model.dart';
 import '../../models/settings_model.dart';
+import '../../models/timeline_entry.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
 import '../../services/softphone_service.dart';
+import '../../utils/timeline_builder.dart';
+import '../../utils/timeline_events.dart';
 import '../../widgets/modals/assign_lead_modal.dart';
 import '../../widgets/modals/add_action_modal.dart';
 import '../../widgets/modals/add_call_modal.dart';
@@ -25,10 +35,10 @@ import '../../widgets/modals/send_sms_modal.dart';
 import '../../widgets/phone_input.dart';
 import '../../widgets/lead_contact_action_button.dart';
 import '../../widgets/lead_status_badge.dart';
+import '../../widgets/lead_assignee_badge.dart';
 import '../../widgets/scrolling_single_line_text.dart';
 import '../../widgets/lead_location_map_picker.dart';
-import '../../widgets/media/open_app_media_viewer.dart';
-import '../../core/utils/media_url_utils.dart';
+import '../../widgets/lead_timeline.dart';
 import 'edit_lead_screen.dart';
 
 class LeadProfileScreen extends StatefulWidget {
@@ -47,12 +57,17 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
   String? _errorMessage;
   List<StatusModel> _statuses = [];
   bool _isUpdatingStatus = false;
+  bool _isUpdatingAssignee = false;
   List<UserModel> _users = [];
   UserModel? _currentUser;
   bool _leadWasUpdated = false;
-  List<ClientFieldVisitModel> _fieldVisits = [];
-  bool _isLoadingFieldVisits = false;
-  String? _fieldVisitsError;
+  List<TimelineEntry> _timelineEntries = [];
+  bool _isLoadingTimeline = false;
+  String? _timelineError;
+  List<StageModel> _stages = [];
+  List<ChannelModel> _channels = [];
+  List<CallMethodModel> _callMethods = [];
+  List<VisitTypeModel> _visitTypes = [];
   final Map<String, bool> _updatingPrimaryMap = {}; // Track which phone numbers are being set as primary
   PbxDialAvailability _dialAvailability = PbxDialAvailability.unavailable;
   StreamSubscription<SoftphoneRegState>? _softphoneRegSub;
@@ -99,7 +114,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
         _currentUser = user;
       });
       await _loadPbxSettings();
-      await _loadFieldVisits();
+      await _loadTimeline();
     } catch (e) {
       debugPrint('Failed to load current user: $e');
     }
@@ -112,24 +127,104 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
 
   bool _fieldVisitsAllowed() => isFieldVisitAllowed(_currentUser?.company);
 
-  Future<void> _loadFieldVisits() async {
-    if (!_fieldVisitsAllowed() || _lead == null) return;
+  Future<void> _ensureTimelineLookups() async {
+    final futures = <Future<void>>[];
+    if (_stages.isEmpty) {
+      futures.add(() async {
+        try {
+          _stages = await _apiService.getStages();
+        } catch (_) {}
+      }());
+    }
+    if (_channels.isEmpty) {
+      futures.add(() async {
+        try {
+          _channels = await _apiService.getChannels();
+        } catch (_) {}
+      }());
+    }
+    if (_callMethods.isEmpty) {
+      futures.add(() async {
+        try {
+          _callMethods = await _apiService.getCallMethods();
+        } catch (_) {}
+      }());
+    }
+    if (_visitTypes.isEmpty && _companySupportsVisits()) {
+      futures.add(() async {
+        try {
+          _visitTypes = await _apiService.getVisitTypes();
+        } catch (_) {}
+      }());
+    }
+    if (futures.isNotEmpty) await Future.wait(futures);
+  }
+
+  Future<void> _loadTimeline() async {
+    if (_lead == null) return;
     setState(() {
-      _isLoadingFieldVisits = true;
-      _fieldVisitsError = null;
+      _isLoadingTimeline = true;
+      _timelineError = null;
     });
     try {
-      final visits = await _apiService.getClientFieldVisits(_lead!.id);
+      await _ensureTimelineLookups();
+      final leadId = _lead!.id;
+      final fieldAllowed = _fieldVisitsAllowed();
+      final supportsVisits = _companySupportsVisits();
+
+      final results = await Future.wait([
+        _apiService.getClientTasks(leadId),
+        _apiService.getClientCalls(leadId),
+        supportsVisits
+            ? _apiService.getClientVisits(leadId)
+            : Future.value(<ClientVisitModel>[]),
+        fieldAllowed
+            ? _apiService.getClientFieldVisits(leadId)
+            : Future.value(<ClientFieldVisitModel>[]),
+        _apiService.getClientEvents(leadId),
+        _apiService.getLeadSmsMessages(leadId),
+        _apiService.getLeadWhatsAppMessages(leadId),
+      ]);
+
       if (!mounted) return;
+
+      final loc = AppLocalizations.of(context);
+      final t = translateFromLocalizations(loc);
+      final lead = _lead!;
+
+      final entries = buildLeadTimeline(
+        TimelineBuilderInput(
+          tasks: results[0] as List<ClientTaskModel>,
+          calls: results[1] as List<ClientCallModel>,
+          visits: results[2] as List<ClientVisitModel>,
+          fieldVisits: results[3] as List<ClientFieldVisitModel>,
+          events: results[4] as List<ClientEventModel>,
+          smsMessages: results[5] as List<LeadSmsMessageModel>,
+          whatsappMessages: results[6] as List<LeadWhatsAppMessageModel>,
+          users: _users,
+          statuses: _statuses,
+          channels: _channels,
+          stages: _stages,
+          callMethods: _callMethods,
+          visitTypes: _visitTypes,
+          t: t,
+          locale: Localizations.localeOf(context),
+          leadContactName: lead.name,
+          leadContactPhone: lead.phone,
+          reAssignHours: _currentUser?.company?.reAssignHours,
+          fieldVisitsAllowed: fieldAllowed,
+        ),
+      );
+
       setState(() {
-        _fieldVisits = visits;
-        _isLoadingFieldVisits = false;
+        _timelineEntries = entries;
+        _isLoadingTimeline = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _fieldVisitsError = e.toString();
-        _isLoadingFieldVisits = false;
+        _timelineError = ApiErrorHelper.toUserMessage(context, e);
+        _isLoadingTimeline = false;
       });
     }
   }
@@ -152,6 +247,56 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
     if (!_currentUser!.canDeleteClients) return false;
     if (_currentUser!.hasSupervisorPermission('can_manage_leads')) return true;
     return _lead!.assignedTo == _currentUser!.id;
+  }
+
+  /// Matches web Assign button: owner/admin or supervisor with can_manage_leads.
+  bool _canAssignLead() {
+    if (_currentUser == null) return false;
+    return _currentUser!.isAdmin ||
+        _currentUser!.hasSupervisorPermission('can_manage_leads');
+  }
+
+  Future<void> _updateAssignee(int? userId) async {
+    if (_lead == null) return;
+    final currentId = _lead!.assignedTo > 0 ? _lead!.assignedTo : null;
+    if (currentId == userId) return;
+
+    setState(() {
+      _isUpdatingAssignee = true;
+    });
+
+    try {
+      await _apiService.assignLeads(
+        clientIds: [_lead!.id],
+        userId: userId,
+      );
+      await _loadLead();
+      await _loadTimeline();
+      if (!mounted) return;
+      setState(() {
+        _isUpdatingAssignee = false;
+        _leadWasUpdated = true;
+      });
+      final localizations = AppLocalizations.of(context);
+      SnackbarHelper.showSuccess(
+        context,
+        userId == null
+            ? (localizations?.translate('leadsUnassignedSuccessfully') ??
+                'Leads unassigned successfully')
+            : (localizations?.translate('leadsAssignedSuccessfully') ??
+                'Leads assigned successfully'),
+        duration: const Duration(seconds: 2),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isUpdatingAssignee = false;
+      });
+      SnackbarHelper.showError(
+        context,
+        ApiErrorHelper.toUserMessage(context, e),
+      );
+    }
   }
   
   Future<void> _loadUsers() async {
@@ -270,6 +415,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
         _isUpdatingStatus = false;
         _leadWasUpdated = true;
       });
+      await _loadTimeline();
       
       if (mounted) {
         final localizations = AppLocalizations.of(context);
@@ -350,7 +496,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
         _lead = lead;
         _isLoading = false;
       });
-      await _loadFieldVisits();
+      await _loadTimeline();
     } catch (e) {
       setState(() {
         _errorMessage = ApiErrorHelper.toUserMessage(context, e);
@@ -544,7 +690,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
               itemBuilder: (context) {
                 final canModify = _canModifyLead();
                 final canDelete = _canDeleteLead();
-                final canAssign = (_currentUser?.isAdmin ?? false) || (_currentUser?.hasSupervisorPermission('can_manage_leads') ?? false);
+                final canAssign = _canAssignLead();
                 return [
                   if (canModify)
                     PopupMenuItem(
@@ -701,80 +847,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                   else if (_lead!.statusName != null)
                     _buildStatusDisplay(localizations),
                   const SizedBox(height: 14),
-                  Center(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: MediaQuery.of(context).size.width * 0.86,
-                      ),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: _lead!.assignedTo > 0
-                              ? (theme.brightness == Brightness.dark
-                                  ? AppTheme.primaryColor.withValues(alpha: 0.25)
-                                  : AppTheme.primaryColor)
-                              : theme.colorScheme.tertiaryContainer.withValues(alpha: 0.85),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: _lead!.assignedTo > 0
-                                ? (theme.brightness == Brightness.dark
-                                    ? AppTheme.primaryColor.withValues(alpha: 0.8)
-                                    : Color.lerp(
-                                        AppTheme.primaryColor,
-                                        Colors.black,
-                                        0.18,
-                                      )!)
-                                : Colors.transparent,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              _lead!.assignedTo > 0 ? Icons.person : Icons.person_outline,
-                              size: 16,
-                              color: _lead!.assignedTo > 0
-                                  ? Colors.white
-                                  : theme.colorScheme.onTertiaryContainer,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text.rich(
-                                TextSpan(
-                                  children: [
-                                    TextSpan(
-                                      text: '${localizations?.translate('assignedTo') ?? 'Assigned To'}: ',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 12,
-                                        color: _lead!.assignedTo > 0
-                                            ? Colors.white
-                                            : theme.colorScheme.onTertiaryContainer,
-                                      ),
-                                    ),
-                                    TextSpan(
-                                      text: _getAssignedUserName(
-                                        _lead!.assignedTo > 0 ? _lead!.assignedTo : null,
-                                        localizations,
-                                      ),
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 13,
-                                        color: _lead!.assignedTo > 0
-                                            ? Colors.white
-                                            : theme.colorScheme.onTertiaryContainer,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+                  _buildAssigneeDropdown(context, localizations),
                   if (_creatorHeaderText(_lead!, localizations) != null) ...[
                     const SizedBox(height: 10),
                     Center(
@@ -992,7 +1065,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                                   builder: (context) => AddFieldVisitModal(
                                     leadId: _lead!.id,
                                     leadName: _lead!.name,
-                                    onSave: _loadFieldVisits,
+                                    onSave: _loadTimeline,
                                   ),
                                 );
                               },
@@ -1041,7 +1114,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                             builder: (context) => AddFieldVisitModal(
                               leadId: _lead!.id,
                               leadName: _lead!.name,
-                              onSave: _loadFieldVisits,
+                              onSave: _loadTimeline,
                             ),
                           );
                         },
@@ -1330,183 +1403,221 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
               onChanged: (_, __) {},
             ),
           ],
-          if (_fieldVisitsAllowed()) ...[
-            const SizedBox(height: 28),
-            _buildFieldVisitsSection(localizations),
-          ],
+          const SizedBox(height: 20),
+          _buildViewTimelineButton(localizations),
         ],
       ),
     );
   }
 
-  Widget _buildFieldVisitsSection(AppLocalizations? localizations) {
+  Widget _buildViewTimelineButton(AppLocalizations? localizations) {
     final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          localizations?.translate('fieldVisitHistory') ?? 'Field visits',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: theme.textTheme.titleLarge?.color ?? theme.colorScheme.onSurface,
-            letterSpacing: -0.3,
-          ),
-        ),
-        const SizedBox(height: 12),
-        if (_isLoadingFieldVisits)
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: CircularProgressIndicator(),
-            ),
-          )
-        else if (_fieldVisitsError != null)
-          Text(
-            _fieldVisitsError!,
-            style: TextStyle(color: Colors.red[700]),
-          )
-        else if (_fieldVisits.isEmpty)
-          Text(
-            localizations?.translate('noFieldVisitsYet') ?? 'No field visits yet',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          )
-        else
-          ..._fieldVisits.map((visit) => _buildFieldVisitCard(visit, localizations)),
-      ],
-    );
-  }
+    final isDark = theme.brightness == Brightness.dark;
+    final isArabic = localizations?.isRTL == true;
+    final count = _timelineEntries.length;
 
-  Widget _buildFieldVisitCard(
-    ClientFieldVisitModel visit,
-    AppLocalizations? localizations,
-  ) {
-    final theme = Theme.of(context);
-    final photoUrl = visit.clientLocationPhotoUrl;
-    final visitDate = visit.visitDatetime;
-    final upcoming = visit.upcomingVisitDate;
+    String loc(String key, String en, String ar) {
+      final v = localizations?.translate(key);
+      if (v == null || v.isEmpty || v == key) {
+        return isArabic ? ar : en;
+      }
+      return v;
+    }
 
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
+    final title = loc('timeline', 'Timeline', 'السجل الزمني');
+    final String subtitle;
+    if (_isLoadingTimeline) {
+      subtitle = loc('loading', 'Loading...', 'جاري التحميل...');
+    } else if (count > 0) {
+      final countLabel = loc(
+        'timelineEventsCount',
+        '{count} events',
+        '{count} أحداث',
+      ).replaceAll('{count}', '$count');
+      final openHint = loc(
+        'timelineTapToOpen',
+        'Tap to open',
+        'اضغط للفتح',
+      );
+      subtitle = '$countLabel · $openHint';
+    } else {
+      subtitle = loc(
+        'timelineEmpty',
+        'No timeline events yet.',
+        'لا توجد أحداث في السجل الزمني بعد.',
+      );
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _isLoadingTimeline ? null : _showTimelineSheet,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFF059669).withValues(alpha: 0.25),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        child: Ink(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: theme.cardColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppTheme.primaryColor.withValues(alpha: isDark ? 0.45 : 0.25),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: isDark
+                    ? Colors.black.withValues(alpha: 0.3)
+                    : Colors.black.withValues(alpha: 0.03),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          child: Row(
             children: [
-              const Icon(Icons.map_outlined, color: Color(0xFF059669), size: 20),
-              const SizedBox(width: 8),
+              Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withValues(alpha: isDark ? 0.28 : 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppTheme.primaryColor.withValues(alpha: isDark ? 0.85 : 0.35),
+                    width: isDark ? 2 : 1.5,
+                  ),
+                ),
+                child: _isLoadingTimeline
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(
+                        Icons.history,
+                        color: isDark ? Colors.white : AppTheme.primaryColor,
+                        size: 22,
+                      ),
+              ),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      visit.summary,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
+                      title,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: theme.textTheme.titleMedium?.color ??
+                            theme.colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      localizations?.translate('fieldVisitLogged') ?? 'Field visit logged',
+                      subtitle,
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    if (visit.createdByUsername != null &&
-                        visit.createdByUsername!.isNotEmpty)
-                      Text(
-                        visit.createdByUsername!,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
                   ],
                 ),
               ),
+              Icon(
+                Directionality.of(context) == TextDirection.rtl
+                    ? Icons.chevron_left
+                    : Icons.chevron_right,
+                color: isDark
+                    ? const Color(0xFFC4B5FD)
+                    : AppTheme.primaryColor,
+                size: 28,
+              ),
             ],
           ),
-          if (visitDate != null) ...[
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFF059669).withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                visitDate.toString().substring(0, 16),
-                style: const TextStyle(
-                  color: Color(0xFF059669),
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                ),
-              ),
+        ),
+      ),
+    );
+  }
+
+  void _showTimelineSheet() {
+    final theme = Theme.of(context);
+    final localizations = AppLocalizations.of(context);
+    final isArabic = localizations?.isRTL == true;
+    final sheetHeight = MediaQuery.of(context).size.height * 0.88;
+    final sheetTitle = () {
+      final v = localizations?.translate('timeline');
+      if (v == null || v.isEmpty || v == 'timeline') {
+        return isArabic ? 'السجل الزمني' : 'Timeline';
+      }
+      return v;
+    }();
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return SizedBox(
+          height: sheetHeight,
+          child: Container(
+            decoration: BoxDecoration(
+              color: theme.scaffoldBackgroundColor,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(20)),
             ),
-          ],
-          if (upcoming != null) ...[
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(
-                  Icons.event_available,
-                  size: 16,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    '${localizations?.translate('upcomingVisitDate') ?? 'Next visit'}: '
-                    '${upcoming.toString().substring(0, 16)}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: theme.colorScheme.onSurfaceVariant,
+            child: SafeArea(
+              top: false,
+              child: Column(
+                children: [
+                  const SizedBox(height: 10),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: theme.iconTheme.color?.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                ),
-              ],
-            ),
-          ],
-          if (photoUrl != null && photoUrl.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            GestureDetector(
-              onTap: () {
-                final resolved = resolveMediaUrl(photoUrl);
-                if (resolved == null) return;
-                openAppImageViewer(
-                  context,
-                  imageUrl: resolved,
-                  suggestedFilename: mediaFilenameFromUrl(resolved),
-                );
-              },
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  photoUrl,
-                  height: 120,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 40),
+                        Expanded(
+                          child: Text(
+                            sheetTitle,
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip:
+                              localizations?.translate('cancel') ?? 'Close',
+                          onPressed: () => Navigator.pop(sheetContext),
+                          icon: const Icon(Icons.close),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: LeadTimeline(
+                      entries: _timelineEntries,
+                      isLoading: _isLoadingTimeline,
+                      errorMessage: _timelineError,
+                      scrollable: true,
+                      showSectionTitle: false,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ],
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -2250,6 +2361,36 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
     );
   }
   
+  Widget _buildAssigneeDropdown(BuildContext context, AppLocalizations? localizations) {
+    final isAssigned = _lead!.assignedTo > 0;
+    final canAssign = _canAssignLead();
+    final labelPrefix =
+        '${localizations?.translate('assignedTo') ?? 'Assigned To'}: ';
+    final nameLabel = _getAssignedUserName(
+      isAssigned ? _lead!.assignedTo : null,
+      localizations,
+    );
+    final companyTz =
+        _currentUser?.company?.timezone?.trim().isNotEmpty == true
+            ? _currentUser!.company!.timezone!
+            : 'UTC';
+
+    return LeadAssigneeBadge(
+      accentColor: AppTheme.primaryColor,
+      label: '$labelPrefix$nameLabel',
+      selectedUserId: isAssigned ? _lead!.assignedTo : null,
+      isLoading: _isUpdatingAssignee,
+      unassignLabel: localizations?.translate('unassign') ?? 'Unassign',
+      weeklyDayOffLabel:
+          localizations?.translate('weeklyDayOff') ?? 'Day off',
+      companyTimeZone: companyTz,
+      users: canAssign
+          ? usersForLeadAssigneePicker(_users, currentUser: _currentUser)
+          : null,
+      onAssigneeSelected: canAssign ? _updateAssignee : null,
+    );
+  }
+
   Widget _buildStatusDropdown(BuildContext context, AppLocalizations? localizations) {
     final currentStatus = _getCurrentStatus();
     final statusColor = currentStatus != null

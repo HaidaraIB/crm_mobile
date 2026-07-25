@@ -6,6 +6,7 @@ import '../../../core/utils/snackbar_helper.dart';
 import '../../../models/settings_model.dart';
 import '../../../services/api_service.dart';
 import '../../../services/error_logger.dart';
+import '../../../widgets/app_switch.dart';
 
 class EditVisitTypeModal extends StatefulWidget {
   final VisitTypeModel visitType;
@@ -241,7 +242,7 @@ class _EditVisitTypeModalState extends State<EditVisitTypeModal> {
                           ],
                         ),
                         const SizedBox(height: 16),
-                        SwitchListTile(
+                        AppSwitchListTile(
                           title: Text(localizations?.translate('default') ?? 'Default'),
                           value: _isDefault,
                           onChanged: (value) => setState(() => _isDefault = value),

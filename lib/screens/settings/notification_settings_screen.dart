@@ -8,6 +8,7 @@ import '../../core/localization/app_localizations.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/snackbar_helper.dart';
+import '../../widgets/app_switch.dart';
 import 'widgets/settings_group.dart';
 
 /// Notification types that are actually wired to backend events.
@@ -181,9 +182,8 @@ class _NotificationSettingsScreenState
                 subtitle: localizations
                         ?.translate('enableOrDisableAllNotifications') ??
                     'Enable or disable all notifications',
-                trailing: Switch.adaptive(
+                trailing: AppSwitch(
                   value: masterEnabled,
-                  activeThumbColor: AppTheme.primaryColor,
                   onChanged: (value) {
                     setState(() => _settings!.enabled = value);
                     _saveSettings();
@@ -310,9 +310,8 @@ class _NotificationSettingsScreenState
                 leading: const SettingsLeadingIcon(icon: Icons.access_time),
                 title: localizations?.translate('restrictSendTime') ??
                     'Restrict Send Time',
-                trailing: Switch.adaptive(
+                trailing: AppSwitch(
                   value: _settings!.timeSettings.restrictTime,
-                  activeThumbColor: AppTheme.primaryColor,
                   onChanged: (value) {
                     setState(() {
                       _settings!.timeSettings.restrictTime = value;
@@ -394,9 +393,8 @@ class _NotificationSettingsScreenState
       ),
       title: typeName,
       enabled: enabled,
-      trailing: Switch.adaptive(
+      trailing: AppSwitch(
         value: typeEnabled,
-        activeThumbColor: AppTheme.primaryColor,
         onChanged: enabled
             ? (value) {
                 setState(() {

@@ -13,6 +13,7 @@ import '../../core/utils/snackbar_helper.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
 import 'notification_settings_screen.dart';
+import '../../widgets/app_switch.dart';
 import 'widgets/settings_group.dart';
 
 class GeneralSettingsScreen extends StatefulWidget {
@@ -103,6 +104,7 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
       showDragHandle: true,
       builder: (ctx) {
         final theme = Theme.of(ctx);
+        final checkColor = AppTheme.primaryAccent(theme.brightness);
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -113,7 +115,7 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
                   style: theme.textTheme.bodyLarge,
                 ),
                 trailing: current.languageCode == 'en'
-                    ? Icon(Icons.check, color: AppTheme.primaryColor)
+                    ? Icon(Icons.check, color: checkColor)
                     : null,
                 onTap: () => Navigator.pop(ctx, AppLocales.english),
               ),
@@ -123,7 +125,7 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
                   style: theme.textTheme.bodyLarge,
                 ),
                 trailing: current.languageCode == 'ar'
-                    ? Icon(Icons.check, color: AppTheme.primaryColor)
+                    ? Icon(Icons.check, color: checkColor)
                     : null,
                 onTap: () => Navigator.pop(ctx, AppLocales.arabic),
               ),
@@ -178,9 +180,8 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
                   subtitle: isDarkMode
                       ? (localizations?.translate('darkMode') ?? 'Dark Mode')
                       : (localizations?.translate('lightMode') ?? 'Light Mode'),
-                  trailing: Switch.adaptive(
+                  trailing: AppSwitch(
                     value: isDarkMode,
-                    activeThumbColor: AppTheme.primaryColor,
                     onChanged: (_) {
                       context.read<ThemeBloc>().add(const ToggleTheme());
                     },
@@ -209,9 +210,8 @@ class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
                         height: 22,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : Switch.adaptive(
+                    : AppSwitch(
                         value: _loginTwoFactorEnabled,
-                        activeThumbColor: AppTheme.primaryColor,
                         onChanged: _handleLoginTwoFactorToggle,
                       ),
               ),

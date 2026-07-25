@@ -22,6 +22,8 @@ class UserModel {
   final bool? loginTwoFactorEnabled;
   /// When true, employee/supervisor may delete customers (clients).
   final bool canDeleteClients;
+  /// Account active flag from API (`is_active`). Defaults true when omitted.
+  final bool isActive;
 
   UserModel({
     required this.id,
@@ -43,6 +45,7 @@ class UserModel {
     this.isCompanyOwner,
     this.loginTwoFactorEnabled,
     this.canDeleteClients = false,
+    this.isActive = true,
   });
 
   // Check if user is admin (handles multiple role formats)
@@ -166,6 +169,7 @@ class UserModel {
       isCompanyOwner: json['is_company_owner'] as bool? ?? json['isCompanyOwner'] as bool?,
       loginTwoFactorEnabled: json['login_two_factor_enabled'] as bool? ?? json['loginTwoFactorEnabled'] as bool?,
       canDeleteClients: json['can_delete_clients'] == true || json['canDeleteClients'] == true,
+      isActive: json['is_active'] as bool? ?? json['isActive'] as bool? ?? true,
     );
   }
   
@@ -189,6 +193,7 @@ class UserModel {
       if (isCompanyOwner != null) 'is_company_owner': isCompanyOwner,
       if (loginTwoFactorEnabled != null) 'login_two_factor_enabled': loginTwoFactorEnabled,
       'can_delete_clients': canDeleteClients,
+      'is_active': isActive,
     };
   }
 }

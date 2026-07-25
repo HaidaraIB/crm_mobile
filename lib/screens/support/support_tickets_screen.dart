@@ -84,13 +84,13 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
   }
 
   Future<void> _submitTicket() async {
+    if (_isSubmitting) return;
     if (!_formKey.currentState!.validate()) return;
     final title = _titleController.text.trim();
     final description = _descriptionController.text.trim();
     if (title.isEmpty || description.isEmpty) return;
-    setState(() {
-      _isSubmitting = true;
-    });
+    _isSubmitting = true;
+    setState(() {});
     try {
       await _apiService.createSupportTicket(
         title,
@@ -107,14 +107,10 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
       _descriptionController.clear();
       setState(() {
         _screenshotPaths = [];
-        _isSubmitting = false;
       });
       _loadTickets();
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _isSubmitting = false;
-        });
         SnackbarHelper.showError(
           context,
           AppLocalizations.of(
@@ -122,6 +118,14 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
               )?.translate('failedToCreateSupportTicket') ??
               'Failed to submit ticket. Please try again.',
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      } else {
+        _isSubmitting = false;
       }
     }
   }

@@ -1,0 +1,28 @@
+---
+description: Use AppSwitch / AppSwitchListTile for all toggles (dark-mode contrast)
+globs: **/*.dart
+alwaysApply: false
+---
+
+# Reusable switches (crm_mobile)
+
+Do **not** use Flutter's raw `Switch`, `Switch.adaptive`, or `SwitchListTile`.
+
+They blend into dark navy cards in dark mode. Always use:
+
+- `AppSwitch` — standalone toggle (e.g. settings row trailing)
+- `AppSwitchListTile` — labeled toggle row in forms/modals
+
+Import: `package:crm_mobile/widgets/app_switch.dart` (or a relative path to `lib/widgets/app_switch.dart`).
+
+```dart
+// ❌ BAD
+Switch.adaptive(value: enabled, onChanged: onChanged)
+SwitchListTile(title: Text('Active'), value: enabled, onChanged: onChanged)
+
+// ✅ GOOD
+AppSwitch(value: enabled, onChanged: onChanged)
+AppSwitchListTile(title: Text('Active'), value: enabled, onChanged: onChanged)
+```
+
+Theme colors live in `AppTheme.switchThemeFor` — do not invent one-off switch colors.

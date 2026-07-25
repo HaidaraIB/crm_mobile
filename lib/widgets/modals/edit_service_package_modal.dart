@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
+import '../app_switch.dart';
 
 class EditServicePackageModal extends StatefulWidget {
   final ServicePackage package;
@@ -278,7 +279,7 @@ class _EditServicePackageModalState extends State<EditServicePackageModal> {
                             ),
                             const SizedBox(height: 16),
                             // Active toggle
-                            SwitchListTile(
+                            AppSwitchListTile(
                               title: Text(localizations?.translate('active') ?? 'Active'),
                               value: _isActive,
                               onChanged: (value) {

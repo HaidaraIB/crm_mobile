@@ -4,6 +4,7 @@ import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/api_error_helper.dart';
 import '../../core/utils/app_locales.dart';
+import '../../core/utils/snackbar_helper.dart';
 import '../../models/lead_model.dart';
 import '../../services/api_service.dart';
 import '../leads/lead_profile_screen.dart';
@@ -112,7 +113,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
         if (task.reminderDate != null && dealMap.containsKey(task.deal)) {
           final dealInfo = dealMap[task.deal]!;
           final clientId = dealInfo['clientId'] as int;
-          final clientName = dealInfo['clientName'] as String? ?? '';
+          final clientName = (dealInfo['clientName'] as String? ?? '').trim();
+          final resolvedName = clientName.isNotEmpty
+              ? clientName
+              : (leadMap[clientId]?.name ?? '');
 
           // Get stage name from serializer or stage map
           final stageName =
@@ -127,7 +131,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               description: task.notes,
               date: task.reminderDate!,
               leadId: clientId,
-              leadName: clientName,
+              leadName: resolvedName,
               type: 'deal_task',
             ),
           );
@@ -141,7 +145,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
         final reminderDate = dealInfo['reminderDate'] as DateTime?;
         if (reminderDate == null) continue;
         final clientId = dealInfo['clientId'] as int;
-        final clientName = dealInfo['clientName'] as String? ?? '';
+        final clientName = (dealInfo['clientName'] as String? ?? '').trim();
+        final resolvedName = clientName.isNotEmpty
+            ? clientName
+            : (leadMap[clientId]?.name ?? '');
 
         events.add(
           CalendarEvent(
@@ -154,7 +161,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 '${localizations?.translate('reminder') ?? 'Reminder'} • #$dealId',
             date: reminderDate,
             leadId: clientId,
-            leadName: clientName,
+            leadName: resolvedName,
             type: 'deal_reminder',
           ),
         );
@@ -162,8 +169,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
       // 2. Client tasks (ClientTask model)
       for (final task in clientTasks) {
-        // Only add events for tasks with reminder dates and valid leads
-        if (task.reminderDate != null && leadMap.containsKey(task.client)) {
+        // Only add open reminders with valid leads
+        if (task.isReminderOpen && leadMap.containsKey(task.client)) {
           final lead = leadMap[task.client]!;
           final stageName =
               stageMap[task.stage] ??
@@ -184,8 +191,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
       // 3. Client calls (ClientCall model)
       for (final call in clientCalls) {
-        // Only add events for calls with follow-up dates and valid leads
-        if (call.followUpDate != null && leadMap.containsKey(call.client)) {
+        // Only add open follow-ups with valid leads
+        if (call.isFollowUpOpen && leadMap.containsKey(call.client)) {
           final lead = leadMap[call.client]!;
           final callMethodName = call.callMethod != null
               ? callMethodMap[call.callMethod]
@@ -336,7 +343,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                                 color: theme
                                                     .colorScheme
                                                     .onSurface
-                                                    .withValues(alpha: 0.6),
+                                                    .withValues(alpha: 0.85),
                                               ),
                                         ),
                                       ),
@@ -461,6 +468,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 date.month == DateTime.now().month &&
                 date.day == DateTime.now().day;
             final hasEvents = _getEventsForDate(date).isNotEmpty;
+            // Dark purple (#4215AA) is unreadable on dark navy; use a lighter
+            // accent for rings, today text, and event dots in dark mode.
+            final isDark = theme.brightness == Brightness.dark;
+            final accentColor = isDark
+                ? const Color(0xFFB794F6)
+                : AppTheme.primaryColor;
+            final dayTextColor = isDark
+                ? const Color(0xFFF3F4F6)
+                : theme.colorScheme.onSurface;
 
             return Expanded(
               child: GestureDetector(
@@ -475,11 +491,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     color: isSelected
                         ? AppTheme.primaryColor
                         : (isToday
-                              ? AppTheme.primaryColor.withValues(alpha: 0.1)
+                              ? accentColor.withValues(alpha: 0.2)
                               : Colors.transparent),
                     shape: BoxShape.circle,
                     border: isToday && !isSelected
-                        ? Border.all(color: AppTheme.primaryColor, width: 2)
+                        ? Border.all(color: accentColor, width: 2)
                         : null,
                   ),
                   child: Column(
@@ -490,9 +506,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: isSelected
                               ? Colors.white
-                              : (isToday
-                                    ? AppTheme.primaryColor
-                                    : theme.colorScheme.onSurface),
+                              : (isToday ? accentColor : dayTextColor),
                           fontWeight: isSelected || isToday
                               ? FontWeight.bold
                               : FontWeight.normal,
@@ -504,9 +518,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           width: 4,
                           height: 4,
                           decoration: BoxDecoration(
-                            color: isSelected
-                                ? Colors.white
-                                : AppTheme.primaryColor,
+                            color: isSelected ? Colors.white : accentColor,
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -521,6 +533,32 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
+  Future<void> _markEventDone(CalendarEvent event) async {
+    final localizations = AppLocalizations.of(context);
+    try {
+      if (event.type == 'client_call') {
+        await _apiService.completeClientCallFollowUp(event.id);
+      } else if (event.type == 'client_task') {
+        await _apiService.completeClientTaskReminder(event.id);
+      } else {
+        return;
+      }
+      if (!mounted) return;
+      setState(() {
+        _events.removeWhere(
+          (e) => e.id == event.id && e.type == event.type,
+        );
+      });
+      SnackbarHelper.showSuccess(
+        context,
+        localizations?.translate('markedAsDone') ?? 'Marked as done',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      SnackbarHelper.showError(context, _mapReadableError(e));
+    }
+  }
+
   Widget _buildEventCard(CalendarEvent event, ThemeData theme) {
     final localizations = AppLocalizations.of(context);
     final timeFormat = DateFormat(
@@ -528,160 +566,233 @@ class _CalendarScreenState extends State<CalendarScreen> {
       AppLocales.intlDateFormat(localizations?.locale ?? AppLocales.english),
     );
 
-    // Determine icon and color based on event type
-    IconData eventIcon;
-    Color eventColor;
-    String typeLabel;
+    late final IconData eventIcon;
+    late final Color eventColor;
+    late final String typeLabel;
 
     switch (event.type) {
       case 'deal_task':
-        eventIcon = Icons.task;
-        eventColor = Colors.blue;
-        typeLabel =
-            localizations?.translate('deal') ??
-            localizations?.translate('deals') ??
-            'Deal Task';
-        break;
-      case 'deal_reminder':
-        eventIcon = Icons.alarm;
-        eventColor = Colors.orange;
+        eventIcon = Icons.assignment_outlined;
+        eventColor = const Color(0xFF3B82F6); // blue-500
         typeLabel =
             localizations?.translate('deal') ??
             localizations?.translate('deals') ??
             'Deal';
         break;
-      case 'client_task':
-        eventIcon = Icons.check_circle;
-        eventColor = Colors.purple;
+      case 'deal_reminder':
+        eventIcon = Icons.alarm_outlined;
+        eventColor = const Color(0xFFF59E0B); // amber-500
         typeLabel =
-            localizations?.translate('addAction') ??
+            localizations?.translate('dealReminder') ??
+            localizations?.translate('reminder') ??
+            'Reminder';
+        break;
+      case 'client_task':
+        eventIcon = Icons.checklist_rtl_rounded;
+        eventColor = AppTheme.primaryColor;
+        // Use "Action" (إجراء), not "Add Action" — badge is a type label, not a CTA
+        typeLabel =
             localizations?.translate('action') ??
+            localizations?.translate('addAction') ??
             'Action';
         break;
       case 'client_call':
-        eventIcon = Icons.phone;
-        eventColor = Colors.green;
+        eventIcon = Icons.phone_outlined;
+        eventColor = const Color(0xFF22C55E); // green-500
         typeLabel = localizations?.translate('call') ?? 'Call';
         break;
       default:
-        eventIcon = Icons.notifications;
+        eventIcon = Icons.notifications_outlined;
         eventColor = AppTheme.primaryColor;
         typeLabel = localizations?.translate('reminder') ?? 'Reminder';
+    }
+
+    final canMarkDone =
+        event.type == 'client_call' || event.type == 'client_task';
+    final isDark = theme.brightness == Brightness.dark;
+    final muted = theme.colorScheme.onSurface.withValues(alpha: isDark ? 0.7 : 0.6);
+    final leadLabel = event.leadName.trim().isEmpty
+        ? (localizations?.translate('unknown') ?? 'Unknown')
+        : event.leadName.trim();
+
+    // High-contrast type chip: light label on strong tint (dark), saturated on soft fill (light)
+    final Color badgeBg;
+    final Color badgeFg;
+    final Color iconBg;
+    final Color iconFg;
+    if (isDark) {
+      badgeBg = Color.alphaBlend(
+        eventColor.withValues(alpha: 0.35),
+        const Color(0xFF1F2937),
+      );
+      badgeFg = Color.lerp(eventColor, Colors.white, 0.72)!;
+      iconBg = Color.alphaBlend(
+        eventColor.withValues(alpha: 0.28),
+        const Color(0xFF1F2937),
+      );
+      iconFg = Color.lerp(eventColor, Colors.white, 0.55)!;
+    } else {
+      badgeBg = eventColor.withValues(alpha: 0.12);
+      badgeFg = Color.lerp(eventColor, Colors.black, 0.25)!;
+      iconBg = eventColor.withValues(alpha: 0.12);
+      iconFg = eventColor;
     }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       color: theme.cardColor,
-      child: ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: eventColor.withValues(alpha: 0.1),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(eventIcon, color: eventColor, size: 20),
-        ),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                event.title,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: eventColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: eventColor.withValues(alpha: 0.3),
-                  width: 1,
-                ),
-              ),
-              child: Text(
-                typeLabel,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: eventColor,
-                ),
-              ),
-            ),
-          ],
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.person,
-                  size: 14,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    event.leadName,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            if (event.description.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(
-                event.description,
-                style: theme.textTheme.bodySmall,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(
-                  Icons.access_time,
-                  size: 14,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  timeFormat.format(event.date),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        trailing: Icon(
-          Icons.chevron_right,
-          color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-        ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
         onTap: () {
-          // Navigate to lead profile
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => LeadProfileScreen(leadId: event.leadId),
             ),
           ).then((_) {
-            // Refresh events when returning from lead profile
             _loadEvents(forceRefresh: true);
           });
         },
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Type icon — fixed size for every card
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: iconBg,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(eventIcon, color: iconFg, size: 20),
+              ),
+              const SizedBox(width: 12),
+              // Content column — shared structure for all types
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Type badge first so it never floats with trailing width
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: badgeBg,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: eventColor.withValues(
+                              alpha: isDark ? 0.55 : 0.35,
+                            ),
+                          ),
+                        ),
+                        child: Text(
+                          typeLabel,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: badgeFg,
+                            height: 1.2,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      event.title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        height: 1.25,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Icon(Icons.person_outline, size: 14, color: muted),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            leadLabel,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: muted,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (event.description.trim().isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        event.description.trim(),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: isDark ? 0.82 : 0.75,
+                          ),
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Icon(Icons.access_time, size: 14, color: muted),
+                        const SizedBox(width: 4),
+                        Text(
+                          timeFormat.format(event.date),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: muted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 4),
+              // Actions — fixed slot widths so layout never shifts by type
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: canMarkDone
+                        ? IconButton(
+                            visualDensity: VisualDensity.compact,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(
+                              minWidth: 40,
+                              minHeight: 40,
+                            ),
+                            tooltip: localizations?.translate('markAsDone') ??
+                                'Done',
+                            icon: Icon(
+                              Icons.check_circle_outline,
+                              color: theme.colorScheme.primary,
+                            ),
+                            onPressed: () => _markEventDone(event),
+                          )
+                        : null,
+                  ),
+                  Icon(
+                    Icons.chevron_right,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

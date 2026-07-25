@@ -20,6 +20,9 @@ import '../models/client_task_model.dart';
 import '../models/client_call_model.dart';
 import '../models/client_visit_model.dart';
 import '../models/client_field_visit_model.dart';
+import '../models/client_event_model.dart';
+import '../models/lead_sms_message_model.dart';
+import '../models/lead_whatsapp_message_model.dart';
 import '../models/task_model.dart';
 import '../models/inventory_model.dart';
 import '../models/deal_model.dart';
@@ -2253,11 +2256,97 @@ class ApiService {
       final results = resultsList != null
           ? resultsList
                 .map((e) => ClientTaskModel.fromJson(e as Map<String, dynamic>))
+                .where((t) => t.client == leadId)
                 .toList()
           : <ClientTaskModel>[];
       return results;
     } else {
       throw Exception(_translateError('failedToGetClientTasks', locale: null));
+    }
+  }
+
+  /// GET /client-events/?client=:leadId
+  Future<List<ClientEventModel>> getClientEvents(int leadId) async {
+    final response =
+        await _makeRequest('GET', '/client-events/?client=$leadId');
+
+    if (response.statusCode == 200) {
+      final data = _unwrapResponseMap(response);
+      final resultsList = data['results'] as List?;
+      if (resultsList != null) {
+        return resultsList
+            .map((e) => ClientEventModel.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+      // Non-paginated list fallback
+      if (data['data'] is List) {
+        return (data['data'] as List)
+            .map((e) => ClientEventModel.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+      return <ClientEventModel>[];
+    } else {
+      throw Exception(_translateError('failedToGetClientEvents', locale: null));
+    }
+  }
+
+  /// GET /integrations/sms/?client=:leadId
+  Future<List<LeadSmsMessageModel>> getLeadSmsMessages(int leadId) async {
+    final response =
+        await _makeRequest('GET', '/integrations/sms/?client=$leadId');
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body);
+      if (decoded is List) {
+        return decoded
+            .map((e) => LeadSmsMessageModel.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+      final data = _unwrapResponseMap(response);
+      final resultsList = data['results'] as List?;
+      return resultsList != null
+          ? resultsList
+              .map((e) =>
+                  LeadSmsMessageModel.fromJson(e as Map<String, dynamic>))
+              .toList()
+          : <LeadSmsMessageModel>[];
+    } else {
+      throw Exception(
+        _translateError('failedToGetLeadSmsMessages', locale: null),
+      );
+    }
+  }
+
+  /// GET /integrations/whatsapp/messages/?client=:leadId
+  Future<List<LeadWhatsAppMessageModel>> getLeadWhatsAppMessages(
+    int leadId,
+  ) async {
+    final response = await _makeRequest(
+      'GET',
+      '/integrations/whatsapp/messages/?client=$leadId&page_size=200',
+    );
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body);
+      if (decoded is List) {
+        return decoded
+            .map((e) =>
+                LeadWhatsAppMessageModel.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+      final data = _unwrapResponseMap(response);
+      final resultsList = data['results'] as List?;
+      return resultsList != null
+          ? resultsList
+              .map((e) => LeadWhatsAppMessageModel.fromJson(
+                    e as Map<String, dynamic>,
+                  ))
+              .toList()
+          : <LeadWhatsAppMessageModel>[];
+    } else {
+      throw Exception(
+        _translateError('failedToGetLeadWhatsAppMessages', locale: null),
+      );
     }
   }
 
@@ -2311,6 +2400,40 @@ class ApiService {
         error['detail'] ??
             error['message'] ??
             _translateError('failedToAddCall', locale: null),
+      );
+    }
+  }
+
+  /// Mark a call follow-up as done (removes it from calendar work queues).
+  Future<void> completeClientCallFollowUp(int callId) async {
+    final response = await _makeRequest(
+      'POST',
+      '/client-calls/$callId/complete-follow-up/',
+    );
+
+    if (response.statusCode != 200) {
+      final error = _errorContextFromBody(response.body);
+      throw Exception(
+        error['detail'] ??
+            error['message'] ??
+            _translateError('failedToMarkDone', locale: null),
+      );
+    }
+  }
+
+  /// Mark a client task reminder as done (removes it from calendar work queues).
+  Future<void> completeClientTaskReminder(int taskId) async {
+    final response = await _makeRequest(
+      'POST',
+      '/client-tasks/$taskId/complete-reminder/',
+    );
+
+    if (response.statusCode != 200) {
+      final error = _errorContextFromBody(response.body);
+      throw Exception(
+        error['detail'] ??
+            error['message'] ??
+            _translateError('failedToMarkDone', locale: null),
       );
     }
   }

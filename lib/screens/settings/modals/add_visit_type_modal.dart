@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/snackbar_helper.dart';
 import '../../../services/api_service.dart';
 import '../../../services/error_logger.dart';
+import '../../../widgets/app_switch.dart';
 
 class AddVisitTypeModal extends StatefulWidget {
   final VoidCallback? onVisitTypeCreated;
@@ -224,7 +225,7 @@ class _AddVisitTypeModalState extends State<AddVisitTypeModal> {
                           ],
                         ),
                         const SizedBox(height: 16),
-                        SwitchListTile(
+                        AppSwitchListTile(
                           title: Text(localizations?.translate('default') ?? 'Default'),
                           value: _isDefault,
                           onChanged: (value) => setState(() => _isDefault = value),
