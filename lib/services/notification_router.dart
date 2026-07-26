@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/notification_model.dart';
+import 'notification_display.dart';
 
 /// مسؤول عن توجيه المستخدم إلى الشاشة المناسبة بناءً على نوع الإشعار
 class NotificationRouter {
@@ -16,6 +17,19 @@ class NotificationRouter {
     return null;
   }
 
+  /// Types that must not deep-link (recipient typically lost access to the entity).
+  static bool canNavigate(NotificationType type) {
+    switch (type) {
+      case NotificationType.leadTransferred:
+      case NotificationType.softphoneIncomingCall:
+      case NotificationType.general:
+      case NotificationType.unknown:
+        return false;
+      default:
+        return true;
+    }
+  }
+
   /// التنقل بناءً على نوع الإشعار
   /// يمكن توسيع هذه الطريقة بسهولة لإضافة أنواع جديدة من الإشعارات
   static Future<void> navigateFromNotification(
@@ -23,6 +37,7 @@ class NotificationRouter {
     NotificationPayload payload,
   ) async {
     if (context == null) return;
+    if (!canNavigate(payload.type)) return;
 
     // التحقق من أن context يحتوي على Navigator
     final navigator = Navigator.maybeOf(context);
@@ -37,7 +52,6 @@ class NotificationRouter {
       case NotificationType.leadAssigned:
       case NotificationType.leadUpdated:
       case NotificationType.leadStatusChanged:
-      case NotificationType.leadTransferred:
       case NotificationType.teamActivity:
       case NotificationType.teamActivityAction:
       case NotificationType.teamActivityStatus:
@@ -48,6 +62,10 @@ class NotificationRouter {
         } else {
           navigator.pushNamed('/leads');
         }
+        break;
+
+      case NotificationType.leadTransferred:
+        // Informational only: previous assignee usually lost view access.
         break;
 
       case NotificationType.leadNoFollowUp:
@@ -382,110 +400,44 @@ class NotificationRouter {
     }
   }
 
-  /// الحصول على اسم نوع الإشعار بالعربية
-  static String getTypeName(NotificationType type) {
-    switch (type) {
-      case NotificationType.newLead:
-        return 'عميل محتمل جديد';
-      case NotificationType.leadNoFollowUp:
-        return 'بدون متابعة';
-      case NotificationType.leadReengaged:
-        return 'إعادة تفاعل';
-      case NotificationType.leadContactFailed:
-        return 'فشل التواصل';
-      case NotificationType.leadStatusChanged:
-        return 'تغيير الحالة';
-      case NotificationType.leadAssigned:
-        return 'تعيين عميل محتمل';
-      case NotificationType.leadTransferred:
-        return 'نقل عميل محتمل';
-      case NotificationType.leadUpdated:
-        return 'تحديث عميل';
-      case NotificationType.leadReminder:
-        return 'تذكير عميل';
-      case NotificationType.teamActivity:
-        return 'نشاط الفريق';
-      case NotificationType.teamActivityAction:
-        return 'إجراءات الموظف';
-      case NotificationType.teamActivityStatus:
-        return 'تحديث الحالة';
-      case NotificationType.teamActivityOverdue:
-        return 'تأخر المتابعة';
-      
-      case NotificationType.whatsappMessageReceived:
-        return 'رسالة واتساب واردة';
-      case NotificationType.whatsappTemplateSent:
-        return 'إرسال قالب واتساب';
-      case NotificationType.whatsappSendFailed:
-        return 'فشل إرسال واتساب';
-      case NotificationType.whatsappWaitingResponse:
-        return 'بانتظار الرد';
-      
-      case NotificationType.campaignPerformance:
-        return 'أداء الحملة';
-      case NotificationType.campaignLowPerformance:
-        return 'انخفاض الأداء';
-      case NotificationType.campaignStopped:
-        return 'إيقاف حملة';
-      case NotificationType.campaignBudgetAlert:
-        return 'تنبيه الميزانية';
-      
-      case NotificationType.taskCreated:
-        return 'مهمة جديدة';
-      case NotificationType.taskCompleted:
-        return 'مهمة مكتملة';
-      case NotificationType.taskReminder:
-        return 'تذكير مهمة';
-      case NotificationType.callReminder:
-        return 'تذكير مكالمة';
-      case NotificationType.pbxIncomingCall:
-        return 'مكالمة واردة';
-      case NotificationType.pbxCallMissed:
-        return 'مكالمة فائتة';
-      case NotificationType.softphoneIncomingCall:
-        return 'مكالمة واردة (هاتف)';
-      case NotificationType.visitReminder:
-        return 'تذكير موعد زيارة';
-      case NotificationType.receptionVisitReminder:
-        return 'تذكير استقبال — موعد زيارة';
-      case NotificationType.fieldVisitReminder:
-        return 'تذكير زيارة ميدانية';
-      case NotificationType.receptionFieldVisitReminder:
-        return 'تذكير استقبال — زيارة ميدانية';
-      case NotificationType.tenantChat:
-        return 'دردشة الفريق';
+  /// Localized type label for the current UI language (falls back to AR).
+  static String getTypeName(NotificationType type, {String? languageCode}) {
+    final lang =
+        (languageCode ?? 'ar').toLowerCase().startsWith('en') ? 'en' : 'ar';
 
-      case NotificationType.dealCreated:
-        return 'صفقة جديدة';
-      case NotificationType.dealUpdated:
-        return 'تحديث صفقة';
-      case NotificationType.dealClosed:
-        return 'إغلاق صفقة';
-      case NotificationType.dealReminder:
-        return 'تذكير صفقة';
-      
-      case NotificationType.dailyReport:
-        return 'تقرير يومي';
-      case NotificationType.weeklyReport:
-        return 'تقرير أسبوعي';
-      case NotificationType.topEmployee:
-        return 'أفضل موظف';
-      
-      case NotificationType.loginFromNewDevice:
-        return 'تسجيل دخول جديد';
-      case NotificationType.systemUpdate:
-        return 'تحديث النظام';
-      case NotificationType.subscriptionExpiring:
-        return 'تنبيه الاشتراك';
-      case NotificationType.paymentFailed:
-        return 'فشل الدفع';
-      case NotificationType.subscriptionExpired:
-        return 'انتهاء الاشتراك';
-      
-      case NotificationType.general:
-        return 'إشعار عام';
-      case NotificationType.unknown:
-      return 'إشعار غير معروف';
+    // Settings-only preference keys — not inbox types.
+    if (type == NotificationType.teamActivityAction) {
+      return lang == 'en' ? 'Employee actions' : 'إجراءات الموظف';
     }
+    if (type == NotificationType.teamActivityStatus) {
+      return lang == 'en' ? 'Status updates' : 'تحديث الحالة';
+    }
+    if (type == NotificationType.teamActivityOverdue) {
+      return lang == 'en' ? 'Follow-up overdue' : 'تأخر المتابعة';
+    }
+    if (type == NotificationType.tenantChat) {
+      return lang == 'en' ? 'Team chat' : 'دردشة الفريق';
+    }
+    if (type == NotificationType.unknown) {
+      return lang == 'en' ? 'Unknown notification' : 'إشعار غير معروف';
+    }
+
+    final apiType = _typeToApiString(type);
+    return getNotificationDisplay(
+      type: apiType,
+      languageCode: languageCode,
+    ).typeLabel;
+  }
+
+  static String _typeToApiString(NotificationType type) {
+    final name = type.name;
+    final buf = StringBuffer();
+    for (var i = 0; i < name.length; i++) {
+      final ch = name[i];
+      final isUpper = ch.toUpperCase() == ch && ch.toLowerCase() != ch;
+      if (isUpper && i > 0) buf.write('_');
+      buf.write(ch.toLowerCase());
+    }
+    return buf.toString();
   }
 }

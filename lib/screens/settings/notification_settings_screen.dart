@@ -382,7 +382,11 @@ class _NotificationSettingsScreenState
     final typeEnabled = _settings!.isNotificationEnabled(type);
     final typeKey = _getNotificationTypeKey(type);
     final typeName =
-        localizations?.translate(typeKey) ?? NotificationRouter.getTypeName(type);
+        localizations?.translate(typeKey) ??
+        NotificationRouter.getTypeName(
+          type,
+          languageCode: localizations?.locale.languageCode,
+        );
 
     return SettingsRow(
       leading: SettingsLeadingIcon(

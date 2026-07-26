@@ -54,6 +54,7 @@ const _eventTypeActionKeys = <String, String>{
 const _sourceValueKeys = <String, String>{
   'custom lead api': 'leadApiSource',
   'custom api': 'leadApiSource',
+  'mujeb': 'mujebSource',
   'whatsapp': 'whatsappSource',
   'tiktok': 'tiktokSource',
   'meta': 'metaLeadForm',
@@ -327,6 +328,12 @@ String localizeTimelineEventNotes(
       final emailMatch =
           RegExp(r'email:\s*(.+)', caseSensitive: false).firstMatch(trimmed);
       final base = _tr(t, 'timelineLeadFromCustomApi');
+      return emailMatch != null ? '$base · ${emailMatch.group(1)!.trim()}' : base;
+    }
+    if (lower.contains('mujeb')) {
+      final emailMatch =
+          RegExp(r'email:\s*(.+)', caseSensitive: false).firstMatch(trimmed);
+      final base = _tr(t, 'timelineLeadFromMujeb');
       return emailMatch != null ? '$base · ${emailMatch.group(1)!.trim()}' : base;
     }
     if (lower.contains('tiktok')) return _tr(t, 'timelineLeadFromTikTok');

@@ -9,6 +9,7 @@ import '../../core/utils/app_locales.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/notification_model.dart';
 import '../../services/api_service.dart';
+import '../../services/notification_display.dart';
 import '../../services/notification_router.dart';
 
 class NotificationsScreen extends StatefulWidget {
@@ -253,6 +254,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final typeString = notification['type'] as String? ?? 'unknown';
     // API returns snake_case (team_activity); FCM/local may use camelCase.
     final type = NotificationPayload.parseNotificationType(typeString);
+    if (!NotificationRouter.canNavigate(type)) return;
 
     final rawData = notification['data'];
     final data = rawData is Map
@@ -436,21 +438,31 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   final notification = _notifications[index];
                   final isRead = notification['read'] as bool? ?? false;
                   final notificationId = notification['id'] as int?;
-                  final title = notification['title'] as String? ?? '';
-                  final body = notification['body'] as String? ?? '';
                   final typeString =
                       notification['type'] as String? ?? 'unknown';
                   final sentAt = notification['sent_at'] as String?;
+                  final data = notification['data'] is Map
+                      ? Map<String, dynamic>.from(
+                          notification['data'] as Map,
+                        )
+                      : null;
 
                   DateTime? sentDate;
                   if (sentAt != null) {
                     sentDate = DateTime.tryParse(sentAt);
                   }
 
-                  final type = NotificationType.values.firstWhere(
-                    (e) => e.name == typeString,
-                    orElse: () => NotificationType.unknown,
+                  final type = NotificationPayload.parseNotificationType(typeString);
+                  final navigable = NotificationRouter.canNavigate(type);
+                  final display = getNotificationDisplay(
+                    type: typeString,
+                    apiTitle: notification['title'] as String?,
+                    apiBody: notification['body'] as String?,
+                    data: data,
+                    languageCode: localizations?.locale.languageCode,
                   );
+                  final title = display.title;
+                  final body = display.body;
 
                   return Dismissible(
                     key: Key('notification_${notificationId ?? index}'),
@@ -531,7 +543,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                   shape: BoxShape.circle,
                                 ),
                               ),
+                        // Non-navigable types (e.g. lead_transferred): mark read only.
                         onTap: () => _onNotificationTap(notification),
+                        enabled: navigable || !isRead,
                         onLongPress: () {
                           if (notificationId != null && !isRead) {
                             _markAsRead(notificationId, index);
