@@ -2512,62 +2512,6 @@ class ApiService {
     }
   }
 
-  /// GET /integrations/pbx/softphone/config/
-  Future<Map<String, dynamic>?> getSoftphoneConfig({
-    required String platform,
-  }) async {
-    final response = await _makeRequest(
-      'GET',
-      '/integrations/pbx/softphone/config/?platform=$platform',
-    );
-    if (response.statusCode == 400 || response.statusCode == 403) {
-      return null;
-    }
-    if (response.statusCode != 200) {
-      return null;
-    }
-    final decoded = jsonDecode(response.body);
-    if (decoded is Map && decoded['data'] is Map) {
-      return Map<String, dynamic>.from(decoded['data'] as Map);
-    }
-    return null;
-  }
-
-  /// POST /integrations/pbx/softphone/devices/
-  Future<void> registerSoftphoneDevice({
-    required String platform,
-    String? fcmToken,
-    String? voipToken,
-    String? deviceId,
-  }) async {
-    final body = <String, dynamic>{
-      'platform': platform,
-      if (deviceId != null && deviceId.isNotEmpty) 'device_id': deviceId,
-      if (fcmToken != null && fcmToken.isNotEmpty) 'fcm_token': fcmToken,
-      if (voipToken != null && voipToken.isNotEmpty) 'voip_token': voipToken,
-    };
-    await _makeRequest(
-      'POST',
-      '/integrations/pbx/softphone/devices/',
-      body: body,
-    );
-  }
-
-  /// DELETE /integrations/pbx/softphone/devices/
-  Future<void> unregisterSoftphoneDevice({
-    required String platform,
-    String? deviceId,
-  }) async {
-    final params = <String>[
-      'platform=$platform',
-      if (deviceId != null && deviceId.isNotEmpty) 'device_id=$deviceId',
-    ];
-    await _makeRequest(
-      'DELETE',
-      '/integrations/pbx/softphone/devices/?${params.join('&')}',
-    );
-  }
-
   /// GET /integrations/pbx/settings/
   Future<Map<String, dynamic>?> getPbxSettings() async {
     final response = await _makeRequest('GET', '/integrations/pbx/settings/');

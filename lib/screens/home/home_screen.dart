@@ -7,10 +7,6 @@ import '../../services/notification_service.dart';
 import '../../services/api_service.dart';
 import '../../services/team_chat_away_service.dart';
 import '../../services/team_chat_unread_holder.dart';
-import '../../services/softphone_service.dart';
-import '../../services/softphone_push_handler.dart';
-import '../../widgets/softphone/softphone_battery_onboarding.dart';
-import '../../widgets/softphone/softphone_overlay.dart';
 import '../../widgets/navigation_drawer.dart';
 import '../../widgets/bottom_navigation.dart';
 import '../calendar/calendar_screen.dart';
@@ -74,11 +70,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadSessionUser();
     // إرسال FCM token للمستخدمين المسجلين دخول بالفعل
     _sendFCMTokenIfLoggedIn();
-    SoftphonePushHandler.instance.ensureListeners();
-    SoftphoneService.instance.initializeIfEnabled();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      SoftphoneBatteryOnboarding.maybeShow(context);
-    });
     // على iOS قد يتأخر استلام FCM token؛ إعادة المحاولة بعد 3 و 8 ثوانٍ لضمان حفظ التوكن في الخادم
     _scheduleFCMTokenRetries();
     // تحميل عدد الإشعارات غير المقروءة
@@ -385,21 +376,16 @@ class _HomeScreenState extends State<HomeScreen> {
           _dashboardKey.currentState?.refreshUserData();
         },
       ),
-      body: Stack(
-        children: [
-          _isDataEntry
-              ? _allLeadsScreen
-              : IndexedStack(
-                  index: _currentIndex,
-                  children: [
-                    _dashboardScreen,
-                    _allLeadsScreen,
-                    _calendarScreen,
-                  ],
-                ),
-          const SoftphoneOverlay(),
-        ],
-      ),
+      body: _isDataEntry
+          ? _allLeadsScreen
+          : IndexedStack(
+              index: _currentIndex,
+              children: [
+                _dashboardScreen,
+                _allLeadsScreen,
+                _calendarScreen,
+              ],
+            ),
       bottomNavigationBar: _isDataEntry
           ? null
           : BottomNavigation(

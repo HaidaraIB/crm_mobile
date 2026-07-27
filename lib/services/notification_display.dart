@@ -274,18 +274,6 @@ const Map<String, Map<String, _Tpl>> _templates = {
       bodyWithCampaign: null,
     ),
   },
-  'softphone_incoming_call': {
-    'ar': (
-      title: 'مكالمة واردة',
-      body: 'مكالمة واردة من {phone}',
-      bodyWithCampaign: null,
-    ),
-    'en': (
-      title: 'Incoming Call',
-      body: 'Incoming call from {phone}',
-      bodyWithCampaign: null,
-    ),
-  },
   'pbx_call_missed': {
     'ar': (
       title: 'مكالمة فائتة',
@@ -670,9 +658,7 @@ NotificationDisplay getNotificationDisplay({
   }
   final body = _format(bodyTpl, flat);
 
-  if (type == 'pbx_incoming_call' ||
-      type == 'pbx_call_missed' ||
-      type == 'softphone_incoming_call') {
+  if (type == 'pbx_incoming_call' || type == 'pbx_call_missed') {
     final phone = _s(flat['phone']).trim();
     final clientName =
         _s(flat['client_name'] ?? flat['lead_name']).trim();

@@ -21,7 +21,6 @@ class NotificationRouter {
   static bool canNavigate(NotificationType type) {
     switch (type) {
       case NotificationType.leadTransferred:
-      case NotificationType.softphoneIncomingCall:
       case NotificationType.general:
       case NotificationType.unknown:
         return false;
@@ -120,10 +119,6 @@ class NotificationRouter {
         } else {
           navigator.pushNamed('/calendar');
         }
-        break;
-
-      case NotificationType.softphoneIncomingCall:
-        // CallKit UI is shown by SoftphonePushHandler; no navigation needed.
         break;
 
       case NotificationType.pbxIncomingCall:
@@ -244,7 +239,6 @@ class NotificationRouter {
       case NotificationType.callReminder:
         return Icons.phone;
       case NotificationType.pbxIncomingCall:
-      case NotificationType.softphoneIncomingCall:
         return Icons.phone_in_talk;
       case NotificationType.pbxCallMissed:
         return Icons.phone_missed;
@@ -350,7 +344,6 @@ class NotificationRouter {
       case NotificationType.callReminder:
         return Colors.green;
       case NotificationType.pbxIncomingCall:
-      case NotificationType.softphoneIncomingCall:
         return Colors.green;
       case NotificationType.pbxCallMissed:
         return Colors.red;

@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/localization/app_localizations.dart';
@@ -15,7 +13,6 @@ import '../../models/lead_model.dart';
 import '../../models/settings_model.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
-import '../../services/softphone_service.dart';
 import '../../widgets/modals/add_action_modal.dart';
 import '../../widgets/modals/add_call_modal.dart';
 import '../../widgets/modals/add_visit_modal.dart';
@@ -84,7 +81,6 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       {}; // Cache for users fetched individually
   UserModel? _currentUser;
   PbxDialAvailability _dialAvailability = PbxDialAvailability.unavailable;
-  StreamSubscription<SoftphoneRegState>? _softphoneRegSub;
 
   // Filter state
   String? _selectedType; // 'fresh', 'cold', or null for all
@@ -105,9 +101,6 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     _loadLeads();
     _loadStatuses();
     _loadUsers();
-    _softphoneRegSub = SoftphoneService.instance.registrationState.listen((_) {
-      _loadPbxSettings();
-    });
   }
 
   Future<void> _loadPbxSettings() async {
@@ -121,7 +114,6 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
           settings: settings,
           extensions: extensions,
           currentUser: _currentUser,
-          regState: SoftphoneService.instance.currentRegState,
         );
       });
     } catch (_) {}
@@ -408,7 +400,6 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
 
   @override
   void dispose() {
-    _softphoneRegSub?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -586,27 +577,6 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
           context,
           localizations?.translate('pbxDialQueued') ??
               'Call queued — your desk phone should ring shortly.',
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        SnackbarHelper.showError(
-          context,
-          ApiErrorHelper.toUserMessage(context, e),
-        );
-      }
-    }
-  }
-
-  Future<void> _softphoneDial(String phoneNumber) async {
-    try {
-      await SoftphoneService.instance.dial(phoneNumber);
-      if (mounted) {
-        final localizations = AppLocalizations.of(context);
-        SnackbarHelper.showSuccess(
-          context,
-          localizations?.translate('softphoneCalling') ??
-              'Calling via softphone…',
         );
       }
     } catch (e) {
@@ -1311,7 +1281,6 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                             onWhatsapp: () => _openWhatsApp(resolvePrimaryPhone(lead)),
                             onCall: () => _makeCall(resolvePrimaryPhone(lead)),
                             onPbxDial: () => _pbxDial(lead.id, resolvePrimaryPhone(lead)),
-                            onSoftphoneDial: () => _softphoneDial(resolvePrimaryPhone(lead)),
                             onSms: () => _showSendSMSModal(lead),
                           ),
 
@@ -2082,7 +2051,6 @@ class _LeadQuickActions extends StatelessWidget {
   final VoidCallback onWhatsapp;
   final VoidCallback onCall;
   final VoidCallback onPbxDial;
-  final VoidCallback onSoftphoneDial;
   final VoidCallback onSms;
 
   const _LeadQuickActions({
@@ -2091,7 +2059,6 @@ class _LeadQuickActions extends StatelessWidget {
     required this.onWhatsapp,
     required this.onCall,
     required this.onPbxDial,
-    required this.onSoftphoneDial,
     required this.onSms,
   });
 
@@ -2116,15 +2083,7 @@ class _LeadQuickActions extends StatelessWidget {
           icon: Icons.phone_outlined,
           onPressed: onCall,
         ),
-        if (dialAvailability.showSoftphoneButton) ...[
-          const SizedBox(width: 8),
-          LeadContactActionButton(
-            accentColor: Colors.teal,
-            icon: Icons.phone_in_talk,
-            onPressed: onSoftphoneDial,
-            tooltip: loc?.translate('softphoneCall') ?? 'Softphone call',
-          ),
-        ] else if (dialAvailability.showPbxButton) ...[
+        if (dialAvailability.showPbxButton) ...[
           const SizedBox(width: 8),
           LeadContactActionButton(
             accentColor: Colors.indigo,

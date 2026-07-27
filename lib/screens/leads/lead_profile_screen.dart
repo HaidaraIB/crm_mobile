@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/localization/app_localizations.dart';
@@ -23,7 +21,6 @@ import '../../models/settings_model.dart';
 import '../../models/timeline_entry.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
-import '../../services/softphone_service.dart';
 import '../../utils/timeline_builder.dart';
 import '../../utils/timeline_events.dart';
 import '../../widgets/modals/assign_lead_modal.dart';
@@ -70,7 +67,6 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
   List<VisitTypeModel> _visitTypes = [];
   final Map<String, bool> _updatingPrimaryMap = {}; // Track which phone numbers are being set as primary
   PbxDialAvailability _dialAvailability = PbxDialAvailability.unavailable;
-  StreamSubscription<SoftphoneRegState>? _softphoneRegSub;
   
   @override
   void initState() {
@@ -79,15 +75,6 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
     _loadLead();
     _loadStatuses();
     _loadUsers();
-    _softphoneRegSub = SoftphoneService.instance.registrationState.listen((_) {
-      _loadPbxSettings();
-    });
-  }
-
-  @override
-  void dispose() {
-    _softphoneRegSub?.cancel();
-    super.dispose();
   }
 
   Future<void> _loadPbxSettings() async {
@@ -101,7 +88,6 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
           settings: settings,
           extensions: extensions,
           currentUser: _currentUser,
-          regState: SoftphoneService.instance.currentRegState,
         );
       });
     } catch (_) {}
@@ -524,23 +510,6 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
           context,
           AppLocalizations.of(context)?.translate('cannotMakeCall') ?? 'Could not make call',
         );
-      }
-    }
-  }
-
-  Future<void> _softphoneDial(String phoneNumber) async {
-    try {
-      await SoftphoneService.instance.dial(phoneNumber);
-      if (mounted) {
-        SnackbarHelper.showSuccess(
-          context,
-          AppLocalizations.of(context)?.translate('softphoneCalling') ??
-              'Calling via softphone…',
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        SnackbarHelper.showError(context, ApiErrorHelper.toUserMessage(context, e));
       }
     }
   }
@@ -1237,15 +1206,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
           icon: Icons.phone_outlined,
           onPressed: () => _makeCall(primaryPhone),
         ),
-        if (_dialAvailability.showSoftphoneButton) ...[
-          const SizedBox(width: 8),
-          LeadContactActionButton(
-            accentColor: Colors.teal,
-            icon: Icons.phone_in_talk,
-            onPressed: () => _softphoneDial(primaryPhone),
-            tooltip: localizations?.translate('softphoneCall') ?? 'Softphone call',
-          ),
-        ] else if (_dialAvailability.showPbxButton) ...[
+        if (_dialAvailability.showPbxButton) ...[
           const SizedBox(width: 8),
           LeadContactActionButton(
             accentColor: Colors.indigo,
@@ -1904,15 +1865,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
             icon: Icons.phone_outlined,
             onPressed: () => _makeCall(phone.phoneNumber),
           ),
-          if (_dialAvailability.showSoftphoneButton) ...[
-            const SizedBox(width: 8),
-            LeadContactActionButton(
-              accentColor: Colors.teal,
-              icon: Icons.phone_in_talk,
-              onPressed: () => _softphoneDial(phone.phoneNumber),
-              tooltip: localizations?.translate('softphoneCall') ?? 'Softphone call',
-            ),
-          ] else if (_dialAvailability.showPbxButton) ...[
+          if (_dialAvailability.showPbxButton) ...[
             const SizedBox(width: 8),
             LeadContactActionButton(
               accentColor: Colors.indigo,
