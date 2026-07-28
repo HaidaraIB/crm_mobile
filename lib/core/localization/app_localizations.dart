@@ -20,10 +20,6 @@ class AppLocalizations {
     'en': {
       // Common
       "signIn": "Sign In",
-      "register": "Register",
-      "createCompanyAccount": "Create your company account",
-      "alreadyHaveAccount": "Already have an account?",
-      "dontHaveAccount": "Don't have an account?",
       "back": "Back",
       "next": "Next",
       "skip": "Skip",
@@ -40,8 +36,6 @@ class AppLocalizations {
       "onboardingTitle4": "Secure & Protected",
       "onboardingDesc4":
           "Your data is protected with the latest security technologies. Enjoy a safe and reliable experience",
-      "companyInformation": "Company Information",
-      "ownerInformation": "Owner Information",
       "selectPlan": "Select a Plan",
       "planSelectionHint":
           "Choose the plan that fits your team. You can switch later and no payment details are required now.",
@@ -53,37 +47,14 @@ class AppLocalizations {
       "free": "Free",
       "usersIncluded": "Users",
       "clientsIncluded": "Clients",
-      "storageIncluded": "Storage",
       "trialDaysLabel": "trial days",
-      "planNoteNoPayment":
-          "We activate your chosen plan immediately—upgrade or downgrade anytime from settings.",
       "noPlansAvailable":
           "No paid plans are published yet. You can continue with the free trial.",
-      "planRequired": "Please select a plan to continue",
       "verifyPhoneWhatsApp": "Verify your phone (WhatsApp)",
       "verifyPhoneWhatsAppHint":
           "We sent a verification code to your WhatsApp. Enter it below.",
-      "verifyPhoneSms": "Verify your phone (SMS)",
       "verifyPhoneSmsHint":
           "We sent a verification code by SMS. Enter it below.",
-      "verificationCodeHintWhatsApp": "Enter the code from WhatsApp.",
-      "verificationCodeHintSms": "Enter the code from the SMS message.",
-      "phoneVerificationRequiredWhatsApp":
-          "Verify your phone via WhatsApp before completing registration.",
-      "phoneVerificationRequiredSms":
-          "Verify your phone via SMS before completing registration.",
-      "phoneVerificationRequiredGeneric":
-          "Verify your phone before completing registration.",
-      "registrationOtpDisabled":
-          "Phone verification is not enabled for registration.",
-      "phoneOtpMisconfigured":
-          "Verification is temporarily unavailable. Please try again later.",
-      "otpSendFailedGeneric": "Could not send verification code. Try again.",
-      "otpSendFailedWhatsApp":
-          "Could not send WhatsApp verification code. Try again.",
-      "otpSendFailedSms":
-          "Could not send SMS verification code. Try again.",
-      "otpRateLimitedUser": "Too many attempts. Try again later.",
       "verificationCode": "Verification code",
       "companyName": "Company Name",
       "companyNameRequired": "Company name is required",
@@ -91,13 +62,7 @@ class AppLocalizations {
       "enterLeadCompanyName": "Enter company name",
       "profession": "Profession",
       "enterProfession": "Enter profession",
-      "companyDomain": "Company Domain",
-      "companyDomainRequired": "Company domain is required",
-      "domainHint": "This will be used as your company identifier",
-      "invalidDomain": "Invalid domain format",
       "specialization": "Specialization",
-      "realEstate": "Real Estate",
-      "medicalServices": "Medical services",
       "services": "Services",
       "products": "Products",
       "firstName": "First Name",
@@ -118,11 +83,6 @@ class AppLocalizations {
       "passwordRequired": "Password is required",
       "passwordMinLength": "Password must be at least 8 characters",
       "passwordRequirements": "Password must be at least 8 characters",
-      "confirmPassword": "Confirm Password",
-      "confirmPasswordRequired": "Please confirm your password",
-      "passwordsDoNotMatch": "Passwords do not match",
-      "registrationFailed": "Registration failed. Please try again.",
-      "registrationFailedWithStatus": "Registration failed with status",
       "paymentRequiredTitle": "Complete Payment",
       "paymentRequiredMessage":
           "Your subscription requires payment to activate. Open the payment page, complete the payment, then return here and tap \"I've completed payment\".",
@@ -1325,10 +1285,6 @@ class AppLocalizations {
     'ar': {
       // Common
       "signIn": "تسجيل الدخول",
-      "register": "التسجيل",
-      "createCompanyAccount": "إنشاء حساب شركتك",
-      "alreadyHaveAccount": "هل لديك حساب بالفعل؟",
-      "dontHaveAccount": "ليس لديك حساب؟",
       "back": "رجوع",
       "next": "التالي",
       "skip": "تخطي",
@@ -1345,8 +1301,6 @@ class AppLocalizations {
       "onboardingTitle4": "آمن ومحمي",
       "onboardingDesc4":
           "بياناتك محمية بأحدث تقنيات الأمان. استمتع بتجربة آمنة وموثوقة",
-      "companyInformation": "معلومات الشركة",
-      "ownerInformation": "معلومات المالك",
       "selectPlan": "اختر خطة",
       "planSelectionHint":
           "اختر الخطة التي تناسب فريقك. يمكنك التبديل لاحقاً ولا حاجة لتفاصيل الدفع الآن.",
@@ -1358,34 +1312,13 @@ class AppLocalizations {
       "free": "مجاني",
       "usersIncluded": "المستخدمون",
       "clientsIncluded": "العملاء",
-      "storageIncluded": "التخزين",
       "trialDaysLabel": "أيام تجريبية",
-      "planNoteNoPayment":
-          "نقوم بتنشيط خطتك المختارة فوراً—يمكنك الترقية أو التخفيض في أي وقت من الإعدادات.",
       "noPlansAvailable":
           "لا توجد خطط مدفوعة منشورة بعد. يمكنك المتابعة مع الفترة التجريبية المجانية.",
-      "planRequired": "يرجى اختيار خطة للمتابعة",
       "verifyPhoneWhatsApp": "تحقق من هاتفك (واتساب)",
       "verifyPhoneWhatsAppHint": "أرسلنا رمز التحقق إلى واتساب. أدخله أدناه.",
-      "verifyPhoneSms": "تحقق من هاتفك (رسالة نصية)",
       "verifyPhoneSmsHint":
           "أرسلنا رمز التحقق عبر الرسائل النصية. أدخله أدناه.",
-      "verificationCodeHintWhatsApp": "أدخل الرمز الوارد من واتساب.",
-      "verificationCodeHintSms": "أدخل الرمز الوارد في الرسالة النصية.",
-      "phoneVerificationRequiredWhatsApp":
-          "تحقق من هاتفك عبر واتساب قبل إكمال التسجيل.",
-      "phoneVerificationRequiredSms":
-          "تحقق من هاتفك عبر الرسائل النصية قبل إكمال التسجيل.",
-      "phoneVerificationRequiredGeneric":
-          "تحقق من هاتفك قبل إكمال التسجيل.",
-      "registrationOtpDisabled": "التحقق من الهاتف غير مفعّل للتسجيل.",
-      "phoneOtpMisconfigured": "التحقق غير متاح مؤقتاً. حاول لاحقاً.",
-      "otpSendFailedGeneric": "تعذر إرسال رمز التحقق. حاول مرة أخرى.",
-      "otpSendFailedWhatsApp":
-          "تعذر إرسال رمز التحقق عبر واتساب. حاول مرة أخرى.",
-      "otpSendFailedSms":
-          "تعذر إرسال رمز التحقق عبر الرسائل النصية. حاول مرة أخرى.",
-      "otpRateLimitedUser": "محاولات كثيرة. حاول لاحقاً.",
       "verificationCode": "رمز التحقق",
       "companyName": "اسم الشركة",
       "companyNameRequired": "اسم الشركة مطلوب",
@@ -1393,13 +1326,7 @@ class AppLocalizations {
       "enterLeadCompanyName": "أدخل اسم الشركة",
       "profession": "المهنة",
       "enterProfession": "أدخل المهنة",
-      "companyDomain": "نطاق الشركة",
-      "companyDomainRequired": "نطاق الشركة مطلوب",
-      "domainHint": "سيتم استخدام هذا كمعرف لشركتك",
-      "invalidDomain": "تنسيق النطاق غير صحيح",
       "specialization": "التخصص",
-      "realEstate": "العقارات",
-      "medicalServices": "خدمات طبية",
       "services": "الخدمات",
       "products": "المنتجات",
       "firstName": "الاسم الأول",
@@ -1420,11 +1347,6 @@ class AppLocalizations {
       "passwordRequired": "كلمة المرور مطلوبة",
       "passwordMinLength": "يجب أن تكون كلمة المرور 8 أحرف على الأقل",
       "passwordRequirements": "يجب أن تكون كلمة المرور 8 أحرف على الأقل",
-      "confirmPassword": "تأكيد كلمة المرور",
-      "confirmPasswordRequired": "يرجى تأكيد كلمة المرور",
-      "passwordsDoNotMatch": "كلمات المرور غير متطابقة",
-      "registrationFailed": "فشل التسجيل. يرجى المحاولة مرة أخرى.",
-      "registrationFailedWithStatus": "فشل التسجيل مع الحالة",
       "paymentRequiredTitle": "إتمام الدفع",
       "paymentRequiredMessage":
           "اشتراكك يتطلب الدفع لتفعيله. افتح صفحة الدفع وأكمل الدفع، ثم ارجع هنا واضغط \"أكملت الدفع\".",

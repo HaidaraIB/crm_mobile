@@ -298,9 +298,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                     final reason = args?['reason'] as String?;
                     return LoginScreen(logoutReason: reason);
                   },
-                  // Registration for businesses/organizations removed for App Store compliance (Guideline 3.1.1).
-                  // Users must sign up via web; app is for existing account login only.
-                  '/register': (context) => const LoginScreen(),
                   '/home': (context) => const HomeScreen(),
                   '/settings': (context) => const SettingsScreen(),
                   '/profile': (context) => const ProfileScreen(),
