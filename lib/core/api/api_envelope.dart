@@ -219,4 +219,27 @@ class ApiEnvelope {
     final b = snakeCase.toLowerCase().replaceAll('-', '_');
     return a == b;
   }
+
+  /// Explicit inactive-subscription signals only — never bare "subscription"/"active"
+  /// (those false-match owner-only permission 403s and log staff out after login).
+  static bool isSubscriptionInactiveSignal({
+    dynamic code,
+    String? message,
+  }) {
+    if (codeEquals(code, 'subscription_inactive')) return true;
+    final lower = (message ?? '').toLowerCase();
+    return lower.contains('subscription is not active') ||
+        lower.contains('subscription is not active or has expired') ||
+        lower.contains('اشتراكك غير نشط');
+  }
+
+  static bool isAccountTemporarilyInactiveSignal({
+    dynamic code,
+    String? message,
+  }) {
+    if (codeEquals(code, 'account_temporarily_inactive')) return true;
+    return (message ?? '')
+        .toLowerCase()
+        .contains('account is temporarily inactive');
+  }
 }

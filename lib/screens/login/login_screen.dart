@@ -12,6 +12,7 @@ import '../../core/storage/auth_token_storage.dart';
 import '../../core/utils/app_locales.dart';
 import '../../core/utils/api_error_helper.dart';
 import '../../core/utils/snackbar_helper.dart';
+import '../../core/api/api_envelope.dart';
 import '../../services/api_service.dart';
 import '../../widgets/login_verification_gate_card.dart';
 import '../../models/user_model.dart';
@@ -54,9 +55,12 @@ class _LoginScreenState extends State<LoginScreen> {
     final message = reason == 'session_expired'
         ? (t?.call('sessionExpired') ?? 'Session expired. Please login again.')
         : reason == 'subscription_inactive'
-        ? (t?.call('subscriptionInactive') ??
-              'Your subscription is not active. Please contact support or renew.')
-        : null;
+            ? (t?.call('subscriptionInactive') ??
+                'Your subscription is not active. Please contact support or renew.')
+            : reason == 'account_temporarily_inactive'
+                ? (t?.call('accountTemporarilyInactive') ??
+                    'Your account is temporarily inactive')
+                : null;
     if (message != null) {
       SnackbarHelper.showError(context, message);
     }
@@ -179,11 +183,9 @@ class _LoginScreenState extends State<LoginScreen> {
             AppLocalizations.of(context)?.translate('noInternetMessage') ??
             'Please check your internet connection and try again.';
       }
-      // Check for subscription errors → redirect to complete payment
-      else if (lowerError.contains('subscription is not active') ||
-          lowerError.contains('subscription') &&
-              (lowerError.contains('not active') ||
-                  lowerError.contains('inactive')) ||
+      // Check for subscription errors → redirect to complete payment (owners only)
+      else if (e is SubscriptionInactiveException ||
+          ApiEnvelope.isSubscriptionInactiveSignal(message: lowerError) ||
           (e is Exception && _getSubscriptionId(e) != null)) {
         final subscriptionId = _getSubscriptionId(e);
         if (subscriptionId != null) {
@@ -214,7 +216,9 @@ class _LoginScreenState extends State<LoginScreen> {
         isSubscriptionError = true;
       }
       // Check for account temporarily inactive errors
-      else if (lowerError.contains('account is temporarily inactive') ||
+      else if (ApiEnvelope.isAccountTemporarilyInactiveSignal(
+            message: lowerError,
+          ) ||
           lowerError.contains('account_temporarily_inactive')) {
         if (cleanError.isNotEmpty &&
             !cleanError.toLowerCase().contains('failed to request')) {

@@ -559,21 +559,39 @@ class ApiService {
     // Skip for /users/me/ which is used to check subscription status
     if (response.statusCode == 403 && !cleanEndpoint.contains('users/me')) {
       String? errorMessage;
+      dynamic errorCode;
       try {
         final raw = ApiEnvelope.tryDecodeMap(response.body);
         if (raw != null) {
           errorMessage = ApiEnvelope.errorMessageFromRoot(raw);
+          if (raw['success'] == false && raw['error'] is Map) {
+            errorCode = (raw['error'] as Map)['code'];
+          } else {
+            errorCode = raw['code'];
+          }
         }
       } catch (_) {}
-      final lower = (errorMessage ?? '').toLowerCase();
-      final isSubscriptionInactive = lower.contains('subscription') ||
-          lower.contains('اشتراك') ||
-          lower.contains('active') ||
-          lower.contains('not active');
-      if (isSubscriptionInactive) {
+      final accountTempInactive = ApiEnvelope.isAccountTemporarilyInactiveSignal(
+        code: errorCode,
+        message: errorMessage,
+      );
+      final subscriptionInactive = ApiEnvelope.isSubscriptionInactiveSignal(
+        code: errorCode,
+        message: errorMessage,
+      );
+      if (accountTempInactive || subscriptionInactive) {
         await _savePendingSubscriptionIdIfAny();
         await _clearTokens();
-        _navigateToLogin('subscription_inactive');
+        _navigateToLogin(
+          accountTempInactive
+              ? 'account_temporarily_inactive'
+              : 'subscription_inactive',
+        );
+        if (accountTempInactive) {
+          final accountError = Exception('ACCOUNT_TEMPORARILY_INACTIVE');
+          (accountError as dynamic).code = 'ACCOUNT_TEMPORARILY_INACTIVE';
+          throw accountError;
+        }
         throw SubscriptionInactiveException(
           _translateError('subscriptionInactive', locale: null),
           subscriptionId: await _getStoredPendingSubscriptionId(),
@@ -1283,11 +1301,36 @@ class ApiService {
           } else {
             final backendError =
                 error['detail'] ?? error['error'] ?? error['message'] ?? '';
+            final backendMsg = backendError.toString();
+
+            if (ApiEnvelope.isAccountTemporarilyInactiveSignal(
+              code: error['code'],
+              message: backendMsg,
+            )) {
+              errorMessage = backendMsg.isNotEmpty
+                  ? backendMsg
+                  : _translateError(
+                      'accountTemporarilyInactive',
+                      locale: locale ?? const Locale('en'),
+                    );
+              final accountError = Exception(errorMessage);
+              (accountError as dynamic).code = 'ACCOUNT_TEMPORARILY_INACTIVE';
+              ErrorLogger().logError(
+                error: errorMessage,
+                endpoint: '/auth/login/',
+                method: 'POST',
+                requestData: {'username': username},
+                statusCode: response.statusCode,
+                responseBody: response.body,
+              );
+              throw accountError;
+            }
 
             // subscription_inactive is used for subscription gating (owners/admins).
-            if (ApiEnvelope.codeEquals(error['code'], 'subscription_inactive') ||
-                backendError.toString().toLowerCase().contains('subscription') ||
-                backendError.toString().toLowerCase().contains('not active')) {
+            if (ApiEnvelope.isSubscriptionInactiveSignal(
+              code: error['code'],
+              message: backendMsg,
+            )) {
               final subIdRaw = error['subscriptionId'] ?? error['subscription_id'];
               int? subId;
               if (subIdRaw is int) {
@@ -1298,8 +1341,8 @@ class ApiService {
                 subId = int.tryParse(subIdRaw);
               }
 
-              errorMessage = backendError.isNotEmpty
-                  ? backendError.toString()
+              errorMessage = backendMsg.isNotEmpty
+                  ? backendMsg
                   : _translateError(
                       'subscriptionNotActive',
                       locale: locale ?? const Locale('en'),
@@ -1309,8 +1352,8 @@ class ApiService {
                 subscriptionId: subId,
               );
             } else {
-              errorMessage = backendError.isNotEmpty
-                  ? backendError.toString()
+              errorMessage = backendMsg.isNotEmpty
+                  ? backendMsg
                   : _translateError(
                       'loginFailed',
                       locale: locale ?? const Locale('en'),
@@ -1452,12 +1495,16 @@ class ApiService {
           final loginVerification = LoginVerificationRequiredException.tryParse(error);
           if (loginVerification != null) {
             customException = loginVerification;
-          } else if (ApiEnvelope.codeEquals(error['code'], 'subscription_inactive') ||
-              (error['error']?.toString().toLowerCase().contains(
-                    'subscription',
-                  ) ??
-                  false) ||
-              backendErrorMessage.toLowerCase().contains('subscription')) {
+          } else if (ApiEnvelope.isAccountTemporarilyInactiveSignal(
+            code: error['code'],
+            message: backendErrorMessage,
+          )) {
+            customException = Exception(backendErrorMessage);
+            (customException as dynamic).code = 'ACCOUNT_TEMPORARILY_INACTIVE';
+          } else if (ApiEnvelope.isSubscriptionInactiveSignal(
+            code: error['code'],
+            message: backendErrorMessage,
+          )) {
             final subIdRaw =
                 error['subscriptionId'] ?? error['subscription_id'];
             int? subId;
@@ -1474,13 +1521,6 @@ class ApiService {
               backendErrorMessage,
               subscriptionId: subId,
             );
-          } else if (ApiEnvelope.codeEquals(
-                error['code'],
-                'account_temporarily_inactive',
-              )) {
-            // Use the actual backend error message
-            customException = Exception(backendErrorMessage);
-            (customException as dynamic).code = 'ACCOUNT_TEMPORARILY_INACTIVE';
           } else if (backendErrorMessage.toLowerCase().contains(
                 'invalid credentials',
               ) ||
@@ -1636,20 +1676,19 @@ class ApiService {
           }
 
           // Handle special error codes
-          if (ApiEnvelope.codeEquals(
-                error['code'],
-                'account_temporarily_inactive',
-              )) {
+          if (ApiEnvelope.isAccountTemporarilyInactiveSignal(
+            code: error['code'],
+            message: errorMessage,
+          )) {
             final accountError = Exception('ACCOUNT_TEMPORARILY_INACTIVE');
             (accountError as dynamic).code = 'ACCOUNT_TEMPORARILY_INACTIVE';
             throw accountError;
           }
 
-          if (ApiEnvelope.codeEquals(error['code'], 'subscription_inactive') ||
-              (error['error']?.toString().toLowerCase().contains(
-                    'subscription',
-                  ) ??
-                  false)) {
+          if (ApiEnvelope.isSubscriptionInactiveSignal(
+            code: error['code'],
+            message: errorMessage,
+          )) {
             final subscriptionError = Exception('SUBSCRIPTION_INACTIVE');
             (subscriptionError as dynamic).code = 'SUBSCRIPTION_INACTIVE';
             (subscriptionError as dynamic).subscriptionId =
