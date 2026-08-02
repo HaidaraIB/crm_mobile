@@ -6,8 +6,8 @@ import '../../../core/utils/snackbar_helper.dart';
 import '../../../models/settings_model.dart';
 import '../../../services/api_service.dart';
 import '../../../services/error_logger.dart';
+import '../../../utils/build_update_diff.dart';
 import '../../../widgets/app_switch.dart';
-
 class EditCallMethodModal extends StatefulWidget {
   final CallMethodModel callMethod;
   final VoidCallback? onCallMethodUpdated;
@@ -32,6 +32,8 @@ class _EditCallMethodModalState extends State<EditCallMethodModal> {
   late bool _isDefault;
   bool _isLoading = false;
   String? _errorMessage;
+  int? _companyId;
+  Map<String, dynamic>? _initialPayload;
 
   @override
   void initState() {
@@ -40,6 +42,30 @@ class _EditCallMethodModalState extends State<EditCallMethodModal> {
     _descriptionController = TextEditingController(text: widget.callMethod.description ?? '');
     _selectedColor = widget.callMethod.color;
     _isDefault = widget.callMethod.isDefault;
+    _loadInitialPayload();
+  }
+
+  Future<void> _loadInitialPayload() async {
+    try {
+      final currentUser = await _apiService.getCurrentUser();
+      if (!mounted) return;
+      setState(() {
+        _companyId = currentUser.company?.id;
+        _initialPayload = _buildPayload();
+      });
+    } catch (_) {}
+  }
+
+  Map<String, dynamic> _buildPayload() {
+    return {
+      'name': _nameController.text.trim(),
+      'description': _descriptionController.text.trim().isEmpty
+          ? null
+          : _descriptionController.text.trim(),
+      'color': _selectedColor,
+      if (_companyId != null) 'company': _companyId,
+      'is_default': _isDefault,
+    };
   }
 
   @override
@@ -66,15 +92,15 @@ class _EditCallMethodModalState extends State<EditCallMethodModal> {
     });
 
     try {
-      await _apiService.updateCallMethod(
-        callMethodId: widget.callMethod.id,
-        name: _nameController.text.trim(),
-        description: _descriptionController.text.trim().isEmpty
-            ? null
-            : _descriptionController.text.trim(),
-        color: _selectedColor,
-        isDefault: _isDefault,
-      );
+      final diff = buildUpdateDiff(_initialPayload ?? {}, _buildPayload());
+      if (diff.isEmpty) {
+        if (mounted) {
+          Navigator.pop(context);
+        }
+        return;
+      }
+
+      await _apiService.patchCallMethod(widget.callMethod.id, diff);
 
       if (mounted) {
         widget.onCallMethodUpdated?.call();

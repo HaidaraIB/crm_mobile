@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/api/api_envelope.dart';
+import '../core/api/api_exceptions.dart';
 import '../core/constants/app_constants.dart';
 import '../core/storage/auth_token_storage.dart';
 import '../core/localization/app_localizations.dart';
@@ -34,6 +35,8 @@ import '../screens/splash/maintenance_screen.dart';
 import 'device_fcm_token.dart'
     show clearLocalPushRegistrationAfterLogout, resolveDeviceFcmTokenForUnregister;
 import 'error_logger.dart';
+
+export '../core/api/api_exceptions.dart' show ApiFieldException;
 
 /// طبقة HTTP موحّدة للتطبيق: [AuthTokenStorage] للرموز، [ApiEnvelope] لفك المظروف،
 /// والرأس `X-API-Key` من [AppConstants.mobileApiKey] (`API_KEY_MOBILE` / `--dart-define`).
@@ -134,15 +137,6 @@ class SmsException implements Exception {
   final String fallbackMessage;
   @override
   String toString() => fallbackMessage;
-}
-
-/// استثناء من الـ API مع رسالة وأخطاء حقول (لتسجيل الدخول/التوفر) — يحتوي على [fields] فعلياً ليتوافق مع iOS.
-class ApiFieldException implements Exception {
-  ApiFieldException(this.message, [this.fields]);
-  final String message;
-  final Map<String, dynamic>? fields;
-  @override
-  String toString() => message;
 }
 
 class ApiService {
@@ -279,6 +273,51 @@ class ApiService {
       return rawMessage;
     }
     return _translateError(fallbackKey, locale: null);
+  }
+
+  static const _apiMetaKeys = {
+    'code',
+    'message',
+    'error',
+    'detail',
+    'error_key',
+    'success',
+  };
+
+  /// Throws [ApiFieldException] when the envelope has field details or a business
+  /// code; otherwise throws a plain [Exception] with a resolved message.
+  Never _throwFromErrorContext(
+    Map<String, dynamic> error, {
+    required String fallbackKey,
+  }) {
+    final code = (error['error_key'] ?? error['code'])?.toString();
+    final message = _resolveApiErrorMessage(error, fallbackKey: fallbackKey);
+
+    final fields = <String, dynamic>{};
+    error.forEach((key, value) {
+      if (_apiMetaKeys.contains(key)) return;
+      if (value == null) return;
+      fields[key] = value;
+    });
+
+    final hasFieldDetails = fields.isNotEmpty;
+    final isValidationCode = code != null &&
+        code.isNotEmpty &&
+        (code == 'validation_error' ||
+            code == 'bad_request' ||
+            code == 'duplicate_lead_phone' ||
+            code == 'employee_weekly_day_off' ||
+            !code.contains(' ') && code.contains('_'));
+
+    if (hasFieldDetails || isValidationCode) {
+      throw ApiFieldException(
+        message,
+        code: code,
+        fields: hasFieldDetails ? fields : null,
+      );
+    }
+
+    throw Exception(message);
   }
 
   Future<String?> _getAccessToken() =>
@@ -2634,15 +2673,8 @@ class ApiService {
       _invalidateLeadsCache();
       return lead;
     } else {
-      String errorMessage = _translateError('failedToCreateLead', locale: null);
-      try {
-        final error = _errorContextFromBody(response.body);
-        errorMessage = _resolveApiErrorMessage(
-          error,
-          fallbackKey: 'failedToCreateLead',
-        );
-      } catch (_) {}
-      throw Exception(errorMessage);
+      final error = _errorContextFromBody(response.body);
+      _throwFromErrorContext(error, fallbackKey: 'failedToCreateLead');
     }
   }
 
@@ -2728,11 +2760,22 @@ class ApiService {
       return lead;
     } else {
       final error = _errorContextFromBody(response.body);
-      throw Exception(
-        error['detail'] ??
-            error['message'] ??
-            _translateError('failedToUpdateLead', locale: null),
-      );
+      _throwFromErrorContext(error, fallbackKey: 'failedToUpdateLead');
+    }
+  }
+
+  /// PATCH lead with an explicit body (supports null values for field clears).
+  Future<LeadModel> patchLead(int id, Map<String, dynamic> data) async {
+    final response = await _makeRequest('PATCH', '/clients/$id/', body: data);
+
+    if (response.statusCode == 200) {
+      final responseData = _unwrapResponseMap(response);
+      final lead = LeadModel.fromJson(responseData);
+      _invalidateLeadsCache();
+      return lead;
+    } else {
+      final error = _errorContextFromBody(response.body);
+      _throwFromErrorContext(error, fallbackKey: 'failedToUpdateLead');
     }
   }
 
@@ -2918,7 +2961,7 @@ class ApiService {
   }
 
   Future<DealModel> updateDeal(int dealId, Map<String, dynamic> data) async {
-    final response = await _makeRequest('PUT', '/deals/$dealId/', body: data);
+    final response = await _makeRequest('PATCH', '/deals/$dealId/', body: data);
     if (response.statusCode == 200) {
       final json = _unwrapResponseMap(response);
       final deal = DealModel.fromJson(json);
@@ -3108,6 +3151,60 @@ class ApiService {
     }
   }
 
+  /// Body for set-default toggles (includes company when required by serializer).
+  Future<Map<String, dynamic>> settingsDefaultPatchBody() async {
+    final currentUser = await getCurrentUser();
+    if (currentUser.company == null) {
+      throw Exception(
+        _translateError('userMustBeAssociatedWithCompany', locale: null),
+      );
+    }
+    return {
+      'is_default': true,
+      'company': currentUser.company!.id,
+    };
+  }
+
+  Future<ChannelModel> patchChannel(
+    int channelId,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await _makeRequest(
+      'PATCH',
+      '/settings/channels/$channelId/',
+      body: data,
+    );
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final responseData = _unwrapResponseMap(response);
+      final channel = ChannelModel.fromJson(responseData);
+      _invalidateSettingsCache();
+      return channel;
+    } else {
+      String errorMessage = 'Failed to update channel';
+      try {
+        final error = _errorContextFromBody(response.body);
+        if (error.containsKey('priority')) {
+          final priorityErrors = error['priority'] as List?;
+          if (priorityErrors != null && priorityErrors.isNotEmpty) {
+            errorMessage = priorityErrors.first.toString();
+          }
+        } else if (error.containsKey('company')) {
+          final companyErrors = error['company'] as List?;
+          if (companyErrors != null && companyErrors.isNotEmpty) {
+            errorMessage = companyErrors.first.toString();
+          }
+        } else {
+          errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
+        }
+      } catch (_) {
+        errorMessage =
+            'Failed to update channel with status ${response.statusCode}';
+      }
+      throw Exception(errorMessage);
+    }
+  }
+
   Future<void> deleteChannel(int channelId) async {
     final response = await _makeRequest(
       'DELETE',
@@ -3253,6 +3350,41 @@ class ApiService {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final data = _unwrapResponseMap(response);
       final stage = StageModel.fromJson(data);
+      _invalidateSettingsCache();
+      return stage;
+    } else {
+      String errorMessage = 'Failed to update stage';
+      try {
+        final error = _errorContextFromBody(response.body);
+        if (error.containsKey('company')) {
+          final companyErrors = error['company'] as List?;
+          if (companyErrors != null && companyErrors.isNotEmpty) {
+            errorMessage = companyErrors.first.toString();
+          }
+        } else {
+          errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
+        }
+      } catch (_) {
+        errorMessage =
+            'Failed to update stage with status ${response.statusCode}';
+      }
+      throw Exception(errorMessage);
+    }
+  }
+
+  Future<StageModel> patchStage(
+    int stageId,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await _makeRequest(
+      'PATCH',
+      '/settings/stages/$stageId/',
+      body: data,
+    );
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final responseData = _unwrapResponseMap(response);
+      final stage = StageModel.fromJson(responseData);
       _invalidateSettingsCache();
       return stage;
     } else {
@@ -3474,6 +3606,46 @@ class ApiService {
     }
   }
 
+  Future<StatusModel> patchStatus(
+    int statusId,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await _makeRequest(
+      'PATCH',
+      '/settings/statuses/$statusId/',
+      body: data,
+    );
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final responseData = _unwrapResponseMap(response);
+      final status = StatusModel.fromJson(responseData);
+      _invalidateSettingsCache();
+      return status;
+    } else {
+      String errorMessage = 'Failed to update status';
+      try {
+        final error = _errorContextFromBody(response.body);
+        if (error.containsKey('category')) {
+          final categoryErrors = error['category'] as List?;
+          if (categoryErrors != null && categoryErrors.isNotEmpty) {
+            errorMessage = categoryErrors.first.toString();
+          }
+        } else if (error.containsKey('company')) {
+          final companyErrors = error['company'] as List?;
+          if (companyErrors != null && companyErrors.isNotEmpty) {
+            errorMessage = companyErrors.first.toString();
+          }
+        } else {
+          errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
+        }
+      } catch (_) {
+        errorMessage =
+            'Failed to update status with status ${response.statusCode}';
+      }
+      throw Exception(errorMessage);
+    }
+  }
+
   Future<void> deleteStatus(int statusId) async {
     final response = await _makeRequest(
       'DELETE',
@@ -3627,6 +3799,34 @@ class ApiService {
     }
   }
 
+  Future<CallMethodModel> patchCallMethod(
+    int callMethodId,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await _makeRequest(
+      'PATCH',
+      '/settings/call-methods/$callMethodId/',
+      body: data,
+    );
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final responseData = _unwrapResponseMap(response);
+      final method = CallMethodModel.fromJson(responseData);
+      _invalidateSettingsCache();
+      return method;
+    } else {
+      String errorMessage = 'Failed to update call method';
+      try {
+        final error = _errorContextFromBody(response.body);
+        errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
+      } catch (_) {
+        errorMessage =
+            'Failed to update call method with status ${response.statusCode}';
+      }
+      throw Exception(errorMessage);
+    }
+  }
+
   Future<void> deleteCallMethod(int callMethodId) async {
     final response = await _makeRequest(
       'DELETE',
@@ -3755,6 +3955,34 @@ class ApiService {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final data = _unwrapResponseMap(response);
       final visitType = VisitTypeModel.fromJson(data);
+      _invalidateSettingsCache();
+      return visitType;
+    } else {
+      String errorMessage = 'Failed to update visit type';
+      try {
+        final error = _errorContextFromBody(response.body);
+        errorMessage = error['detail'] ?? error['message'] ?? errorMessage;
+      } catch (_) {
+        errorMessage =
+            'Failed to update visit type with status ${response.statusCode}';
+      }
+      throw Exception(errorMessage);
+    }
+  }
+
+  Future<VisitTypeModel> patchVisitType(
+    int visitTypeId,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await _makeRequest(
+      'PATCH',
+      '/settings/visit-types/$visitTypeId/',
+      body: data,
+    );
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final responseData = _unwrapResponseMap(response);
+      final visitType = VisitTypeModel.fromJson(responseData);
       _invalidateSettingsCache();
       return visitType;
     } else {

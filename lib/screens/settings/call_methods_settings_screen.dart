@@ -91,12 +91,9 @@ class _CallMethodsSettingsScreenState extends State<CallMethodsSettingsScreen> {
   Future<void> _setDefaultCallMethod(CallMethodModel callMethod) async {
     if (callMethod.isDefault) return;
     try {
-      await _apiService.updateCallMethod(
-        callMethodId: callMethod.id,
-        name: callMethod.name,
-        description: callMethod.description,
-        color: callMethod.color,
-        isDefault: true,
+      await _apiService.patchCallMethod(
+        callMethod.id,
+        await _apiService.settingsDefaultPatchBody(),
       );
       if (!mounted) return;
       _loadCallMethods();

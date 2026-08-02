@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
+import '../../utils/build_update_diff.dart';
 
 class EditDeveloperModal extends StatefulWidget {
   final Developer developer;
@@ -25,11 +26,13 @@ class _EditDeveloperModalState extends State<EditDeveloperModal> {
   final ApiService _apiService = ApiService();
   
   bool _isLoading = false;
+  Map<String, dynamic>? _initialPayload;
   
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.developer.name);
+    _initialPayload = _buildPayload();
   }
   
   @override
@@ -38,6 +41,12 @@ class _EditDeveloperModalState extends State<EditDeveloperModal> {
     super.dispose();
   }
   
+  Map<String, dynamic> _buildPayload() {
+    return {
+      'name': _nameController.text.trim(),
+    };
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -48,11 +57,16 @@ class _EditDeveloperModalState extends State<EditDeveloperModal> {
     });
     
     try {
-      final developerData = {
-        'name': _nameController.text.trim(),
-      };
-      
-      final developer = await _apiService.updateDeveloper(widget.developer.id, developerData);
+      final diff = buildUpdateDiff(_initialPayload ?? {}, _buildPayload());
+
+      if (diff.isEmpty) {
+        if (mounted) {
+          Navigator.pop(context);
+        }
+        return;
+      }
+
+      final developer = await _apiService.updateDeveloper(widget.developer.id, diff);
       
       if (mounted) {
         widget.onDeveloperUpdated?.call(developer);

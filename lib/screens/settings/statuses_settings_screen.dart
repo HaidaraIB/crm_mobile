@@ -61,16 +61,9 @@ class _StatusesSettingsScreenState extends State<StatusesSettingsScreen> {
   Future<void> _setDefaultStatus(StatusModel status) async {
     if (status.isDefault) return;
     try {
-      await _apiService.updateStatus(
-        statusId: status.id,
-        name: status.name,
-        description: status.description,
-        category: status.category,
-        color: status.color,
-        isDefault: true,
-        isHidden: status.isHidden,
-        includeAutoDeleteAfterHours: true,
-        autoDeleteAfterHours: status.autoDeleteAfterHours,
+      await _apiService.patchStatus(
+        status.id,
+        await _apiService.settingsDefaultPatchBody(),
       );
       if (!mounted) return;
       _loadStatuses();

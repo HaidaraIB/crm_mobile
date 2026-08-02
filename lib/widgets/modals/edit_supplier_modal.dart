@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
+import '../../utils/build_update_diff.dart';
 import '../../widgets/phone_input.dart';
 
 class EditSupplierModal extends StatefulWidget {
@@ -31,6 +32,7 @@ class _EditSupplierModalState extends State<EditSupplierModal> {
   final ApiService _apiService = ApiService();
   
   bool _isLoading = false;
+  Map<String, dynamic>? _initialPayload;
   
   @override
   void initState() {
@@ -41,6 +43,7 @@ class _EditSupplierModalState extends State<EditSupplierModal> {
     _addressController = TextEditingController(text: widget.supplier.address ?? '');
     _contactPersonController = TextEditingController(text: widget.supplier.contactPerson ?? '');
     _specializationController = TextEditingController(text: widget.supplier.specialization ?? '');
+    _initialPayload = _buildPayload();
   }
   
   @override
@@ -54,6 +57,17 @@ class _EditSupplierModalState extends State<EditSupplierModal> {
     super.dispose();
   }
   
+  Map<String, dynamic> _buildPayload() {
+    return {
+      'name': _nameController.text.trim(),
+      'phone': _phoneController.text.trim(),
+      'email': _emailController.text.trim().isNotEmpty ? _emailController.text.trim() : null,
+      'address': _addressController.text.trim().isNotEmpty ? _addressController.text.trim() : null,
+      'contact_person': _contactPersonController.text.trim().isNotEmpty ? _contactPersonController.text.trim() : null,
+      'specialization': _specializationController.text.trim().isNotEmpty ? _specializationController.text.trim() : null,
+    };
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -64,16 +78,16 @@ class _EditSupplierModalState extends State<EditSupplierModal> {
     });
     
     try {
-      final supplierData = {
-        'name': _nameController.text.trim(),
-        'phone': _phoneController.text.trim(),
-        'email': _emailController.text.trim().isNotEmpty ? _emailController.text.trim() : null,
-        'address': _addressController.text.trim().isNotEmpty ? _addressController.text.trim() : null,
-        'contact_person': _contactPersonController.text.trim().isNotEmpty ? _contactPersonController.text.trim() : null,
-        'specialization': _specializationController.text.trim().isNotEmpty ? _specializationController.text.trim() : null,
-      };
-      
-      final supplier = await _apiService.updateSupplier(widget.supplier.id, supplierData);
+      final diff = buildUpdateDiff(_initialPayload ?? {}, _buildPayload());
+
+      if (diff.isEmpty) {
+        if (mounted) {
+          Navigator.pop(context);
+        }
+        return;
+      }
+
+      final supplier = await _apiService.updateSupplier(widget.supplier.id, diff);
       
       if (mounted) {
         widget.onSupplierUpdated?.call(supplier);

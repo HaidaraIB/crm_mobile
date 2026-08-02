@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
+import '../../utils/build_update_diff.dart';
 import '../app_switch.dart';
 
 class EditProductModal extends StatefulWidget {
@@ -38,6 +39,7 @@ class _EditProductModalState extends State<EditProductModal> {
   
   List<ProductCategory> _categories = [];
   List<Supplier> _suppliers = [];
+  Map<String, dynamic>? _initialPayload;
   
   @override
   void initState() {
@@ -75,6 +77,7 @@ class _EditProductModalState extends State<EditProductModal> {
           _categories = categories;
           _suppliers = suppliers;
           _isLoadingData = false;
+          _initialPayload = _buildPayload();
         });
       }
     } catch (e) {
@@ -86,6 +89,38 @@ class _EditProductModalState extends State<EditProductModal> {
     }
   }
   
+  Map<String, dynamic> _buildPayload() {
+    int? categoryId;
+    if (_selectedCategory != null && _categories.isNotEmpty) {
+      final category = _categories.firstWhere(
+        (c) => c.name == _selectedCategory,
+        orElse: () => _categories.first,
+      );
+      categoryId = category.id;
+    }
+
+    int? supplierId;
+    if (_selectedSupplier != null && _suppliers.isNotEmpty) {
+      final supplier = _suppliers.firstWhere(
+        (s) => s.name == _selectedSupplier,
+        orElse: () => _suppliers.first,
+      );
+      supplierId = supplier.id;
+    }
+
+    return {
+      'name': _nameController.text.trim(),
+      'description': _descriptionController.text.trim().isNotEmpty ? _descriptionController.text.trim() : null,
+      'price': double.parse(_priceController.text.trim()),
+      'cost': double.parse(_costController.text.trim()),
+      'stock': int.parse(_stockController.text.trim()),
+      'category': categoryId,
+      'supplier': supplierId,
+      'sku': _skuController.text.trim().isNotEmpty ? _skuController.text.trim() : null,
+      'is_active': _isActive,
+    };
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -96,39 +131,17 @@ class _EditProductModalState extends State<EditProductModal> {
     });
     
     try {
-      // Find category ID
-      int? categoryId;
-      if (_selectedCategory != null) {
-        final category = _categories.firstWhere(
-          (c) => c.name == _selectedCategory,
-          orElse: () => _categories.first,
-        );
-        categoryId = category.id;
+      final nextPayload = _buildPayload();
+      final diff = buildUpdateDiff(_initialPayload ?? {}, nextPayload);
+
+      if (diff.isEmpty) {
+        if (mounted) {
+          Navigator.pop(context);
+        }
+        return;
       }
-      
-      // Find supplier ID
-      int? supplierId;
-      if (_selectedSupplier != null) {
-        final supplier = _suppliers.firstWhere(
-          (s) => s.name == _selectedSupplier,
-          orElse: () => _suppliers.first,
-        );
-        supplierId = supplier.id;
-      }
-      
-      final productData = {
-        'name': _nameController.text.trim(),
-        'description': _descriptionController.text.trim().isNotEmpty ? _descriptionController.text.trim() : null,
-        'price': double.parse(_priceController.text.trim()),
-        'cost': double.parse(_costController.text.trim()),
-        'stock': int.parse(_stockController.text.trim()),
-        'category': categoryId,
-        'supplier': supplierId,
-        'sku': _skuController.text.trim().isNotEmpty ? _skuController.text.trim() : null,
-        'is_active': _isActive,
-      };
-      
-      final product = await _apiService.updateProduct(widget.product.id, productData);
+
+      final product = await _apiService.updateProduct(widget.product.id, diff);
       
       if (mounted) {
         widget.onProductUpdated?.call(product);

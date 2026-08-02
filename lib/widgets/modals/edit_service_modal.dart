@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
+import '../../utils/build_update_diff.dart';
 import '../app_switch.dart';
 
 class EditServiceModal extends StatefulWidget {
@@ -36,6 +37,7 @@ class _EditServiceModalState extends State<EditServiceModal> {
   
   List<Service> _services = [];
   List<ServiceProvider> _providers = [];
+  Map<String, dynamic>? _initialPayload;
   
   @override
   void initState() {
@@ -69,6 +71,7 @@ class _EditServiceModalState extends State<EditServiceModal> {
           _services = services;
           _providers = providers;
           _isLoadingData = false;
+          _initialPayload = _buildPayload();
         });
       }
     } catch (e) {
@@ -79,7 +82,28 @@ class _EditServiceModalState extends State<EditServiceModal> {
       }
     }
   }
-  
+
+  Map<String, dynamic> _buildPayload() {
+    int? providerId;
+    if (_selectedProvider != null && _providers.isNotEmpty) {
+      final provider = _providers.firstWhere(
+        (p) => p.name == _selectedProvider,
+        orElse: () => _providers.first,
+      );
+      providerId = provider.id;
+    }
+
+    return {
+      'name': _nameController.text.trim(),
+      'description': _descriptionController.text.trim().isNotEmpty ? _descriptionController.text.trim() : null,
+      'price': double.parse(_priceController.text.trim()),
+      'duration': _durationController.text.trim().isNotEmpty ? _durationController.text.trim() : null,
+      'category': _selectedCategory ?? '',
+      'provider': providerId,
+      'is_active': _isActive,
+    };
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -90,27 +114,16 @@ class _EditServiceModalState extends State<EditServiceModal> {
     });
     
     try {
-      // Find provider ID
-      int? providerId;
-      if (_selectedProvider != null) {
-        final provider = _providers.firstWhere(
-          (p) => p.name == _selectedProvider,
-          orElse: () => _providers.first,
-        );
-        providerId = provider.id;
+      final diff = buildUpdateDiff(_initialPayload ?? {}, _buildPayload());
+
+      if (diff.isEmpty) {
+        if (mounted) {
+          Navigator.pop(context);
+        }
+        return;
       }
-      
-      final serviceData = {
-        'name': _nameController.text.trim(),
-        'description': _descriptionController.text.trim().isNotEmpty ? _descriptionController.text.trim() : null,
-        'price': double.parse(_priceController.text.trim()),
-        'duration': _durationController.text.trim().isNotEmpty ? _durationController.text.trim() : null,
-        'category': _selectedCategory ?? '',
-        'provider': providerId,
-        'is_active': _isActive,
-      };
-      
-      final service = await _apiService.updateService(widget.service.id, serviceData);
+
+      final service = await _apiService.updateService(widget.service.id, diff);
       
       if (mounted) {
         widget.onServiceUpdated?.call(service);

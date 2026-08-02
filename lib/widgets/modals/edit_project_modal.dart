@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
+import '../../utils/build_update_diff.dart';
 
 class EditProjectModal extends StatefulWidget {
   final Project project;
@@ -32,6 +33,7 @@ class _EditProjectModalState extends State<EditProjectModal> {
   bool _isLoadingData = true;
   
   List<Developer> _developers = [];
+  Map<String, dynamic>? _initialPayload;
   
   @override
   void initState() {
@@ -72,6 +74,7 @@ class _EditProjectModalState extends State<EditProjectModal> {
             _selectedDeveloper = developers.first.name;
           }
           _isLoadingData = false;
+          _initialPayload = _buildPayload();
         });
       }
     } catch (e) {
@@ -82,7 +85,47 @@ class _EditProjectModalState extends State<EditProjectModal> {
       }
     }
   }
-  
+
+  Map<String, dynamic> _buildPayload() {
+    int? developerId;
+    if (_selectedDeveloper != null && _selectedDeveloper!.isNotEmpty) {
+      try {
+        final developer = _developers.firstWhere(
+          (d) => d.name == _selectedDeveloper,
+        );
+        developerId = developer.id;
+      } catch (e) {
+        if (_developers.isNotEmpty) {
+          developerId = _developers.first.id;
+        }
+      }
+    } else if (_developers.isNotEmpty) {
+      developerId = _developers.first.id;
+    }
+
+    final projectData = <String, dynamic>{
+      'name': _nameController.text.trim(),
+      'developer': developerId,
+    };
+
+    final typeValue = _typeController.text.trim();
+    if (typeValue.isNotEmpty) {
+      projectData['type'] = typeValue;
+    }
+
+    final cityValue = _cityController.text.trim();
+    if (cityValue.isNotEmpty) {
+      projectData['city'] = cityValue;
+    }
+
+    final paymentMethodValue = _paymentMethodController.text.trim();
+    if (paymentMethodValue.isNotEmpty) {
+      projectData['payment_method'] = paymentMethodValue;
+    }
+
+    return projectData;
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -93,26 +136,8 @@ class _EditProjectModalState extends State<EditProjectModal> {
     });
     
     try {
-      // Find developer ID
-      int? developerId;
-      if (_selectedDeveloper != null && _selectedDeveloper!.isNotEmpty) {
-        try {
-          final developer = _developers.firstWhere(
-            (d) => d.name == _selectedDeveloper,
-          );
-          developerId = developer.id;
-        } catch (e) {
-          // Developer not found in list, try to find by name
-          if (_developers.isNotEmpty) {
-            developerId = _developers.first.id;
-          }
-        }
-      } else if (_developers.isNotEmpty) {
-        // If no developer selected, use first one
-        developerId = _developers.first.id;
-      }
-      
-      if (developerId == null) {
+      final nextPayload = _buildPayload();
+      if (nextPayload['developer'] == null) {
         if (mounted) {
           final localizations = AppLocalizations.of(context);
           SnackbarHelper.showError(
@@ -125,32 +150,19 @@ class _EditProjectModalState extends State<EditProjectModal> {
         });
         return;
       }
-      
-      final projectData = <String, dynamic>{
-        'name': _nameController.text.trim(),
-        'developer': developerId,
-      };
-      
-      // Only include optional fields if they have values
-      final typeValue = _typeController.text.trim();
-      if (typeValue.isNotEmpty) {
-        projectData['type'] = typeValue;
+
+      final diff = buildUpdateDiff(_initialPayload ?? {}, nextPayload);
+
+      if (diff.isEmpty) {
+        if (mounted) {
+          Navigator.pop(context);
+        }
+        return;
       }
-      
-      final cityValue = _cityController.text.trim();
-      if (cityValue.isNotEmpty) {
-        projectData['city'] = cityValue;
-      }
-      
-      final paymentMethodValue = _paymentMethodController.text.trim();
-      if (paymentMethodValue.isNotEmpty) {
-        projectData['payment_method'] = paymentMethodValue;
-      }
-      
-      debugPrint('Updating project ${widget.project.id} with data: $projectData');
-      debugPrint('Selected developer: $_selectedDeveloper, Developer ID: $developerId');
-      
-      final project = await _apiService.updateProject(widget.project.id, projectData);
+
+      debugPrint('Updating project ${widget.project.id} with diff: $diff');
+
+      final project = await _apiService.updateProject(widget.project.id, diff);
       
       if (mounted) {
         widget.onProjectUpdated?.call(project);

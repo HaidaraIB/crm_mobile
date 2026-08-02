@@ -6,8 +6,8 @@ import '../../../core/utils/snackbar_helper.dart';
 import '../../../models/settings_model.dart';
 import '../../../services/api_service.dart';
 import '../../../services/error_logger.dart';
+import '../../../utils/build_update_diff.dart';
 import '../../../widgets/app_switch.dart';
-
 class EditStageModal extends StatefulWidget {
   final StageModel stage;
   final VoidCallback? onStageUpdated;
@@ -34,6 +34,8 @@ class _EditStageModalState extends State<EditStageModal> {
   late bool _isDefault;
   bool _isLoading = false;
   String? _errorMessage;
+  int? _companyId;
+  Map<String, dynamic>? _initialPayload;
 
   @override
   void initState() {
@@ -44,6 +46,32 @@ class _EditStageModalState extends State<EditStageModal> {
     _isRequired = widget.stage.required;
     _autoAdvance = widget.stage.autoAdvance;
     _isDefault = widget.stage.isDefault;
+    _loadInitialPayload();
+  }
+
+  Future<void> _loadInitialPayload() async {
+    try {
+      final currentUser = await _apiService.getCurrentUser();
+      if (!mounted) return;
+      setState(() {
+        _companyId = currentUser.company?.id;
+        _initialPayload = _buildPayload();
+      });
+    } catch (_) {}
+  }
+
+  Map<String, dynamic> _buildPayload() {
+    return {
+      'name': _nameController.text.trim(),
+      'description': _descriptionController.text.trim().isEmpty
+          ? null
+          : _descriptionController.text.trim(),
+      'color': _selectedColor,
+      'required': _isRequired,
+      'auto_advance': _autoAdvance,
+      if (_companyId != null) 'company': _companyId,
+      'is_default': _isDefault,
+    };
   }
 
   @override
@@ -62,17 +90,15 @@ class _EditStageModalState extends State<EditStageModal> {
     });
 
     try {
-      await _apiService.updateStage(
-        stageId: widget.stage.id,
-        name: _nameController.text.trim(),
-        description: _descriptionController.text.trim().isEmpty
-            ? null
-            : _descriptionController.text.trim(),
-        color: _selectedColor,
-        required: _isRequired,
-        autoAdvance: _autoAdvance,
-        isDefault: _isDefault,
-      );
+      final diff = buildUpdateDiff(_initialPayload ?? {}, _buildPayload());
+      if (diff.isEmpty) {
+        if (mounted) {
+          Navigator.pop(context);
+        }
+        return;
+      }
+
+      await _apiService.patchStage(widget.stage.id, diff);
 
       if (mounted) {
         widget.onStageUpdated?.call();

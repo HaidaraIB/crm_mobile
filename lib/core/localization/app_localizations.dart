@@ -364,6 +364,10 @@ class AppLocalizations {
       'editLead': 'Edit Lead',
       'leadInformation': 'Lead Information',
       'pleaseFixErrors': 'Please fix the following errors:',
+      'duplicate_lead_phone':
+          'A lead with this phone number already exists in your company.',
+      'employeeWeeklyDayOffAssignError':
+          'This employee is on their weekly day off and cannot be assigned leads today.',
       'nameRequired': 'Name is required',
       'phoneNumberRequired': 'At least one phone number is required',
       'phoneNumberRequiredSingle': 'Phone number is required',
@@ -1641,6 +1645,9 @@ class AppLocalizations {
       'editLead': 'تعديل عميل',
       'leadInformation': 'معلومات العميل',
       'pleaseFixErrors': 'الرجاء إصلاح الأخطاء التالية:',
+      'duplicate_lead_phone': 'يوجد عميل محتمل بنفس رقم الهاتف في شركتك.',
+      'employeeWeeklyDayOffAssignError':
+          'هذا الموظف في يوم إجازته الأسبوعية ولا يمكن إسناد عملاء إليه اليوم.',
       'nameRequired': 'الاسم مطلوب',
       'phoneNumberRequired': 'رقم هاتف واحد على الأقل مطلوب',
       'phoneNumberRequiredSingle': 'رقم الهاتف مطلوب',

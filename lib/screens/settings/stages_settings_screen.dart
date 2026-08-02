@@ -60,14 +60,9 @@ class _StagesSettingsScreenState extends State<StagesSettingsScreen> {
   Future<void> _setDefaultStage(StageModel stage) async {
     if (stage.isDefault) return;
     try {
-      await _apiService.updateStage(
-        stageId: stage.id,
-        name: stage.name,
-        description: stage.description,
-        color: stage.color,
-        required: stage.required,
-        autoAdvance: stage.autoAdvance,
-        isDefault: true,
+      await _apiService.patchStage(
+        stage.id,
+        await _apiService.settingsDefaultPatchBody(),
       );
       if (!mounted) return;
       _loadStages();

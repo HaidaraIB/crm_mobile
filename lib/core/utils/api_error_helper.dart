@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../api/api_envelope.dart';
+import '../api/api_exceptions.dart';
 import '../localization/app_localizations.dart';
+import 'form_api_errors.dart';
 
 class ApiErrorHelper {
   static const String noInternetCode = 'NO_INTERNET';
@@ -36,13 +39,27 @@ class ApiErrorHelper {
     return cleanException(error);
   }
 
-  /// Best for snackbars/toasts.
+  static String? _firstFieldDetailMessage(Map<String, dynamic>? fields) {
+    if (fields == null || fields.isEmpty) return null;
+    for (final entry in fields.entries) {
+      if (kApiFieldMetaKeys.contains(entry.key)) continue;
+      final msg = normalizeErrorMessage(entry.value);
+      if (msg.isNotEmpty) return msg;
+    }
+    final nonField = normalizeErrorMessage(fields['non_field_errors']);
+    if (nonField.isNotEmpty) return nonField;
+    return null;
+  }
+
+  /// Best for snackbars/toasts (and banners when field mapping is unavailable).
   static String toUserMessage(
     BuildContext context,
     dynamic error, {
     String? fallback,
   }) {
     final loc = AppLocalizations.of(context);
+    String t(String key) => loc?.translate(key) ?? key;
+
     if (isNoInternetError(error)) {
       final title = loc?.translate('noInternetConnection') ?? 'No Internet Connection';
       final body = loc?.translate('noInternetMessage') ??
@@ -53,21 +70,65 @@ class ApiErrorHelper {
       return loc?.translate('connectionErrorMessage') ??
           'Unable to connect to the server. Please try again later';
     }
-    final cleaned = cleanException(error);
-    if (cleaned.isNotEmpty && loc != null) {
-      final byKey = loc.translate(cleaned);
-      if (byKey != cleaned) {
-        return byKey;
+
+    String? code;
+    Map<String, dynamic>? fields;
+    late final String rawMessage;
+
+    if (error is ApiFieldException) {
+      code = error.code;
+      fields = error.fields;
+      rawMessage = error.message;
+    } else if (error is ApiEnvelopeException) {
+      code = error.details?['error_key']?.toString() ?? error.code;
+      fields = error.details;
+      rawMessage = error.message;
+    } else {
+      rawMessage = cleanException(error);
+    }
+
+    if (code != null && code.isNotEmpty && loc != null) {
+      final byCode = loc.translate(code);
+      if (byCode != code) return byCode;
+    }
+
+    final fieldDetail = _firstFieldDetailMessage(fields);
+    if (fieldDetail != null && fieldDetail.isNotEmpty) {
+      if (loc != null) {
+        final byKey = loc.translate(fieldDetail);
+        if (byKey != fieldDetail) return byKey;
+        // Prefer localized duplicate phone over English API string.
+        final lower = fieldDetail.toLowerCase();
+        if (lower.contains('in your company') ||
+            lower.contains('lead with this phone')) {
+          return t('duplicate_lead_phone');
+        }
       }
-      // Known English API messages → localization keys
-      if (cleaned == 'You do not have permission to delete customers.' ||
-          cleaned == 'You do not have permission to delete customers') {
+      if (!isGenericValidationMessage(fieldDetail)) {
+        return fieldDetail;
+      }
+    }
+
+    if (rawMessage.isNotEmpty && loc != null) {
+      final byKey = loc.translate(rawMessage);
+      if (byKey != rawMessage) return byKey;
+      if (rawMessage == 'You do not have permission to delete customers.' ||
+          rawMessage == 'You do not have permission to delete customers') {
         return loc.translate('cannot_delete_clients');
       }
     }
-    if (cleaned.isNotEmpty) return cleaned;
+
+    if (rawMessage.isNotEmpty && !isGenericValidationMessage(rawMessage)) {
+      return rawMessage;
+    }
+
+    if (isGenericValidationMessage(rawMessage)) {
+      return loc?.translate('pleaseFixErrors') ??
+          'Please fix the following errors:';
+    }
+
+    if (rawMessage.isNotEmpty) return rawMessage;
     return fallback ??
         (loc?.translate('anErrorOccurred') ?? 'An error occurred. Please try again.');
   }
 }
-

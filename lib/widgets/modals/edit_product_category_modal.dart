@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
+import '../../utils/build_update_diff.dart';
 
 class EditProductCategoryModal extends StatefulWidget {
   final ProductCategory category;
@@ -30,6 +31,7 @@ class _EditProductCategoryModalState extends State<EditProductCategoryModal> {
   bool _isLoadingData = true;
   
   List<ProductCategory> _categories = [];
+  Map<String, dynamic>? _initialPayload;
   
   @override
   void initState() {
@@ -54,6 +56,7 @@ class _EditProductCategoryModalState extends State<EditProductCategoryModal> {
         setState(() {
           _categories = categories.where((c) => c.id != widget.category.id).toList();
           _isLoadingData = false;
+          _initialPayload = _buildPayload();
         });
       }
     } catch (e) {
@@ -64,7 +67,15 @@ class _EditProductCategoryModalState extends State<EditProductCategoryModal> {
       }
     }
   }
-  
+
+  Map<String, dynamic> _buildPayload() {
+    return {
+      'name': _nameController.text.trim(),
+      'description': _descriptionController.text.trim().isNotEmpty ? _descriptionController.text.trim() : null,
+      'parent_category': _selectedParentCategory,
+    };
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -75,13 +86,16 @@ class _EditProductCategoryModalState extends State<EditProductCategoryModal> {
     });
     
     try {
-      final categoryData = {
-        'name': _nameController.text.trim(),
-        'description': _descriptionController.text.trim().isNotEmpty ? _descriptionController.text.trim() : null,
-        'parent_category': _selectedParentCategory,
-      };
-      
-      final category = await _apiService.updateProductCategory(widget.category.id, categoryData);
+      final diff = buildUpdateDiff(_initialPayload ?? {}, _buildPayload());
+
+      if (diff.isEmpty) {
+        if (mounted) {
+          Navigator.pop(context);
+        }
+        return;
+      }
+
+      final category = await _apiService.updateProductCategory(widget.category.id, diff);
       
       if (mounted) {
         widget.onCategoryUpdated?.call(category);

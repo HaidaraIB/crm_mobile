@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
+import '../../utils/build_update_diff.dart';
 import '../app_switch.dart';
 
 class EditUnitModal extends StatefulWidget {
@@ -39,6 +40,7 @@ class _EditUnitModalState extends State<EditUnitModal> {
   bool _isLoadingData = true;
 
   List<Project> _projects = [];
+  Map<String, dynamic>? _initialPayload;
 
   @override
   void initState() {
@@ -107,6 +109,7 @@ class _EditUnitModalState extends State<EditUnitModal> {
           } else if (projects.isNotEmpty) {
             _selectedProject = projects.first.name;
           }
+          _initialPayload = _buildPayload();
         });
       }
     } catch (e) {
@@ -116,6 +119,45 @@ class _EditUnitModalState extends State<EditUnitModal> {
         });
       }
     }
+  }
+
+  Map<String, dynamic> _buildPayload() {
+    int? projectId;
+    if (_selectedProject != null && _projects.isNotEmpty) {
+      final project = _projects.firstWhere(
+        (p) => p.name == _selectedProject,
+        orElse: () => _projects.first,
+      );
+      projectId = project.id;
+    }
+
+    return {
+      'name': _nameController.text.trim(),
+      'code': _codeController.text.trim(),
+      'project': projectId,
+      'bedrooms': int.parse(_bedroomsController.text.trim()),
+      'bathrooms': int.parse(_bathroomsController.text.trim()),
+      'price': double.parse(_priceController.text.trim()),
+      'type': _selectedType,
+      'finishing': _selectedFinishing,
+      'city': _cityController.text.trim().isNotEmpty
+          ? _cityController.text.trim()
+          : null,
+      'district': _districtController.text.trim().isNotEmpty
+          ? _districtController.text.trim()
+          : null,
+      'zone': _zoneController.text.trim().isNotEmpty
+          ? _zoneController.text.trim()
+          : null,
+      'lounge': _loungeController.text.trim().isNotEmpty
+          ? int.tryParse(_loungeController.text.trim())
+          : null,
+      'area': _areaController.text.trim().isNotEmpty
+          ? double.tryParse(_areaController.text.trim())
+          : null,
+      'currency': _selectedCurrency,
+      'is_sold': _isSold,
+    };
   }
 
   Future<void> _submit() async {
@@ -128,45 +170,16 @@ class _EditUnitModalState extends State<EditUnitModal> {
     });
 
     try {
-      // Find project ID
-      int? projectId;
-      if (_selectedProject != null) {
-        final project = _projects.firstWhere(
-          (p) => p.name == _selectedProject,
-          orElse: () => _projects.first,
-        );
-        projectId = project.id;
+      final diff = buildUpdateDiff(_initialPayload ?? {}, _buildPayload());
+
+      if (diff.isEmpty) {
+        if (mounted) {
+          Navigator.pop(context);
+        }
+        return;
       }
 
-      final unitData = {
-        'name': _nameController.text.trim(),
-        'code': _codeController.text.trim(),
-        'project': projectId,
-        'bedrooms': int.parse(_bedroomsController.text.trim()),
-        'bathrooms': int.parse(_bathroomsController.text.trim()),
-        'price': double.parse(_priceController.text.trim()),
-        'type': _selectedType,
-        'finishing': _selectedFinishing,
-        'city': _cityController.text.trim().isNotEmpty
-            ? _cityController.text.trim()
-            : null,
-        'district': _districtController.text.trim().isNotEmpty
-            ? _districtController.text.trim()
-            : null,
-        'zone': _zoneController.text.trim().isNotEmpty
-            ? _zoneController.text.trim()
-            : null,
-        'lounge': _loungeController.text.trim().isNotEmpty
-            ? int.tryParse(_loungeController.text.trim())
-            : null,
-        'area': _areaController.text.trim().isNotEmpty
-            ? double.tryParse(_areaController.text.trim())
-            : null,
-        'currency': _selectedCurrency,
-        'is_sold': _isSold,
-      };
-
-      final unit = await _apiService.updateUnit(widget.unit.id, unitData);
+      final unit = await _apiService.updateUnit(widget.unit.id, diff);
 
       if (mounted) {
         widget.onUnitUpdated?.call(unit);

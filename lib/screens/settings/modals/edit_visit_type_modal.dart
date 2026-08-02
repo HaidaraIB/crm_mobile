@@ -6,8 +6,8 @@ import '../../../core/utils/snackbar_helper.dart';
 import '../../../models/settings_model.dart';
 import '../../../services/api_service.dart';
 import '../../../services/error_logger.dart';
+import '../../../utils/build_update_diff.dart';
 import '../../../widgets/app_switch.dart';
-
 class EditVisitTypeModal extends StatefulWidget {
   final VisitTypeModel visitType;
   final VoidCallback? onVisitTypeUpdated;
@@ -31,6 +31,8 @@ class _EditVisitTypeModalState extends State<EditVisitTypeModal> {
   late bool _isDefault;
   bool _isLoading = false;
   String? _errorMessage;
+  int? _companyId;
+  Map<String, dynamic>? _initialPayload;
 
   @override
   void initState() {
@@ -40,6 +42,30 @@ class _EditVisitTypeModalState extends State<EditVisitTypeModal> {
         TextEditingController(text: widget.visitType.description ?? '');
     _selectedColor = widget.visitType.color;
     _isDefault = widget.visitType.isDefault;
+    _loadInitialPayload();
+  }
+
+  Future<void> _loadInitialPayload() async {
+    try {
+      final currentUser = await _apiService.getCurrentUser();
+      if (!mounted) return;
+      setState(() {
+        _companyId = currentUser.company?.id;
+        _initialPayload = _buildPayload();
+      });
+    } catch (_) {}
+  }
+
+  Map<String, dynamic> _buildPayload() {
+    return {
+      'name': _nameController.text.trim(),
+      'description': _descriptionController.text.trim().isEmpty
+          ? null
+          : _descriptionController.text.trim(),
+      'color': _selectedColor,
+      if (_companyId != null) 'company': _companyId,
+      'is_default': _isDefault,
+    };
   }
 
   @override
@@ -64,15 +90,15 @@ class _EditVisitTypeModalState extends State<EditVisitTypeModal> {
       _errorMessage = null;
     });
     try {
-      await _apiService.updateVisitType(
-        visitTypeId: widget.visitType.id,
-        name: _nameController.text.trim(),
-        description: _descriptionController.text.trim().isEmpty
-            ? null
-            : _descriptionController.text.trim(),
-        color: _selectedColor,
-        isDefault: _isDefault,
-      );
+      final diff = buildUpdateDiff(_initialPayload ?? {}, _buildPayload());
+      if (diff.isEmpty) {
+        if (mounted) {
+          Navigator.pop(context);
+        }
+        return;
+      }
+
+      await _apiService.patchVisitType(widget.visitType.id, diff);
       if (mounted) {
         widget.onVisitTypeUpdated?.call();
         SnackbarHelper.showSuccess(
@@ -85,7 +111,7 @@ class _EditVisitTypeModalState extends State<EditVisitTypeModal> {
       ErrorLogger().logError(
         error: e.toString(),
         endpoint: '/settings/visit-types/${widget.visitType.id}/',
-        method: 'PUT',
+        method: 'PATCH',
       );
       if (mounted) {
         setState(() {

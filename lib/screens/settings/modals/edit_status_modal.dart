@@ -7,8 +7,8 @@ import '../../../core/utils/snackbar_helper.dart';
 import '../../../models/settings_model.dart';
 import '../../../services/api_service.dart';
 import '../../../services/error_logger.dart';
+import '../../../utils/build_update_diff.dart';
 import '../../../widgets/app_switch.dart';
-
 class EditStatusModal extends StatefulWidget {
   final StatusModel status;
   final VoidCallback? onStatusUpdated;
@@ -36,6 +36,8 @@ class _EditStatusModalState extends State<EditStatusModal> {
   late bool _isHidden;
   bool _isLoading = false;
   String? _errorMessage;
+  int? _companyId;
+  Map<String, dynamic>? _initialPayload;
 
   final List<String> _categories = ['Active', 'Inactive', 'Follow Up', 'Closed'];
 
@@ -63,6 +65,43 @@ class _EditStatusModalState extends State<EditStatusModal> {
     }
     _isDefault = widget.status.isDefault;
     _isHidden = widget.status.isHidden;
+    _loadInitialPayload();
+  }
+
+  String _normalizeCategory(String category) {
+    var normalizedCategory = category.toLowerCase();
+    if (normalizedCategory == 'follow up' || normalizedCategory == 'followup') {
+      normalizedCategory = 'follow_up';
+    }
+    return normalizedCategory;
+  }
+
+  Future<void> _loadInitialPayload() async {
+    try {
+      final currentUser = await _apiService.getCurrentUser();
+      if (!mounted) return;
+      setState(() {
+        _companyId = currentUser.company?.id;
+        _initialPayload = _buildPayload();
+      });
+    } catch (_) {}
+  }
+
+  Map<String, dynamic> _buildPayload() {
+    final rawHours = _autoDeleteHoursController.text.trim();
+    final autoDeleteHours = rawHours.isEmpty ? null : int.parse(rawHours);
+    return {
+      'name': _nameController.text.trim(),
+      'description': _descriptionController.text.trim().isEmpty
+          ? null
+          : _descriptionController.text.trim(),
+      'category': _normalizeCategory(_selectedCategory),
+      'color': _selectedColor,
+      'is_default': _isDefault,
+      'is_hidden': _isHidden,
+      if (_companyId != null) 'company': _companyId,
+      'auto_delete_after_hours': autoDeleteHours,
+    };
   }
 
   @override
@@ -118,23 +157,15 @@ class _EditStatusModalState extends State<EditStatusModal> {
     });
 
     try {
-      final rawHours = _autoDeleteHoursController.text.trim();
-      final autoDeleteHours =
-          rawHours.isEmpty ? null : int.parse(rawHours);
+      final diff = buildUpdateDiff(_initialPayload ?? {}, _buildPayload());
+      if (diff.isEmpty) {
+        if (mounted) {
+          Navigator.pop(context);
+        }
+        return;
+      }
 
-      await _apiService.updateStatus(
-        statusId: widget.status.id,
-        name: _nameController.text.trim(),
-        description: _descriptionController.text.trim().isEmpty 
-            ? null 
-            : _descriptionController.text.trim(),
-        category: _selectedCategory,
-        color: _selectedColor,
-        isDefault: _isDefault,
-        isHidden: _isHidden,
-        includeAutoDeleteAfterHours: true,
-        autoDeleteAfterHours: autoDeleteHours,
-      );
+      await _apiService.patchStatus(widget.status.id, diff);
 
       if (mounted) {
         widget.onStatusUpdated?.call();

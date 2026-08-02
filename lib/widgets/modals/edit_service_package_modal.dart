@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
+import '../../utils/build_update_diff.dart';
 import '../app_switch.dart';
 
 class EditServicePackageModal extends StatefulWidget {
@@ -34,6 +35,7 @@ class _EditServicePackageModalState extends State<EditServicePackageModal> {
   bool _isLoadingData = true;
   
   List<Service> _services = [];
+  Map<String, dynamic>? _initialPayload;
   
   @override
   void initState() {
@@ -63,6 +65,7 @@ class _EditServicePackageModalState extends State<EditServicePackageModal> {
         setState(() {
           _services = services;
           _isLoadingData = false;
+          _initialPayload = _buildPayload();
         });
       }
     } catch (e) {
@@ -73,7 +76,18 @@ class _EditServicePackageModalState extends State<EditServicePackageModal> {
       }
     }
   }
-  
+
+  Map<String, dynamic> _buildPayload() {
+    return {
+      'name': _nameController.text.trim(),
+      'description': _descriptionController.text.trim().isNotEmpty ? _descriptionController.text.trim() : null,
+      'price': double.parse(_priceController.text.trim()),
+      'duration': _durationController.text.trim().isNotEmpty ? _durationController.text.trim() : null,
+      'services': _selectedServiceIds,
+      'is_active': _isActive,
+    };
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -84,16 +98,16 @@ class _EditServicePackageModalState extends State<EditServicePackageModal> {
     });
     
     try {
-      final packageData = {
-        'name': _nameController.text.trim(),
-        'description': _descriptionController.text.trim().isNotEmpty ? _descriptionController.text.trim() : null,
-        'price': double.parse(_priceController.text.trim()),
-        'duration': _durationController.text.trim().isNotEmpty ? _durationController.text.trim() : null,
-        'services': _selectedServiceIds,
-        'is_active': _isActive,
-      };
-      
-      final package = await _apiService.updateServicePackage(widget.package.id, packageData);
+      final diff = buildUpdateDiff(_initialPayload ?? {}, _buildPayload());
+
+      if (diff.isEmpty) {
+        if (mounted) {
+          Navigator.pop(context);
+        }
+        return;
+      }
+
+      final package = await _apiService.updateServicePackage(widget.package.id, diff);
       
       if (mounted) {
         widget.onPackageUpdated?.call(package);

@@ -190,7 +190,7 @@ class _DealsScreenState extends State<DealsScreen> {
       case 'lost':
         return Colors.red;
       case 'cancelled':
-        return Colors.grey;
+        return Colors.purple;
       default:
         return Colors.grey;
     }

@@ -22,6 +22,8 @@ class PhoneInput extends StatefulWidget {
   final ValueChanged<String>? onChanged;
   final String? hintText;
   final bool error;
+  /// Optional message shown under the input when invalid.
+  final String? errorText;
   final String? defaultCountry;
 
   const PhoneInput({
@@ -30,6 +32,7 @@ class PhoneInput extends StatefulWidget {
     this.onChanged,
     this.hintText,
     this.error = false,
+    this.errorText,
     this.defaultCountry,
   });
 
@@ -198,44 +201,64 @@ class _PhoneInputState extends State<PhoneInput> {
     final localizations = AppLocalizations.of(context);
     final isRTL = localizations?.isRTL ?? false;
     final theme = Theme.of(context);
+    final showError = widget.error ||
+        (widget.errorText != null && widget.errorText!.trim().isNotEmpty);
 
-    return Directionality(
-      textDirection: TextDirection.ltr, // Force LTR for phone input
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: widget.error ? Colors.red : Colors.grey,
-            width: 1,
-          ),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            // Country Code Dropdown
-            _buildCountryDropdown(context, localizations, theme),
-            // Divider
-            Container(
-              width: 1,
-              height: 40,
-              color: Colors.grey[300],
-            ),
-            // Phone Number Input
-            Expanded(
-              child: TextField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                decoration: InputDecoration(
-                  hintText: widget.hintText ?? localizations?.translate('enterPhoneNumber') ?? 'Enter phone number',
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                ),
-                onChanged: _onPhoneChanged,
-                textDirection: isRTL ? TextDirection.rtl : TextDirection.ltr,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Directionality(
+          textDirection: TextDirection.ltr, // Force LTR for phone input
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: showError ? Colors.red : Colors.grey,
+                width: 1,
               ),
+              borderRadius: BorderRadius.circular(12),
             ),
-          ],
+            child: Row(
+              children: [
+                // Country Code Dropdown
+                _buildCountryDropdown(context, localizations, theme),
+                // Divider
+                Container(
+                  width: 1,
+                  height: 40,
+                  color: Colors.grey[300],
+                ),
+                // Phone Number Input
+                Expanded(
+                  child: TextField(
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: InputDecoration(
+                      hintText: widget.hintText ??
+                          localizations?.translate('enterPhoneNumber') ??
+                          'Enter phone number',
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 16,
+                      ),
+                    ),
+                    onChanged: _onPhoneChanged,
+                    textDirection: isRTL ? TextDirection.rtl : TextDirection.ltr,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
-      ),
+        if (widget.errorText != null && widget.errorText!.trim().isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              widget.errorText!,
+              style: const TextStyle(color: Colors.red, fontSize: 12),
+            ),
+          ),
+      ],
     );
   }
 

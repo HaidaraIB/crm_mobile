@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
+import '../../utils/build_update_diff.dart';
 import '../../widgets/phone_input.dart';
 
 class EditOwnerModal extends StatefulWidget {
@@ -29,6 +30,7 @@ class _EditOwnerModalState extends State<EditOwnerModal> {
   final ApiService _apiService = ApiService();
   
   bool _isLoading = false;
+  Map<String, dynamic>? _initialPayload;
   
   @override
   void initState() {
@@ -37,6 +39,7 @@ class _EditOwnerModalState extends State<EditOwnerModal> {
     _phoneController = TextEditingController(text: widget.owner.phone);
     _cityController = TextEditingController(text: widget.owner.city ?? '');
     _districtController = TextEditingController(text: widget.owner.district ?? '');
+    _initialPayload = _buildPayload();
   }
   
   @override
@@ -48,6 +51,15 @@ class _EditOwnerModalState extends State<EditOwnerModal> {
     super.dispose();
   }
   
+  Map<String, dynamic> _buildPayload() {
+    return {
+      'name': _nameController.text.trim(),
+      'phone': _phoneController.text.trim(),
+      'city': _cityController.text.trim().isNotEmpty ? _cityController.text.trim() : null,
+      'district': _districtController.text.trim().isNotEmpty ? _districtController.text.trim() : null,
+    };
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -58,14 +70,16 @@ class _EditOwnerModalState extends State<EditOwnerModal> {
     });
     
     try {
-      final ownerData = {
-        'name': _nameController.text.trim(),
-        'phone': _phoneController.text.trim(),
-        'city': _cityController.text.trim().isNotEmpty ? _cityController.text.trim() : null,
-        'district': _districtController.text.trim().isNotEmpty ? _districtController.text.trim() : null,
-      };
-      
-      final owner = await _apiService.updateOwner(widget.owner.id, ownerData);
+      final diff = buildUpdateDiff(_initialPayload ?? {}, _buildPayload());
+
+      if (diff.isEmpty) {
+        if (mounted) {
+          Navigator.pop(context);
+        }
+        return;
+      }
+
+      final owner = await _apiService.updateOwner(widget.owner.id, diff);
       
       if (mounted) {
         widget.onOwnerUpdated?.call(owner);

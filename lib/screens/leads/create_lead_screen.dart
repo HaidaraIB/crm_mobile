@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/api_error_helper.dart';
+import '../../core/utils/form_api_errors.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/lead_model.dart';
 import '../../models/user_model.dart';
@@ -232,6 +233,7 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
 
     setState(() {
       _isLoading = true;
+      _errors.clear();
     });
 
     try {
@@ -316,14 +318,24 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
         method: 'POST',
       );
       if (mounted) {
-        setState(() {
-          _errors['general'] = ApiErrorHelper.toUserMessage(context, e);
-        });
-        final localizations = AppLocalizations.of(context);
-        SnackbarHelper.showError(
+        final mapped = mapLeadApiErrorToFieldErrors(
           context,
-          '${localizations?.translate('error') ?? 'Error'}: ${ApiErrorHelper.toUserMessage(context, e)}',
+          e,
+          fallbackGeneralKey: 'failedToCreateLead',
         );
+        setState(() {
+          _errors
+            ..clear()
+            ..addAll(mapped);
+        });
+        // Validation stays inline; snackbar only for connectivity failures.
+        if (ApiErrorHelper.isNoInternetError(e) ||
+            ApiErrorHelper.isTimeoutError(e)) {
+          SnackbarHelper.showError(
+            context,
+            ApiErrorHelper.toUserMessage(context, e),
+          );
+        }
       }
     } finally {
       if (mounted) {
@@ -852,6 +864,7 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
               _clearError('phone');
             },
             error: _errors.containsKey('phone'),
+            errorText: _errors['phone'],
           ),
         if (_phoneNumbers.isNotEmpty)
           ...List.generate(_phoneNumbers.length, (index) {
@@ -877,8 +890,10 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
                         setState(() {
                           _phoneNumbers[index]['phone_number'] = value;
                         });
+                        _clearError('phone');
                       },
                       error: _errors.containsKey('phone'),
+                      errorText: index == 0 ? _errors['phone'] : null,
                     ),
                     const SizedBox(height: 12),
                     // Options Row
@@ -978,14 +993,6 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
               ),
             );
           }),
-        if (_errors.containsKey('phone'))
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              _errors['phone']!,
-              style: const TextStyle(color: Colors.red, fontSize: 12),
-            ),
-          ),
       ],
     );
   }

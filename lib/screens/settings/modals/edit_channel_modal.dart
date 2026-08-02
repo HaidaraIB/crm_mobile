@@ -6,8 +6,8 @@ import '../../../core/utils/snackbar_helper.dart';
 import '../../../models/settings_model.dart';
 import '../../../services/api_service.dart';
 import '../../../services/error_logger.dart';
+import '../../../utils/build_update_diff.dart';
 import '../../../widgets/app_switch.dart';
-
 class EditChannelModal extends StatefulWidget {
   final ChannelModel channel;
   final VoidCallback? onChannelUpdated;
@@ -32,6 +32,8 @@ class _EditChannelModalState extends State<EditChannelModal> {
   late bool _isDefault;
   bool _isLoading = false;
   String? _errorMessage;
+  int? _companyId;
+  Map<String, dynamic>? _initialPayload;
 
   final List<String> _channelTypes = [
     'Web',
@@ -145,6 +147,28 @@ class _EditChannelModalState extends State<EditChannelModal> {
                 ? 'Low'
                 : widget.channel.priority;
     _isDefault = widget.channel.isDefault;
+    _loadInitialPayload();
+  }
+
+  Future<void> _loadInitialPayload() async {
+    try {
+      final currentUser = await _apiService.getCurrentUser();
+      if (!mounted) return;
+      setState(() {
+        _companyId = currentUser.company?.id;
+        _initialPayload = _buildPayload();
+      });
+    } catch (_) {}
+  }
+
+  Map<String, dynamic> _buildPayload() {
+    return {
+      'name': _nameController.text.trim(),
+      'type': _selectedType!,
+      'priority': _selectedPriority!.toLowerCase(),
+      if (_companyId != null) 'company': _companyId,
+      'is_default': _isDefault,
+    };
   }
 
   @override
@@ -162,13 +186,15 @@ class _EditChannelModalState extends State<EditChannelModal> {
     });
 
     try {
-      await _apiService.updateChannel(
-        channelId: widget.channel.id,
-        name: _nameController.text.trim(),
-        type: _selectedType!,
-        priority: _selectedPriority!,
-        isDefault: _isDefault,
-      );
+      final diff = buildUpdateDiff(_initialPayload ?? {}, _buildPayload());
+      if (diff.isEmpty) {
+        if (mounted) {
+          Navigator.pop(context);
+        }
+        return;
+      }
+
+      await _apiService.patchChannel(widget.channel.id, diff);
 
       if (mounted) {
         widget.onChannelUpdated?.call();

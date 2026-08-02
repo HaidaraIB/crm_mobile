@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
+import '../../utils/build_update_diff.dart';
 import '../../widgets/phone_input.dart';
 
 class EditServiceProviderModal extends StatefulWidget {
@@ -29,6 +30,7 @@ class _EditServiceProviderModalState extends State<EditServiceProviderModal> {
   final ApiService _apiService = ApiService();
   
   bool _isLoading = false;
+  Map<String, dynamic>? _initialPayload;
   
   @override
   void initState() {
@@ -37,6 +39,7 @@ class _EditServiceProviderModalState extends State<EditServiceProviderModal> {
     _phoneController = TextEditingController(text: widget.provider.phone);
     _emailController = TextEditingController(text: widget.provider.email ?? '');
     _specializationController = TextEditingController(text: widget.provider.specialization ?? '');
+    _initialPayload = _buildPayload();
   }
   
   @override
@@ -48,6 +51,15 @@ class _EditServiceProviderModalState extends State<EditServiceProviderModal> {
     super.dispose();
   }
   
+  Map<String, dynamic> _buildPayload() {
+    return {
+      'name': _nameController.text.trim(),
+      'phone': _phoneController.text.trim(),
+      'email': _emailController.text.trim().isNotEmpty ? _emailController.text.trim() : null,
+      'specialization': _specializationController.text.trim().isNotEmpty ? _specializationController.text.trim() : null,
+    };
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -58,14 +70,16 @@ class _EditServiceProviderModalState extends State<EditServiceProviderModal> {
     });
     
     try {
-      final providerData = {
-        'name': _nameController.text.trim(),
-        'phone': _phoneController.text.trim(),
-        'email': _emailController.text.trim().isNotEmpty ? _emailController.text.trim() : null,
-        'specialization': _specializationController.text.trim().isNotEmpty ? _specializationController.text.trim() : null,
-      };
-      
-      final provider = await _apiService.updateServiceProvider(widget.provider.id, providerData);
+      final diff = buildUpdateDiff(_initialPayload ?? {}, _buildPayload());
+
+      if (diff.isEmpty) {
+        if (mounted) {
+          Navigator.pop(context);
+        }
+        return;
+      }
+
+      final provider = await _apiService.updateServiceProvider(widget.provider.id, diff);
       
       if (mounted) {
         widget.onProviderUpdated?.call(provider);

@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/api_error_helper.dart';
+import '../../core/utils/form_api_errors.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../core/utils/budget_range_utils.dart';
 import '../../core/utils/field_visit_access.dart';
@@ -1955,7 +1956,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
         });
         SnackbarHelper.showError(
           context,
-          '${localizations?.translate('error') ?? 'Error'}: ${e.toString()}',
+          ApiErrorHelper.toUserMessage(context, e),
         );
       }
     }
@@ -1973,6 +1974,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
         String phoneType = 'mobile';
         bool isPrimary = false;
         bool isLoading = false;
+        String? phoneError;
 
         return StatefulBuilder(
           builder: (context, setModalState) => AlertDialog(
@@ -2018,8 +2020,11 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                     onChanged: (value) {
                       setModalState(() {
                         phoneNumber = value;
+                        phoneError = null;
                       });
                     },
+                    error: phoneError != null,
+                    errorText: phoneError,
                   ),
                   const SizedBox(height: 20),
                   // Phone Type Dropdown
@@ -2113,15 +2118,16 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
             ElevatedButton(
               onPressed: isLoading ? null : () async {
                 if (phoneNumber.trim().isEmpty) {
-                  SnackbarHelper.showError(
-                    dialogContext,
-                    localizations?.translate('phoneNumberRequiredSingle') ?? 'Phone number is required',
-                  );
+                  setModalState(() {
+                    phoneError = localizations?.translate('phoneNumberRequiredSingle') ??
+                        'Phone number is required';
+                  });
                   return;
                 }
 
                 setModalState(() {
                   isLoading = true;
+                  phoneError = null;
                 });
 
                 try {
@@ -2175,16 +2181,22 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                     );
                   }
                 } catch (e) {
-                  if (mounted) {
-                    setModalState(() {
-                      isLoading = false;
-                    });
-                    if (navigatorContext.mounted) {
-                      SnackbarHelper.showError(
-                        navigatorContext,
-                        '${localizations?.translate('error') ?? 'Error'}: ${e.toString()}',
-                      );
-                    }
+                  if (!mounted || !dialogContext.mounted) return;
+                  final mapped = mapLeadApiErrorToFieldErrors(
+                    dialogContext,
+                    e,
+                    fallbackGeneralKey: 'failedToUpdateLead',
+                  );
+                  setModalState(() {
+                    isLoading = false;
+                    phoneError = mapped['phone'] ?? mapped['general'];
+                  });
+                  if (ApiErrorHelper.isNoInternetError(e) ||
+                      ApiErrorHelper.isTimeoutError(e)) {
+                    SnackbarHelper.showError(
+                      dialogContext,
+                      ApiErrorHelper.toUserMessage(dialogContext, e),
+                    );
                   }
                 }
               },

@@ -303,7 +303,7 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
       case 'lost':
         return Colors.red;
       case 'cancelled':
-        return Colors.grey;
+        return Colors.purple;
       default:
         return Colors.grey;
     }

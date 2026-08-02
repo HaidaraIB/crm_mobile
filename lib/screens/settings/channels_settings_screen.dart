@@ -60,12 +60,9 @@ class _ChannelsSettingsScreenState extends State<ChannelsSettingsScreen> {
   Future<void> _setDefaultChannel(ChannelModel channel) async {
     if (channel.isDefault) return;
     try {
-      await _apiService.updateChannel(
-        channelId: channel.id,
-        name: channel.name,
-        type: channel.type,
-        priority: channel.priority,
-        isDefault: true,
+      await _apiService.patchChannel(
+        channel.id,
+        await _apiService.settingsDefaultPatchBody(),
       );
       if (!mounted) return;
       _loadChannels();

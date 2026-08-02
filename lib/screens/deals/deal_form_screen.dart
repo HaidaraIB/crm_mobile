@@ -11,6 +11,7 @@ import '../../widgets/inventory_card.dart';
 import '../../core/utils/specialization_helper.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../core/utils/lead_assignee_users.dart';
+import '../../utils/build_update_diff.dart';
 
 class DealFormScreen extends StatefulWidget {
   final DealModel? deal;
@@ -49,6 +50,7 @@ class _DealFormScreenState extends State<DealFormScreen> {
   // Form state
   final Map<String, String> _formState = {};
   final Map<String, String> _errors = {};
+  Map<String, dynamic>? _initialDealPayload;
   
   // Text editing controllers for calculated fields and dates
   late TextEditingController _discountAmountController;
@@ -161,6 +163,9 @@ class _DealFormScreenState extends State<DealFormScreen> {
         _initializeDefaultFormState();
       }
       _sanitizeDealUserDropdownFields();
+      if (widget.deal != null) {
+        _initialDealPayload = _buildDealPayload();
+      }
     } catch (e) {
       debugPrint('Error loading data: $e');
       if (mounted) {
@@ -355,6 +360,41 @@ class _DealFormScreenState extends State<DealFormScreen> {
     return newErrors.isEmpty;
   }
 
+  Map<String, dynamic> _buildDealPayload() {
+    final payload = <String, dynamic>{
+      'client': int.parse(_formState['leadId']!),
+      'company': widget.deal?.company ?? _currentUser?.company?.id,
+      'employee': int.tryParse(_formState['employee'] ?? '') ?? _currentUser?.id,
+      'started_by': int.tryParse(_formState['startedBy'] ?? '') ?? _currentUser?.id,
+      'closed_by': int.tryParse(_formState['closedBy'] ?? '') ?? _currentUser?.id,
+      'payment_method': _formState['paymentMethod']?.toLowerCase() ?? 'cash',
+      'status': _formState['status']?.toLowerCase() ?? 'reservation',
+      'stage': _formState['stage'] ?? 'in_progress',
+      'value': _calculatedTotalValue,
+      'start_date': _formState['startDate']?.isNotEmpty == true ? _formState['startDate'] : null,
+      'closed_date': _formState['closedDate']?.isNotEmpty == true ? _formState['closedDate'] : null,
+      'reminder_date': _formState['reminderDate']?.isNotEmpty == true
+          ? DateFormat('yyyy-MM-dd HH:mm').parse(_formState['reminderDate']!).toIso8601String()
+          : null,
+      'discount_percentage': double.tryParse(_formState['discountPercentage'] ?? '0') ?? 0,
+      'discount_amount': _calculatedDiscountAmount,
+      'sales_commission_percentage': double.tryParse(_formState['salesCommissionPercentage'] ?? '0') ?? 0,
+      'sales_commission_amount': _calculatedSalesCommissionAmount,
+      'description': _formState['description'] ?? '',
+    };
+
+    if (_isRealEstate) {
+      if (_formState['project']?.isNotEmpty == true) {
+        payload['project'] = int.parse(_formState['project']!);
+      }
+      if (_formState['unit']?.isNotEmpty == true) {
+        payload['unit'] = int.parse(_formState['unit']!);
+      }
+    }
+
+    return payload;
+  }
+
   Future<void> _saveDeal() async {
     if (!_validateForm()) {
       return;
@@ -367,40 +407,19 @@ class _DealFormScreenState extends State<DealFormScreen> {
     });
     
     try {
-      final payload = <String, dynamic>{
-        'client': int.parse(_formState['leadId']!),
-        'company': widget.deal?.company ?? _currentUser?.company?.id,
-        'employee': int.tryParse(_formState['employee'] ?? '') ?? _currentUser?.id,
-        'started_by': int.tryParse(_formState['startedBy'] ?? '') ?? _currentUser?.id,
-        'closed_by': int.tryParse(_formState['closedBy'] ?? '') ?? _currentUser?.id,
-        'payment_method': _formState['paymentMethod']?.toLowerCase() ?? 'cash',
-        'status': _formState['status']?.toLowerCase() ?? 'reservation',
-        'stage': _formState['stage'] ?? 'in_progress',
-        'value': _calculatedTotalValue,
-        'start_date': _formState['startDate']?.isNotEmpty == true ? _formState['startDate'] : null,
-        'closed_date': _formState['closedDate']?.isNotEmpty == true ? _formState['closedDate'] : null,
-        'reminder_date': _formState['reminderDate']?.isNotEmpty == true
-            ? DateFormat('yyyy-MM-dd HH:mm').parse(_formState['reminderDate']!).toIso8601String()
-            : null,
-        'discount_percentage': double.tryParse(_formState['discountPercentage'] ?? '0') ?? 0,
-        'discount_amount': _calculatedDiscountAmount,
-        'sales_commission_percentage': double.tryParse(_formState['salesCommissionPercentage'] ?? '0') ?? 0,
-        'sales_commission_amount': _calculatedSalesCommissionAmount,
-        'description': _formState['description'] ?? '',
-      };
-      
-      if (_isRealEstate) {
-        if (_formState['project']?.isNotEmpty == true) {
-          payload['project'] = int.parse(_formState['project']!);
-        }
-        if (_formState['unit']?.isNotEmpty == true) {
-          payload['unit'] = int.parse(_formState['unit']!);
-        }
-      }
-      
       if (widget.deal != null) {
-        await _apiService.updateDeal(widget.deal!.id, payload);
-        
+        final nextPayload = _buildDealPayload();
+        final diff = buildUpdateDiff(_initialDealPayload ?? {}, nextPayload);
+
+        if (diff.isEmpty) {
+          if (mounted) {
+            Navigator.pop(context);
+          }
+          return;
+        }
+
+        await _apiService.updateDeal(widget.deal!.id, diff);
+
         if (mounted) {
           SnackbarHelper.showSuccess(
             context,
@@ -409,8 +428,9 @@ class _DealFormScreenState extends State<DealFormScreen> {
           Navigator.pop(context, true);
         }
       } else {
+        final payload = _buildDealPayload();
         await _apiService.createDeal(payload);
-        
+
         if (mounted) {
           SnackbarHelper.showSuccess(
             context,

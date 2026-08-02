@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/api_error_helper.dart';
+import '../../core/utils/form_api_errors.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/lead_model.dart';
 import '../../models/user_model.dart';
@@ -10,6 +11,7 @@ import '../../services/api_service.dart';
 import '../../services/error_logger.dart';
 import '../../core/utils/lead_assignee_users.dart';
 import '../../core/utils/budget_range_utils.dart';
+import '../../utils/lead_update_payload.dart';
 import '../../widgets/phone_input.dart';
 import '../../widgets/lead_location_map_picker.dart';
 
@@ -50,6 +52,7 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
   final Map<String, String> _errors = {};
   double? _locationLatitude;
   double? _locationLongitude;
+  Map<String, dynamic>? _initialUpdatePayload;
 
   @override
   void initState() {
@@ -150,6 +153,7 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
           );
           _selectedStatus = defaultStatus.name;
         }
+        _initialUpdatePayload = _buildUpdatePayload();
       });
     } catch (e) {
       ErrorLogger().logError(
@@ -265,6 +269,67 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
     });
   }
 
+  List<Map<String, dynamic>> _resolvedPhoneNumbers() {
+    return _phoneNumbers.isNotEmpty
+        ? _phoneNumbers
+              .where((p) => p['phone_number'].toString().trim().isNotEmpty)
+              .toList()
+        : _phoneController.text.trim().isNotEmpty
+        ? [
+            <String, dynamic>{
+              'phone_number': _phoneController.text.trim(),
+              'phone_type': 'mobile',
+              'is_primary': true,
+              'notes': '',
+            },
+          ]
+        : <Map<String, dynamic>>[];
+  }
+
+  int? _resolveChannelId() {
+    if (_selectedChannel == null) return null;
+    final channel = _channels.firstWhere(
+      (c) => c.name == _selectedChannel,
+      orElse: () => _channels.first,
+    );
+    return channel.id;
+  }
+
+  int? _resolveStatusId() {
+    if (_selectedStatus == null) return null;
+    final status = _statuses.firstWhere(
+      (s) => s.name == _selectedStatus,
+      orElse: () => _statuses.first,
+    );
+    return status.id;
+  }
+
+  Map<String, dynamic> _buildUpdatePayload() {
+    final parsed = parseBudgetMinMaxFields(
+      _budgetController.text,
+      _budgetMaxController.text,
+    );
+
+    return buildLeadUpdatePayload(
+      name: _nameController.text.trim(),
+      phoneNumbers: _resolvedPhoneNumbers(),
+      phoneFallback: _phoneController.text.trim(),
+      budget: parsed.budget,
+      budgetMax: parsed.budgetMax,
+      assignedTo: _selectedUserId,
+      type: _selectedType,
+      channelId: _resolveChannelId(),
+      priority: _selectedPriority,
+      statusId: _resolveStatusId(),
+      leadCompanyName: _companyNameController.text.trim(),
+      profession: _professionController.text.trim(),
+      notes: _notesController.text,
+      locationLatitude: _locationLatitude,
+      locationLongitude: _locationLongitude,
+      includeLocation: true,
+    );
+  }
+
   Future<void> _submit() async {
     if (!_validateForm()) {
       return;
@@ -272,77 +337,21 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
 
     setState(() {
       _isLoading = true;
+      _errors.clear();
     });
 
     try {
-      final phoneNumbers = _phoneNumbers.isNotEmpty
-          ? _phoneNumbers
-                .where((p) => p['phone_number'].toString().trim().isNotEmpty)
-                .toList()
-          : [
-              <String, dynamic>{
-                'phone_number': _phoneController.text.trim(),
-                'phone_type': 'mobile',
-                'is_primary': true,
-                'notes': '',
-              },
-            ];
+      final nextPayload = _buildUpdatePayload();
+      final diff = buildLeadUpdateDiff(_initialUpdatePayload ?? {}, nextPayload);
 
-      Map<String, dynamic> primaryPhoneMap;
-      try {
-        primaryPhoneMap = phoneNumbers.firstWhere(
-          (p) => p['is_primary'] == true,
-        );
-      } catch (e) {
-        primaryPhoneMap = phoneNumbers.first;
-      }
-      final primaryPhone = primaryPhoneMap['phone_number'] as String;
-
-      // Convert channel name to ID
-      int? channelId;
-      if (_selectedChannel != null) {
-        final channel = _channels.firstWhere(
-          (c) => c.name == _selectedChannel,
-          orElse: () => _channels.first,
-        );
-        channelId = channel.id;
+      if (diff.isEmpty) {
+        if (mounted) {
+          Navigator.pop(context);
+        }
+        return;
       }
 
-      // Convert status name to ID
-      int? statusId;
-      if (_selectedStatus != null) {
-        final status = _statuses.firstWhere(
-          (s) => s.name == _selectedStatus,
-          orElse: () => _statuses.first,
-        );
-        statusId = status.id;
-      }
-
-      final parsed = parseBudgetMinMaxFields(
-        _budgetController.text,
-        _budgetMaxController.text,
-      );
-
-      final lead = await _apiService.updateLead(
-        id: widget.lead.id,
-        name: _nameController.text.trim(),
-        phone: primaryPhone,
-        phoneNumbers: phoneNumbers,
-        budget: parsed.budget,
-        budgetMax: parsed.budgetMax,
-        sendBudgetMax: true,
-        assignedTo: _selectedUserId,
-        type: _selectedType,
-        communicationWayId: channelId,
-        priority: _selectedPriority,
-        statusId: statusId,
-        leadCompanyName: _companyNameController.text.trim().isEmpty ? null : _companyNameController.text.trim(),
-        profession: _professionController.text.trim().isEmpty ? null : _professionController.text.trim(),
-        notes: _notesController.text,
-        locationLatitude: _locationLatitude,
-        locationLongitude: _locationLongitude,
-        sendLeadLocation: true,
-      );
+      final lead = await _apiService.patchLead(widget.lead.id, diff);
 
       if (mounted) {
         widget.onLeadUpdated?.call(lead);
@@ -359,13 +368,23 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
         method: 'PATCH',
       );
       if (mounted) {
-        setState(() {
-          _errors['general'] = ApiErrorHelper.toUserMessage(context, e);
-        });
-        SnackbarHelper.showError(
+        final mapped = mapLeadApiErrorToFieldErrors(
           context,
-          '${AppLocalizations.of(context)?.translate('error') ?? 'Error'}: ${ApiErrorHelper.toUserMessage(context, e)}',
+          e,
+          fallbackGeneralKey: 'failedToUpdateLead',
         );
+        setState(() {
+          _errors
+            ..clear()
+            ..addAll(mapped);
+        });
+        if (ApiErrorHelper.isNoInternetError(e) ||
+            ApiErrorHelper.isTimeoutError(e)) {
+          SnackbarHelper.showError(
+            context,
+            ApiErrorHelper.toUserMessage(context, e),
+          );
+        }
       }
     } finally {
       if (mounted) {
@@ -902,8 +921,10 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
                       setState(() {
                         _phoneNumbers[index]['phone_number'] = value;
                       });
+                      _clearError('phone');
                     },
                     error: _errors.containsKey('phone'),
+                    errorText: index == 0 ? _errors['phone'] : null,
                   ),
                   const SizedBox(height: 12),
                   // Options Row
@@ -1002,14 +1023,6 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
             ),
           );
         }),
-        if (_errors.containsKey('phone'))
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              _errors['phone']!,
-              style: const TextStyle(color: Colors.red, fontSize: 12),
-            ),
-          ),
       ],
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/api_error_helper.dart';
+import '../../core/utils/form_api_errors.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/lead_model.dart';
 import '../../models/user_model.dart';
@@ -48,6 +49,15 @@ class _AddLeadModalState extends State<AddLeadModal> {
   bool get _isDataEntry => _currentUser?.isDataEntry ?? false;
 
   final List<Map<String, dynamic>> _phoneNumbers = [];
+  final Map<String, String> _errors = {};
+
+  void _clearError(String field) {
+    if (_errors.containsKey(field)) {
+      setState(() {
+        _errors.remove(field);
+      });
+    }
+  }
 
   @override
   void initState() {
@@ -160,17 +170,17 @@ class _AddLeadModalState extends State<AddLeadModal> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_phoneNumbers.isEmpty && _phoneController.text.trim().isEmpty) {
-      final localizations = AppLocalizations.of(context);
-      SnackbarHelper.showError(
-        context,
-        localizations?.translate('phoneNumberRequired') ??
-            'Please enter at least one phone number',
-      );
+      setState(() {
+        _errors['phone'] =
+            AppLocalizations.of(context)?.translate('phoneNumberRequired') ??
+            'Please enter at least one phone number';
+      });
       return;
     }
 
     setState(() {
       _isLoading = true;
+      _errors.clear();
     });
 
     try {
@@ -188,7 +198,13 @@ class _AddLeadModalState extends State<AddLeadModal> {
             ];
 
       if (phoneNumbers.isEmpty) {
-        throw Exception('At least one phone number is required');
+        setState(() {
+          _errors['phone'] =
+              AppLocalizations.of(context)?.translate('phoneNumberRequired') ??
+              'Please enter at least one phone number';
+          _isLoading = false;
+        });
+        return;
       }
 
       final primaryPhone =
@@ -234,11 +250,23 @@ class _AddLeadModalState extends State<AddLeadModal> {
         method: 'POST',
       );
       if (mounted) {
-        final localizations = AppLocalizations.of(context);
-        SnackbarHelper.showError(
+        final mapped = mapLeadApiErrorToFieldErrors(
           context,
-          '${localizations?.translate('error') ?? 'Error'}: ${ApiErrorHelper.toUserMessage(context, e)}',
+          e,
+          fallbackGeneralKey: 'failedToCreateLead',
         );
+        setState(() {
+          _errors
+            ..clear()
+            ..addAll(mapped);
+        });
+        if (ApiErrorHelper.isNoInternetError(e) ||
+            ApiErrorHelper.isTimeoutError(e)) {
+          SnackbarHelper.showError(
+            context,
+            ApiErrorHelper.toUserMessage(context, e),
+          );
+        }
       }
     } finally {
       if (mounted) {
@@ -315,6 +343,60 @@ class _AddLeadModalState extends State<AddLeadModal> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                if (_errors.isNotEmpty)
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(12),
+                                    margin: const EdgeInsets.only(bottom: 16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.withValues(alpha: 0.1),
+                                      border: Border.all(color: Colors.red),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        if (_errors.containsKey('general'))
+                                          Text(
+                                            _errors['general']!,
+                                            style: const TextStyle(
+                                              color: Colors.red,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        if (hasFormFieldErrors(_errors)) ...[
+                                          if (!_errors.containsKey('general'))
+                                            Text(
+                                              localizations?.translate(
+                                                    'pleaseFixErrors',
+                                                  ) ??
+                                                  'Please fix the following errors:',
+                                              style: const TextStyle(
+                                                color: Colors.red,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ..._errors.entries
+                                              .where((e) => e.key != 'general')
+                                              .map(
+                                                (e) => Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                    top: 4,
+                                                  ),
+                                                  child: Text(
+                                                    '• ${e.value}',
+                                                    style: const TextStyle(
+                                                      color: Colors.red,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
                                 // Name
                                 Text(
                                   localizations?.translate('clientName') ??
@@ -414,12 +496,15 @@ class _AddLeadModalState extends State<AddLeadModal> {
                                       setState(() {
                                         _phoneController.text = value;
                                       });
+                                      _clearError('phone');
                                     },
                                     hintText:
                                         localizations?.translate(
                                           'enterPhoneNumber',
                                         ) ??
                                         'Enter phone number',
+                                    error: _errors.containsKey('phone'),
+                                    errorText: _errors['phone'],
                                   ),
 
                                 if (_phoneNumbers.isNotEmpty)
@@ -443,12 +528,19 @@ class _AddLeadModalState extends State<AddLeadModal> {
                                                   _phoneNumbers[index]['phone_number'] =
                                                       value;
                                                 });
+                                                _clearError('phone');
                                               },
                                               hintText:
                                                   localizations?.translate(
                                                     'enterPhoneNumber',
                                                   ) ??
                                                   'Phone',
+                                              error: _errors.containsKey(
+                                                'phone',
+                                              ),
+                                              errorText: index == 0
+                                                  ? _errors['phone']
+                                                  : null,
                                             ),
                                           ),
                                           const SizedBox(width: 8),

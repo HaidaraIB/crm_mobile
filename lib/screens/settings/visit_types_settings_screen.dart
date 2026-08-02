@@ -88,12 +88,9 @@ class _VisitTypesSettingsScreenState extends State<VisitTypesSettingsScreen> {
   Future<void> _setDefault(VisitTypeModel vt) async {
     if (vt.isDefault) return;
     try {
-      await _apiService.updateVisitType(
-        visitTypeId: vt.id,
-        name: vt.name,
-        description: vt.description,
-        color: vt.color,
-        isDefault: true,
+      await _apiService.patchVisitType(
+        vt.id,
+        await _apiService.settingsDefaultPatchBody(),
       );
       if (!mounted) return;
       _loadVisitTypes();

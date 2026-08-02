@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/api_error_helper.dart';
+import '../../core/utils/form_api_errors.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/lead_model.dart';
 import '../../models/user_model.dart';
@@ -9,6 +11,7 @@ import '../../services/api_service.dart';
 import '../../services/error_logger.dart';
 import '../../core/utils/lead_assignee_users.dart';
 import '../../core/utils/budget_range_utils.dart';
+import '../../utils/lead_update_payload.dart';
 import '../../widgets/phone_input.dart';
 
 class EditLeadModal extends StatefulWidget {
@@ -45,6 +48,16 @@ class _EditLeadModalState extends State<EditLeadModal> {
   bool _isLoadingData = true;
 
   List<Map<String, dynamic>> _phoneNumbers = [];
+  Map<String, dynamic>? _initialUpdatePayload;
+  final Map<String, String> _errors = {};
+
+  void _clearError(String field) {
+    if (_errors.containsKey(field)) {
+      setState(() {
+        _errors.remove(field);
+      });
+    }
+  }
 
   @override
   void initState() {
@@ -129,6 +142,7 @@ class _EditLeadModalState extends State<EditLeadModal> {
               !_users.any((u) => u.id == _selectedUserId)) {
             _selectedUserId = null;
           }
+          _initialUpdatePayload = _buildUpdatePayload();
         });
       }
     } catch (e) {
@@ -174,90 +188,93 @@ class _EditLeadModalState extends State<EditLeadModal> {
     });
   }
 
+  List<Map<String, dynamic>> _resolvedPhoneNumbers() {
+    return _phoneNumbers.isNotEmpty
+        ? _phoneNumbers
+              .where((p) => p['phone_number'].toString().trim().isNotEmpty)
+              .toList()
+        : _phoneController.text.trim().isNotEmpty
+        ? [
+            {
+              'phone_number': _phoneController.text.trim(),
+              'phone_type': 'mobile',
+              'is_primary': true,
+              'notes': '',
+            },
+          ]
+        : <Map<String, dynamic>>[];
+  }
+
+  int? _resolveChannelId() {
+    if (_selectedChannel == null) return null;
+    final channel = _channels.firstWhere(
+      (c) => c.name == _selectedChannel,
+      orElse: () => _channels.first,
+    );
+    return channel.id;
+  }
+
+  int? _resolveStatusId() {
+    if (_selectedStatus == null) return null;
+    final status = _statuses.firstWhere(
+      (s) => s.name == _selectedStatus,
+      orElse: () => _statuses.first,
+    );
+    return status.id;
+  }
+
+  Map<String, dynamic> _buildUpdatePayload() {
+    final parsed = parseBudgetMinMaxFields(
+      _budgetController.text,
+      _budgetMaxController.text,
+    );
+
+    return buildLeadUpdatePayload(
+      name: _nameController.text.trim(),
+      phoneNumbers: _resolvedPhoneNumbers(),
+      phoneFallback: _phoneController.text.trim(),
+      budget: parsed.budget,
+      budgetMax: parsed.budgetMax,
+      assignedTo: _selectedUserId,
+      type: _selectedType,
+      channelId: _resolveChannelId(),
+      priority: _selectedPriority,
+      statusId: _resolveStatusId(),
+      leadCompanyName: _companyNameController.text.trim(),
+      profession: _professionController.text.trim(),
+      notes: _notesController.text,
+    );
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
     if (_phoneNumbers.isEmpty && _phoneController.text.trim().isEmpty) {
-      final localizations = AppLocalizations.of(context);
-      SnackbarHelper.showError(
-        context,
-        localizations?.translate('phoneNumberRequired') ??
-            'Please enter at least one phone number',
-      );
+      setState(() {
+        _errors['phone'] =
+            AppLocalizations.of(context)?.translate('phoneNumberRequired') ??
+            'Please enter at least one phone number';
+      });
       return;
     }
 
     setState(() {
       _isLoading = true;
+      _errors.clear();
     });
 
     try {
-      final phoneNumbers = _phoneNumbers.isNotEmpty
-          ? _phoneNumbers
-                .where((p) => p['phone_number'].toString().trim().isNotEmpty)
-                .toList()
-          : [
-              {
-                'phone_number': _phoneController.text.trim(),
-                'phone_type': 'mobile',
-                'is_primary': true,
-                'notes': '',
-              },
-            ];
+      final nextPayload = _buildUpdatePayload();
+      final diff = buildLeadUpdateDiff(_initialUpdatePayload ?? {}, nextPayload);
 
-      if (phoneNumbers.isEmpty) {
-        throw Exception('At least one phone number is required');
+      if (diff.isEmpty) {
+        if (mounted) {
+          Navigator.pop(context);
+        }
+        return;
       }
 
-      final primaryPhone =
-          phoneNumbers.firstWhere(
-                (p) => p['is_primary'] == true,
-                orElse: () => phoneNumbers.first,
-              )['phone_number']
-              as String;
-
-      // Convert channel name to ID
-      int? channelId;
-      if (_selectedChannel != null) {
-        final channel = _channels.firstWhere(
-          (c) => c.name == _selectedChannel,
-          orElse: () => _channels.first,
-        );
-        channelId = channel.id;
-      }
-
-      // Convert status name to ID
-      int? statusId;
-      if (_selectedStatus != null) {
-        final status = _statuses.firstWhere(
-          (s) => s.name == _selectedStatus,
-          orElse: () => _statuses.first,
-        );
-        statusId = status.id;
-      }
-
-      final parsed = parseBudgetMinMaxFields(
-        _budgetController.text,
-        _budgetMaxController.text,
-      );
-
-      final lead = await _apiService.updateLead(
-        id: widget.lead.id,
-        name: _nameController.text.trim(),
-        phone: primaryPhone,
-        phoneNumbers: phoneNumbers,
-        budget: parsed.budget,
-        budgetMax: parsed.budgetMax,
-        sendBudgetMax: true,
-        assignedTo: _selectedUserId,
-        type: _selectedType,
-        communicationWayId: channelId,
-        priority: _selectedPriority,
-        statusId: statusId,
-        leadCompanyName: _companyNameController.text.trim().isEmpty ? null : _companyNameController.text.trim(),
-        profession: _professionController.text.trim().isEmpty ? null : _professionController.text.trim(),
-        notes: _notesController.text,
-      );
+      final lead = await _apiService.patchLead(widget.lead.id, diff);
 
       if (mounted) {
         Navigator.pop(context);
@@ -274,10 +291,23 @@ class _EditLeadModalState extends State<EditLeadModal> {
         method: 'PATCH',
       );
       if (mounted) {
-        SnackbarHelper.showError(
+        final mapped = mapLeadApiErrorToFieldErrors(
           context,
-          '${AppLocalizations.of(context)?.translate('error') ?? 'Error'}: ${e.toString()}',
+          e,
+          fallbackGeneralKey: 'failedToUpdateLead',
         );
+        setState(() {
+          _errors
+            ..clear()
+            ..addAll(mapped);
+        });
+        if (ApiErrorHelper.isNoInternetError(e) ||
+            ApiErrorHelper.isTimeoutError(e)) {
+          SnackbarHelper.showError(
+            context,
+            ApiErrorHelper.toUserMessage(context, e),
+          );
+        }
       }
     } finally {
       if (mounted) {
@@ -353,6 +383,60 @@ class _EditLeadModalState extends State<EditLeadModal> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                if (_errors.isNotEmpty)
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(12),
+                                    margin: const EdgeInsets.only(bottom: 16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.withValues(alpha: 0.1),
+                                      border: Border.all(color: Colors.red),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        if (_errors.containsKey('general'))
+                                          Text(
+                                            _errors['general']!,
+                                            style: const TextStyle(
+                                              color: Colors.red,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        if (hasFormFieldErrors(_errors)) ...[
+                                          if (!_errors.containsKey('general'))
+                                            Text(
+                                              localizations?.translate(
+                                                    'pleaseFixErrors',
+                                                  ) ??
+                                                  'Please fix the following errors:',
+                                              style: const TextStyle(
+                                                color: Colors.red,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ..._errors.entries
+                                              .where((e) => e.key != 'general')
+                                              .map(
+                                                (e) => Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                    top: 4,
+                                                  ),
+                                                  child: Text(
+                                                    '• ${e.value}',
+                                                    style: const TextStyle(
+                                                      color: Colors.red,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
                                 // Name
                                 Text(
                                   localizations?.translate('clientName') ??
@@ -481,12 +565,17 @@ class _EditLeadModalState extends State<EditLeadModal> {
                                                 _phoneNumbers[index]['phone_number'] =
                                                     value;
                                               });
+                                              _clearError('phone');
                                             },
                                             hintText:
                                                 localizations?.translate(
                                                   'enterPhoneNumber',
                                                 ) ??
                                                 'Phone',
+                                            error: _errors.containsKey('phone'),
+                                            errorText: index == 0
+                                                ? _errors['phone']
+                                                : null,
                                           ),
                                         ),
                                         const SizedBox(width: 8),
