@@ -26,8 +26,6 @@ class TimelineEntry {
   final String? callDatetime;
   final String? followUpDate;
   final String? locationPhotoUrl;
-  final String? recordingUrl;
-  final String? recordingStatus;
 
   const TimelineEntry({
     required this.id,
@@ -45,7 +43,5 @@ class TimelineEntry {
     this.callDatetime,
     this.followUpDate,
     this.locationPhotoUrl,
-    this.recordingUrl,
-    this.recordingStatus,
   });
 }

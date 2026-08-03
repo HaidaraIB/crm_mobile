@@ -501,7 +501,6 @@ class _TimelineRow extends StatelessWidget {
                       ),
                     ),
                   ],
-                  _RecordingBlock(entry: entry, loc: loc, onOpenUrl: onOpenUrl),
                   if (entry.type == TimelineEntryType.fieldVisit &&
                       entry.locationPhotoUrl != null &&
                       entry.locationPhotoUrl!.isNotEmpty) ...[
@@ -903,90 +902,6 @@ class _LocationBlock extends StatelessWidget {
             ),
           ],
         ],
-      ),
-    );
-  }
-}
-
-class _RecordingBlock extends StatelessWidget {
-  final TimelineEntry entry;
-  final AppLocalizations? loc;
-  final Future<void> Function(String url) onOpenUrl;
-
-  const _RecordingBlock({
-    required this.entry,
-    required this.loc,
-    required this.onOpenUrl,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final status = entry.recordingStatus;
-    if (status == null || status.isEmpty) return const SizedBox.shrink();
-
-    if (status == 'ready' &&
-        entry.recordingUrl != null &&
-        entry.recordingUrl!.isNotEmpty) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 8),
-        child: Directionality(
-          textDirection: TextDirection.ltr,
-          child: Wrap(
-            spacing: 16,
-            children: [
-              InkWell(
-                onTap: () => onOpenUrl(entry.recordingUrl!),
-                child: Text(
-                  loc?.translate('playRecording') ?? 'Play recording',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: _timelineAccentColor(context),
-                  ),
-                ),
-              ),
-              InkWell(
-                onTap: () => onOpenUrl(entry.recordingUrl!),
-                child: Text(
-                  loc?.translate('downloadRecording') ?? 'Download recording',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: _timelineMutedColor(context),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    String? message;
-    Color? color;
-    if (status == 'pending' || status == 'processing') {
-      message = loc?.translate('recordingProcessing') ??
-          'Recording processing…';
-      color = Theme.of(context).brightness == Brightness.dark
-          ? const Color(0xFFFBBF24)
-          : const Color(0xFFB45309);
-    } else if (status == 'failed') {
-      message = loc?.translate('recordingUnavailable') ??
-          'Recording unavailable';
-    } else if (status == 'skipped') {
-      message =
-          loc?.translate('recordingSkipped') ?? 'No recording for this call';
-    }
-    if (message == null) return const SizedBox.shrink();
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Text(
-        message,
-        style: TextStyle(
-          fontSize: 13,
-          color: color ?? _timelineMutedColor(context),
-        ),
       ),
     );
   }

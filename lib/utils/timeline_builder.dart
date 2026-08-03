@@ -182,8 +182,6 @@ List<TimelineEntry> buildLeadTimeline(TimelineBuilderInput input) {
       followUpDate: cc.followUpDate != null
           ? formatDetail(cc.followUpDate)
           : null,
-      recordingUrl: cc.pbxRecordingUrl,
-      recordingStatus: cc.pbxRecordingStatus,
     );
   });
 

@@ -11,8 +11,6 @@ class ClientCallModel {
   final String? pbxDirection;
   final String? pbxDisposition;
   final int? pbxDurationSec;
-  final String? pbxRecordingUrl;
-  final String? pbxRecordingStatus;
   final int createdBy;
   final String? createdByUsername;
   final DateTime createdAt;
@@ -30,8 +28,6 @@ class ClientCallModel {
     this.pbxDirection,
     this.pbxDisposition,
     this.pbxDurationSec,
-    this.pbxRecordingUrl,
-    this.pbxRecordingStatus,
     required this.createdBy,
     this.createdByUsername,
     required this.createdAt,
@@ -66,8 +62,6 @@ class ClientCallModel {
       pbxDirection: json['pbx_direction'] as String?,
       pbxDisposition: json['pbx_disposition'] as String?,
       pbxDurationSec: json['pbx_duration_sec'] as int?,
-      pbxRecordingUrl: json['pbx_recording_url'] as String?,
-      pbxRecordingStatus: json['pbx_recording_status'] as String?,
       createdBy: json['created_by'] as int? ?? json['createdBy'] as int? ?? 0,
       createdByUsername: json['created_by_username'] as String?,
       createdAt: DateTime.parse(
@@ -92,8 +86,6 @@ class ClientCallModel {
       'pbx_direction': pbxDirection,
       'pbx_disposition': pbxDisposition,
       'pbx_duration_sec': pbxDurationSec,
-      'pbx_recording_url': pbxRecordingUrl,
-      'pbx_recording_status': pbxRecordingStatus,
       'created_by': createdBy,
       'created_by_username': createdByUsername,
       'created_at': createdAt.toIso8601String(),
