@@ -325,7 +325,7 @@ class _ImportLeadsScreenState extends State<ImportLeadsScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    '${localizations?.translate('importLeadsColumnNames') ?? 'Column names'} → ${localizations?.translate('importLeadsCustomFields') ?? 'System field'}',
+                                    '${localizations?.translate('importLeadsColumnNames') ?? 'Column names'} ${Directionality.of(context) == TextDirection.rtl ? '←' : '→'} ${localizations?.translate('importLeadsCustomFields') ?? 'System field'}',
                                     style: Theme.of(context).textTheme.titleSmall,
                                   ),
                                   const SizedBox(height: 8),
