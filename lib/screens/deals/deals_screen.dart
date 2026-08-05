@@ -8,6 +8,7 @@ import '../../models/user_model.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/inventory_card.dart';
+import '../../widgets/pull_to_refresh_body.dart';
 import '../../core/utils/app_locales.dart';
 import '../../core/utils/specialization_helper.dart';
 import '../../core/utils/snackbar_helper.dart';
@@ -404,11 +405,15 @@ class _DealsScreenState extends State<DealsScreen> {
 
   Widget _buildContent(AppLocalizations? localizations, ThemeData theme, bool isRealEstate) {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return PullToRefreshBody(
+        onRefresh: _loadDeals,
+        child: const CircularProgressIndicator(),
+      );
     }
     
     if (_errorMessage != null) {
-      return Center(
+      return PullToRefreshBody(
+        onRefresh: _loadDeals,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -433,7 +438,8 @@ class _DealsScreenState extends State<DealsScreen> {
     }
     
     if (_filteredDeals.isEmpty) {
-      return Center(
+      return PullToRefreshBody(
+        onRefresh: _loadDeals,
         child: Text(
           localizations?.translate('noDealsFound') ?? 'No deals found',
           style: theme.textTheme.bodyLarge,
@@ -441,12 +447,11 @@ class _DealsScreenState extends State<DealsScreen> {
       );
     }
     
-    return RefreshIndicator(
+    return PullToRefreshBody.list(
       onRefresh: _loadDeals,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _filteredDeals.length,
-        itemBuilder: (context, index) {
+      listPadding: const EdgeInsets.all(16),
+      itemCount: _filteredDeals.length,
+      itemBuilder: (context, index) {
           final deal = _filteredDeals[index];
           return InventoryCard(
             child: Column(
@@ -590,7 +595,6 @@ class _DealsScreenState extends State<DealsScreen> {
             ),
           );
         },
-      ),
     );
   }
 

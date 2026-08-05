@@ -9,6 +9,7 @@ import '../../services/api_service.dart';
 import '../../widgets/inventory_card.dart';
 import '../../widgets/modals/add_owner_modal.dart';
 import '../../widgets/modals/edit_owner_modal.dart';
+import '../../widgets/pull_to_refresh_body.dart';
 
 class OwnersScreen extends StatefulWidget {
   const OwnersScreen({super.key});
@@ -162,11 +163,15 @@ class _OwnersScreenState extends State<OwnersScreen> {
 
   Widget _buildContent(AppLocalizations? localizations, ThemeData theme) {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return PullToRefreshBody(
+        onRefresh: () => _loadOwners(forceRefresh: true),
+        child: const CircularProgressIndicator(),
+      );
     }
     
     if (_errorMessage != null) {
-      return Center(
+      return PullToRefreshBody(
+        onRefresh: () => _loadOwners(forceRefresh: true),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -191,7 +196,8 @@ class _OwnersScreenState extends State<OwnersScreen> {
     }
     
     if (_filteredOwners.isEmpty) {
-      return Center(
+      return PullToRefreshBody(
+        onRefresh: () => _loadOwners(forceRefresh: true),
         child: Text(
           localizations?.translate('noOwnersFound') ?? 'No owners found',
           style: theme.textTheme.bodyLarge,
@@ -199,12 +205,11 @@ class _OwnersScreenState extends State<OwnersScreen> {
       );
     }
     
-    return RefreshIndicator(
+    return PullToRefreshBody.list(
       onRefresh: () => _loadOwners(forceRefresh: true),
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _filteredOwners.length,
-        itemBuilder: (context, index) {
+      listPadding: const EdgeInsets.all(16),
+      itemCount: _filteredOwners.length,
+      itemBuilder: (context, index) {
           final owner = _filteredOwners[index];
           return InventoryCard(
             onTap: () => _callOwner(owner.phone),
@@ -320,7 +325,6 @@ class _OwnersScreenState extends State<OwnersScreen> {
             ),
           );
         },
-      ),
     );
   }
   

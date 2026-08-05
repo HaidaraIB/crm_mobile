@@ -12,6 +12,7 @@ import '../../widgets/modals/add_service_package_modal.dart';
 import '../../widgets/modals/edit_service_package_modal.dart';
 import '../../widgets/modals/add_service_provider_modal.dart';
 import '../../widgets/modals/edit_service_provider_modal.dart';
+import '../../widgets/pull_to_refresh_body.dart';
 
 class ServicesInventoryScreen extends StatefulWidget {
   const ServicesInventoryScreen({super.key});
@@ -251,11 +252,15 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
 
   Widget _buildServicesTab(AppLocalizations? localizations, ThemeData theme) {
     if (_isLoadingServices) {
-      return const Center(child: CircularProgressIndicator());
+      return PullToRefreshBody(
+        onRefresh: () => _loadServices(forceRefresh: true),
+        child: const CircularProgressIndicator(),
+      );
     }
     
     if (_errorServices != null) {
-      return Center(
+      return PullToRefreshBody(
+        onRefresh: () => _loadServices(forceRefresh: true),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -280,7 +285,8 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
     }
     
     if (_filteredServices.isEmpty) {
-      return Center(
+      return PullToRefreshBody(
+        onRefresh: () => _loadServices(forceRefresh: true),
         child: Text(
           localizations?.translate('noServicesFound') ?? 'No services found',
           style: theme.textTheme.bodyLarge,
@@ -288,8 +294,9 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
       );
     }
     
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
+    return PullToRefreshBody.list(
+      onRefresh: () => _loadServices(forceRefresh: true),
+      listPadding: const EdgeInsets.all(16),
       itemCount: _filteredServices.length,
       itemBuilder: (context, index) {
         final service = _filteredServices[index];
@@ -396,11 +403,15 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
 
   Widget _buildPackagesTab(AppLocalizations? localizations, ThemeData theme) {
     if (_isLoadingPackages) {
-      return const Center(child: CircularProgressIndicator());
+      return PullToRefreshBody(
+        onRefresh: () => _loadPackages(forceRefresh: true),
+        child: const CircularProgressIndicator(),
+      );
     }
     
     if (_errorPackages != null) {
-      return Center(
+      return PullToRefreshBody(
+        onRefresh: () => _loadPackages(forceRefresh: true),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -425,7 +436,8 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
     }
     
     if (_filteredPackages.isEmpty) {
-      return Center(
+      return PullToRefreshBody(
+        onRefresh: () => _loadPackages(forceRefresh: true),
         child: Text(
           localizations?.translate('noServicePackagesFound') ?? 'No service packages found',
           style: theme.textTheme.bodyLarge,
@@ -433,8 +445,9 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
       );
     }
     
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
+    return PullToRefreshBody.list(
+      onRefresh: () => _loadPackages(forceRefresh: true),
+      listPadding: const EdgeInsets.all(16),
       itemCount: _filteredPackages.length,
       itemBuilder: (context, index) {
         final pkg = _filteredPackages[index];
@@ -542,11 +555,15 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
 
   Widget _buildProvidersTab(AppLocalizations? localizations, ThemeData theme) {
     if (_isLoadingProviders) {
-      return const Center(child: CircularProgressIndicator());
+      return PullToRefreshBody(
+        onRefresh: () => _loadProviders(forceRefresh: true),
+        child: const CircularProgressIndicator(),
+      );
     }
     
     if (_errorProviders != null) {
-      return Center(
+      return PullToRefreshBody(
+        onRefresh: () => _loadProviders(forceRefresh: true),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -571,7 +588,8 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
     }
     
     if (_filteredProviders.isEmpty) {
-      return Center(
+      return PullToRefreshBody(
+        onRefresh: () => _loadProviders(forceRefresh: true),
         child: Text(
           localizations?.translate('noServiceProvidersFound') ?? 'No service providers found',
           style: theme.textTheme.bodyLarge,
@@ -579,8 +597,9 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
       );
     }
     
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
+    return PullToRefreshBody.list(
+      onRefresh: () => _loadProviders(forceRefresh: true),
+      listPadding: const EdgeInsets.all(16),
       itemCount: _filteredProviders.length,
       itemBuilder: (context, index) {
         final provider = _filteredProviders[index];

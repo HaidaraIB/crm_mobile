@@ -6,6 +6,7 @@ import '../../core/utils/snackbar_helper.dart';
 import '../../models/settings_model.dart';
 import '../../services/api_service.dart';
 import '../../services/error_logger.dart';
+import '../../widgets/pull_to_refresh_body.dart';
 import 'modals/add_call_method_modal.dart';
 import 'modals/edit_call_method_modal.dart';
 import 'widgets/settings_list_card.dart';
@@ -177,9 +178,13 @@ class _CallMethodsSettingsScreenState extends State<CallMethodsSettingsScreen> {
 
     Widget body;
     if (_isLoading) {
-      body = const Center(child: CircularProgressIndicator());
+      body = PullToRefreshBody(
+        onRefresh: () => _loadCallMethods(forceRefresh: true),
+        child: const CircularProgressIndicator(),
+      );
     } else if (_errorMessage != null) {
-      body = Center(
+      body = PullToRefreshBody(
+        onRefresh: () => _loadCallMethods(forceRefresh: true),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -221,7 +226,8 @@ class _CallMethodsSettingsScreenState extends State<CallMethodsSettingsScreen> {
           ),
           Expanded(
             child: _callMethods.isEmpty
-                ? Center(
+                ? PullToRefreshBody(
+                    onRefresh: () => _loadCallMethods(forceRefresh: true),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -238,8 +244,9 @@ class _CallMethodsSettingsScreenState extends State<CallMethodsSettingsScreen> {
                       ],
                     ),
                   )
-                : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 88),
+                : PullToRefreshBody.list(
+                    onRefresh: () => _loadCallMethods(forceRefresh: true),
+                    listPadding: const EdgeInsets.fromLTRB(16, 0, 16, 88),
                     itemCount: _callMethods.length,
                     itemBuilder: (context, index) {
                       final callMethod = _callMethods[index];

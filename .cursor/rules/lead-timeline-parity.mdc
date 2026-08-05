@@ -1,0 +1,38 @@
+---
+description: Keep lead timeline UX/behavior in sync between CRM web and mobile
+globs:
+  - lib/utils/timeline_builder.dart
+  - lib/models/timeline_entry.dart
+  - lib/widgets/lead_timeline.dart
+  - lib/utils/timeline_*.dart
+  - lib/screens/leads/lead_profile_screen.dart
+alwaysApply: false
+---
+
+# Lead timeline parity (web ↔ mobile)
+
+The lead **Timeline** on web (`CRM-project`) and mobile (`crm_mobile`) must stay behaviorally aligned. When you change timeline grouping, entry types, chips, or WhatsApp presentation on one client, update the other in the same change set (or immediately after).
+
+## Canonical sources
+
+| Concern | Web | Mobile |
+|---------|-----|--------|
+| Build + merge events | `CRM-project/pages/ViewLeadPage.tsx` | `lib/utils/timeline_builder.dart` (`buildLeadTimeline`) |
+| Entry model / types | `CRM-project/types.ts` | `lib/models/timeline_entry.dart` |
+| Render | `CRM-project/components/Timeline.tsx` | `lib/widgets/lead_timeline.dart` |
+| Copy EN/AR | `CRM-project/constants.ts` | `lib/core/localization/app_localizations.dart` |
+
+## WhatsApp quieter timeline (required parity)
+
+- Map each WA message with `direction` (`inbound` / `outbound`).
+- After merging all sources, sort chronologically and **collapse consecutive** `whatsapp` rows into one `whatsappThread` card (`collapseConsecutiveWhatsAppThreads` in `timeline_builder.dart`).
+- Non-WhatsApp events (call, visit, SMS, stage, etc.) **break** the group.
+- Thread card: green WhatsApp chip, conversation title + count, latest-message preview, expand/collapse compact `←`/`→` lines, phone once with LTR (`forceLtr` on stage chip).
+- Default **collapsed**.
+- Web has **Open in Chats**; mobile omits that action until an in-app WA chats screen exists.
+
+## Rules of thumb
+
+- Same event sources and sort key (`timestamp`); prefer shared sort preference key `leadTimelineSortOrder`.
+- Do not leave mobile on one full card per WA message while web uses thread cards (or the reverse).
+- Prefer frontend-only grouping unless both clients need new API fields.

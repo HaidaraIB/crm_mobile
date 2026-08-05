@@ -8,6 +8,7 @@ import '../../core/utils/snackbar_helper.dart';
 import '../../models/lead_model.dart';
 import '../../services/api_service.dart';
 import '../leads/lead_profile_screen.dart';
+import '../../widgets/pull_to_refresh_body.dart';
 
 class CalendarScreen extends StatefulWidget {
   final DateTime? initialDate;
@@ -258,9 +259,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final isTimeout = _errorMessage == 'CONNECTION_TIMEOUT';
 
     return _isLoading
-        ? const Center(child: CircularProgressIndicator())
+        ? PullToRefreshBody(
+            onRefresh: () => _loadEvents(forceRefresh: true),
+            child: const CircularProgressIndicator(),
+          )
         : _errorMessage != null
-        ? Center(
+        ? PullToRefreshBody(
+            onRefresh: () => _loadEvents(forceRefresh: true),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -306,11 +311,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
               ],
             ),
           )
-        : Column(
+        : RefreshIndicator(
+            onRefresh: () => _loadEvents(forceRefresh: true),
+            child: Column(
             children: [
               // Calendar Grid
               Expanded(
                 child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
@@ -407,7 +415,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 ),
               ),
             ],
-          );
+          ),
+        );
   }
 
   Widget _buildCalendarGrid(ThemeData theme, bool isDark) {

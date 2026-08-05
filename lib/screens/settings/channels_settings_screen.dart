@@ -6,6 +6,7 @@ import '../../core/utils/snackbar_helper.dart';
 import '../../models/settings_model.dart';
 import '../../services/api_service.dart';
 import '../../services/error_logger.dart';
+import '../../widgets/pull_to_refresh_body.dart';
 import 'modals/add_channel_modal.dart';
 import 'modals/edit_channel_modal.dart';
 import 'widgets/settings_list_card.dart';
@@ -171,9 +172,13 @@ class _ChannelsSettingsScreenState extends State<ChannelsSettingsScreen> {
 
     Widget body;
     if (_isLoading) {
-      body = const Center(child: CircularProgressIndicator());
+      body = PullToRefreshBody(
+        onRefresh: () => _loadChannels(forceRefresh: true),
+        child: const CircularProgressIndicator(),
+      );
     } else if (_errorMessage != null) {
-      body = Center(
+      body = PullToRefreshBody(
+        onRefresh: () => _loadChannels(forceRefresh: true),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -215,7 +220,8 @@ class _ChannelsSettingsScreenState extends State<ChannelsSettingsScreen> {
           ),
           Expanded(
             child: _channels.isEmpty
-                ? Center(
+                ? PullToRefreshBody(
+                    onRefresh: () => _loadChannels(forceRefresh: true),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -232,8 +238,9 @@ class _ChannelsSettingsScreenState extends State<ChannelsSettingsScreen> {
                       ],
                     ),
                   )
-                : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 88),
+                : PullToRefreshBody.list(
+                    onRefresh: () => _loadChannels(forceRefresh: true),
+                    listPadding: const EdgeInsets.fromLTRB(16, 0, 16, 88),
                     itemCount: _channels.length,
                     itemBuilder: (context, index) {
                       final channel = _channels[index];

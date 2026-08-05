@@ -18,6 +18,7 @@ import '../../widgets/modals/add_call_modal.dart';
 import '../../widgets/modals/add_visit_modal.dart';
 import '../../widgets/modals/add_field_visit_modal.dart';
 import '../../widgets/modals/send_sms_modal.dart';
+import '../../widgets/pull_to_refresh_body.dart';
 import '../../widgets/modals/assign_lead_modal.dart';
 import '../../widgets/lead_contact_action_button.dart';
 import '../../widgets/lead_status_badge.dart';
@@ -890,9 +891,15 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
               )
             : null,
         body: _isLoading && _leads.isEmpty
-            ? const Center(child: CircularProgressIndicator())
+            ? PullToRefreshBody(
+                onRefresh: () => _loadLeads(forceRefresh: true),
+                child: const CircularProgressIndicator(),
+              )
             : _errorMessage != null && _leads.isEmpty
-            ? _buildErrorWidget(context, localizations, theme)
+            ? PullToRefreshBody(
+                onRefresh: () => _loadLeads(forceRefresh: true),
+                child: _buildErrorWidget(context, localizations, theme),
+              )
             : Column(
                 children: [
                   // Search Bar
@@ -956,34 +963,36 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                   // Leads List
                   Expanded(
                     child: _isListLoading
-                        ? const Center(child: CircularProgressIndicator())
-                        : RefreshIndicator(
+                        ? PullToRefreshBody(
                             onRefresh: () => _loadLeads(forceRefresh: true),
-                            child: _filteredLeads.isEmpty
-                                ? Center(
-                                    child: Text(
-                                      localizations?.translate(
-                                            'noLeadsFound',
-                                          ) ??
-                                          'No leads found',
-                                      style: theme.textTheme.bodyLarge,
-                                    ),
-                                  )
-                                : ListView.builder(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                    ),
-                                    itemCount: _filteredLeads.length,
-                                    itemBuilder: (context, index) {
-                                      final lead = _filteredLeads[index];
-                                      return _buildLeadCard(
-                                        context,
-                                        lead,
-                                        localizations,
-                                      );
-                                    },
-                                  ),
-                          ),
+                            child: const CircularProgressIndicator(),
+                          )
+                        : _filteredLeads.isEmpty
+                            ? PullToRefreshBody(
+                                onRefresh: () => _loadLeads(forceRefresh: true),
+                                child: Text(
+                                  localizations?.translate(
+                                        'noLeadsFound',
+                                      ) ??
+                                      'No leads found',
+                                  style: theme.textTheme.bodyLarge,
+                                ),
+                              )
+                            : PullToRefreshBody.list(
+                                onRefresh: () => _loadLeads(forceRefresh: true),
+                                listPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
+                                itemCount: _filteredLeads.length,
+                                itemBuilder: (context, index) {
+                                  final lead = _filteredLeads[index];
+                                  return _buildLeadCard(
+                                    context,
+                                    lead,
+                                    localizations,
+                                  );
+                                },
+                              ),
                   ),
                 ],
               ),

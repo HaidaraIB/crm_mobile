@@ -340,114 +340,79 @@ class _TimelineRow extends StatelessWidget {
     final loc = AppLocalizations.of(context);
     final chip = _typeChip(entry, loc);
     final showSubtitle = _showActionSubtitle(entry, chip.label);
+    const railWidth = 40.0;
+    const gap = 10.0;
 
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 40,
-            child: Column(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryColor,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: theme.cardColor, width: 2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 4,
-                        offset: const Offset(0, 1),
-                      ),
-                    ],
-                  ),
-                  child: Text(
-                    '${index + 1}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-                if (!isLast)
-                  Expanded(
-                    child: Container(
-                      width: 2,
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      color: theme.dividerColor.withValues(alpha: 0.7),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Container(
-              margin: EdgeInsets.only(bottom: isLast ? 0 : 16),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest
-                    .withValues(alpha: 0.25),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: theme.dividerColor.withValues(alpha: 0.7),
-                ),
+    // Stack + Positioned rail avoids IntrinsicHeight + Expanded, which asserts
+    // `_debugRelayoutBoundaryAlreadyMarkedNeedsLayout` when chip Wrap/content
+    // height changes during layout (sort, images, expand).
+    return Stack(
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: railWidth + gap),
+          child: Container(
+            margin: EdgeInsets.only(bottom: isLast ? 0 : 16),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest
+                  .withValues(alpha: 0.25),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: theme.dividerColor.withValues(alpha: 0.7),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Wrap(
-                          spacing: 6,
-                          runSpacing: 6,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            _Chip(
-                              icon: chip.icon,
-                              label: chip.label,
-                              foreground: chip.fg,
-                              background: chip.bg,
-                            ),
-                            if (entry.stage != null && entry.stage!.isNotEmpty)
-                              _StageChip(
-                                label: entry.stage!,
-                                colorHex: entry.color,
-                                forceLtr: entry.type == TimelineEntryType.sms ||
-                                    entry.type == TimelineEntryType.whatsapp,
-                              ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          Icon(
-                            Icons.access_time,
-                            size: 12,
-                            color: _timelineMutedColor(context),
+                          _Chip(
+                            icon: chip.icon,
+                            label: chip.label,
+                            foreground: chip.fg,
+                            background: chip.bg,
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            entry.date,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: _timelineMutedColor(context),
-                              fontSize: 11,
+                          if (entry.stage != null && entry.stage!.isNotEmpty)
+                            _StageChip(
+                              label: entry.stage!,
+                              colorHex: entry.color,
+                              forceLtr: entry.type == TimelineEntryType.sms ||
+                                  entry.type == TimelineEntryType.whatsapp ||
+                                  entry.type == TimelineEntryType.whatsappThread,
                             ),
-                          ),
                         ],
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
+                    ),
+                    const SizedBox(width: 8),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.access_time,
+                          size: 12,
+                          color: _timelineMutedColor(context),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          entry.date,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: _timelineMutedColor(context),
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                if (entry.type != TimelineEntryType.whatsappThread)
                   Text(
                     entry.user,
                     style: theme.textTheme.bodyMedium?.copyWith(
@@ -457,98 +422,142 @@ class _TimelineRow extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (entry.fieldLabel != null &&
-                      entry.fieldLabel!.isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      entry.fieldLabel!,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: _timelineStrongColor(context),
-                      ),
+                if (entry.fieldLabel != null &&
+                    entry.fieldLabel!.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    entry.fieldLabel!,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: _timelineStrongColor(context),
                     ),
-                  ],
-                  if (showSubtitle) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      entry.action,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w500,
-                        color: _timelineMutedColor(context),
-                      ),
-                    ),
-                  ],
-                  if (entry.type == TimelineEntryType.event &&
-                      (entry.oldValue != null || entry.newValue != null))
-                    _ValueChange(
-                      oldValue: entry.oldValue,
-                      newValue: entry.newValue,
-                      loc: loc,
-                    ),
-                  if (entry.type == TimelineEntryType.locationUpdate)
-                    _LocationBlock(
-                      entry: entry,
-                      loc: loc,
-                      onOpenUrl: onOpenUrl,
-                    ),
-                  if (entry.details.isNotEmpty &&
-                      entry.type != TimelineEntryType.locationUpdate) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      entry.details,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: _timelineMutedColor(context),
-                      ),
-                    ),
-                  ],
-                  if (entry.type == TimelineEntryType.fieldVisit &&
-                      entry.locationPhotoUrl != null &&
-                      entry.locationPhotoUrl!.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Builder(
-                      builder: (context) {
-                        final photoUrl =
-                            resolveMediaUrl(entry.locationPhotoUrl!) ??
-                                entry.locationPhotoUrl!;
-                        return GestureDetector(
-                          onTap: () => openAppImageViewer(
-                            context,
-                            imageUrl: photoUrl,
-                            suggestedFilename:
-                                mediaFilenameFromUrl(photoUrl),
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              photoUrl,
-                              height: 160,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) =>
-                                  const SizedBox.shrink(),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                  if ((entry.type == TimelineEntryType.call ||
-                          entry.type == TimelineEntryType.visit ||
-                          entry.type == TimelineEntryType.fieldVisit) &&
-                      ((entry.callDatetime != null &&
-                              entry.callDatetime!.isNotEmpty) ||
-                          (entry.followUpDate != null &&
-                              entry.followUpDate!.isNotEmpty)))
-                    _FromToDates(
-                      entry: entry,
-                      loc: loc,
-                    ),
+                  ),
                 ],
-              ),
+                if (showSubtitle) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    entry.action,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w500,
+                      color: _timelineMutedColor(context),
+                    ),
+                  ),
+                ],
+                if (entry.type == TimelineEntryType.whatsappThread)
+                  _WhatsAppThreadBody(entry: entry, loc: loc),
+                if (entry.type == TimelineEntryType.event &&
+                    (entry.oldValue != null || entry.newValue != null))
+                  _ValueChange(
+                    oldValue: entry.oldValue,
+                    newValue: entry.newValue,
+                    loc: loc,
+                  ),
+                if (entry.type == TimelineEntryType.locationUpdate)
+                  _LocationBlock(
+                    entry: entry,
+                    loc: loc,
+                    onOpenUrl: onOpenUrl,
+                  ),
+                if (entry.details.isNotEmpty &&
+                    entry.type != TimelineEntryType.locationUpdate &&
+                    entry.type != TimelineEntryType.whatsappThread) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    entry.details,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: _timelineMutedColor(context),
+                    ),
+                  ),
+                ],
+                if (entry.type == TimelineEntryType.fieldVisit &&
+                    entry.locationPhotoUrl != null &&
+                    entry.locationPhotoUrl!.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Builder(
+                    builder: (context) {
+                      final photoUrl =
+                          resolveMediaUrl(entry.locationPhotoUrl!) ??
+                              entry.locationPhotoUrl!;
+                      return GestureDetector(
+                        onTap: () => openAppImageViewer(
+                          context,
+                          imageUrl: photoUrl,
+                          suggestedFilename: mediaFilenameFromUrl(photoUrl),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            photoUrl,
+                            height: 160,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) =>
+                                const SizedBox.shrink(),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+                if ((entry.type == TimelineEntryType.call ||
+                        entry.type == TimelineEntryType.visit ||
+                        entry.type == TimelineEntryType.fieldVisit) &&
+                    ((entry.callDatetime != null &&
+                            entry.callDatetime!.isNotEmpty) ||
+                        (entry.followUpDate != null &&
+                            entry.followUpDate!.isNotEmpty)))
+                  _FromToDates(
+                    entry: entry,
+                    loc: loc,
+                  ),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+        Positioned(
+          left: 0,
+          top: 0,
+          bottom: isLast ? null : 0,
+          width: railWidth,
+          child: Column(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: theme.cardColor, width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  '${index + 1}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              if (!isLast)
+                Expanded(
+                  child: Container(
+                    width: 2,
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    color: theme.dividerColor.withValues(alpha: 0.7),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -571,6 +580,7 @@ _ChipStyle _typeChip(TimelineEntry entry, AppLocalizations? loc) {
 
   switch (entry.type) {
     case TimelineEntryType.whatsapp:
+    case TimelineEntryType.whatsappThread:
       return _ChipStyle(
         icon: Icons.chat,
         label: t('whatsapp', 'WhatsApp'),
@@ -638,6 +648,7 @@ _ChipStyle _typeChip(TimelineEntry entry, AppLocalizations? loc) {
 bool _showActionSubtitle(TimelineEntry entry, String chipLabel) {
   if (entry.action.trim().isEmpty) return false;
   if (entry.type == TimelineEntryType.whatsapp) return true;
+  if (entry.type == TimelineEntryType.whatsappThread) return false;
   if (entry.type == TimelineEntryType.action) return false;
   if (entry.type == TimelineEntryType.event &&
       (entry.oldValue != null || entry.newValue != null)) {
@@ -645,6 +656,155 @@ bool _showActionSubtitle(TimelineEntry entry, String chipLabel) {
   }
   if (entry.type == TimelineEntryType.locationUpdate) return false;
   return entry.action != chipLabel;
+}
+
+/// Expandable WhatsApp conversation block (parity with web WhatsAppThreadBody).
+class _WhatsAppThreadBody extends StatefulWidget {
+  final TimelineEntry entry;
+  final AppLocalizations? loc;
+
+  const _WhatsAppThreadBody({required this.entry, required this.loc});
+
+  @override
+  State<_WhatsAppThreadBody> createState() => _WhatsAppThreadBodyState();
+}
+
+class _WhatsAppThreadBodyState extends State<_WhatsAppThreadBody> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final loc = widget.loc;
+    final messages = widget.entry.messages ?? const <TimelineWhatsAppThreadMessage>[];
+    final countLabel = (loc?.translate('whatsappTimelineMessagesCount') ??
+            '{count} messages')
+        .replaceAll('{count}', '${messages.isEmpty ? 1 : messages.length}');
+    final latestDirection = messages.isNotEmpty
+        ? messages.last.direction
+        : (widget.entry.direction ?? 'outbound');
+    final previewCue = latestDirection == 'inbound' ? '←' : '→';
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: loc?.translate('whatsappTimelineConversation') ??
+                      'WhatsApp conversation',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: _timelineStrongColor(context),
+                  ),
+                ),
+                TextSpan(
+                  text: '  $countLabel',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: _timelineMutedColor(context),
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (!_expanded && widget.entry.details.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              '$previewCue ${widget.entry.details}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: _timelineMutedColor(context),
+              ),
+            ),
+          ],
+          if (_expanded && messages.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              constraints: const BoxConstraints(maxHeight: 260),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface.withValues(alpha: 0.7),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: const Color(0xFFBBF7D0).withValues(alpha: 0.8),
+                ),
+              ),
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: messages.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 6),
+                itemBuilder: (context, i) {
+                  final msg = messages[i];
+                  final cue = msg.direction == 'inbound' ? '←' : '→';
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 16,
+                        child: Text(
+                          cue,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: _timelineMutedColor(context),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          msg.body,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: _timelineStrongColor(context),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        msg.date,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: _timelineMutedColor(context),
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+          if (messages.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            TextButton(
+              onPressed: () => setState(() => _expanded = !_expanded),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF15803D),
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(
+                _expanded
+                    ? (loc?.translate('whatsappTimelineCollapse') ?? 'Collapse')
+                    : (loc?.translate('whatsappTimelineExpand') ?? 'Expand'),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 class _Chip extends StatelessWidget {

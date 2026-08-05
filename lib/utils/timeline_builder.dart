@@ -380,10 +380,11 @@ List<TimelineEntry> buildLeadTimeline(TimelineBuilderInput input) {
       date: formatTimelineDate(wa.createdAt, locale),
       timestamp: wa.createdAt.millisecondsSinceEpoch,
       stage: wa.phoneNumber.isNotEmpty ? wa.phoneNumber : null,
+      direction: isInbound ? 'inbound' : 'outbound',
     );
   });
 
-  return [
+  final merged = [
     ...actions,
     ...calls,
     ...visits,
@@ -392,4 +393,60 @@ List<TimelineEntry> buildLeadTimeline(TimelineBuilderInput input) {
     ...smsEntries,
     ...waEntries,
   ];
+  return collapseConsecutiveWhatsAppThreads(merged, t);
+}
+
+/// Collapse consecutive WhatsApp rows (after chronological sort) into thread cards.
+/// Parity with web `collapseConsecutiveWhatsAppThreads` in ViewLeadPage.
+List<TimelineEntry> collapseConsecutiveWhatsAppThreads(
+  List<TimelineEntry> entries,
+  TimelineTranslate t,
+) {
+  final sorted = List<TimelineEntry>.from(entries)
+    ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+  final result = <TimelineEntry>[];
+  var i = 0;
+  while (i < sorted.length) {
+    final entry = sorted[i];
+    if (entry.type != TimelineEntryType.whatsapp) {
+      result.add(entry);
+      i += 1;
+      continue;
+    }
+    final group = <TimelineEntry>[entry];
+    i += 1;
+    while (i < sorted.length && sorted[i].type == TimelineEntryType.whatsapp) {
+      group.add(sorted[i]);
+      i += 1;
+    }
+    final latest = group.last;
+    final earliest = group.first;
+    result.add(
+      TimelineEntry(
+        id: 'wa-thread-${earliest.id}-${latest.id}',
+        type: TimelineEntryType.whatsappThread,
+        user: latest.user,
+        action: _tr(t, 'whatsappTimelineConversation'),
+        details: latest.details,
+        date: latest.date,
+        timestamp: latest.timestamp,
+        stage: (latest.stage != null && latest.stage!.isNotEmpty)
+            ? latest.stage
+            : earliest.stage,
+        messages: group
+            .map(
+              (g) => TimelineWhatsAppThreadMessage(
+                id: g.id,
+                direction: g.direction == 'inbound' ? 'inbound' : 'outbound',
+                body: g.details,
+                date: g.date,
+                timestamp: g.timestamp,
+                user: g.user,
+              ),
+            )
+            .toList(),
+      ),
+    );
+  }
+  return result;
 }

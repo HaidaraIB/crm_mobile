@@ -9,6 +9,7 @@ import '../../core/utils/media_url_utils.dart';
 import '../../models/support_ticket_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/media/open_app_media_viewer.dart';
+import '../../widgets/pull_to_refresh_body.dart';
 
 class SupportTicketsScreen extends StatefulWidget {
   const SupportTicketsScreen({super.key});
@@ -167,12 +168,11 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
             ),
           ],
         ),
-        body: RefreshIndicator(
+        body: PullToRefreshBody(
           onRefresh: () => _loadTickets(forceRefresh: true),
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
-            child: Column(
+          centerChild: false,
+          padding: const EdgeInsets.all(16),
+          child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Submit a request
@@ -428,7 +428,6 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
                   ),
               ],
             ),
-          ),
         ),
       ),
     );

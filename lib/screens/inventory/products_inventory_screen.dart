@@ -13,6 +13,7 @@ import '../../widgets/modals/add_product_category_modal.dart';
 import '../../widgets/modals/edit_product_category_modal.dart';
 import '../../widgets/modals/add_supplier_modal.dart';
 import '../../widgets/modals/edit_supplier_modal.dart';
+import '../../widgets/pull_to_refresh_body.dart';
 
 class ProductsInventoryScreen extends StatefulWidget {
   const ProductsInventoryScreen({super.key});
@@ -257,11 +258,15 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
 
   Widget _buildProductsTab(AppLocalizations? localizations, ThemeData theme) {
     if (_isLoadingProducts) {
-      return const Center(child: CircularProgressIndicator());
+      return PullToRefreshBody(
+        onRefresh: () => _loadProducts(forceRefresh: true),
+        child: const CircularProgressIndicator(),
+      );
     }
     
     if (_errorProducts != null) {
-      return Center(
+      return PullToRefreshBody(
+        onRefresh: () => _loadProducts(forceRefresh: true),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -286,7 +291,8 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
     }
     
     if (_filteredProducts.isEmpty) {
-      return Center(
+      return PullToRefreshBody(
+        onRefresh: () => _loadProducts(forceRefresh: true),
         child: Text(
           localizations?.translate('noProductsFound') ?? 'No products found',
           style: theme.textTheme.bodyLarge,
@@ -294,8 +300,9 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
       );
     }
     
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
+    return PullToRefreshBody.list(
+      onRefresh: () => _loadProducts(forceRefresh: true),
+      listPadding: const EdgeInsets.all(16),
       itemCount: _filteredProducts.length,
       itemBuilder: (context, index) {
         final product = _filteredProducts[index];
@@ -542,11 +549,15 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
 
   Widget _buildCategoriesTab(AppLocalizations? localizations, ThemeData theme) {
     if (_isLoadingCategories) {
-      return const Center(child: CircularProgressIndicator());
+      return PullToRefreshBody(
+        onRefresh: () => _loadCategories(forceRefresh: true),
+        child: const CircularProgressIndicator(),
+      );
     }
     
     if (_errorCategories != null) {
-      return Center(
+      return PullToRefreshBody(
+        onRefresh: () => _loadCategories(forceRefresh: true),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -571,7 +582,8 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
     }
     
     if (_filteredCategories.isEmpty) {
-      return Center(
+      return PullToRefreshBody(
+        onRefresh: () => _loadCategories(forceRefresh: true),
         child: Text(
           localizations?.translate('noProductCategoriesFound') ?? 'No product categories found',
           style: theme.textTheme.bodyLarge,
@@ -579,8 +591,9 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
       );
     }
     
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
+    return PullToRefreshBody.list(
+      onRefresh: () => _loadCategories(forceRefresh: true),
+      listPadding: const EdgeInsets.all(16),
       itemCount: _filteredCategories.length,
       itemBuilder: (context, index) {
         final category = _filteredCategories[index];
@@ -723,11 +736,15 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
 
   Widget _buildSuppliersTab(AppLocalizations? localizations, ThemeData theme) {
     if (_isLoadingSuppliers) {
-      return const Center(child: CircularProgressIndicator());
+      return PullToRefreshBody(
+        onRefresh: () => _loadSuppliers(forceRefresh: true),
+        child: const CircularProgressIndicator(),
+      );
     }
     
     if (_errorSuppliers != null) {
-      return Center(
+      return PullToRefreshBody(
+        onRefresh: () => _loadSuppliers(forceRefresh: true),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -752,7 +769,8 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
     }
     
     if (_filteredSuppliers.isEmpty) {
-      return Center(
+      return PullToRefreshBody(
+        onRefresh: () => _loadSuppliers(forceRefresh: true),
         child: Text(
           localizations?.translate('noSuppliersFound') ?? 'No suppliers found',
           style: theme.textTheme.bodyLarge,
@@ -760,8 +778,9 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
       );
     }
     
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
+    return PullToRefreshBody.list(
+      onRefresh: () => _loadSuppliers(forceRefresh: true),
+      listPadding: const EdgeInsets.all(16),
       itemCount: _filteredSuppliers.length,
       itemBuilder: (context, index) {
         final supplier = _filteredSuppliers[index];

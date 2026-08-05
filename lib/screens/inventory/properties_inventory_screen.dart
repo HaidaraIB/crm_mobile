@@ -12,6 +12,7 @@ import '../../widgets/modals/add_project_modal.dart';
 import '../../widgets/modals/edit_project_modal.dart';
 import '../../widgets/modals/add_unit_modal.dart';
 import '../../widgets/modals/edit_unit_modal.dart';
+import '../../widgets/pull_to_refresh_body.dart';
 
 class PropertiesInventoryScreen extends StatefulWidget {
   const PropertiesInventoryScreen({super.key});
@@ -257,11 +258,15 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
 
   Widget _buildUnitsTab(AppLocalizations? localizations, ThemeData theme) {
     if (_isLoadingUnits) {
-      return const Center(child: CircularProgressIndicator());
+      return PullToRefreshBody(
+        onRefresh: () => _loadUnits(forceRefresh: true),
+        child: const CircularProgressIndicator(),
+      );
     }
     
     if (_errorUnits != null) {
-      return Center(
+      return PullToRefreshBody(
+        onRefresh: () => _loadUnits(forceRefresh: true),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -286,7 +291,8 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
     }
     
     if (_filteredUnits.isEmpty) {
-      return Center(
+      return PullToRefreshBody(
+        onRefresh: () => _loadUnits(forceRefresh: true),
         child: Text(
           localizations?.translate('noUnitsFound') ?? 'No units found',
           style: theme.textTheme.bodyLarge,
@@ -294,8 +300,9 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
       );
     }
     
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
+    return PullToRefreshBody.list(
+      onRefresh: () => _loadUnits(forceRefresh: true),
+      listPadding: const EdgeInsets.all(16),
       itemCount: _filteredUnits.length,
       itemBuilder: (context, index) {
         final unit = _filteredUnits[index];
@@ -421,11 +428,15 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
 
   Widget _buildProjectsTab(AppLocalizations? localizations, ThemeData theme) {
     if (_isLoadingProjects) {
-      return const Center(child: CircularProgressIndicator());
+      return PullToRefreshBody(
+        onRefresh: () => _loadProjects(forceRefresh: true),
+        child: const CircularProgressIndicator(),
+      );
     }
     
     if (_errorProjects != null) {
-      return Center(
+      return PullToRefreshBody(
+        onRefresh: () => _loadProjects(forceRefresh: true),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -450,7 +461,8 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
     }
     
     if (_filteredProjects.isEmpty) {
-      return Center(
+      return PullToRefreshBody(
+        onRefresh: () => _loadProjects(forceRefresh: true),
         child: Text(
           localizations?.translate('noProjectsFound') ?? 'No projects found',
           style: theme.textTheme.bodyLarge,
@@ -458,8 +470,9 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
       );
     }
     
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
+    return PullToRefreshBody.list(
+      onRefresh: () => _loadProjects(forceRefresh: true),
+      listPadding: const EdgeInsets.all(16),
       itemCount: _filteredProjects.length,
       itemBuilder: (context, index) {
         final project = _filteredProjects[index];
@@ -536,11 +549,15 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
 
   Widget _buildDevelopersTab(AppLocalizations? localizations, ThemeData theme) {
     if (_isLoadingDevelopers) {
-      return const Center(child: CircularProgressIndicator());
+      return PullToRefreshBody(
+        onRefresh: () => _loadDevelopers(forceRefresh: true),
+        child: const CircularProgressIndicator(),
+      );
     }
     
     if (_errorDevelopers != null) {
-      return Center(
+      return PullToRefreshBody(
+        onRefresh: () => _loadDevelopers(forceRefresh: true),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -565,7 +582,8 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
     }
     
     if (_filteredDevelopers.isEmpty) {
-      return Center(
+      return PullToRefreshBody(
+        onRefresh: () => _loadDevelopers(forceRefresh: true),
         child: Text(
           localizations?.translate('noDevelopersFound') ?? 'No developers found',
           style: theme.textTheme.bodyLarge,
@@ -573,8 +591,9 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
       );
     }
     
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
+    return PullToRefreshBody.list(
+      onRefresh: () => _loadDevelopers(forceRefresh: true),
+      listPadding: const EdgeInsets.all(16),
       itemCount: _filteredDevelopers.length,
       itemBuilder: (context, index) {
         final developer = _filteredDevelopers[index];

@@ -6,12 +6,12 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/app_locales.dart';
 import '../../core/utils/api_error_helper.dart';
 import '../../core/utils/number_formatter.dart';
-import '../../models/lead_model.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
 import '../deals/deals_screen.dart';
 import '../leads/all_leads_screen.dart';
 import '../leads/create_lead_screen.dart';
+import '../../widgets/pull_to_refresh_body.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -39,7 +39,7 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadUser();
-    _loadLeads();
+    _loadOverview();
   }
 
   @override
@@ -63,7 +63,7 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
   
   // This method will be called to refresh all dashboard data
   void refreshDashboardData() {
-    _loadLeads();
+    _loadOverview();
   }
   
   Future<void> _loadUser({bool forceRefresh = false}) async {
@@ -79,7 +79,7 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
     }
   }
   
-  Future<void> _loadLeads({
+  Future<void> _loadOverview({
     bool retry = false,
     bool reloadUser = false,
     bool forceRefresh = false,
@@ -105,32 +105,19 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
       }
       if (!mounted) return;
 
-      final result = await _apiService.getLeads(forceRefresh: forceRefresh);
-      final leads = (result['results'] as List).cast<LeadModel>();
+      final summary = await _apiService.getDashboardSummaryLite(
+        forceRefresh: forceRefresh,
+      );
+      final overview = summary.overview;
 
       if (!mounted) return;
       setState(() {
-        _allLeadsCount = leads.length;
-        // Type filtering - case insensitive
-        _freshLeadsCount = leads.where((l) => 
-          l.type.toLowerCase() == 'fresh'
-        ).length;
-        _coldLeadsCount = leads.where((l) => 
-          l.type.toLowerCase() == 'cold'
-        ).length;
-        // Status filtering - case insensitive, check both status and statusName
-        _untouchedCount = leads.where((l) {
-          final status = (l.statusName ?? l.status ?? '').toLowerCase();
-          return status == 'untouched';
-        }).length;
-        _touchedCount = leads.where((l) {
-          final status = (l.statusName ?? l.status ?? '').toLowerCase();
-          return status == 'touched';
-        }).length;
-        _followingCount = leads.where((l) {
-          final status = (l.statusName ?? l.status ?? '').toLowerCase();
-          return status == 'following';
-        }).length;
+        _allLeadsCount = overview.total;
+        _freshLeadsCount = overview.fresh;
+        _coldLeadsCount = overview.cold;
+        _untouchedCount = overview.untouched;
+        _touchedCount = overview.touched;
+        _followingCount = overview.following;
         _isLoading = false;
       });
     } catch (e) {
@@ -143,11 +130,11 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
   }
   
   Future<void> _retryLoad() async {
-    await _loadLeads(retry: true, reloadUser: true, forceRefresh: true);
+    await _loadOverview(retry: true, reloadUser: true, forceRefresh: true);
   }
   
   Future<void> _refreshAll() async {
-    await _loadLeads(retry: true, reloadUser: true, forceRefresh: true);
+    await _loadOverview(retry: true, reloadUser: true, forceRefresh: true);
   }
   
   String _getErrorMessage(dynamic error) {
@@ -277,24 +264,26 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
     final theme = Theme.of(context);
 
     if (_isLoading && _allLeadsCount == 0 && _errorMessage == null) {
-      return RefreshIndicator(
+      return PullToRefreshBody(
         onRefresh: _refreshAll,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: _buildSkeleton(context, theme),
-        ),
+        centerChild: false,
+        padding: const EdgeInsets.all(16),
+        child: _buildSkeleton(context, theme),
       );
     }
 
     if (_errorMessage != null) {
-      return _buildErrorWidget(context, localizations, theme);
+      return PullToRefreshBody(
+        onRefresh: _refreshAll,
+        child: _buildErrorWidget(context, localizations, theme),
+      );
     }
 
-    return RefreshIndicator(
+    return PullToRefreshBody(
       onRefresh: _refreshAll,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+      centerChild: false,
+      padding: const EdgeInsets.all(16),
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildWelcomeSection(context, localizations),
@@ -314,7 +303,6 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
               _buildLeadsGrid(context, localizations, theme),
           ],
         ),
-      ),
     );
   }
 
@@ -390,7 +378,7 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
                   builder: (_) => const AllLeadsScreen(),
                 ),
               );
-              if (mounted) _loadLeads(forceRefresh: true);
+              if (mounted) _loadOverview(forceRefresh: true);
             },
           ),
           const SizedBox(width: 8),
@@ -405,7 +393,7 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
                   builder: (_) => const CreateLeadScreen(),
                 ),
               );
-              if (mounted) _loadLeads(forceRefresh: true);
+              if (mounted) _loadOverview(forceRefresh: true);
             },
           ),
           const SizedBox(width: 8),
@@ -420,7 +408,7 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
                   builder: (_) => const DealsScreen(),
                 ),
               );
-              if (mounted) _loadLeads(forceRefresh: true);
+              if (mounted) _loadOverview(forceRefresh: true);
             },
           ),
         ],
@@ -493,7 +481,7 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
                     builder: (_) => const CreateLeadScreen(),
                   ),
                 );
-                if (mounted) _loadLeads(forceRefresh: true);
+                if (mounted) _loadOverview(forceRefresh: true);
               },
               icon: const Icon(Icons.person_add_outlined),
               label: Text(
@@ -662,7 +650,7 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
           );
           // Refresh leads data when returning from AllLeadsScreen
           if (result == true || mounted) {
-            _loadLeads(forceRefresh: true);
+            _loadOverview(forceRefresh: true);
           }
         },
         borderRadius: BorderRadius.circular(12),

@@ -9,6 +9,7 @@ import '../../../features/team_chat/cubit/team_chat_list_state.dart';
 import '../../../models/tenant_chat_models.dart';
 import '../team_chat_common.dart';
 import '../team_chat_conversation_tile.dart';
+import '../../../widgets/pull_to_refresh_body.dart';
 
 DateTime _startOfLocalDay(DateTime d) =>
     DateTime(d.year, d.month, d.day);
@@ -77,9 +78,17 @@ class TeamChatConversationList extends StatelessWidget {
               ),
             Expanded(
               child: state.loadingConv
-                  ? const Center(child: CircularProgressIndicator())
+                  ? PullToRefreshBody(
+                      onRefresh: () => context
+                          .read<TeamChatListCubit>()
+                          .refreshConversations(),
+                      child: const CircularProgressIndicator(),
+                    )
                   : state.conversations.isEmpty
-                      ? Center(
+                      ? PullToRefreshBody(
+                          onRefresh: () => context
+                              .read<TeamChatListCubit>()
+                              .refreshConversations(),
                           child: Padding(
                             padding: const EdgeInsets.all(24),
                             child: Text(
@@ -88,7 +97,10 @@ class TeamChatConversationList extends StatelessWidget {
                             ),
                           ),
                         )
-                      : ListView.separated(
+                      : PullToRefreshBody.list(
+                          onRefresh: () => context
+                              .read<TeamChatListCubit>()
+                              .refreshConversations(),
                           itemCount: state.conversations.length,
                           separatorBuilder: (_, __) => Divider(
                             height: 1,

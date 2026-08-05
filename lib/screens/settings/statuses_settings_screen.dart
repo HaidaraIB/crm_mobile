@@ -7,6 +7,7 @@ import '../../core/utils/snackbar_helper.dart';
 import '../../models/settings_model.dart';
 import '../../services/api_service.dart';
 import '../../services/error_logger.dart';
+import '../../widgets/pull_to_refresh_body.dart';
 import 'modals/add_status_modal.dart';
 import 'modals/edit_status_modal.dart';
 import 'widgets/settings_list_card.dart';
@@ -167,9 +168,13 @@ class _StatusesSettingsScreenState extends State<StatusesSettingsScreen> {
 
     Widget body;
     if (_isLoading) {
-      body = const Center(child: CircularProgressIndicator());
+      body = PullToRefreshBody(
+        onRefresh: () => _loadStatuses(forceRefresh: true),
+        child: const CircularProgressIndicator(),
+      );
     } else if (_errorMessage != null) {
-      body = Center(
+      body = PullToRefreshBody(
+        onRefresh: () => _loadStatuses(forceRefresh: true),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -211,7 +216,8 @@ class _StatusesSettingsScreenState extends State<StatusesSettingsScreen> {
           ),
           Expanded(
             child: _statuses.isEmpty
-                ? Center(
+                ? PullToRefreshBody(
+                    onRefresh: () => _loadStatuses(forceRefresh: true),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -228,8 +234,9 @@ class _StatusesSettingsScreenState extends State<StatusesSettingsScreen> {
                       ],
                     ),
                   )
-                : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 88),
+                : PullToRefreshBody.list(
+                    onRefresh: () => _loadStatuses(forceRefresh: true),
+                    listPadding: const EdgeInsets.fromLTRB(16, 0, 16, 88),
                     itemCount: _statuses.length,
                     itemBuilder: (context, index) {
                       final status = _statuses[index];

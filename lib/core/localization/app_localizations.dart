@@ -488,6 +488,13 @@ class AppLocalizations {
       'backToLogin': 'Back to Login',
       'didntReceiveCode': "Didn't receive code?",
       'accountTemporarilyInactive': 'Your account is temporarily inactive',
+      'accountLocked': 'Too many failed attempts. Please try again later.',
+      'accountLockedWithMinutes':
+          'Too many failed attempts. Try again in {minutes} minutes.',
+      'loginThrottled':
+          'Too many requests. Please wait a moment and try again.',
+      'loginThrottledWithSeconds':
+          'Too many requests. Please try again in {seconds} seconds.',
       'noActiveSubscription': 'No active subscription found',
       'invalidCredentials':
           'Invalid credentials. Please go back and check your username and password.',
@@ -1135,6 +1142,10 @@ class AppLocalizations {
       'manualSource': 'Manual',
       'whatsappSent': 'WhatsApp sent',
       'whatsappReceived': 'WhatsApp received',
+      'whatsappTimelineConversation': 'WhatsApp conversation',
+      'whatsappTimelineMessagesCount': '{count} messages',
+      'whatsappTimelineExpand': 'Expand',
+      'whatsappTimelineCollapse': 'Collapse',
       'smsSentLabel': 'SMS sent',
       'smsSentAutoWelcome': 'Automated welcome SMS sent',
       'callMade': 'Call made',
@@ -1751,6 +1762,13 @@ class AppLocalizations {
       'backToLogin': 'العودة إلى تسجيل الدخول',
       'didntReceiveCode': 'لم تستلم الرمز؟',
       'accountTemporarilyInactive': 'حسابك غير نشط مؤقتاً',
+      'accountLocked': 'محاولات فاشلة كثيرة. حاول مرة أخرى لاحقاً.',
+      'accountLockedWithMinutes':
+          'محاولات فاشلة كثيرة. حاول مرة أخرى خلال {minutes} دقيقة.',
+      'loginThrottled':
+          'طلبات كثيرة جداً. يرجى الانتظار قليلاً ثم المحاولة مرة أخرى.',
+      'loginThrottledWithSeconds':
+          'طلبات كثيرة جداً. يرجى المحاولة مرة أخرى خلال {seconds} ثانية.',
       'noActiveSubscription': 'لا يوجد اشتراك نشط',
       'invalidCredentials':
           'بيانات الاعتماد غير صحيحة. يرجى العودة والتحقق من اسم المستخدم وكلمة المرور.',
@@ -2391,6 +2409,10 @@ class AppLocalizations {
       'manualSource': 'يدوي',
       'whatsappSent': 'تم إرسال واتساب',
       'whatsappReceived': 'تم استلام واتساب',
+      'whatsappTimelineConversation': 'محادثة واتساب',
+      'whatsappTimelineMessagesCount': '{count} رسائل',
+      'whatsappTimelineExpand': 'توسيع',
+      'whatsappTimelineCollapse': 'طي',
       'smsSentLabel': 'تم إرسال رسالة نصية',
       'smsSentAutoWelcome': 'تم إرسال رسالة ترحيب تلقائية',
       'callMade': 'تمت المكالمة',

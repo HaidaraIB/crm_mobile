@@ -231,6 +231,45 @@ class _LoginScreenState extends State<LoginScreen> {
               'Your account is temporarily inactive';
         }
       }
+      // Check for account lockout after failed password attempts
+      else if (lowerError.contains('account_locked') ||
+          lowerError.contains('too many failed')) {
+        if (cleanError.isNotEmpty &&
+            !cleanError.toLowerCase().contains('failed to request') &&
+            !cleanError.toLowerCase().contains('account_locked')) {
+          errorMsg = cleanError;
+        } else {
+          errorMsg =
+              AppLocalizations.of(context)?.translate('accountLocked') ??
+              'Too many failed attempts. Please try again later.';
+        }
+      }
+      // Rate limit / throttle (AuthRateThrottle)
+      else if (lowerError.contains('throttled') ||
+          lowerError.contains('too many requests')) {
+        final match = RegExp(
+          r'available in\s+(\d+)\s+seconds?',
+          caseSensitive: false,
+        ).firstMatch(cleanError);
+        final seconds = match != null
+            ? int.tryParse(match.group(1) ?? '') ?? 0
+            : 0;
+        if (seconds > 0) {
+          errorMsg =
+              (AppLocalizations.of(context)
+                      ?.translate('loginThrottledWithSeconds') ??
+                  'Too many requests. Please try again in {seconds} seconds.')
+                  .replaceAll('{seconds}', '$seconds');
+        } else if (cleanError.isNotEmpty &&
+            !cleanError.toLowerCase().contains('failed to request') &&
+            !cleanError.toLowerCase().contains('throttled')) {
+          errorMsg = cleanError;
+        } else {
+          errorMsg =
+              AppLocalizations.of(context)?.translate('loginThrottled') ??
+              'Too many requests. Please wait a moment and try again.';
+        }
+      }
       // Check for invalid credentials errors
       else if (lowerError.contains('invalid credentials') ||
           lowerError.contains('invalid username') ||

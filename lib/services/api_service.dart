@@ -15,6 +15,7 @@ import '../core/utils/lead_location.dart';
 import '../core/utils/field_visit_api_errors.dart';
 import '../core/utils/app_locales.dart';
 import '../models/lead_model.dart';
+import '../models/dashboard_summary_model.dart';
 import '../models/user_model.dart';
 import '../models/settings_model.dart';
 import '../models/client_task_model.dart';
@@ -215,7 +216,10 @@ class ApiService {
   }
 
   void _invalidateUserCache() => _cacheInvalidateByPrefix('current_user');
-  void _invalidateLeadsCache() => _cacheInvalidateByPrefix('leads');
+  void _invalidateLeadsCache() {
+    _cacheInvalidateByPrefix('leads');
+    _cacheInvalidateByPrefix('dashboard_summary');
+  }
   void _invalidateDealsCache() => _cacheInvalidateByPrefix('deals');
   void _invalidateNotificationsCache() =>
       _cacheInvalidateByPrefix('notifications');
@@ -1365,8 +1369,56 @@ class ApiService {
               throw accountError;
             }
 
+            final lockoutCode = error['code']?.toString().toUpperCase() ?? '';
+            if (lockoutCode == 'ACCOUNT_LOCKED' ||
+                backendMsg.toLowerCase().contains('too many failed login')) {
+              final retryRaw = error['retry_after_seconds'];
+              int retrySeconds = 0;
+              if (retryRaw is int) {
+                retrySeconds = retryRaw;
+              } else if (retryRaw is num) {
+                retrySeconds = retryRaw.toInt();
+              } else if (retryRaw != null) {
+                retrySeconds = int.tryParse(retryRaw.toString()) ?? 0;
+              }
+              if (retrySeconds > 0) {
+                final minutes = (retrySeconds / 60).ceil();
+                final clamped = minutes < 1 ? 1 : minutes;
+                errorMessage = _translateError(
+                  'accountLockedWithMinutes',
+                  locale: locale ?? const Locale('en'),
+                ).replaceAll('{minutes}', '$clamped');
+              } else {
+                errorMessage = _translateError(
+                  'accountLocked',
+                  locale: locale ?? const Locale('en'),
+                );
+              }
+            } else if (lockoutCode == 'THROTTLED' ||
+                response.statusCode == 429 ||
+                backendMsg.toLowerCase().contains('throttled') ||
+                backendMsg.toLowerCase().contains('too many requests')) {
+              final match = RegExp(
+                r'available in\s+(\d+)\s+seconds?',
+                caseSensitive: false,
+              ).firstMatch(backendMsg);
+              final seconds = match != null
+                  ? int.tryParse(match.group(1) ?? '') ?? 0
+                  : 0;
+              if (seconds > 0) {
+                errorMessage = _translateError(
+                  'loginThrottledWithSeconds',
+                  locale: locale ?? const Locale('en'),
+                ).replaceAll('{seconds}', '$seconds');
+              } else {
+                errorMessage = _translateError(
+                  'loginThrottled',
+                  locale: locale ?? const Locale('en'),
+                );
+              }
+            }
             // subscription_inactive is used for subscription gating (owners/admins).
-            if (ApiEnvelope.isSubscriptionInactiveSignal(
+            else if (ApiEnvelope.isSubscriptionInactiveSignal(
               code: error['code'],
               message: backendMsg,
             )) {
@@ -1952,6 +2004,33 @@ class ApiService {
   }
 
   // Leads
+  /// Role-scoped lead overview counts for the home dashboard (no full list sync).
+  /// GET /clients/dashboard-summary/?lite=1
+  Future<DashboardSummaryLite> getDashboardSummaryLite({
+    bool forceRefresh = false,
+    Duration cacheTtl = _defaultCacheTtl,
+  }) async {
+    const cacheKey = 'dashboard_summary:lite';
+    final cached = _cacheGet<DashboardSummaryLite>(
+      cacheKey,
+      forceRefresh: forceRefresh,
+    );
+    if (cached != null) return cached;
+
+    final response = await _makeRequest(
+      'GET',
+      '/clients/dashboard-summary/?lite=1',
+    );
+
+    if (response.statusCode == 200) {
+      final data = _unwrapResponseMap(response);
+      final result = DashboardSummaryLite.fromJson(data);
+      _cacheSet<DashboardSummaryLite>(cacheKey, result, ttl: cacheTtl);
+      return result;
+    }
+    throw Exception(_translateError('failedToGetLeads', locale: null));
+  }
+
   Future<Map<String, dynamic>> getLeads({
     String? status,
     String? type,

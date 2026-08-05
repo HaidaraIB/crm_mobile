@@ -7,6 +7,27 @@ enum TimelineEntryType {
   locationUpdate,
   sms,
   whatsapp,
+  /// Collapsed consecutive WhatsApp messages (parity with web `whatsapp_thread`).
+  whatsappThread,
+}
+
+/// One line inside a collapsed WhatsApp conversation card.
+class TimelineWhatsAppThreadMessage {
+  final String id;
+  final String direction; // inbound | outbound
+  final String body;
+  final String date;
+  final int timestamp;
+  final String user;
+
+  const TimelineWhatsAppThreadMessage({
+    required this.id,
+    required this.direction,
+    required this.body,
+    required this.date,
+    required this.timestamp,
+    required this.user,
+  });
 }
 
 /// Unified lead timeline row (mirrors web TimelineEntry).
@@ -26,6 +47,10 @@ class TimelineEntry {
   final String? callDatetime;
   final String? followUpDate;
   final String? locationPhotoUrl;
+  /// Direction for individual WhatsApp rows (before thread collapse).
+  final String? direction;
+  /// Messages inside a collapsed WhatsApp conversation block.
+  final List<TimelineWhatsAppThreadMessage>? messages;
 
   const TimelineEntry({
     required this.id,
@@ -43,5 +68,7 @@ class TimelineEntry {
     this.callDatetime,
     this.followUpDate,
     this.locationPhotoUrl,
+    this.direction,
+    this.messages,
   });
 }

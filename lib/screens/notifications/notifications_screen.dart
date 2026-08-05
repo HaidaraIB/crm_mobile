@@ -11,6 +11,7 @@ import '../../models/notification_model.dart';
 import '../../services/api_service.dart';
 import '../../services/notification_display.dart';
 import '../../services/notification_router.dart';
+import '../../widgets/pull_to_refresh_body.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -381,60 +382,64 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _refreshNotifications,
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _error != null
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.error_outline,
-                      size: 64,
-                      color: theme.colorScheme.error,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      _error!,
-                      style: theme.textTheme.bodyLarge,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _loadNotifications,
-                      child: Text(localizations?.translate('retry') ?? 'Retry'),
-                    ),
-                  ],
-                ),
-              )
-            : _notifications.isEmpty
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.notifications_none,
-                      size: 64,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      localizations?.translate('noNotifications') ??
-                          'No notifications',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: 0.7,
-                        ),
+      body: _isLoading
+          ? PullToRefreshBody(
+              onRefresh: _refreshNotifications,
+              child: const CircularProgressIndicator(),
+            )
+          : _error != null
+          ? PullToRefreshBody(
+              onRefresh: _refreshNotifications,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: theme.colorScheme.error,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _error!,
+                    style: theme.textTheme.bodyLarge,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _loadNotifications,
+                    child: Text(localizations?.translate('retry') ?? 'Retry'),
+                  ),
+                ],
+              ),
+            )
+          : _notifications.isEmpty
+          ? PullToRefreshBody(
+              onRefresh: _refreshNotifications,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.notifications_none,
+                    size: 64,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    localizations?.translate('noNotifications') ??
+                        'No notifications',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(
+                        alpha: 0.7,
                       ),
                     ),
-                  ],
-                ),
-              )
-            : ListView.builder(
-                itemCount: _notifications.length,
-                itemBuilder: (context, index) {
+                  ),
+                ],
+              ),
+            )
+          : PullToRefreshBody.list(
+              onRefresh: _refreshNotifications,
+              itemCount: _notifications.length,
+              itemBuilder: (context, index) {
                   final notification = _notifications[index];
                   final isRead = notification['read'] as bool? ?? false;
                   final notificationId = notification['id'] as int?;
@@ -555,8 +560,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     ),
                   );
                 },
-              ),
-      ),
+            ),
     );
   }
 

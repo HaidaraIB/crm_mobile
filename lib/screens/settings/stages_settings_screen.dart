@@ -6,6 +6,7 @@ import '../../core/utils/snackbar_helper.dart';
 import '../../models/settings_model.dart';
 import '../../services/api_service.dart';
 import '../../services/error_logger.dart';
+import '../../widgets/pull_to_refresh_body.dart';
 import 'modals/add_stage_modal.dart';
 import 'modals/edit_stage_modal.dart';
 import 'widgets/settings_list_card.dart';
@@ -140,9 +141,13 @@ class _StagesSettingsScreenState extends State<StagesSettingsScreen> {
 
     Widget body;
     if (_isLoading) {
-      body = const Center(child: CircularProgressIndicator());
+      body = PullToRefreshBody(
+        onRefresh: () => _loadStages(forceRefresh: true),
+        child: const CircularProgressIndicator(),
+      );
     } else if (_errorMessage != null) {
-      body = Center(
+      body = PullToRefreshBody(
+        onRefresh: () => _loadStages(forceRefresh: true),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -184,7 +189,8 @@ class _StagesSettingsScreenState extends State<StagesSettingsScreen> {
           ),
           Expanded(
             child: _stages.isEmpty
-                ? Center(
+                ? PullToRefreshBody(
+                    onRefresh: () => _loadStages(forceRefresh: true),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -201,8 +207,9 @@ class _StagesSettingsScreenState extends State<StagesSettingsScreen> {
                       ],
                     ),
                   )
-                : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 88),
+                : PullToRefreshBody.list(
+                    onRefresh: () => _loadStages(forceRefresh: true),
+                    listPadding: const EdgeInsets.fromLTRB(16, 0, 16, 88),
                     itemCount: _stages.length,
                     itemBuilder: (context, index) {
                       final stage = _stages[index];

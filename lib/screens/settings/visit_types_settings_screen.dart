@@ -6,6 +6,7 @@ import '../../core/utils/snackbar_helper.dart';
 import '../../models/settings_model.dart';
 import '../../services/api_service.dart';
 import '../../services/error_logger.dart';
+import '../../widgets/pull_to_refresh_body.dart';
 import 'modals/add_visit_type_modal.dart';
 import 'modals/edit_visit_type_modal.dart';
 import 'widgets/settings_list_card.dart';
@@ -170,9 +171,13 @@ class _VisitTypesSettingsScreenState extends State<VisitTypesSettingsScreen> {
 
     Widget body;
     if (_isLoading) {
-      body = const Center(child: CircularProgressIndicator());
+      body = PullToRefreshBody(
+        onRefresh: () => _loadVisitTypes(forceRefresh: true),
+        child: const CircularProgressIndicator(),
+      );
     } else if (_errorMessage != null) {
-      body = Center(
+      body = PullToRefreshBody(
+        onRefresh: () => _loadVisitTypes(forceRefresh: true),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -214,7 +219,8 @@ class _VisitTypesSettingsScreenState extends State<VisitTypesSettingsScreen> {
           ),
           Expanded(
             child: _visitTypes.isEmpty
-                ? Center(
+                ? PullToRefreshBody(
+                    onRefresh: () => _loadVisitTypes(forceRefresh: true),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -227,8 +233,9 @@ class _VisitTypesSettingsScreenState extends State<VisitTypesSettingsScreen> {
                       ],
                     ),
                   )
-                : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 88),
+                : PullToRefreshBody.list(
+                    onRefresh: () => _loadVisitTypes(forceRefresh: true),
+                    listPadding: const EdgeInsets.fromLTRB(16, 0, 16, 88),
                     itemCount: _visitTypes.length,
                     itemBuilder: (context, index) {
                       final vt = _visitTypes[index];
