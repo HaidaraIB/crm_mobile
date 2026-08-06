@@ -18,6 +18,9 @@ class UserModel {
   final String? language;
   /// 0=Mon .. 6=Sun; null = no fixed weekly day off.
   final int? weeklyDayOff;
+  /// Daily work window (HH:MM or HH:MM:SS); both null = excluded from urgent routing.
+  final String? workStartTime;
+  final String? workEndTime;
   final bool? isCompanyOwner;
   final bool? loginTwoFactorEnabled;
   /// When true, employee/supervisor may delete customers (clients).
@@ -42,6 +45,8 @@ class UserModel {
     this.supervisorIsActive,
     this.language,
     this.weeklyDayOff,
+    this.workStartTime,
+    this.workEndTime,
     this.isCompanyOwner,
     this.loginTwoFactorEnabled,
     this.canDeleteClients = false,
@@ -166,6 +171,8 @@ class UserModel {
       weeklyDayOff: json['weekly_day_off'] == null
           ? null
           : (json['weekly_day_off'] as num?)?.toInt(),
+      workStartTime: json['work_start_time'] as String? ?? json['workStartTime'] as String?,
+      workEndTime: json['work_end_time'] as String? ?? json['workEndTime'] as String?,
       isCompanyOwner: json['is_company_owner'] as bool? ?? json['isCompanyOwner'] as bool?,
       loginTwoFactorEnabled: json['login_two_factor_enabled'] as bool? ?? json['loginTwoFactorEnabled'] as bool?,
       canDeleteClients: json['can_delete_clients'] == true || json['canDeleteClients'] == true,
@@ -190,6 +197,8 @@ class UserModel {
       if (supervisorPermissions != null) 'supervisor_permissions': {'is_active': supervisorIsActive, 'permissions': supervisorPermissions},
       if (language != null) 'language': language,
       if (weeklyDayOff != null) 'weekly_day_off': weeklyDayOff,
+      if (workStartTime != null) 'work_start_time': workStartTime,
+      if (workEndTime != null) 'work_end_time': workEndTime,
       if (isCompanyOwner != null) 'is_company_owner': isCompanyOwner,
       if (loginTwoFactorEnabled != null) 'login_two_factor_enabled': loginTwoFactorEnabled,
       'can_delete_clients': canDeleteClients,

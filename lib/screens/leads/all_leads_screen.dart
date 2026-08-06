@@ -23,6 +23,7 @@ import '../../widgets/modals/assign_lead_modal.dart';
 import '../../widgets/lead_contact_action_button.dart';
 import '../../widgets/lead_status_badge.dart';
 import '../../widgets/lead_assignee_badge.dart';
+import '../../widgets/lead_urgent_switch.dart';
 import '../../widgets/scrolling_single_line_text.dart';
 import 'create_lead_screen.dart';
 import 'edit_lead_screen.dart';
@@ -1305,6 +1306,25 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                     else if (lead.statusName != null)
                       _buildStatusDisplay(lead, localizations),
 
+                    if (lead.isUrgent ||
+                        (lead.priority != null &&
+                            lead.priority!.trim().isNotEmpty)) ...[
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: [
+                            if (lead.isUrgent) const LeadUrgentBadge(),
+                            if (lead.priority != null &&
+                                lead.priority!.trim().isNotEmpty)
+                              _buildPriorityBadge(lead.priority!, localizations),
+                          ],
+                        ),
+                      ),
+                    ],
+
                     const SizedBox(height: 14),
 
                     /// Assigned user
@@ -1404,6 +1424,45 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                             icon: Icons.attach_money,
                             label: formatLeadBudgetLine(lead.budget, lead.budgetMax),
                             color: const Color(0xFF16A34A),
+                          ),
+
+                        if (lead.patientFileNumber != null)
+                          _buildInfoChip(
+                            icon: Icons.folder_outlined,
+                            label:
+                                '${localizations?.translate('patientFileNumber') ?? 'Patient file #'} ${lead.patientFileNumber}',
+                            color: const Color(0xFF0EA5E9),
+                          ),
+
+                        if (lead.residence != null &&
+                            lead.residence!.trim().isNotEmpty)
+                          _buildInfoChip(
+                            icon: Icons.home_work_outlined,
+                            label: lead.residence!,
+                            color: Colors.grey.shade700,
+                          ),
+
+                        if (lead.source != null &&
+                            lead.source!.trim().isNotEmpty)
+                          _buildInfoChip(
+                            icon: Icons.source_outlined,
+                            label: lead.source!,
+                            color: const Color(0xFF6366F1),
+                          ),
+
+                        if (lead.campaignName != null &&
+                            lead.campaignName!.trim().isNotEmpty)
+                          _buildInfoChip(
+                            icon: Icons.campaign_outlined,
+                            label: lead.campaignName!,
+                            color: const Color(0xFF8B5CF6),
+                          ),
+
+                        if (_interestedSummary(lead) != null)
+                          _buildInfoChip(
+                            icon: Icons.apartment_outlined,
+                            label: _interestedSummary(lead)!,
+                            color: const Color(0xFF0D9488),
                           ),
                       ],
                     ),
@@ -1542,6 +1601,62 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
           ),
         );
       },
+    );
+  }
+
+  String? _interestedSummary(LeadModel lead) {
+    final parts = <String>[
+      if (lead.interestedDeveloperName != null &&
+          lead.interestedDeveloperName!.trim().isNotEmpty)
+        lead.interestedDeveloperName!.trim(),
+      if (lead.interestedProjectName != null &&
+          lead.interestedProjectName!.trim().isNotEmpty)
+        lead.interestedProjectName!.trim(),
+      if ((lead.interestedUnitName ?? lead.interestedUnitCode) != null &&
+          (lead.interestedUnitName ?? lead.interestedUnitCode)!
+              .trim()
+              .isNotEmpty)
+        (lead.interestedUnitName ?? lead.interestedUnitCode)!.trim(),
+    ];
+    if (parts.isEmpty) return null;
+    return parts.join(' · ');
+  }
+
+  Widget _buildPriorityBadge(
+    String priority,
+    AppLocalizations? localizations,
+  ) {
+    final key = priority.toLowerCase();
+    final Color color;
+    switch (key) {
+      case 'high':
+        color = const Color(0xFFDC2626);
+        break;
+      case 'medium':
+        color = const Color(0xFFD97706);
+        break;
+      case 'low':
+        color = const Color(0xFF2563EB);
+        break;
+      default:
+        color = Colors.grey.shade700;
+    }
+    final label = localizations?.translate(key) ?? priority;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.45)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
+      ),
     );
   }
 

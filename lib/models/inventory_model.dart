@@ -32,6 +32,7 @@ class Project {
   final String code;
   final String name;
   final String developer;
+  final int? developerId;
   final String? type;
   final String? city;
   final String? paymentMethod;
@@ -41,6 +42,7 @@ class Project {
     required this.code,
     required this.name,
     required this.developer,
+    this.developerId,
     this.type,
     this.city,
     this.paymentMethod,
@@ -48,25 +50,36 @@ class Project {
 
   factory Project.fromJson(Map<String, dynamic> json) {
     String developerName = '';
+    int? developerId;
     if (json['developer'] != null) {
       if (json['developer'] is String) {
         developerName = json['developer'] as String;
       } else if (json['developer'] is Map) {
-        developerName = (json['developer'] as Map<String, dynamic>)['name'] as String? ?? '';
+        final map = json['developer'] as Map<String, dynamic>;
+        developerName = map['name'] as String? ?? '';
+        developerId = map['id'] is int
+            ? map['id'] as int
+            : (map['id'] as num?)?.toInt();
       } else if (json['developer'] is int) {
-        // If it's just an ID, we can't get the name, so use empty string
-        developerName = '';
+        developerId = json['developer'] as int;
+      } else if (json['developer'] is num) {
+        developerId = (json['developer'] as num).toInt();
       }
     }
-    
+    developerId ??= json['developer_id'] is int
+        ? json['developer_id'] as int
+        : (json['developer_id'] as num?)?.toInt();
+
     return Project(
       id: json['id'] as int,
       code: json['code'] as String? ?? '',
       name: json['name'] as String? ?? '',
       developer: developerName,
+      developerId: developerId,
       type: json['type'] as String?,
       city: json['city'] as String?,
-      paymentMethod: json['payment_method'] as String? ?? json['paymentMethod'] as String?,
+      paymentMethod:
+          json['payment_method'] as String? ?? json['paymentMethod'] as String?,
     );
   }
 
@@ -76,6 +89,7 @@ class Project {
       'code': code,
       'name': name,
       'developer': developer,
+      if (developerId != null) 'developer_id': developerId,
       'type': type,
       'city': city,
       'payment_method': paymentMethod,

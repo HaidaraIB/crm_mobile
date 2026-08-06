@@ -13,6 +13,8 @@ import '../../core/utils/lead_assignee_users.dart';
 import '../../core/utils/budget_range_utils.dart';
 import '../../widgets/phone_input.dart';
 import '../../widgets/lead_location_map_picker.dart';
+import '../../widgets/lead_urgent_switch.dart';
+import '../../widgets/lead_interest_inventory_fields.dart';
 
 class CreateLeadScreen extends StatefulWidget {
   final Function(LeadModel)? onLeadCreated;
@@ -31,14 +33,19 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
   final _budgetMaxController = TextEditingController();
   final _companyNameController = TextEditingController();
   final _professionController = TextEditingController();
+  final _residenceController = TextEditingController();
   final _notesController = TextEditingController();
   final ApiService _apiService = ApiService();
 
   String? _selectedType;
   String? _selectedPriority;
+  bool _isUrgent = false;
   String? _selectedStatus;
   String? _selectedChannel;
   int? _selectedUserId;
+  int? _interestedDeveloper;
+  int? _interestedProject;
+  int? _interestedUnit;
 
   List<UserModel> _users = [];
   List<ChannelModel> _channels = [];
@@ -48,6 +55,10 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
   bool _isLoadingData = true;
 
   bool get _isDataEntry => _currentUser?.isDataEntry ?? false;
+  bool get _isMedical =>
+      (_currentUser?.company?.specialization ?? '').toLowerCase() == 'medical';
+  bool get _isRealEstate =>
+      (_currentUser?.company?.specialization ?? '') == 'real_estate';
 
   final   List<Map<String, dynamic>> _phoneNumbers = [];
   final Map<String, String> _errors = {};
@@ -70,6 +81,7 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
     _budgetMaxController.dispose();
     _companyNameController.dispose();
     _professionController.dispose();
+    _residenceController.dispose();
     _notesController.dispose();
     super.dispose();
   }
@@ -285,7 +297,7 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
         _budgetMaxController.text,
       );
 
-      final lead = await _apiService.createLead(
+      final result = await _apiService.createLead(
         name: _nameController.text.trim(),
         phone: primaryPhone,
         phoneNumbers: phoneNumbers,
@@ -295,20 +307,30 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
         type: _selectedType ?? 'fresh',
         communicationWayId: channelId,
         priority: _selectedPriority,
+        isUrgent: _isUrgent,
         statusId: statusId,
         leadCompanyName: _companyNameController.text.trim().isEmpty ? null : _companyNameController.text.trim(),
         profession: _professionController.text.trim().isEmpty ? null : _professionController.text.trim(),
+        residence: _residenceController.text.trim().isEmpty ? null : _residenceController.text.trim(),
         notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
         locationLatitude: _locationLatitude,
         locationLongitude: _locationLongitude,
+        interestedDeveloper: _interestedDeveloper,
+        interestedProject: _interestedProject,
+        interestedUnit: _interestedUnit,
       );
 
       if (mounted) {
-        widget.onLeadCreated?.call(lead);
+        widget.onLeadCreated?.call(result.lead);
         Navigator.pop(context);
+        final loc = AppLocalizations.of(context);
         SnackbarHelper.showSuccess(
           context,
-          AppLocalizations.of(context)?.translate('leadCreatedSuccessfully') ?? 'Lead created successfully',
+          result.urgentAssignmentWarning != null
+              ? (loc?.translate('urgentAssignmentFallback') ??
+                  'No employee was within working hours; assigned via normal rules.')
+              : (loc?.translate('leadCreatedSuccessfully') ??
+                  'Lead created successfully'),
         );
       }
     } catch (e) {
@@ -452,6 +474,15 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
                           // Form fields
                           Column(
                             children: [
+                              LeadUrgentSwitch(
+                                value: _isUrgent,
+                                onChanged: (v) => setState(() => _isUrgent = v),
+                                candidateUsers: _users,
+                                companyTimeZone:
+                                    _currentUser?.company?.timezone ?? 'UTC',
+                              ),
+                              const SizedBox(height: 16),
+
                               // Name
                               _buildTextField(
                                 label:
@@ -485,6 +516,31 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
                                 onChanged: () {},
                               ),
                               const SizedBox(height: 16),
+                              if (_isMedical) ...[
+                                _buildTextField(
+                                  label: localizations?.translate('residence') ?? 'Residence',
+                                  controller: _residenceController,
+                                  hint: localizations?.translate('enterResidence') ??
+                                      'Enter residence / address',
+                                  onChanged: () {},
+                                ),
+                                const SizedBox(height: 16),
+                              ],
+                              if (_isRealEstate) ...[
+                                LeadInterestInventoryFields(
+                                  interestedDeveloper: _interestedDeveloper,
+                                  interestedProject: _interestedProject,
+                                  interestedUnit: _interestedUnit,
+                                  onChanged: ({developer, project, unit}) {
+                                    setState(() {
+                                      _interestedDeveloper = developer;
+                                      _interestedProject = project;
+                                      _interestedUnit = unit;
+                                    });
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+                              ],
                               LeadLocationMapPicker(
                                 latitude: _locationLatitude,
                                 longitude: _locationLongitude,

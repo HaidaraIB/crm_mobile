@@ -1209,6 +1209,24 @@ class AppLocalizations {
       'weeklyDayOff': 'Weekly day off',
       'errorEmployeeWeeklyDayOff':
           'Cannot assign: this person has their weekly day off today.',
+      'urgent': 'Urgent',
+      'urgentHelp':
+          'When on, this lead is auto-assigned to someone currently within working hours.',
+      'urgentNoOneOnShift':
+          'No employee is currently within working hours. Assignment will fall back to normal rules.',
+      'urgentAssignmentFallback':
+          'No employee was within working hours; assigned via normal rules.',
+      'residence': 'Residence',
+      'enterResidence': 'Enter residence / address',
+      'patientFileNumber': 'Patient file #',
+      'leadInventoryInterest': 'Property interest (optional)',
+      'interestedDeveloper': 'Developer',
+      'interestedProject': 'Project',
+      'interestedUnit': 'Unit',
+      'noneOptional': '— (optional)',
+      'metaQualification': 'Meta qualification',
+      'metaQualificationNotSet': 'Not set',
+      'unqualified': 'Unqualified',
       'failedToParseUser': 'Failed to parse user',
       'failedToGetUsers': 'Failed to get users',
       'failedToGetUser': 'Failed to get user',
@@ -2474,6 +2492,24 @@ class AppLocalizations {
       'weeklyDayOff': 'يوم عطلة أسبوعي',
       'errorEmployeeWeeklyDayOff':
           'لا يمكن الإسناد: الموظف في يوم عطلة أسبوعي اليوم.',
+      'urgent': 'مستعجل',
+      'urgentHelp':
+          'عند التفعيل يُسند هذا العميل تلقائياً إلى موظف ضمن ساعات عمله الآن.',
+      'urgentNoOneOnShift':
+          'لا يوجد موظف ضمن ساعات عمله الآن. سيتم الإسناد وفق القواعد العادية.',
+      'urgentAssignmentFallback':
+          'لم يكن أي موظف ضمن ساعات العمل؛ تم الإسناد وفق القواعد العادية.',
+      'residence': 'السكن',
+      'enterResidence': 'أدخل السكن / العنوان',
+      'patientFileNumber': 'رقم الملف',
+      'leadInventoryInterest': 'اهتمام بالعقار (اختياري)',
+      'interestedDeveloper': 'المطور',
+      'interestedProject': 'المشروع',
+      'interestedUnit': 'الوحدة',
+      'noneOptional': '— (اختياري)',
+      'metaQualification': 'تأهيل ميتا',
+      'metaQualificationNotSet': 'غير محدد',
+      'unqualified': 'غير مؤهل',
       'failedToParseUser': 'فشل تحليل المستخدم',
       'failedToGetUsers': 'فشل الحصول على المستخدمين',
       'failedToGetUser': 'فشل الحصول على المستخدم',

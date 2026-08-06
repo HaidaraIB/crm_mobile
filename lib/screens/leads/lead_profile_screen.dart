@@ -34,6 +34,7 @@ import '../../widgets/phone_input.dart';
 import '../../widgets/lead_contact_action_button.dart';
 import '../../widgets/lead_status_badge.dart';
 import '../../widgets/lead_assignee_badge.dart';
+import '../../widgets/lead_urgent_switch.dart';
 import '../../widgets/scrolling_single_line_text.dart';
 import '../../widgets/lead_location_map_picker.dart';
 import '../../widgets/lead_timeline.dart';
@@ -816,6 +817,27 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                     _buildStatusDropdown(context, localizations)
                   else if (_lead!.statusName != null)
                     _buildStatusDisplay(localizations),
+                  if (_lead!.isUrgent ||
+                      (_lead!.priority != null &&
+                          _lead!.priority!.trim().isNotEmpty)) ...[
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          if (_lead!.isUrgent) const LeadUrgentBadge(),
+                          if (_lead!.priority != null &&
+                              _lead!.priority!.trim().isNotEmpty)
+                            _buildPriorityBadge(
+                              _lead!.priority!,
+                              localizations,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 14),
                   _buildAssigneeDropdown(context, localizations),
                   if (_creatorHeaderText(_lead!, localizations) != null) ...[
@@ -1343,6 +1365,102 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                 : '—',
             iconColor: const Color(0xFF8B5CF6),
           ),
+          if (lead.patientFileNumber != null) ...[
+            const SizedBox(height: 12),
+            _buildDetailCard(
+              icon: Icons.folder_outlined,
+              label:
+                  localizations?.translate('patientFileNumber') ??
+                  'Patient file #',
+              value: '${lead.patientFileNumber}',
+              iconColor: const Color(0xFF0EA5E9),
+            ),
+          ],
+          if (lead.residence != null && lead.residence!.trim().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _buildDetailCard(
+              icon: Icons.home_work_outlined,
+              label: localizations?.translate('residence') ?? 'Residence',
+              value: lead.residence!,
+              iconColor: const Color(0xFF64748B),
+            ),
+          ],
+          if (lead.source != null && lead.source!.trim().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _buildDetailCard(
+              icon: Icons.source_outlined,
+              label: localizations?.translate('source') ?? 'Source',
+              value: lead.source!,
+              iconColor: const Color(0xFF6366F1),
+            ),
+          ],
+          if (lead.campaignName != null &&
+              lead.campaignName!.trim().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _buildDetailCard(
+              icon: Icons.campaign_outlined,
+              label: localizations?.translate('campaign') ?? 'Campaign',
+              value: lead.campaignName!,
+              iconColor: const Color(0xFF8B5CF6),
+            ),
+          ],
+          if (lead.interestedDeveloperName != null &&
+              lead.interestedDeveloperName!.trim().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _buildDetailCard(
+              icon: Icons.business_outlined,
+              label:
+                  localizations?.translate('interestedDeveloper') ??
+                  'Developer',
+              value: lead.interestedDeveloperName!,
+              iconColor: const Color(0xFF0D9488),
+            ),
+          ],
+          if (lead.interestedProjectName != null &&
+              lead.interestedProjectName!.trim().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _buildDetailCard(
+              icon: Icons.apartment_outlined,
+              label:
+                  localizations?.translate('interestedProject') ?? 'Project',
+              value: lead.interestedProjectName!,
+              iconColor: const Color(0xFF0D9488),
+            ),
+          ],
+          if ((lead.interestedUnitName ?? lead.interestedUnitCode) != null &&
+              (lead.interestedUnitName ?? lead.interestedUnitCode)!
+                  .trim()
+                  .isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _buildDetailCard(
+              icon: Icons.meeting_room_outlined,
+              label: localizations?.translate('interestedUnit') ?? 'Unit',
+              value: [
+                if (lead.interestedUnitName != null &&
+                    lead.interestedUnitName!.trim().isNotEmpty)
+                  lead.interestedUnitName!,
+                if (lead.interestedUnitCode != null &&
+                    lead.interestedUnitCode!.trim().isNotEmpty)
+                  lead.interestedUnitCode!,
+              ].join(' · '),
+              iconColor: const Color(0xFF0D9488),
+            ),
+          ],
+          if (lead.metaLeadgenId != null ||
+              (lead.metaQualificationStatus != null &&
+                  lead.metaQualificationStatus!.trim().isNotEmpty) ||
+              lead.metaQualificationError != null) ...[
+            const SizedBox(height: 12),
+            _buildDetailCard(
+              icon: Icons.verified_outlined,
+              label:
+                  localizations?.translate('metaQualification') ??
+                  'Meta qualification',
+              value: _metaQualificationDisplay(lead, localizations),
+              iconColor: const Color(0xFF2563EB),
+              isMultiline: true,
+            ),
+          ],
           // Phone Numbers Section with WhatsApp and Call buttons
           const SizedBox(height: 12),
           _buildPhoneNumbersSection(lead, localizations),
@@ -2223,6 +2341,78 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
         ),
         );
       },
+    );
+  }
+
+  String _metaQualificationDisplay(
+    LeadModel lead,
+    AppLocalizations? localizations,
+  ) {
+    final statusRaw = lead.metaQualificationStatus?.trim();
+    String statusLabel;
+    if (statusRaw == null || statusRaw.isEmpty) {
+      statusLabel =
+          localizations?.translate('metaQualificationNotSet') ?? 'Not set';
+    } else if (statusRaw == 'qualified' || statusRaw == 'unqualified') {
+      statusLabel = localizations?.translate(statusRaw) ?? statusRaw;
+    } else {
+      statusLabel = statusRaw;
+    }
+
+    final lines = <String>[statusLabel];
+    if (lead.metaQualificationSentAt != null) {
+      final dt = lead.metaQualificationSentAt!;
+      lines.add(
+        '${dt.year.toString().padLeft(4, '0')}-'
+        '${dt.month.toString().padLeft(2, '0')}-'
+        '${dt.day.toString().padLeft(2, '0')} '
+        '${dt.hour.toString().padLeft(2, '0')}:'
+        '${dt.minute.toString().padLeft(2, '0')}',
+      );
+    }
+    final err = lead.metaQualificationError;
+    if (err != null) {
+      final msg = err.message.trim().isNotEmpty ? err.message : err.key;
+      if (msg.isNotEmpty) lines.add(msg);
+    }
+    return lines.join('\n');
+  }
+
+  Widget _buildPriorityBadge(
+    String priority,
+    AppLocalizations? localizations,
+  ) {
+    final key = priority.toLowerCase();
+    final Color color;
+    switch (key) {
+      case 'high':
+        color = const Color(0xFFDC2626);
+        break;
+      case 'medium':
+        color = const Color(0xFFD97706);
+        break;
+      case 'low':
+        color = const Color(0xFF2563EB);
+        break;
+      default:
+        color = Colors.grey.shade700;
+    }
+    final label = localizations?.translate(key) ?? priority;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.45)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
+      ),
     );
   }
 

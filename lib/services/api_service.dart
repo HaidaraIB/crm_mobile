@@ -12,6 +12,7 @@ import '../core/localization/app_localizations.dart';
 import '../core/localization/medical_lexicon.dart';
 import '../core/utils/api_error_helper.dart';
 import '../core/utils/lead_location.dart';
+import '../utils/lead_update_payload.dart' show buildInterestedInventoryApiBody;
 import '../core/utils/field_visit_api_errors.dart';
 import '../core/utils/app_locales.dart';
 import '../models/lead_model.dart';
@@ -2668,7 +2669,7 @@ class ApiService {
   }
 
   // Create lead
-  Future<LeadModel> createLead({
+  Future<CreateLeadResult> createLead({
     required String name,
     required String phone,
     List<Map<String, dynamic>>? phoneNumbers,
@@ -2679,13 +2680,18 @@ class ApiService {
     String? communicationWay, // Deprecated: use communicationWayId instead
     int? communicationWayId, // Preferred: channel ID
     String? priority,
+    bool isUrgent = false,
     String? status, // Deprecated: use statusId instead
     int? statusId, // Preferred: status ID
     String? leadCompanyName,
     String? profession,
+    String? residence,
     String? notes,
     double? locationLatitude,
     double? locationLongitude,
+    int? interestedDeveloper,
+    int? interestedProject,
+    int? interestedUnit,
   }) async {
     // Get current user to retrieve company ID
     final currentUser = await getCurrentUser();
@@ -2700,6 +2706,7 @@ class ApiService {
       'phone_number': phone,
       'type': type.toLowerCase(),
       'company': currentUser.company!.id, // Include company ID
+      'is_urgent': isUrgent,
     };
 
     if (phoneNumbers != null && phoneNumbers.isNotEmpty) {
@@ -2733,9 +2740,21 @@ class ApiService {
     if (profession != null) {
       body['profession'] = profession.trim().isEmpty ? null : profession.trim();
     }
+    if (residence != null) {
+      body['residence'] = residence.trim().isEmpty ? null : residence.trim();
+    }
     if (notes != null) {
       body['notes'] = notes.trim().isEmpty ? null : notes.trim();
     }
+
+    body.addAll(
+      buildInterestedInventoryApiBody(
+        specialization: currentUser.company?.specialization,
+        interestedDeveloper: interestedDeveloper,
+        interestedProject: interestedProject,
+        interestedUnit: interestedUnit,
+      ),
+    );
 
     body.addAll(
       buildLeadLocationApiBody(
@@ -2748,9 +2767,13 @@ class ApiService {
 
     if (response.statusCode == 201) {
       final data = _unwrapResponseMap(response);
+      final warning = data['urgent_assignment_warning']?.toString();
       final lead = LeadModel.fromJson(data);
       _invalidateLeadsCache();
-      return lead;
+      return CreateLeadResult(
+        lead: lead,
+        urgentAssignmentWarning: warning != null && warning.isNotEmpty ? warning : null,
+      );
     } else {
       final error = _errorContextFromBody(response.body);
       _throwFromErrorContext(error, fallbackKey: 'failedToCreateLead');

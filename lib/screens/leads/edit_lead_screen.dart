@@ -14,6 +14,8 @@ import '../../core/utils/budget_range_utils.dart';
 import '../../utils/lead_update_payload.dart';
 import '../../widgets/phone_input.dart';
 import '../../widgets/lead_location_map_picker.dart';
+import '../../widgets/lead_urgent_switch.dart';
+import '../../widgets/lead_interest_inventory_fields.dart';
 
 class EditLeadScreen extends StatefulWidget {
   final LeadModel lead;
@@ -33,26 +35,36 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
   final _budgetMaxController = TextEditingController();
   final _companyNameController = TextEditingController();
   final _professionController = TextEditingController();
+  final _residenceController = TextEditingController();
   final _notesController = TextEditingController();
   final ApiService _apiService = ApiService();
 
   String? _selectedType;
   String? _selectedPriority;
+  bool _isUrgent = false;
   String? _selectedStatus;
   String? _selectedChannel;
   int? _selectedUserId;
+  int? _interestedDeveloper;
+  int? _interestedProject;
+  int? _interestedUnit;
 
   List<UserModel> _users = [];
   List<ChannelModel> _channels = [];
   List<StatusModel> _statuses = [];
   bool _isLoading = false;
   bool _isLoadingData = true;
+  String _companyTimeZone = 'UTC';
+  String? _specialization;
 
   List<Map<String, dynamic>> _phoneNumbers = [];
   final Map<String, String> _errors = {};
   double? _locationLatitude;
   double? _locationLongitude;
   Map<String, dynamic>? _initialUpdatePayload;
+
+  bool get _isMedical => (_specialization ?? '').toLowerCase() == 'medical';
+  bool get _isRealEstate => _specialization == 'real_estate';
 
   @override
   void initState() {
@@ -74,14 +86,19 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
         : '';
     _companyNameController.text = widget.lead.leadCompanyName ?? '';
     _professionController.text = widget.lead.profession ?? '';
+    _residenceController.text = widget.lead.residence ?? '';
     _notesController.text = widget.lead.notes ?? '';
     _selectedType = widget.lead.type.toLowerCase();
     _selectedPriority = widget.lead.priority?.toLowerCase();
+    _isUrgent = widget.lead.isUrgent;
     _selectedStatus = widget.lead.statusName;
     _selectedChannel = widget.lead.communicationWay;
     _selectedUserId = widget.lead.assignedTo > 0
         ? widget.lead.assignedTo
         : null;
+    _interestedDeveloper = widget.lead.interestedDeveloper;
+    _interestedProject = widget.lead.interestedProject;
+    _interestedUnit = widget.lead.interestedUnit;
     _locationLatitude = widget.lead.locationLatitude;
     _locationLongitude = widget.lead.locationLongitude;
 
@@ -117,12 +134,14 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
     _budgetMaxController.dispose();
     _companyNameController.dispose();
     _professionController.dispose();
+    _residenceController.dispose();
     _notesController.dispose();
     super.dispose();
   }
 
   Future<void> _loadData() async {
     try {
+      final me = await _apiService.getCurrentUser();
       final usersData = await _apiService.getUsers();
       final channels = await _apiService.getChannels();
       final statuses = await _apiService.getStatuses();
@@ -130,6 +149,8 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
       final raw = (usersData['results'] as List).cast<UserModel>();
       final pickable = usersForLeadAssigneePicker(raw);
       setState(() {
+        _companyTimeZone = me.company?.timezone ?? 'UTC';
+        _specialization = me.company?.specialization;
         _users = pickable;
         _channels = channels;
         _statuses = statuses;
@@ -320,10 +341,16 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
       type: _selectedType,
       channelId: _resolveChannelId(),
       priority: _selectedPriority,
+      isUrgent: _isUrgent,
       statusId: _resolveStatusId(),
       leadCompanyName: _companyNameController.text.trim(),
       profession: _professionController.text.trim(),
+      residence: _residenceController.text.trim(),
       notes: _notesController.text,
+      specialization: _specialization,
+      interestedDeveloper: _interestedDeveloper,
+      interestedProject: _interestedProject,
+      interestedUnit: _interestedUnit,
       locationLatitude: _locationLatitude,
       locationLongitude: _locationLongitude,
       includeLocation: true,
@@ -499,6 +526,14 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
                           // Form fields
                           Column(
                             children: [
+                              LeadUrgentSwitch(
+                                value: _isUrgent,
+                                onChanged: (v) => setState(() => _isUrgent = v),
+                                candidateUsers: _users,
+                                companyTimeZone: _companyTimeZone,
+                              ),
+                              const SizedBox(height: 16),
+
                               // Name
                               _buildTextField(
                                 label:
@@ -532,6 +567,48 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
                                 onChanged: () {},
                               ),
                               const SizedBox(height: 16),
+                              if (widget.lead.patientFileNumber != null) ...[
+                                InputDecorator(
+                                  decoration: InputDecoration(
+                                    labelText:
+                                        localizations?.translate('patientFileNumber') ??
+                                        'Patient file #',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    '${widget.lead.patientFileNumber}',
+                                    style: theme.textTheme.bodyLarge,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                              ],
+                              if (_isMedical) ...[
+                                _buildTextField(
+                                  label: localizations?.translate('residence') ?? 'Residence',
+                                  controller: _residenceController,
+                                  hint: localizations?.translate('enterResidence') ??
+                                      'Enter residence / address',
+                                  onChanged: () {},
+                                ),
+                                const SizedBox(height: 16),
+                              ],
+                              if (_isRealEstate) ...[
+                                LeadInterestInventoryFields(
+                                  interestedDeveloper: _interestedDeveloper,
+                                  interestedProject: _interestedProject,
+                                  interestedUnit: _interestedUnit,
+                                  onChanged: ({developer, project, unit}) {
+                                    setState(() {
+                                      _interestedDeveloper = developer;
+                                      _interestedProject = project;
+                                      _interestedUnit = unit;
+                                    });
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+                              ],
                               _buildTextField(
                                 label: localizations?.translate('notes') ?? 'Notes',
                                 controller: _notesController,
