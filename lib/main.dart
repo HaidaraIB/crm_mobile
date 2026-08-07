@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'core/constants/app_constants.dart';
@@ -47,6 +48,11 @@ void main() async {
     debugPrint = (String? message, {int? wrapWidth}) {};
   }
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Edge-to-edge on pre-Android 15 (API 35+ already enforces it).
+  // Do not set statusBarColor / navigationBarColor here — those Window APIs
+  // are deprecated on Android 15 and are what Play Console flags.
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   
   // Initialize Firebase (optional - only if google-services.json exists)
   bool firebaseInitialized = false;

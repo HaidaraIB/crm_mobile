@@ -1,38 +1,30 @@
-# Flutter wrapper
--keep class io.flutter.app.** { *; }
--keep class io.flutter.plugin.**  { *; }
--keep class io.flutter.util.**  { *; }
--keep class io.flutter.view.**  { *; }
--keep class io.flutter.**  { *; }
--keep class io.flutter.plugins.**  { *; }
+# Prefer consumer ProGuard rules from Flutter / plugins over blanket -keep.
+# Broad package keeps block R8 optimization (Play Console guidance).
 
-# Firebase
--keep class com.google.firebase.** { *; }
--keep class com.google.android.gms.** { *; }
+# Flutter JNI / embedding entry points (engine ships its own rules; keep JNI)
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
+
+# Firebase / Play Services — rely on their consumer rules; silence missing classes
 -dontwarn com.google.firebase.**
 -dontwarn com.google.android.gms.**
 
-# Gson
+# Gson (if pulled transitively)
 -keepattributes Signature
 -keepattributes *Annotation*
 -dontwarn sun.misc.**
--keep class com.google.gson.** { *; }
 -keep class * implements com.google.gson.TypeAdapter
 -keep class * implements com.google.gson.TypeAdapterFactory
 -keep class * implements com.google.gson.JsonSerializer
 -keep class * implements com.google.gson.JsonDeserializer
 
-# Keep native methods
--keepclasseswithmembernames class * {
-    native <methods>;
-}
-
-# Keep Parcelable implementations
+# Parcelable
 -keep class * implements android.os.Parcelable {
     public static final android.os.Parcelable$Creator *;
 }
 
-# Keep Serializable classes
+# Serializable
 -keepclassmembers class * implements java.io.Serializable {
     static final long serialVersionUID;
     private static final java.io.ObjectStreamField[] serialPersistentFields;
@@ -42,26 +34,15 @@
     java.lang.Object readResolve();
 }
 
-# Keep custom model classes
--keep class com.loopcrm.mobile.** { *; }
-
 # OkHttp
 -dontwarn okhttp3.**
 -dontwarn okio.**
 -keepnames class okhttp3.internal.publicsuffix.PublicSuffixDatabase
 
-# Dio
--keep class dio.** { *; }
--dontwarn dio.**
-
-# SharedPreferences
--keep class android.content.SharedPreferences { *; }
--keep class android.content.SharedPreferences$Editor { *; }
-
 # Keep annotation default values
 -keepattributes AnnotationDefault
 
-# Keep line numbers for stack traces
+# Keep line numbers for stack traces (Play Console deobfuscation)
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
 

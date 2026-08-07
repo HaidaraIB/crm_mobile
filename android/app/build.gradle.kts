@@ -121,8 +121,9 @@ android {
 }
 
 dependencies {
-    implementation("androidx.core:core:1.12.0")
-    implementation("androidx.core:core-ktx:1.12.0")
+    // ComponentActivity.enableEdgeToEdge() (MainActivity extends FlutterFragmentActivity)
+    implementation("androidx.activity:activity-ktx:1.9.3")
+    implementation("androidx.core:core-ktx:1.15.0")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }
 

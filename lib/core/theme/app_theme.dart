@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class AppTheme {
   // Primary Purple Color
@@ -110,6 +111,13 @@ class AppTheme {
         elevation: 0,
         iconTheme: IconThemeData(color: Colors.white),
         actionsIconTheme: IconThemeData(color: Colors.white),
+        // Icon brightness only — avoid deprecated status/nav bar color APIs.
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark,
+          systemNavigationBarIconBrightness: Brightness.dark,
+          systemNavigationBarContrastEnforced: false,
+        ),
         titleTextStyle: TextStyle(
           fontFamily: fontFamilySans,
           color: Colors.white,
@@ -163,6 +171,13 @@ class AppTheme {
         elevation: 0,
         iconTheme: IconThemeData(color: Colors.white),
         actionsIconTheme: IconThemeData(color: Colors.white),
+        // Icon brightness only — avoid deprecated status/nav bar color APIs.
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark,
+          systemNavigationBarIconBrightness: Brightness.light,
+          systemNavigationBarContrastEnforced: false,
+        ),
         titleTextStyle: TextStyle(
           fontFamily: fontFamilySans,
           color: Colors.white,
