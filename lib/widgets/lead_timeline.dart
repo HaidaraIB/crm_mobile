@@ -1,4 +1,9 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -7,6 +12,7 @@ import '../core/theme/app_theme.dart';
 import '../core/utils/lead_location.dart';
 import '../core/utils/media_url_utils.dart';
 import '../models/timeline_entry.dart';
+import '../services/api_service.dart';
 import 'media/open_app_media_viewer.dart';
 
 const _timelineSortKey = 'leadTimelineSortOrder';
@@ -469,6 +475,8 @@ class _TimelineRow extends StatelessWidget {
                     ),
                   ),
                 ],
+                if (entry.type == TimelineEntryType.call)
+                  _TimelineCallRecording(entry: entry, loc: loc),
                 if (entry.type == TimelineEntryType.fieldVisit &&
                     entry.locationPhotoUrl != null &&
                     entry.locationPhotoUrl!.isNotEmpty) ...[
@@ -1188,6 +1196,187 @@ class _DatePill extends StatelessWidget {
               fontSize: 11,
               fontWeight: FontWeight.w500,
               color: fg,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TimelineCallRecording extends StatelessWidget {
+  final TimelineEntry entry;
+  final AppLocalizations? loc;
+
+  const _TimelineCallRecording({required this.entry, required this.loc});
+
+  String _t(String key) => loc?.translate(key) ?? key;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = (entry.recordingStatus ?? '').trim().toLowerCase();
+    if (status.isEmpty) return const SizedBox.shrink();
+
+    final muted = _timelineMutedColor(context);
+    final readyUrl = entry.recordingUrl?.trim();
+    if (status == 'ready' && readyUrl != null && readyUrl.isNotEmpty) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: _TimelineRecordingPlayer(url: readyUrl, loc: loc),
+      );
+    }
+    if (status == 'pending' || status == 'processing') {
+      return Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Text(
+          _t('recordingProcessing'),
+          style: TextStyle(fontSize: 13, color: Colors.amber.shade800),
+        ),
+      );
+    }
+    if (status == 'failed') {
+      return Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Text(
+          _t('recordingUnavailable'),
+          style: TextStyle(fontSize: 13, color: muted),
+        ),
+      );
+    }
+    if (status == 'skipped') {
+      return Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Text(
+          _t('recordingSkipped'),
+          style: TextStyle(fontSize: 13, color: muted),
+        ),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+}
+
+class _TimelineRecordingPlayer extends StatefulWidget {
+  final String url;
+  final AppLocalizations? loc;
+
+  const _TimelineRecordingPlayer({required this.url, required this.loc});
+
+  @override
+  State<_TimelineRecordingPlayer> createState() =>
+      _TimelineRecordingPlayerState();
+}
+
+class _TimelineRecordingPlayerState extends State<_TimelineRecordingPlayer> {
+  final AudioPlayer _player = AudioPlayer();
+  bool _loading = true;
+  bool _failed = false;
+  bool _playing = false;
+  StreamSubscription<PlayerState>? _stateSub;
+  File? _tempFile;
+
+  String _t(String key) => widget.loc?.translate(key) ?? key;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_prepare());
+  }
+
+  @override
+  void dispose() {
+    unawaited(_stateSub?.cancel() ?? Future.value());
+    unawaited(_player.dispose());
+    final f = _tempFile;
+    if (f != null) {
+      unawaited(f.delete().catchError((_) => f));
+    }
+    super.dispose();
+  }
+
+  Future<void> _prepare() async {
+    try {
+      final absolute = resolveMediaUrl(widget.url) ?? widget.url;
+      final bytes = await ApiService().fetchAuthenticatedBinaryGet(absolute);
+      final dir = await getTemporaryDirectory();
+      final lower = absolute.toLowerCase();
+      final ext = lower.contains('.mp3')
+          ? '.mp3'
+          : lower.contains('.webm')
+              ? '.webm'
+              : lower.contains('.ogg')
+                  ? '.ogg'
+                  : '.wav';
+      final file = File(
+        '${dir.path}/tl_rec_${DateTime.now().millisecondsSinceEpoch}$ext',
+      );
+      await file.writeAsBytes(bytes, flush: true);
+      _tempFile = file;
+      await _player.setReleaseMode(ReleaseMode.stop);
+      await _player.setSource(DeviceFileSource(file.path));
+      _stateSub = _player.onPlayerStateChanged.listen((s) {
+        if (!mounted) return;
+        setState(() => _playing = s == PlayerState.playing);
+      });
+      if (mounted) setState(() => _loading = false);
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _failed = true;
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _toggle() async {
+    if (_loading || _failed) return;
+    if (_playing) {
+      await _player.pause();
+    } else {
+      await _player.resume();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = _timelineAccentColor(context);
+    if (_loading) {
+      return Text(
+        '${_t('loading')}…',
+        style: TextStyle(fontSize: 12, color: _timelineMutedColor(context)),
+      );
+    }
+    if (_failed) {
+      return Text(
+        _t('recordingUnavailable'),
+        style: TextStyle(fontSize: 13, color: _timelineMutedColor(context)),
+      );
+    }
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: _toggle,
+            tooltip: _t('playRecording'),
+            icon: Icon(
+              _playing ? Icons.pause_circle_filled : Icons.play_circle_filled,
+              color: accent,
+              size: 32,
+            ),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          ),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              _t('playRecording'),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: _timelineStrongColor(context),
+              ),
             ),
           ),
         ],

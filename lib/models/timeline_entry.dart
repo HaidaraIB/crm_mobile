@@ -47,6 +47,9 @@ class TimelineEntry {
   final String? callDatetime;
   final String? followUpDate;
   final String? locationPhotoUrl;
+  /// Optional: PBX / WhatsApp call recording playback URL.
+  final String? recordingUrl;
+  final String? recordingStatus;
   /// Direction for individual WhatsApp rows (before thread collapse).
   final String? direction;
   /// Messages inside a collapsed WhatsApp conversation block.
@@ -68,6 +71,8 @@ class TimelineEntry {
     this.callDatetime,
     this.followUpDate,
     this.locationPhotoUrl,
+    this.recordingUrl,
+    this.recordingStatus,
     this.direction,
     this.messages,
   });

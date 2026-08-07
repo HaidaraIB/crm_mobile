@@ -111,6 +111,30 @@ String _formatPbxCallSummary(ClientCallModel cc, TimelineTranslate t) {
   return parts.isNotEmpty ? parts.join(' · ') : cc.notes;
 }
 
+String _formatWhatsAppCallSummary(ClientCallModel cc, TimelineTranslate t) {
+  final parts = <String>[_tr(t, 'whatsappCallMade')];
+  switch (cc.whatsappDirection) {
+    case 'inbound':
+      parts.add(_tr(t, 'incoming'));
+      break;
+    case 'outbound':
+      parts.add(_tr(t, 'outgoing'));
+      break;
+  }
+  final status = cc.whatsappCallStatus?.trim();
+  if (status != null && status.isNotEmpty) {
+    final key = 'whatsappCallStatus_${status.toLowerCase()}';
+    final translated = _tr(t, key);
+    parts.add(translated == key ? status.replaceAll('_', ' ') : translated);
+  }
+  if (cc.whatsappDurationSec != null && cc.whatsappDurationSec! > 0) {
+    parts.add(
+      _tr(t, 'callDurationSeconds').replaceAll('{n}', '${cc.whatsappDurationSec}'),
+    );
+  }
+  return parts.join(' · ');
+}
+
 String? _stageColor(List<StageModel> stages, String? stageName) {
   if (stageName == null || stageName.isEmpty) return null;
   try {
@@ -166,22 +190,49 @@ List<TimelineEntry> buildLeadTimeline(TimelineBuilderInput input) {
         callMethod?.name ?? cc.callMethodName ?? _tr(t, 'call');
     final callDate = cc.callDatetime ?? cc.createdAt;
     final isPbx = cc.isPbx;
+    final isWhatsApp = cc.isWhatsApp;
+
+    String action;
+    String details;
+    String stage;
+    String? color;
+    if (isPbx) {
+      action = _formatPbxCallSummary(cc, t);
+      details = '';
+      stage = _tr(t, 'pbxCallSource');
+      color = '#4f46e5';
+    } else if (isWhatsApp) {
+      action = _formatWhatsAppCallSummary(cc, t);
+      final notes = cc.notes;
+      details = notes.contains('\n')
+          ? notes.split('\n').skip(1).join('\n')
+          : '';
+      stage = _tr(t, 'whatsappCallSource');
+      color = '#16a34a';
+    } else {
+      action = _tr(t, 'callMade');
+      details = cc.notes;
+      stage = callMethodName;
+      color = callMethod?.color;
+    }
 
     return TimelineEntry(
       id: 'call-${cc.id}',
       type: TimelineEntryType.call,
       user: _userName(users, cc.createdBy, cc.createdByUsername) ??
           _tr(t, 'unknown'),
-      action: isPbx ? _formatPbxCallSummary(cc, t) : _tr(t, 'callMade'),
-      details: isPbx ? '' : cc.notes,
+      action: action,
+      details: details,
       date: formatTimelineDate(callDate, locale),
       timestamp: callDate.millisecondsSinceEpoch,
-      stage: isPbx ? _tr(t, 'pbxCallSource') : callMethodName,
-      color: isPbx ? '#4f46e5' : callMethod?.color,
+      stage: stage,
+      color: color,
       callDatetime: formatDetail(callDate),
       followUpDate: cc.followUpDate != null
           ? formatDetail(cc.followUpDate)
           : null,
+      recordingUrl: cc.timelineRecordingUrl,
+      recordingStatus: cc.timelineRecordingStatus,
     );
   });
 

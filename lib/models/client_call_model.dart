@@ -11,6 +11,13 @@ class ClientCallModel {
   final String? pbxDirection;
   final String? pbxDisposition;
   final int? pbxDurationSec;
+  final String? pbxRecordingUrl;
+  final String? pbxRecordingStatus;
+  final String? whatsappDirection;
+  final String? whatsappCallStatus;
+  final int? whatsappDurationSec;
+  final String? whatsappRecordingUrl;
+  final String? whatsappRecordingStatus;
   final int createdBy;
   final String? createdByUsername;
   final DateTime createdAt;
@@ -28,6 +35,13 @@ class ClientCallModel {
     this.pbxDirection,
     this.pbxDisposition,
     this.pbxDurationSec,
+    this.pbxRecordingUrl,
+    this.pbxRecordingStatus,
+    this.whatsappDirection,
+    this.whatsappCallStatus,
+    this.whatsappDurationSec,
+    this.whatsappRecordingUrl,
+    this.whatsappRecordingStatus,
     required this.createdBy,
     this.createdByUsername,
     required this.createdAt,
@@ -37,6 +51,20 @@ class ClientCallModel {
       followUpDate != null && followUpCompletedAt == null;
 
   bool get isPbx => source == 'pbx';
+
+  bool get isWhatsApp => source == 'whatsapp';
+
+  String? get timelineRecordingUrl {
+    if (isWhatsApp) return whatsappRecordingUrl;
+    if (isPbx) return pbxRecordingUrl;
+    return null;
+  }
+
+  String? get timelineRecordingStatus {
+    if (isWhatsApp) return whatsappRecordingStatus;
+    if (isPbx) return pbxRecordingStatus;
+    return null;
+  }
 
   factory ClientCallModel.fromJson(Map<String, dynamic> json) {
     return ClientCallModel(
@@ -62,6 +90,13 @@ class ClientCallModel {
       pbxDirection: json['pbx_direction'] as String?,
       pbxDisposition: json['pbx_disposition'] as String?,
       pbxDurationSec: json['pbx_duration_sec'] as int?,
+      pbxRecordingUrl: json['pbx_recording_url'] as String?,
+      pbxRecordingStatus: json['pbx_recording_status'] as String?,
+      whatsappDirection: json['whatsapp_direction'] as String?,
+      whatsappCallStatus: json['whatsapp_call_status'] as String?,
+      whatsappDurationSec: json['whatsapp_duration_sec'] as int?,
+      whatsappRecordingUrl: json['whatsapp_recording_url'] as String?,
+      whatsappRecordingStatus: json['whatsapp_recording_status'] as String?,
       createdBy: json['created_by'] as int? ?? json['createdBy'] as int? ?? 0,
       createdByUsername: json['created_by_username'] as String?,
       createdAt: DateTime.parse(
@@ -86,6 +121,13 @@ class ClientCallModel {
       'pbx_direction': pbxDirection,
       'pbx_disposition': pbxDisposition,
       'pbx_duration_sec': pbxDurationSec,
+      'pbx_recording_url': pbxRecordingUrl,
+      'pbx_recording_status': pbxRecordingStatus,
+      'whatsapp_direction': whatsappDirection,
+      'whatsapp_call_status': whatsappCallStatus,
+      'whatsapp_duration_sec': whatsappDurationSec,
+      'whatsapp_recording_url': whatsappRecordingUrl,
+      'whatsapp_recording_status': whatsappRecordingStatus,
       'created_by': createdBy,
       'created_by_username': createdByUsername,
       'created_at': createdAt.toIso8601String(),
