@@ -85,10 +85,23 @@ class NotificationRouter {
       case NotificationType.whatsappSendFailed:
       case NotificationType.whatsappWaitingResponse:
         final leadId = _intFromPayload(payload.data?['lead_id']);
+        final leadName = payload.data?['lead_name']?.toString() ??
+            payload.data?['client_name']?.toString() ??
+            '';
+        final phone = payload.data?['phone']?.toString() ??
+            payload.data?['phone_number']?.toString() ??
+            '';
         if (leadId != null) {
-          navigator.pushNamed('/leads/details', arguments: leadId);
+          navigator.pushNamed(
+            '/whatsapp-chat/thread',
+            arguments: {
+              'clientId': leadId,
+              'clientName': leadName.isNotEmpty ? leadName : 'WhatsApp',
+              'phoneNumber': phone,
+            },
+          );
         } else {
-          navigator.pushNamed('/leads');
+          navigator.pushNamed('/whatsapp-chat');
         }
         break;
 

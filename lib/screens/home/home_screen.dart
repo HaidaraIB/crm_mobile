@@ -7,12 +7,15 @@ import '../../services/notification_service.dart';
 import '../../services/api_service.dart';
 import '../../services/team_chat_away_service.dart';
 import '../../services/team_chat_unread_holder.dart';
+import '../../services/whatsapp_chat_unread_holder.dart';
+import '../../services/whatsapp_chat_unread_poller.dart';
 import '../../widgets/navigation_drawer.dart';
 import '../../widgets/bottom_navigation.dart';
 import '../calendar/calendar_screen.dart';
 import '../leads/all_leads_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../team_chat/team_chat_screen.dart';
+import '../whatsapp_chat/whatsapp_conversation_list_screen.dart';
 import 'dashboard_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -22,7 +25,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _currentIndex = 0;
   DateTime _selectedCalendarDate = DateTime.now();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -43,9 +46,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
   bool get _isDataEntry => _sessionUser?.isDataEntry ?? false;
 
+  /// Gate the WhatsApp Chats app bar icon: always visible for admin/owner; supervisors need
+  /// `can_manage_whatsapp_chats`; other staff need `whatsapp_chat_enabled` (defaults true).
+  bool _canAccessWhatsAppChats(UserModel? user) {
+    if (user == null) return false;
+    if (user.isAdmin) return true;
+    if (user.isSupervisor) {
+      return user.hasSupervisorPermission('can_manage_whatsapp_chats');
+    }
+    return user.whatsappChatEnabled;
+  }
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _dashboardScreen = DashboardScreen(key: _dashboardKey);
     _allLeadsScreen = AllLeadsScreen(
       key: _allLeadsKey,
@@ -76,6 +91,19 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadUnreadCount();
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    WhatsAppChatUnreadPoller.instance.stop();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    WhatsAppChatUnreadPoller.instance
+        .setForeground(state == AppLifecycleState.resumed);
+  }
+
   Future<void> _loadSessionUser() async {
     try {
       final user = await _apiService.getCurrentUser();
@@ -87,6 +115,9 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       });
       TeamChatAwayService.instance.start();
+      if (_canAccessWhatsAppChats(user)) {
+        WhatsAppChatUnreadPoller.instance.start();
+      }
     } catch (e) {
       debugPrint('Failed to load session user: $e');
     }
@@ -141,6 +172,65 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         ValueListenableBuilder<int>(
           valueListenable: TeamChatUnreadHolder.totalUnread,
+          builder: (context, count, _) {
+            if (count <= 0) return const SizedBox.shrink();
+            return Positioned(
+              right: 8,
+              top: 8,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                ),
+                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                child: Text(
+                  count > 99 ? '99+' : '$count',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  /// WhatsApp Chats entry in the app bar. Unread badge matches [WhatsAppChatUnreadHolder].
+  Widget _whatsAppChatAppBarAction(AppLocalizations? localizations) {
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: [
+        IconButton(
+          icon: Image.asset(
+            'assets/images/whatsapp_logo.png',
+            width: 45,
+            height: 45,
+            fit: BoxFit.contain,
+            filterQuality: FilterQuality.high,
+            errorBuilder: (context, error, stackTrace) {
+              return const Icon(Icons.chat_outlined);
+            },
+          ),
+          tooltip: localizations?.translate('whatsappChats') ?? 'WhatsApp Chats',
+          onPressed: () async {
+            await Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(
+                settings: const RouteSettings(name: 'WhatsAppConversationListScreen'),
+                builder: (_) => const WhatsAppConversationListScreen(),
+              ),
+            );
+          },
+        ),
+        ValueListenableBuilder<int>(
+          valueListenable: WhatsAppChatUnreadHolder.totalUnread,
           builder: (context, count, _) {
             if (count <= 0) return const SizedBox.shrink();
             return Positioned(
@@ -320,6 +410,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
                 if (_currentIndex == 0) ...[
+                  if (_canAccessWhatsAppChats(_sessionUser))
+                    _whatsAppChatAppBarAction(localizations),
                   _teamChatAppBarAction(localizations),
                   Stack(
                     children: [

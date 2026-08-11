@@ -29,7 +29,7 @@ The lead **Timeline** on web (`CRM-project`) and mobile (`crm_mobile`) must stay
 - Non-WhatsApp events (call, visit, SMS, stage, etc.) **break** the group.
 - Thread card: green WhatsApp chip, conversation title + count, latest-message preview, expand/collapse compact `←`/`→` lines, phone once with LTR (`forceLtr` on stage chip).
 - Default **collapsed**.
-- Web has **Open in Chats**; mobile omits that action until an in-app WA chats screen exists.
+- Web has **Open in Chats**; mobile uses `onOpenWhatsAppChat` on `LeadTimeline` → `WhatsAppChatThreadScreen` when the user has WhatsApp chat access.
 
 ## Rules of thumb
 

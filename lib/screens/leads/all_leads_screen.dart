@@ -29,6 +29,7 @@ import 'create_lead_screen.dart';
 import 'edit_lead_screen.dart';
 import 'import_leads_screen.dart';
 import 'lead_profile_screen.dart';
+import '../whatsapp_chat/whatsapp_chat_thread_screen.dart';
 import '../../services/leads_excel_service.dart';
 
 /// Label/checkmark color on selected filter chips (readable on tinted fills).
@@ -529,10 +530,48 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     setState(() {}); // Trigger rebuild to update filter indicator
   }
 
-  Future<void> _openWhatsApp(String phoneNumber) async {
+  bool _canAccessWhatsAppChats() {
+    final user = _currentUser;
+    if (user == null) return false;
+    if (user.isAdmin) return true;
+    if (user.isSupervisor) {
+      return user.hasSupervisorPermission('can_manage_whatsapp_chats');
+    }
+    if (user.isDataEntry || user.isReception) return false;
+    return user.whatsappChatEnabled;
+  }
+
+  Future<void> _openWhatsApp(LeadModel lead, [String? phoneNumber]) async {
+    final phone = (phoneNumber ?? resolvePrimaryPhone(lead)).trim();
+    if (_canAccessWhatsAppChats()) {
+      if (phone.isEmpty) {
+        if (mounted) {
+          final localizations = AppLocalizations.of(context);
+          SnackbarHelper.showError(
+            context,
+            localizations?.translate('invalidPhoneNumber') ??
+                'Invalid phone number',
+          );
+        }
+        return;
+      }
+      await Navigator.push<void>(
+        context,
+        MaterialPageRoute<void>(
+          settings: const RouteSettings(name: 'WhatsAppChatThreadScreen'),
+          builder: (_) => WhatsAppChatThreadScreen(
+            clientId: lead.id,
+            clientName: lead.name.isNotEmpty ? lead.name : phone,
+            phoneNumber: phone,
+          ),
+        ),
+      );
+      return;
+    }
+
     try {
       // Clean phone number - remove all non-digit characters
-      final cleanPhone = phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
+      final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
       if (cleanPhone.isEmpty) {
         if (mounted) {
           final localizations = AppLocalizations.of(context);
@@ -1249,7 +1288,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                                   text: formatPhoneForDisplay(resolvePrimaryPhone(lead)),
                                   style: TextStyle(
                                     fontSize: 13,
-                                    color: Colors.grey.shade600,
+                                    color: theme.colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                               ),
@@ -1262,7 +1301,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: Colors.grey.shade600,
+                                    color: theme.colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                               ],
@@ -1275,7 +1314,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: Colors.grey.shade600,
+                                    color: theme.colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                               ],
@@ -1288,7 +1327,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                           _LeadQuickActions(
                             lead: lead,
                             dialAvailability: _dialAvailability,
-                            onWhatsapp: () => _openWhatsApp(resolvePrimaryPhone(lead)),
+                            onWhatsapp: () => _openWhatsApp(lead),
                             onCall: () => _makeCall(resolvePrimaryPhone(lead)),
                             onPbxDial: () => _pbxDial(lead.id, resolvePrimaryPhone(lead)),
                             onSms: () => _showSendSMSModal(lead),
@@ -1300,32 +1339,42 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
 
                     const SizedBox(height: 18),
 
-                    /// STATUS
-                    if (_statuses.isNotEmpty && lead.statusName != null)
-                      _buildStatusDropdown(lead, localizations)
-                    else if (lead.statusName != null)
-                      _buildStatusDisplay(lead, localizations),
-
-                    if (lead.isUrgent ||
+                    /// STATUS + priority/urgent on one row
+                    if (lead.statusName != null ||
+                        lead.isUrgent ||
                         (lead.priority != null &&
-                            lead.priority!.trim().isNotEmpty)) ...[
-                      const SizedBox(height: 8),
-                      Align(
-                        alignment: AlignmentDirectional.centerStart,
-                        child: Wrap(
-                          spacing: 8,
-                          runSpacing: 6,
-                          children: [
-                            if (lead.isUrgent) const LeadUrgentBadge(),
-                            if (lead.priority != null &&
-                                lead.priority!.trim().isNotEmpty)
-                              _buildPriorityBadge(lead.priority!, localizations),
+                            lead.priority!.trim().isNotEmpty))
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          if (lead.statusName != null)
+                            Expanded(
+                              child: _statuses.isNotEmpty
+                                  ? _buildStatusDropdown(lead, localizations)
+                                  : _buildStatusDisplay(lead, localizations),
+                            ),
+                          if (lead.isUrgent ||
+                              (lead.priority != null &&
+                                  lead.priority!.trim().isNotEmpty)) ...[
+                            if (lead.statusName != null) const SizedBox(width: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              children: [
+                                if (lead.isUrgent) const LeadUrgentBadge(),
+                                if (lead.priority != null &&
+                                    lead.priority!.trim().isNotEmpty)
+                                  _buildPriorityBadge(
+                                    lead.priority!,
+                                    localizations,
+                                  ),
+                              ],
+                            ),
                           ],
-                        ),
+                        ],
                       ),
-                    ],
 
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 10),
 
                     /// Assigned user
                     _buildAssigneeDropdown(lead, localizations),
@@ -1406,7 +1455,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                           _buildInfoChip(
                             icon: Icons.home_outlined,
                             label: lead.communicationWay!,
-                            color: Colors.grey.shade700,
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
 
                         _buildInfoChip(
@@ -1416,7 +1465,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                               lead.lastStage ??
                               (localizations?.translate('noFeedback') ??
                                   'No Feedback'),
-                          color: Colors.grey.shade700,
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
 
                         if (formatLeadBudgetLine(lead.budget, lead.budgetMax).isNotEmpty)
@@ -1439,7 +1488,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                           _buildInfoChip(
                             icon: Icons.home_work_outlined,
                             label: lead.residence!,
-                            color: Colors.grey.shade700,
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
 
                         if (lead.source != null &&
@@ -1626,6 +1675,8 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     String priority,
     AppLocalizations? localizations,
   ) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final key = priority.toLowerCase();
     final Color color;
     switch (key) {
@@ -1639,13 +1690,13 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
         color = const Color(0xFF2563EB);
         break;
       default:
-        color = Colors.grey.shade700;
+        color = theme.colorScheme.onSurfaceVariant;
     }
     final label = localizations?.translate(key) ?? priority;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withValues(alpha: isDark ? 0.18 : 0.12),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: color.withValues(alpha: 0.45)),
       ),
@@ -1665,28 +1716,31 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     required String label,
     required Color color,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: color,
+    // Wrap gives unbounded max width; constrain so ellipsis can apply.
+    final maxChipWidth = MediaQuery.sizeOf(context).width - 64;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxChipWidth),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: color,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

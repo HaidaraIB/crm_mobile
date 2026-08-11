@@ -26,6 +26,8 @@ import '../models/client_field_visit_model.dart';
 import '../models/client_event_model.dart';
 import '../models/lead_sms_message_model.dart';
 import '../models/lead_whatsapp_message_model.dart';
+import '../models/whatsapp_conversation_model.dart';
+import '../models/whatsapp_template_model.dart';
 import '../models/task_model.dart';
 import '../models/inventory_model.dart';
 import '../models/deal_model.dart';
@@ -2232,6 +2234,385 @@ class ApiService {
         _translateError('failedToGetLeadWhatsAppMessages', locale: null),
       );
     }
+  }
+
+  // ==================== WhatsApp chat (messaging center) ====================
+
+  /// GET /integrations/whatsapp/conversations/ — clients with WhatsApp threads, sorted by last message.
+  Future<List<WhatsAppConversationModel>> getWhatsAppConversations() async {
+    final response = await _makeRequest(
+      'GET',
+      '/integrations/whatsapp/conversations/',
+      timeout: const Duration(seconds: 20),
+    );
+    if (response.statusCode != 200) {
+      throw Exception(_translateError('whatsappChatCouldNotLoad', locale: null));
+    }
+    final decoded = _unwrapResponseDynamic(response);
+    final list = decoded is List ? decoded : (decoded is Map ? decoded['results'] : null);
+    return (list as List<dynamic>? ?? [])
+        .map((e) => WhatsAppConversationModel.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+  }
+
+  /// GET /integrations/whatsapp/messages/?client=:clientId — thread messages, newest first from API.
+  Future<List<LeadWhatsAppMessageModel>> getWhatsAppMessages(int clientId) =>
+      getLeadWhatsAppMessages(clientId);
+
+  /// POST /integrations/whatsapp/send/ — send a free-text message.
+  Future<void> sendWhatsAppMessage({
+    required String to,
+    required String message,
+    int? clientId,
+  }) async {
+    final response = await _makeRequest(
+      'POST',
+      '/integrations/whatsapp/send/',
+      body: {
+        'to': to,
+        'message': message,
+        if (clientId != null) 'client_id': clientId,
+      },
+      timeout: const Duration(seconds: 30),
+    );
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      String msg = _translateError('whatsappChatCouldNotSend', locale: null);
+      try {
+        final err = _errorContextFromBody(response.body);
+        final detail = err['message'];
+        if (detail != null) msg = detail.toString();
+      } catch (_) {}
+      throw Exception(msg);
+    }
+  }
+
+  /// POST /integrations/whatsapp/send-media/ — send an image/video/audio/document attachment.
+  Future<void> sendWhatsAppMedia({
+    required String to,
+    required String filePath,
+    int? clientId,
+    String? caption,
+    bool isVoiceNote = false,
+  }) async {
+    final cleanBaseUrl = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
+    final url = Uri.parse('$cleanBaseUrl/integrations/whatsapp/send-media/');
+    final token = await _getAccessToken();
+    if (token == null) {
+      throw Exception(_translateError('notAuthenticated', locale: null));
+    }
+    final request = http.MultipartRequest('POST', url);
+    request.headers['Authorization'] = 'Bearer $token';
+    final apiKey = AppConstants.apiKey;
+    if (apiKey.isNotEmpty) {
+      request.headers['X-API-Key'] = apiKey;
+    }
+    request.fields['to'] = to;
+    if (clientId != null) request.fields['client_id'] = '$clientId';
+    if (caption != null && caption.trim().isNotEmpty) {
+      request.fields['caption'] = caption.trim();
+    }
+    if (isVoiceNote) request.fields['is_voice_note'] = 'true';
+    request.files.add(await http.MultipartFile.fromPath('file', filePath));
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      String msg = _translateError('whatsappChatCouldNotSend', locale: null);
+      try {
+        final err = _errorContextFromBody(response.body);
+        final detail = err['message'];
+        if (detail != null) msg = detail.toString();
+      } catch (_) {}
+      throw Exception(msg);
+    }
+  }
+
+  /// POST /integrations/whatsapp/send-location/ — send a location pin.
+  Future<void> sendWhatsAppLocation({
+    required String to,
+    required double latitude,
+    required double longitude,
+    int? clientId,
+    String? name,
+    String? address,
+  }) async {
+    final response = await _makeRequest(
+      'POST',
+      '/integrations/whatsapp/send-location/',
+      body: {
+        'to': to,
+        'latitude': latitude,
+        'longitude': longitude,
+        if (clientId != null) 'client_id': clientId,
+        if (name != null && name.isNotEmpty) 'name': name,
+        if (address != null && address.isNotEmpty) 'address': address,
+      },
+      timeout: const Duration(seconds: 30),
+    );
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      String msg = _translateError('whatsappChatCouldNotSend', locale: null);
+      try {
+        final err = _errorContextFromBody(response.body);
+        final detail = err['message'];
+        if (detail != null) msg = detail.toString();
+      } catch (_) {}
+      throw Exception(msg);
+    }
+  }
+
+  /// POST /integrations/whatsapp/conversations/mark-read/ — mark a thread read.
+  Future<void> markWhatsAppConversationRead({int? clientId, String? phone}) async {
+    final response = await _makeRequest(
+      'POST',
+      '/integrations/whatsapp/conversations/mark-read/',
+      body: {
+        if (clientId != null) 'client': clientId,
+        if (phone != null && phone.isNotEmpty) 'phone': phone,
+      },
+      timeout: const Duration(seconds: 15),
+    );
+    if (response.statusCode != 200) {
+      throw Exception(_translateError('whatsappChatCouldNotLoad', locale: null));
+    }
+  }
+
+  /// GET /integrations/whatsapp/unread-count/
+  Future<int> getWhatsAppUnreadCount() async {
+    try {
+      final response = await _makeRequest(
+        'GET',
+        '/integrations/whatsapp/unread-count/',
+        timeout: const Duration(seconds: 10),
+      );
+      if (response.statusCode != 200) return 0;
+      final data = _unwrapResponseMap(response);
+      return (data['unread_count'] as num?)?.toInt() ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  /// GET /integrations/whatsapp/session-window/?client_id=
+  Future<WhatsAppSessionWindow> getWhatsAppSessionWindow(int clientId) async {
+    try {
+      final response = await _makeRequest(
+        'GET',
+        '/integrations/whatsapp/session-window/?client_id=$clientId',
+        timeout: const Duration(seconds: 10),
+      );
+      if (response.statusCode != 200) return WhatsAppSessionWindow.closed;
+      final data = _unwrapResponseMap(response);
+      return WhatsAppSessionWindow.fromJson(data);
+    } catch (_) {
+      return WhatsAppSessionWindow.closed;
+    }
+  }
+
+  /// Absolute URL for `GET whatsapp/messages/<pk>/attachment/`, for use with
+  /// [fetchAuthenticatedBinaryGet] or an authenticated image provider.
+  String whatsappMessageAttachmentUrl(int messageId) {
+    final cleanBaseUrl = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
+    return '$cleanBaseUrl/integrations/whatsapp/messages/$messageId/attachment/';
+  }
+
+  /// GET /integrations/whatsapp/messages/?client= | ?phone=
+  Future<List<LeadWhatsAppMessageModel>> getWhatsAppMessagesByParams({
+    int? clientId,
+    String? phone,
+  }) async {
+    final parts = <String>['page_size=200'];
+    if (clientId != null) parts.add('client=$clientId');
+    final digits = (phone ?? '').replaceAll(RegExp(r'\D'), '');
+    if (digits.length >= 7) parts.add('phone=${Uri.encodeComponent(digits)}');
+    if (parts.length == 1) return [];
+    final response = await _makeRequest(
+      'GET',
+      '/integrations/whatsapp/messages/?${parts.join('&')}',
+    );
+    if (response.statusCode != 200) {
+      throw Exception(
+        _translateError('failedToGetLeadWhatsAppMessages', locale: null),
+      );
+    }
+    final decoded = jsonDecode(response.body);
+    if (decoded is List) {
+      return decoded
+          .map((e) => LeadWhatsAppMessageModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+    final data = _unwrapResponseMap(response);
+    final resultsList = data['results'] as List?;
+    return resultsList != null
+        ? resultsList
+            .map((e) => LeadWhatsAppMessageModel.fromJson(e as Map<String, dynamic>))
+            .toList()
+        : <LeadWhatsAppMessageModel>[];
+  }
+
+  /// DELETE /integrations/whatsapp/messages/:id/
+  Future<void> deleteWhatsAppMessage(int messageId) async {
+    final response = await _makeRequest(
+      'DELETE',
+      '/integrations/whatsapp/messages/$messageId/',
+      timeout: const Duration(seconds: 20),
+    );
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      throw Exception(_translateError('whatsappChatCouldNotSend', locale: null));
+    }
+  }
+
+  /// DELETE /integrations/whatsapp/conversations/?client= | ?phone=
+  Future<void> deleteWhatsAppConversation({int? clientId, String? phone}) async {
+    final parts = <String>[];
+    if (clientId != null) parts.add('client=$clientId');
+    final digits = (phone ?? '').replaceAll(RegExp(r'\D'), '');
+    if (digits.length >= 7) parts.add('phone=${Uri.encodeComponent(digits)}');
+    if (parts.isEmpty) return;
+    final response = await _makeRequest(
+      'DELETE',
+      '/integrations/whatsapp/conversations/?${parts.join('&')}',
+      timeout: const Duration(seconds: 30),
+    );
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      throw Exception(_translateError('whatsappChatCouldNotLoad', locale: null));
+    }
+  }
+
+  /// GET /integrations/whatsapp/contact-by-phone/?phone=
+  /// Returns null when not found / staff opaque 404.
+  Future<Map<String, dynamic>?> getWhatsAppContactByPhone(String phone) async {
+    final digits = phone.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) return null;
+    final response = await _makeRequest(
+      'GET',
+      '/integrations/whatsapp/contact-by-phone/?phone=${Uri.encodeComponent(digits)}',
+      timeout: const Duration(seconds: 15),
+    );
+    if (response.statusCode == 404) {
+      throw Exception('whatsapp_contact_not_found');
+    }
+    if (response.statusCode != 200) {
+      throw Exception(_translateError('whatsappChatCouldNotLoad', locale: null));
+    }
+    final decoded = _unwrapResponseDynamic(response);
+    if (decoded == null) return null;
+    if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    return null;
+  }
+
+  /// GET /integrations/whatsapp/session-window/?client_id= | ?phone=
+  Future<WhatsAppSessionWindow> getWhatsAppSessionWindowByParams({
+    int? clientId,
+    String? phone,
+  }) async {
+    try {
+      final parts = <String>[];
+      if (clientId != null) parts.add('client_id=$clientId');
+      final digits = (phone ?? '').replaceAll(RegExp(r'\D'), '');
+      if (digits.length >= 7) parts.add('phone=${Uri.encodeComponent(digits)}');
+      if (parts.isEmpty) return WhatsAppSessionWindow.closed;
+      final response = await _makeRequest(
+        'GET',
+        '/integrations/whatsapp/session-window/?${parts.join('&')}',
+        timeout: const Duration(seconds: 10),
+      );
+      if (response.statusCode != 200) return WhatsAppSessionWindow.closed;
+      final data = _unwrapResponseMap(response);
+      return WhatsAppSessionWindow.fromJson(data);
+    } catch (_) {
+      return WhatsAppSessionWindow.closed;
+    }
+  }
+
+  /// POST /integrations/whatsapp/send-template/
+  Future<void> sendWhatsAppTemplate({
+    required String to,
+    required int templateId,
+    int? clientId,
+    List<String>? bodyParameters,
+  }) async {
+    final response = await _makeRequest(
+      'POST',
+      '/integrations/whatsapp/send-template/',
+      body: {
+        'to': to,
+        'template_id': templateId,
+        if (clientId != null) 'client_id': clientId,
+        if (bodyParameters != null && bodyParameters.isNotEmpty)
+          'body_parameters': bodyParameters,
+      },
+      timeout: const Duration(seconds: 45),
+    );
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      String msg = _translateError('whatsappChatCouldNotSend', locale: null);
+      try {
+        final err = _errorContextFromBody(response.body);
+        final detail = err['message'] ?? err['code'];
+        if (detail != null) msg = detail.toString();
+      } catch (_) {}
+      throw Exception(msg);
+    }
+  }
+
+  /// GET /integrations/templates/ — filter client-side for approved WhatsApp.
+  Future<List<WhatsAppTemplateModel>> getWhatsAppApprovedTemplates() async {
+    final response = await _makeRequest(
+      'GET',
+      '/integrations/templates/',
+      timeout: const Duration(seconds: 25),
+    );
+    if (response.statusCode != 200) {
+      throw Exception(_translateError('whatsappChatCouldNotLoad', locale: null));
+    }
+    final decoded = _unwrapResponseDynamic(response);
+    final list = decoded is List
+        ? decoded
+        : (decoded is Map ? decoded['results'] as List? : null);
+    return (list ?? [])
+        .map((e) => WhatsAppTemplateModel.fromJson(Map<String, dynamic>.from(e as Map)))
+        .where((t) => t.isWhatsApp && t.isApproved)
+        .toList();
+  }
+
+  /// Connected WhatsApp account phone_number_id (for “via previous number” badge).
+  Future<String?> getConnectedWhatsAppPhoneNumberId() async {
+    try {
+      final response = await _makeRequest(
+        'GET',
+        '/integrations/accounts/',
+        timeout: const Duration(seconds: 20),
+      );
+      if (response.statusCode != 200) return null;
+      final decoded = _unwrapResponseDynamic(response);
+      final list = decoded is List
+          ? decoded
+          : (decoded is Map ? decoded['results'] as List? : null);
+      for (final raw in list ?? []) {
+        final m = Map<String, dynamic>.from(raw as Map);
+        final platform = (m['platform'] ?? m['provider'] ?? m['type'] ?? '')
+            .toString()
+            .toLowerCase();
+        final connected = m['is_connected'] == true ||
+            m['connected'] == true ||
+            (m['status']?.toString().toLowerCase() == 'connected');
+        if (!platform.contains('whatsapp') && platform != 'wa') continue;
+        if (!connected && m['phone_number_id'] == null) {
+          // Still try metadata
+        }
+        final pnid = m['phone_number_id']?.toString() ??
+            (m['metadata'] is Map
+                ? (m['metadata'] as Map)['phone_number_id']?.toString()
+                : null) ??
+            (m['extra_data'] is Map
+                ? (m['extra_data'] as Map)['phone_number_id']?.toString()
+                : null);
+        if (pnid != null && pnid.isNotEmpty) return pnid;
+      }
+    } catch (_) {}
+    return null;
   }
 
   // Get all client tasks (actions) for calendar

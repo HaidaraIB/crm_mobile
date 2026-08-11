@@ -27,6 +27,9 @@ class UserModel {
   final bool canDeleteClients;
   /// Account active flag from API (`is_active`). Defaults true when omitted.
   final bool isActive;
+  /// Per-user WhatsApp chat access (employee/doctor/reception/data_entry roles).
+  /// Defaults to true when absent/null (API omits it for roles it doesn't apply to).
+  final bool whatsappChatEnabled;
 
   UserModel({
     required this.id,
@@ -51,6 +54,7 @@ class UserModel {
     this.loginTwoFactorEnabled,
     this.canDeleteClients = false,
     this.isActive = true,
+    this.whatsappChatEnabled = true,
   });
 
   // Check if user is admin (handles multiple role formats)
@@ -177,6 +181,9 @@ class UserModel {
       loginTwoFactorEnabled: json['login_two_factor_enabled'] as bool? ?? json['loginTwoFactorEnabled'] as bool?,
       canDeleteClients: json['can_delete_clients'] == true || json['canDeleteClients'] == true,
       isActive: json['is_active'] as bool? ?? json['isActive'] as bool? ?? true,
+      whatsappChatEnabled: json['whatsapp_chat_enabled'] as bool? ??
+          json['whatsappChatEnabled'] as bool? ??
+          true,
     );
   }
   
@@ -203,6 +210,7 @@ class UserModel {
       if (loginTwoFactorEnabled != null) 'login_two_factor_enabled': loginTwoFactorEnabled,
       'can_delete_clients': canDeleteClients,
       'is_active': isActive,
+      'whatsapp_chat_enabled': whatsappChatEnabled,
     };
   }
 }

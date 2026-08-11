@@ -22,6 +22,7 @@ import '../../models/settings_model.dart';
 import '../../models/timeline_entry.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
+import '../../screens/whatsapp_chat/whatsapp_chat_thread_screen.dart';
 import '../../utils/timeline_builder.dart';
 import '../../utils/timeline_events.dart';
 import '../../widgets/modals/assign_lead_modal.dart';
@@ -534,7 +535,43 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
     }
   }
   
+  bool _canAccessWhatsAppChats() {
+    final user = _currentUser;
+    if (user == null) return false;
+    if (user.isAdmin) return true;
+    if (user.isSupervisor) {
+      return user.hasSupervisorPermission('can_manage_whatsapp_chats');
+    }
+    if (user.isDataEntry || user.isReception) return false;
+    return user.whatsappChatEnabled;
+  }
+
   Future<void> _openWhatsApp(String phoneNumber) async {
+    final lead = _lead;
+    if (lead != null && _canAccessWhatsAppChats()) {
+      final phone = phoneNumber.trim().isNotEmpty ? phoneNumber.trim() : lead.phone;
+      if (phone.isEmpty) {
+        final localizations = AppLocalizations.of(context);
+        SnackbarHelper.showError(
+          context,
+          localizations?.translate('invalidPhoneNumber') ?? 'Invalid phone number',
+        );
+        return;
+      }
+      await Navigator.push<void>(
+        context,
+        MaterialPageRoute<void>(
+          settings: const RouteSettings(name: 'WhatsAppChatThreadScreen'),
+          builder: (_) => WhatsAppChatThreadScreen(
+            clientId: lead.id,
+            clientName: lead.name.isNotEmpty ? lead.name : phone,
+            phoneNumber: phone,
+          ),
+        ),
+      );
+      return;
+    }
+
     try {
       // Clean phone number - remove all non-digit characters
       final cleanPhone = phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
@@ -802,10 +839,36 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                                 text: formatPhoneForDisplay(resolvePrimaryPhone(_lead!)),
                                 style: TextStyle(
                                   fontSize: 13,
-                                  color: Colors.grey.shade600,
+                                  color: theme.colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ),
+                            if (_lead!.leadCompanyName != null &&
+                                _lead!.leadCompanyName!.trim().isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                _lead!.leadCompanyName!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                            if (_lead!.profession != null &&
+                                _lead!.profession!.trim().isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                _lead!.profession!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -813,32 +876,40 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                     ],
                   ),
                   const SizedBox(height: 18),
-                  if (_statuses.isNotEmpty && _lead!.statusName != null)
-                    _buildStatusDropdown(context, localizations)
-                  else if (_lead!.statusName != null)
-                    _buildStatusDisplay(localizations),
-                  if (_lead!.isUrgent ||
+                  if (_lead!.statusName != null ||
+                      _lead!.isUrgent ||
                       (_lead!.priority != null &&
-                          _lead!.priority!.trim().isNotEmpty)) ...[
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: AlignmentDirectional.centerStart,
-                      child: Wrap(
-                        spacing: 8,
-                        runSpacing: 6,
-                        children: [
-                          if (_lead!.isUrgent) const LeadUrgentBadge(),
-                          if (_lead!.priority != null &&
-                              _lead!.priority!.trim().isNotEmpty)
-                            _buildPriorityBadge(
-                              _lead!.priority!,
-                              localizations,
-                            ),
+                          _lead!.priority!.trim().isNotEmpty))
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        if (_lead!.statusName != null)
+                          Expanded(
+                            child: _statuses.isNotEmpty
+                                ? _buildStatusDropdown(context, localizations)
+                                : _buildStatusDisplay(localizations),
+                          ),
+                        if (_lead!.isUrgent ||
+                            (_lead!.priority != null &&
+                                _lead!.priority!.trim().isNotEmpty)) ...[
+                          if (_lead!.statusName != null) const SizedBox(width: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            children: [
+                              if (_lead!.isUrgent) const LeadUrgentBadge(),
+                              if (_lead!.priority != null &&
+                                  _lead!.priority!.trim().isNotEmpty)
+                                _buildPriorityBadge(
+                                  _lead!.priority!,
+                                  localizations,
+                                ),
+                            ],
+                          ),
                         ],
-                      ),
+                      ],
                     ),
-                  ],
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 10),
                   _buildAssigneeDropdown(context, localizations),
                   if (_creatorHeaderText(_lead!, localizations) != null) ...[
                     const SizedBox(height: 10),
@@ -907,14 +978,14 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                         _buildInfoChip(
                           icon: Icons.home_outlined,
                           label: _lead!.communicationWay!,
-                          color: Colors.grey.shade700,
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
                       _buildInfoChip(
                         icon: Icons.work_outline,
                         label: _lead!.lastFeedback ??
                             _lead!.lastStage ??
                             (localizations?.translate('noFeedback') ?? 'No Feedback'),
-                        color: Colors.grey.shade700,
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
                       if (formatLeadBudgetLine(_lead!.budget, _lead!.budgetMax).isNotEmpty)
                         _buildInfoChip(
@@ -1255,31 +1326,38 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
     required Color color,
     bool isHighlighted = false,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: isHighlighted ? color.withValues(alpha: 0.15) : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-        border: isHighlighted
-            ? Border.all(color: color.withValues(alpha: 0.3), width: 1)
-            : null,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: color,
+    // Wrap gives unbounded max width; constrain so ellipsis can apply.
+    final maxChipWidth = MediaQuery.sizeOf(context).width - 64;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxChipWidth),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: isHighlighted ? color.withValues(alpha: 0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: isHighlighted
+              ? Border.all(color: color.withValues(alpha: 0.3), width: 1)
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: color,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1690,6 +1768,12 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                       errorMessage: _timelineError,
                       scrollable: true,
                       showSectionTitle: false,
+                      onOpenWhatsAppChat: _canAccessWhatsAppChats() && _lead != null
+                          ? () {
+                              Navigator.pop(sheetContext);
+                              _openWhatsApp(resolvePrimaryPhone(_lead!));
+                            }
+                          : null,
                     ),
                   ),
                 ],
@@ -2382,6 +2466,8 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
     String priority,
     AppLocalizations? localizations,
   ) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final key = priority.toLowerCase();
     final Color color;
     switch (key) {
@@ -2395,13 +2481,13 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
         color = const Color(0xFF2563EB);
         break;
       default:
-        color = Colors.grey.shade700;
+        color = theme.colorScheme.onSurfaceVariant;
     }
     final label = localizations?.translate(key) ?? priority;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withValues(alpha: isDark ? 0.18 : 0.12),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: color.withValues(alpha: 0.45)),
       ),

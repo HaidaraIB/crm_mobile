@@ -105,6 +105,7 @@ class LeadUrgentBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
@@ -117,7 +118,7 @@ class LeadUrgentBadge extends StatelessWidget {
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,
-          color: Colors.orange.shade800,
+          color: isDark ? Colors.orange.shade200 : Colors.orange.shade800,
         ),
       ),
     );

@@ -45,6 +45,9 @@ class LeadTimeline extends StatefulWidget {
   /// When false, hides the large "Timeline" title (useful when the sheet has its own title).
   final bool showSectionTitle;
 
+  /// Open in-app WhatsApp Chats for this lead (parity with web Open in Chats).
+  final VoidCallback? onOpenWhatsAppChat;
+
   const LeadTimeline({
     super.key,
     required this.entries,
@@ -52,6 +55,7 @@ class LeadTimeline extends StatefulWidget {
     this.errorMessage,
     this.scrollable = false,
     this.showSectionTitle = true,
+    this.onOpenWhatsAppChat,
   });
 
   @override
@@ -268,6 +272,7 @@ class _LeadTimelineState extends State<LeadTimeline> {
               index: i,
               isLast: i == sorted.length - 1,
               onOpenUrl: _openUrl,
+              onOpenWhatsAppChat: widget.onOpenWhatsAppChat,
             ),
         ],
       ),
@@ -332,12 +337,14 @@ class _TimelineRow extends StatelessWidget {
   final int index;
   final bool isLast;
   final Future<void> Function(String url) onOpenUrl;
+  final VoidCallback? onOpenWhatsAppChat;
 
   const _TimelineRow({
     required this.entry,
     required this.index,
     required this.isLast,
     required this.onOpenUrl,
+    this.onOpenWhatsAppChat,
   });
 
   @override
@@ -450,7 +457,11 @@ class _TimelineRow extends StatelessWidget {
                   ),
                 ],
                 if (entry.type == TimelineEntryType.whatsappThread)
-                  _WhatsAppThreadBody(entry: entry, loc: loc),
+                  _WhatsAppThreadBody(
+                    entry: entry,
+                    loc: loc,
+                    onOpenWhatsAppChat: onOpenWhatsAppChat,
+                  ),
                 if (entry.type == TimelineEntryType.event &&
                     (entry.oldValue != null || entry.newValue != null))
                   _ValueChange(
@@ -670,8 +681,13 @@ bool _showActionSubtitle(TimelineEntry entry, String chipLabel) {
 class _WhatsAppThreadBody extends StatefulWidget {
   final TimelineEntry entry;
   final AppLocalizations? loc;
+  final VoidCallback? onOpenWhatsAppChat;
 
-  const _WhatsAppThreadBody({required this.entry, required this.loc});
+  const _WhatsAppThreadBody({
+    required this.entry,
+    required this.loc,
+    this.onOpenWhatsAppChat,
+  });
 
   @override
   State<_WhatsAppThreadBody> createState() => _WhatsAppThreadBodyState();
@@ -806,6 +822,23 @@ class _WhatsAppThreadBodyState extends State<_WhatsAppThreadBody> {
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
+              ),
+            ),
+          ],
+          if (widget.onOpenWhatsAppChat != null) ...[
+            const SizedBox(height: 4),
+            TextButton.icon(
+              onPressed: widget.onOpenWhatsAppChat,
+              icon: const Icon(Icons.chat_outlined, size: 16),
+              label: Text(
+                loc?.translate('whatsappTimelineOpenChat') ?? 'Open in Chats',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF15803D),
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
             ),
           ],
