@@ -14,8 +14,11 @@ import '../screens/inventory/services_inventory_screen.dart';
 import '../screens/inventory/products_inventory_screen.dart';
 import '../screens/deals/deals_screen.dart';
 import '../screens/support/support_tickets_screen.dart';
+import '../screens/whatsapp_chat/whatsapp_conversation_list_screen.dart';
 import '../services/team_chat_away_service.dart';
 import '../services/team_chat_unread_holder.dart';
+import '../services/whatsapp_chat_unread_holder.dart';
+import '../utils/whatsapp_access.dart';
 import '../models/user_model.dart';
 import '../services/api_service.dart';
 
@@ -332,6 +335,54 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
                     ],
                   ],
                 ],
+                // WhatsApp Chats — the web sidebar exposes it on every page, so
+                // the drawer makes it reachable outside the Dashboard tab too.
+                if (canAccessWhatsAppChats(_currentUser))
+                  ListTile(
+                    leading: const Icon(Icons.chat),
+                    title: Text(
+                      localizations?.translate('whatsappChats') ??
+                          'WhatsApp Chats',
+                    ),
+                    trailing: ValueListenableBuilder<int>(
+                      valueListenable: WhatsAppChatUnreadHolder.totalUnread,
+                      builder: (context, count, _) {
+                        if (count <= 0) return const SizedBox.shrink();
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          constraints: const BoxConstraints(minWidth: 20),
+                          child: Text(
+                            count > 99 ? '99+' : '$count',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        );
+                      },
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute<void>(
+                          settings: const RouteSettings(
+                            name: 'WhatsAppConversationListScreen',
+                          ),
+                          builder: (_) => const WhatsAppConversationListScreen(),
+                        ),
+                      );
+                    },
+                  ),
                 _buildMenuItem(
                   context,
                   icon: Icons.handshake,

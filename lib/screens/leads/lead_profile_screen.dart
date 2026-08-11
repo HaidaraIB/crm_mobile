@@ -25,6 +25,7 @@ import '../../services/api_service.dart';
 import '../../screens/whatsapp_chat/whatsapp_chat_thread_screen.dart';
 import '../../utils/timeline_builder.dart';
 import '../../utils/timeline_events.dart';
+import '../../utils/whatsapp_access.dart';
 import '../../widgets/modals/assign_lead_modal.dart';
 import '../../widgets/modals/add_action_modal.dart';
 import '../../widgets/modals/add_call_modal.dart';
@@ -535,16 +536,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
     }
   }
   
-  bool _canAccessWhatsAppChats() {
-    final user = _currentUser;
-    if (user == null) return false;
-    if (user.isAdmin) return true;
-    if (user.isSupervisor) {
-      return user.hasSupervisorPermission('can_manage_whatsapp_chats');
-    }
-    if (user.isDataEntry || user.isReception) return false;
-    return user.whatsappChatEnabled;
-  }
+  bool _canAccessWhatsAppChats() => canAccessWhatsAppChats(_currentUser);
 
   Future<void> _openWhatsApp(String phoneNumber) async {
     final lead = _lead;

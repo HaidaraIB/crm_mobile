@@ -22,6 +22,9 @@ class WhatsAppChatThreadCubit extends Cubit<WhatsAppChatThreadState> {
   final int? clientId;
   final String phoneNumber;
   final bool Function() _isForeground;
+  /// Lifecycle state pushed in by the screen's [WidgetsBindingObserver].
+  /// Without it the 5s poll keeps firing while the app is backgrounded.
+  bool _foreground = true;
   Timer? _timer;
   int _localIdSeq = -1;
   DateTime? _lastKnownInboundAt;
@@ -92,17 +95,17 @@ class WhatsAppChatThreadCubit extends Cubit<WhatsAppChatThreadState> {
       _markReadOnce = true;
       unawaited(markRead());
     }
-    unawaited(_loadConnectedPhoneNumberId());
+    unawaited(_loadAccountStatus());
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 5), (_) {
-      if (!isClosed && _isForeground()) {
+      if (!isClosed && _foreground && _isForeground()) {
         unawaited(refresh(silent: true));
       }
     });
   }
 
   void setForeground(bool value) {
-    // Hook for WidgetsBindingObserver; poller checks _isForeground.
+    _foreground = value;
     if (value && !isClosed) unawaited(refresh(silent: true));
   }
 
@@ -234,12 +237,28 @@ class WhatsAppChatThreadCubit extends Cubit<WhatsAppChatThreadState> {
     }
   }
 
-  Future<void> _loadConnectedPhoneNumberId() async {
+  /// Resolves the connected account up front so the composer can warn before a
+  /// send fails, matching the web dashboard's `whatsappSendBlocked` /
+  /// `displayNameBlockedHint` gate in `pages/ChatsPage.tsx`.
+  Future<void> _loadAccountStatus() async {
     try {
-      final id = await _repository.getConnectedPhoneNumberId();
+      final status = await _repository.getAccountStatus();
       if (isClosed) return;
-      if (id != null) emit(state.copyWith(connectedPhoneNumberId: id));
-    } catch (_) {}
+      if (status == null) {
+        // No WhatsApp account at all — nothing can be sent.
+        emit(state.copyWith(sendBlocked: true));
+        return;
+      }
+      emit(
+        state.copyWith(
+          connectedPhoneNumberId: status.phoneNumberId,
+          sendBlocked: !status.connected,
+          displayNameBlocked: status.displayNameBlocked,
+        ),
+      );
+    } catch (_) {
+      // Unknown state — do not block sending on a transient failure.
+    }
   }
 
   void setTemplatesExpanded(bool value) {
@@ -270,22 +289,55 @@ class WhatsAppChatThreadCubit extends Cubit<WhatsAppChatThreadState> {
 
   int _nextLocalId() => _localIdSeq--;
 
+  /// Maps a send failure to a sticky composer alert key.
+  ///
+  /// Mirrors the web dashboard's `mapApiErrorToComposer` in
+  /// `CRM-project/pages/ChatsPage.tsx` — keep both lists in sync.
+  static String? composerAlertKeyForError(String raw) {
+    final msg = raw.toLowerCase();
+    if (msg.contains('131047') || msg.contains('outside_session')) {
+      return 'whatsappOutsideSessionUseTemplate';
+    }
+    if (msg.contains('131037') || msg.contains('display_name')) {
+      return 'whatsapp_display_name_not_approved';
+    }
+    if (msg.contains('voice_note_requires_ogg')) {
+      return 'whatsapp_voice_note_requires_ogg';
+    }
+    if (msg.contains('132001') ||
+        msg.contains('template_not_found_or_language') ||
+        msg.contains('template_not_approved')) {
+      return 'whatsapp_template_not_found_or_language';
+    }
+    if (msg.contains('132000') || msg.contains('template_parameter_count')) {
+      return 'whatsapp_template_parameter_count';
+    }
+    if (msg.contains('131026') || msg.contains('recipient_not_deliverable')) {
+      return 'whatsapp_recipient_not_deliverable';
+    }
+    if (msg.contains('131049') || msg.contains('ecosystem_engagement')) {
+      return 'whatsapp_ecosystem_engagement_limit';
+    }
+    if (msg.contains('contact_not_found')) {
+      return 'whatsappContactNotFound';
+    }
+    if (msg.contains('whatsapp_access_disabled')) {
+      return 'whatsappChatAccessDisabled';
+    }
+    if (msg.contains('no_connected') || msg.contains('reconnect')) {
+      return 'whatsappReconnectRequired';
+    }
+    return null;
+  }
+
   void _applyComposerError(Object e) {
     if (isClosed) return;
     final msg = e.toString();
-    String? alert;
-    if (msg.contains('131047') || msg.contains('outside_session')) {
-      alert = 'whatsappOutsideSessionUseTemplate';
-    } else if (msg.contains('131037') || msg.contains('display_name')) {
-      alert = 'whatsapp_display_name_not_approved';
-    } else if (msg.contains('no_connected') || msg.contains('reconnect')) {
-      alert = 'whatsappReconnectRequired';
-    }
     emit(
       state.copyWith(
         sending: false,
         sendError: msg,
-        composerAlert: alert,
+        composerAlert: composerAlertKeyForError(msg),
       ),
     );
   }

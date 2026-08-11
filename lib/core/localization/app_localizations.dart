@@ -124,8 +124,7 @@ class AppLocalizations {
       'typeToSearch': 'Type to search...',
       'search': 'Search',
       'searchLeadsByNameOrPhone': 'Search by name or phone',
-      'searchLeadsPlaceholderEnter':
-          'Name or phone — tap Search or press Enter',
+      'searchLeadsPlaceholderEnter': 'Name or phone',
       'add': 'Add',
       'addAction': 'Add Action',
       'addProduct': 'Add Product',
@@ -255,8 +254,7 @@ class AppLocalizations {
       'teamChatNewConversation': 'New conversation',
       'teamChatSearchPeople': 'Search people',
       'teamChatNoMatchingPeers': 'No teammates match your search.',
-      'teamChatSelectThread':
-          'Select a conversation or start a new one.',
+      'teamChatSelectThread': 'Select a conversation or start a new one.',
       'teamChatNoMessagesYet': 'No messages yet. Say hello.',
       'teamChatMessagePlaceholder': 'Type a message…',
       'teamChatSend': 'Send',
@@ -286,8 +284,7 @@ class AppLocalizations {
       'teamChatForwardCaptionPlaceholder': 'Optional caption…',
       'teamChatCancelReply': 'Cancel reply',
       'teamChatOpenMessageMenu': 'Message actions',
-      'teamChatSubtitle':
-          'Direct messages with teammates in your company.',
+      'teamChatSubtitle': 'Direct messages with teammates in your company.',
       'teamChatAttach': 'Attach',
       'teamChatRecordVoice': 'Voice',
       'teamChatStopRecording': 'Stop',
@@ -312,7 +309,8 @@ class AppLocalizations {
       'teamChatPeerRecording': '{name} is recording a voice message…',
       'teamChatPeerSending': '{name} is sending a message…',
       'teamChatCompanyRoom': 'Company chat',
-      'teamChatGroupMembersOnline': '{memberCount} members · {onlineCount} online',
+      'teamChatGroupMembersOnline':
+          '{memberCount} members · {onlineCount} online',
       'teamChatGroupTyping': '{names} are typing…',
       'teamChatGroupRecording': '{names} are recording a voice message…',
       'teamChatGroupUploading': '{names} are sending a photo or file…',
@@ -460,10 +458,14 @@ class AppLocalizations {
       'chooseFromGallery': 'Choose from Gallery',
       'takePhoto': 'Take Photo',
       'saveProfile': 'Save Profile',
-      'loginTwoFactorSettingTitle': 'Require two-factor authentication at login',
-      'loginTwoFactorSettingHint': 'When enabled, you will receive a verification code by email each time you sign in on a new device.',
-      'loginTwoFactorEnabledSuccess': 'Two-factor authentication enabled for your account.',
-      'loginTwoFactorDisabledSuccess': 'Two-factor authentication disabled for your account.',
+      'loginTwoFactorSettingTitle':
+          'Require two-factor authentication at login',
+      'loginTwoFactorSettingHint':
+          'When enabled, you will receive a verification code by email each time you sign in on a new device.',
+      'loginTwoFactorEnabledSuccess':
+          'Two-factor authentication enabled for your account.',
+      'loginTwoFactorDisabledSuccess':
+          'Two-factor authentication disabled for your account.',
       'profileUpdatedSuccessfully': 'Profile updated successfully!',
       'loading': 'Loading...',
       'tapToEditProfile': 'Tap to edit profile',
@@ -573,24 +575,28 @@ class AppLocalizations {
       'retry': 'Retry',
       'importLeads': 'Import from Excel',
       'exportLeads': 'Export to Excel',
-      'importLeadsDescription': 'Upload an Excel file (.xlsx) with columns: Name and Phone. Optional: Budget, Type (fresh/cold), Priority (low/medium/high).',
+      'importLeadsDescription':
+          'Upload an Excel file (.xlsx) with columns: Name and Phone. Optional: Budget, Type (fresh/cold), Priority (low/medium/high).',
       'chooseFiles': 'Choose file',
       'importLeadsPreview': 'Found',
       'importLeadsRows': 'rows',
-      'importLeadsMissingColumns': 'Required columns (Name, Phone) not found or file is empty.',
+      'importLeadsMissingColumns':
+          'Required columns (Name, Phone) not found or file is empty.',
       'importLeadsComplete': 'Import complete',
       'importLeadsImported': 'imported',
       'importLeadsFailed': 'failed',
       'applyToAll': 'Apply to all',
       'import': 'Import',
       'importLeadsStep2Match': 'Step 2: Match columns',
-      'importLeadsMatchDescription': 'Match columns to system fields. If headers were mistyped, choose the correct field for each column.',
+      'importLeadsMatchDescription':
+          'Match columns to system fields. If headers were mistyped, choose the correct field for each column.',
       'importLeadsDataExample': 'Data example',
       'importLeadsColumnNames': 'Column names',
       'importLeadsCustomFields': 'System field',
       'importLeadsChooseField': 'Choose field',
       'importLeadsReupload': 'Reupload',
-      'importLeadsMatchRequired': 'Please map at least one column to Name and one to Phone.',
+      'importLeadsMatchRequired':
+          'Please map at least one column to Name and one to Phone.',
       'importLeadsAlreadyMapped': 'already mapped',
       // Channel Types
       'web': 'Web',
@@ -910,7 +916,8 @@ class AppLocalizations {
       'unsupportedHttpMethod': 'Unsupported HTTP method',
       'requestTimedOut': 'Request timed out',
       'sessionExpired': 'Session expired. Please login again.',
-      'subscriptionInactive': 'Your subscription is not active. Please contact support or renew.',
+      'subscriptionInactive':
+          'Your subscription is not active. Please contact support or renew.',
       'missingApiKey': 'Missing API key. Please check your .env file.',
       'loginFailed': 'Login failed',
       'loginFailedWithStatus': 'Login failed with status',
@@ -918,8 +925,7 @@ class AppLocalizations {
       'loginVerificationEmailRequired': 'Email verification required.',
       'loginVerificationPhoneRequired': 'Phone number verification required.',
       'verifyNow': 'Verify now',
-      'loginVerificationOpensBrowser':
-          'Links open in your browser (web CRM).',
+      'loginVerificationOpensBrowser': 'Links open in your browser (web CRM).',
       'preLoginVerifyEmailTitle': 'Verify your email',
       'preLoginVerifyEmailHint':
           'Enter the code from your verification email, then tap Verify.',
@@ -1094,7 +1100,8 @@ class AppLocalizations {
       'fieldVisitDisabledByAdmin':
           'Field visits are disabled by the platform administrator for your company.',
       'failedToAddFieldVisit': 'Failed to save field visit.',
-      'fieldVisitCheckForm': 'Please check the highlighted fields and try again.',
+      'fieldVisitCheckForm':
+          'Please check the highlighted fields and try again.',
       'gettingLocation': 'Getting your location…',
       'fieldVisitHistory': 'Field visits',
       'noFieldVisitsYet': 'No field visits yet',
@@ -1173,7 +1180,35 @@ class AppLocalizations {
           'WhatsApp display name is not approved yet in Meta Business Manager.',
       'whatsappReconnectRequired':
           'WhatsApp is disconnected. Reconnect an account to send messages.',
-      'whatsappNoApprovedTemplates': 'No approved WhatsApp templates available.',
+      'whatsapp_voice_note_requires_ogg':
+          'Voice notes need server conversion. Ask your admin to install ffmpeg.',
+      'whatsapp_template_not_found_or_language':
+          'Meta could not find this template name and language on the WhatsApp account tied to your connected phone (error 132001). Open Template Management and sync templates.',
+      'whatsapp_template_parameter_count':
+          'Wrong number of template variables. Check placeholders vs. values.',
+      'whatsapp_recipient_not_deliverable':
+          'This phone number cannot receive WhatsApp messages (not on WhatsApp, wrong number, or not added as a Meta test recipient).',
+      'whatsapp_ecosystem_engagement_limit':
+          'Meta blocked this message to limit marketing volume to this contact (error 131049). Wait at least 24 hours before sending another marketing template to the same person.',
+      'close': 'Close',
+      'libraryPickerTitle': 'Company library',
+      'librarySearchHint': 'Search files',
+      'libraryEmpty': 'No files in the company library yet.',
+      'libraryCouldNotLoad': 'Could not load the company library.',
+      'libraryDownloadFailed': 'Could not download this file.',
+      'libraryKindImage': 'Image',
+      'libraryKindVideo': 'Video',
+      'libraryKindAudio': 'Audio',
+      'libraryKindDocument': 'Document',
+      'whatsappRecording': 'Recording',
+      'whatsappRecordingPaused': 'Paused',
+      'whatsappPauseRecording': 'Pause',
+      'whatsappResumeRecording': 'Resume',
+      'whatsappCancelRecording': 'Discard recording',
+      'whatsappStopRecording': 'Stop and attach',
+      'whatsappQuickTemplates': 'Quick templates',
+      'whatsappNoApprovedTemplates':
+          'No approved WhatsApp templates available.',
       'whatsappChooseTemplate': 'Choose a template',
       'whatsappTemplatesTitle': 'Approved templates',
       'whatsappTemplatesEmptyHint':
@@ -1190,12 +1225,14 @@ class AppLocalizations {
       'whatsappMediaReaction': 'Reaction',
       'whatsappMediaCallPermission': 'Call permission request',
       'whatsappTimelineOpenChat': 'Open in Chats',
-      'whatsappChatAccessDisabled': 'WhatsApp Chats are disabled for your account.',
+      'whatsappChatAccessDisabled':
+          'WhatsApp Chats are disabled for your account.',
       'startNewConversation': 'Start New Conversation',
       'chooseClientFromDb': 'Choose a client from the database',
       'searchConversations': 'Search conversations...',
       'noConversations': 'No conversations',
-      'deleteConversationConfirm': 'Delete this conversation and all its messages?',
+      'deleteConversationConfirm':
+          'Delete this conversation and all its messages?',
       'whatsappContactNotFound': 'Contact not found',
       'selectApprovedTemplate': 'Select approved template…',
       'template': 'Template',
@@ -1255,9 +1292,11 @@ class AppLocalizations {
       'upcomingVisitDate': 'Next visit (optional)',
       'visitSummaryRequired': 'Summary is required',
       'for': 'for',
-      'locationServicesDisabled': 'Location services are disabled. Please enable them and try again.',
+      'locationServicesDisabled':
+          'Location services are disabled. Please enable them and try again.',
       'locationServicesDisabledTitle': 'Location is turned off',
-      'locationPermissionDenied': 'Location permission denied. Please allow location access and try again.',
+      'locationPermissionDenied':
+          'Location permission denied. Please allow location access and try again.',
       'locationPermissionDeniedTitle': 'Location permission needed',
       'openLocationSettings': 'Open location settings',
       'openAppSettings': 'Open app settings',
@@ -1488,8 +1527,7 @@ class AppLocalizations {
       'typeToSearch': 'اكتب للبحث...',
       'search': 'بحث',
       'searchLeadsByNameOrPhone': 'البحث بالاسم أو رقم الهاتف',
-      'searchLeadsPlaceholderEnter':
-          'الاسم أو الهاتف — اضغط بحث أو Enter',
+      'searchLeadsPlaceholderEnter': 'الاسم أو الهاتف',
       'add': 'إضافة',
       'addAction': 'إضافة إجراء',
       'addProduct': 'إضافة منتج',
@@ -1690,7 +1728,8 @@ class AppLocalizations {
       'teamChatPeerRecording': '{name} يسجّل رسالة صوتية…',
       'teamChatPeerSending': '{name} يرسل رسالة…',
       'teamChatCompanyRoom': 'دردشة الشركة',
-      'teamChatGroupMembersOnline': '{memberCount} عضوًا · {onlineCount} متصل الآن',
+      'teamChatGroupMembersOnline':
+          '{memberCount} عضوًا · {onlineCount} متصل الآن',
       'teamChatGroupTyping': '{names} يكتبون…',
       'teamChatGroupRecording': '{names} يسجّلون رسالة صوتية…',
       'teamChatGroupUploading': '{names} يرسلون صورة أو ملفاً…',
@@ -1820,7 +1859,8 @@ class AppLocalizations {
       'takePhoto': 'التقاط صورة',
       'saveProfile': 'حفظ الملف الشخصي',
       'loginTwoFactorSettingTitle': 'طلب المصادقة الثنائية عند تسجيل الدخول',
-      'loginTwoFactorSettingHint': 'عند التفعيل، ستتلقى رمز تحقق عبر البريد الإلكتروني في كل مرة تسجّل الدخول من جهاز غير موثوق.',
+      'loginTwoFactorSettingHint':
+          'عند التفعيل، ستتلقى رمز تحقق عبر البريد الإلكتروني في كل مرة تسجّل الدخول من جهاز غير موثوق.',
       'loginTwoFactorEnabledSuccess': 'تم تفعيل المصادقة الثنائية لحسابك.',
       'loginTwoFactorDisabledSuccess': 'تم تعطيل المصادقة الثنائية لحسابك.',
       'profileUpdatedSuccessfully': 'تم تحديث الملف الشخصي بنجاح!',
@@ -1933,24 +1973,28 @@ class AppLocalizations {
       'retry': 'إعادة المحاولة',
       'importLeads': 'استيراد من Excel',
       'exportLeads': 'تصدير إلى Excel',
-      'importLeadsDescription': 'ارفع ملف Excel (.xlsx) بأعمدة: الاسم والهاتف. اختياري: الميزانية، النوع (fresh/cold)، الأولوية (low/medium/high).',
+      'importLeadsDescription':
+          'ارفع ملف Excel (.xlsx) بأعمدة: الاسم والهاتف. اختياري: الميزانية، النوع (fresh/cold)، الأولوية (low/medium/high).',
       'chooseFiles': 'اختر ملف',
       'importLeadsPreview': 'تم العثور على',
       'importLeadsRows': 'صفوف',
-      'importLeadsMissingColumns': 'الأعمدة المطلوبة (الاسم، الهاتف) غير موجودة أو الملف فارغ.',
+      'importLeadsMissingColumns':
+          'الأعمدة المطلوبة (الاسم، الهاتف) غير موجودة أو الملف فارغ.',
       'importLeadsComplete': 'اكتمل الاستيراد',
       'importLeadsImported': 'مستوردة',
       'importLeadsFailed': 'فشلت',
       'applyToAll': 'تطبيق على الكل',
       'import': 'استيراد',
       'importLeadsStep2Match': 'الخطوة 2: مطابقة الأعمدة',
-      'importLeadsMatchDescription': 'مطابقة الأعمدة مع حقول النظام. إن كانت العناوين مكتوبة بشكل خاطئ، اختر الحقل الصحيح لكل عمود.',
+      'importLeadsMatchDescription':
+          'مطابقة الأعمدة مع حقول النظام. إن كانت العناوين مكتوبة بشكل خاطئ، اختر الحقل الصحيح لكل عمود.',
       'importLeadsDataExample': 'مثال على البيانات',
       'importLeadsColumnNames': 'أسماء الأعمدة',
       'importLeadsCustomFields': 'حقل النظام',
       'importLeadsChooseField': 'اختر حقلاً',
       'importLeadsReupload': 'إعادة التحميل',
-      'importLeadsMatchRequired': 'يرجى ربط عمود واحد على الأقل بالاسم وآخر بالهاتف.',
+      'importLeadsMatchRequired':
+          'يرجى ربط عمود واحد على الأقل بالاسم وآخر بالهاتف.',
       'importLeadsAlreadyMapped': 'مربوط بالفعل',
       // Channel Types
       'web': 'ويب',
@@ -2269,7 +2313,8 @@ class AppLocalizations {
       'unsupportedHttpMethod': 'طريقة HTTP غير مدعومة',
       'requestTimedOut': 'انتهت مهلة الطلب',
       'sessionExpired': 'انتهت الجلسة. يرجى تسجيل الدخول مرة أخرى.',
-      'subscriptionInactive': 'اشتراكك غير نشط. يرجى التواصل مع الدعم أو التجديد.',
+      'subscriptionInactive':
+          'اشتراكك غير نشط. يرجى التواصل مع الدعم أو التجديد.',
       'missingApiKey': 'مفتاح API مفقود. يرجى التحقق من ملف .env الخاص بك.',
       'loginFailed': 'فشل تسجيل الدخول',
       'loginFailedWithStatus': 'فشل تسجيل الدخول مع الحالة',
@@ -2280,8 +2325,7 @@ class AppLocalizations {
       'loginVerificationOpensBrowser':
           'تُفتح الروابط في المتصفح (واجهة الويب للنظام).',
       'preLoginVerifyEmailTitle': 'تحقق من بريدك الإلكتروني',
-      'preLoginVerifyEmailHint':
-          'أدخل الرمز من رسالة التحقق ثم اضغط تحقق.',
+      'preLoginVerifyEmailHint': 'أدخل الرمز من رسالة التحقق ثم اضغط تحقق.',
       'preLoginChangeEmailLabel': 'تغيير البريد',
       'preLoginNewEmailLabel': 'البريد الجديد',
       'preLoginUpdateEmailSend': 'تحديث البريد وإرسال الرمز',
@@ -2289,7 +2333,8 @@ class AppLocalizations {
       'preLoginResendEmailCountdown': 'إعادة إرسال البريد ({countdown} ث)',
       'preLoginInvalidVerifyLink': 'رابط التحقق غير صالح.',
       'preLoginEmailResent': 'تم إرسال بريد التحقق.',
-      'preLoginEmailUpdated': 'تم تحديث البريد. راجع صندوقك للحصول على رمز جديد.',
+      'preLoginEmailUpdated':
+          'تم تحديث البريد. راجع صندوقك للحصول على رمز جديد.',
       'preLoginVerifyPhoneTitle': 'تحقق من هاتفك',
       'preLoginVerifyPhoneHint':
           'أرسل رمز التحقق، ثم أدخله أدناه، ثم اضغط تحقق.',
@@ -2375,10 +2420,8 @@ class AppLocalizations {
           'لقد وصلت إلى الحد الأقصى للعملاء المحتملين في خطتك. يرجى ترقية الخطة لإضافة المزيد.',
       'plan_quota_max_deals_exceeded':
           'لقد وصلت إلى الحد الأقصى للصفقات في خطتك. يرجى ترقية الخطة لإضافة المزيد.',
-      'plan_integration_not_included':
-          'هذا التكامل غير مشمول في خطتك الحالية.',
-      'integration_disabled':
-          'هذا التكامل معطّل حالياً لشركتك.',
+      'plan_integration_not_included': 'هذا التكامل غير مشمول في خطتك الحالية.',
+      'integration_disabled': 'هذا التكامل معطّل حالياً لشركتك.',
       'addCall': 'إضافة مكالمة',
       'callMethod': 'طريقة المكالمة',
       'callMethods': 'طرق المكالمات',
@@ -2444,8 +2487,10 @@ class AppLocalizations {
       'uploadClientLocationPhoto': 'رفع صورة',
       'removeClientLocationPhoto': 'إزالة الصورة',
       'clientLocationPhotoTooLarge': 'يجب ألا يتجاوز حجم الصورة 5 ميجابايت.',
-      'clientLocationPhotoInvalidType': 'استخدم صورة بصيغة JPEG أو PNG أو GIF أو WebP.',
-      'fieldVisitDisabledByAdmin': 'الزيارات الميدانية معطّلة من قبل مدير المنصة لشركتك.',
+      'clientLocationPhotoInvalidType':
+          'استخدم صورة بصيغة JPEG أو PNG أو GIF أو WebP.',
+      'fieldVisitDisabledByAdmin':
+          'الزيارات الميدانية معطّلة من قبل مدير المنصة لشركتك.',
       'failedToAddFieldVisit': 'فشل حفظ الزيارة الميدانية.',
       'fieldVisitCheckForm': 'يرجى مراجعة الحقول المميزة والمحاولة مرة أخرى.',
       'gettingLocation': 'جاري تحديد موقعك…',
@@ -2526,6 +2571,32 @@ class AppLocalizations {
           'اسم عرض واتساب غير معتمد بعد في مدير أعمال ميتا.',
       'whatsappReconnectRequired':
           'واتساب غير متصل. أعد ربط الحساب لإرسال الرسائل.',
+      'whatsapp_voice_note_requires_ogg':
+          'الملاحظات الصوتية تحتاج تحويلاً على الخادم. اطلب من المسؤول تثبيت ffmpeg.',
+      'whatsapp_template_not_found_or_language':
+          'ميتا لم تجد اسم القالب واللغة على حساب واتساب المرتبط برقمك المتصل (خطأ 132001). افتح إدارة القوالب وقم بالمزامنة.',
+      'whatsapp_template_parameter_count': 'عدد متغيرات القالب غير صحيح.',
+      'whatsapp_recipient_not_deliverable':
+          'لا يمكن لهذا الرقم استلام رسائل واتساب (غير مسجل على واتساب، رقم خاطئ، أو غير مضاف كرقم اختبار في ميتا).',
+      'whatsapp_ecosystem_engagement_limit':
+          'ميتا حظرت هذه الرسالة للحد من حجم الرسائل التسويقية لهذا الرقم (خطأ 131049). انتظر 24 ساعة على الأقل قبل إرسال قالب تسويقي آخر لنفس الشخص.',
+      'close': 'إغلاق',
+      'libraryPickerTitle': 'مكتبة الشركة',
+      'librarySearchHint': 'ابحث في الملفات',
+      'libraryEmpty': 'لا توجد ملفات في مكتبة الشركة بعد.',
+      'libraryCouldNotLoad': 'تعذر تحميل مكتبة الشركة.',
+      'libraryDownloadFailed': 'تعذر تنزيل هذا الملف.',
+      'libraryKindImage': 'صورة',
+      'libraryKindVideo': 'فيديو',
+      'libraryKindAudio': 'صوت',
+      'libraryKindDocument': 'مستند',
+      'whatsappRecording': 'جارٍ التسجيل',
+      'whatsappRecordingPaused': 'موقوف مؤقتاً',
+      'whatsappPauseRecording': 'إيقاف مؤقت',
+      'whatsappResumeRecording': 'متابعة',
+      'whatsappCancelRecording': 'تجاهل التسجيل',
+      'whatsappStopRecording': 'إيقاف وإرفاق',
+      'whatsappQuickTemplates': 'قوالب سريعة',
       'whatsappNoApprovedTemplates': 'لا توجد قوالب واتساب معتمدة.',
       'whatsappChooseTemplate': 'اختر قالباً',
       'whatsappTemplatesTitle': 'القوالب المعتمدة',
@@ -2610,7 +2681,8 @@ class AppLocalizations {
       'for': 'لـ',
       'locationServicesDisabled': 'خدمات الموقع معطّلة. فعّلها وحاول مرة أخرى.',
       'locationServicesDisabledTitle': 'الموقع غير مفعّل',
-      'locationPermissionDenied': 'تم رفض صلاحية الموقع. اسمح بالوصول إلى الموقع وحاول مرة أخرى.',
+      'locationPermissionDenied':
+          'تم رفض صلاحية الموقع. اسمح بالوصول إلى الموقع وحاول مرة أخرى.',
       'locationPermissionDeniedTitle': 'صلاحية الموقع مطلوبة',
       'openLocationSettings': 'فتح إعدادات الموقع',
       'openAppSettings': 'فتح إعدادات التطبيق',
@@ -2740,13 +2812,18 @@ class AppLocalizations {
     if (deal != null && deal.isNotEmpty) {
       return deal;
     }
-    final inventory = inventoryTerminologyLookup(spec, locale.languageCode, key);
+    final inventory = inventoryTerminologyLookup(
+      spec,
+      locale.languageCode,
+      key,
+    );
     if (inventory != null && inventory.isNotEmpty) {
       return inventory;
     }
     if (MedicalLexicon.isMedicalTenant) {
       final lang = locale.languageCode;
-      final byLang = kMedicalTranslationOverrides[lang] ??
+      final byLang =
+          kMedicalTranslationOverrides[lang] ??
           kMedicalTranslationOverrides['en'];
       final over = byLang?[key];
       if (over != null && over.isNotEmpty) {

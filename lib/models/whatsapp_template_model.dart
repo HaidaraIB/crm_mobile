@@ -20,8 +20,12 @@ class WhatsAppTemplateModel {
     this.footer,
   });
 
-  bool get isWhatsApp =>
-      channelType.toLowerCase() == 'whatsapp' || channelType.toLowerCase() == 'wa';
+  /// Backend stores `whatsapp_api` (MessageTemplate.CHANNEL_WHATSAPP_API);
+  /// accept the shorter spellings too, like the web Chats page does.
+  bool get isWhatsApp {
+    final ch = channelType.toLowerCase();
+    return ch == 'whatsapp' || ch == 'whatsapp_api' || ch == 'wa';
+  }
 
   bool get isApproved => (metaStatus ?? '').toUpperCase() == 'APPROVED';
 

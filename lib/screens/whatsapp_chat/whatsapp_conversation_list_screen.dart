@@ -10,6 +10,7 @@ import '../../features/whatsapp_chat/whatsapp_chat_repository.dart';
 import '../../models/user_model.dart';
 import '../../models/whatsapp_conversation_model.dart';
 import '../../services/api_service.dart';
+import '../../utils/whatsapp_access.dart';
 import '../../utils/whatsapp_message_body_localize.dart';
 import '../../widgets/whatsapp_chat/whatsapp_chat_theme.dart';
 import '../../widgets/whatsapp_chat/whatsapp_phone_text.dart';
@@ -56,7 +57,7 @@ class _WhatsAppConversationListScreenState
     try {
       final u = await ApiService().getCurrentUser();
       if (!mounted) return;
-      final includeManual = u.isAdmin;
+      final includeManual = canOpenManualWhatsAppChats(u);
       final cubit = WhatsAppConversationListCubit(
         repository: ApiWhatsAppChatRepository(),
         isForeground: () => _foreground,
@@ -82,7 +83,7 @@ class _WhatsAppConversationListScreenState
     }
   }
 
-  bool get _includeManual => _user?.isAdmin == true;
+  bool get _includeManual => canOpenManualWhatsAppChats(_user);
 
   String _timeLabel(DateTime? dt) {
     if (dt == null) return '';

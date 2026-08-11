@@ -17,13 +17,18 @@ import '../../core/localization/app_localizations.dart';
 import '../../features/whatsapp_chat/cubit/whatsapp_chat_thread_cubit.dart';
 import '../../features/whatsapp_chat/cubit/whatsapp_chat_thread_state.dart';
 import '../../features/whatsapp_chat/whatsapp_chat_repository.dart';
+import '../../services/api_service.dart';
 import '../../utils/compress_image_for_chat.dart';
+import '../../utils/whatsapp_chat_media_album.dart';
 import '../../utils/whatsapp_template_placeholders.dart';
 import '../../utils/whatsapp_thread_items.dart';
+import '../../widgets/whatsapp_chat/company_library_picker_sheet.dart';
 import '../../widgets/whatsapp_chat/whatsapp_chat_theme.dart';
+import '../../widgets/whatsapp_chat/whatsapp_media_album_screen.dart';
 import '../../widgets/whatsapp_chat/whatsapp_message_bubble.dart';
 import '../../widgets/whatsapp_chat/whatsapp_phone_text.dart';
 import '../../widgets/whatsapp_chat/whatsapp_status_widgets.dart';
+import '../../widgets/whatsapp_chat/whatsapp_voice_recording_bar.dart';
 import '../../core/theme/app_theme.dart';
 
 class WhatsAppChatThreadScreen extends StatelessWidget {
@@ -85,17 +90,38 @@ class _WhatsAppChatThreadViewState extends State<_WhatsAppChatThreadView>
   String? _pendingKind;
   bool _pendingVoice = false;
   bool _recording = false;
+  bool _recordingPaused = false;
+  Duration _recordElapsed = Duration.zero;
+  /// Excludes paused spans, so the elapsed label and the 4-minute cap both
+  /// measure actual recorded audio.
+  final Stopwatch _recordWatch = Stopwatch();
   bool _compressing = false;
   bool _sendingAttachment = false;
   Timer? _voiceCapTimer;
   bool _scrolledOnce = false;
   bool _foreground = true;
+  String _employeeName = '';
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _controller.addListener(() => setState(() {}));
+    _loadEmployeeName();
+    // Preloaded so the quick-template chips can appear without opening the sheet.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(context.read<WhatsAppChatThreadCubit>().ensureTemplatesLoaded());
+    });
+  }
+
+  /// Fills the `{ اسم الموظف }` template placeholder with the signed-in sender.
+  Future<void> _loadEmployeeName() async {
+    try {
+      final user = await ApiService().getCurrentUser();
+      if (!mounted) return;
+      setState(() => _employeeName = user.displayName);
+    } catch (_) {}
   }
 
   @override
@@ -207,6 +233,14 @@ class _WhatsAppChatThreadViewState extends State<_WhatsAppChatThreadView>
               onTap: () {
                 Navigator.pop(ctx);
                 _pickDocument();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.folder_shared_outlined),
+              title: Text(t('libraryPickerTitle')),
+              onTap: () {
+                Navigator.pop(ctx);
+                unawaited(_pickFromCompanyLibrary());
               },
             ),
             ListTile(
@@ -372,15 +406,7 @@ class _WhatsAppChatThreadViewState extends State<_WhatsAppChatThreadView>
                                           await cubit.sendTemplate(tpl.id);
                                           return;
                                         }
-                                        final text = replaceWhatsAppTemplatePlaceholders(
-                                          tpl.content,
-                                          customerName: widget.clientName,
-                                          phone: widget.phoneNumber,
-                                        );
-                                        _controller.text = text;
-                                        _controller.selection =
-                                            TextSelection.collapsed(offset: text.length);
-                                        setState(() {});
+                                        _insertTemplate(tpl.content);
                                       },
                                 onLongPress: state.sending || blockFreeText
                                     ? null
@@ -430,35 +456,119 @@ class _WhatsAppChatThreadViewState extends State<_WhatsAppChatThreadView>
     });
   }
 
+  /// Audio extensions are accepted alongside documents so an existing recording
+  /// can be attached, matching the web file input's `audio/*`.
+  static const List<String> _audioExtensions = [
+    'mp3',
+    'm4a',
+    'ogg',
+    'opus',
+    'wav',
+    'aac',
+  ];
+
   Future<void> _pickDocument() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt'],
+      allowedExtensions: [
+        'pdf',
+        'doc',
+        'docx',
+        'xls',
+        'xlsx',
+        'txt',
+        ..._audioExtensions,
+      ],
     );
     final path = result?.files.single.path;
     if (path == null) return;
+    final ext = path.split('.').last.toLowerCase();
     setState(() {
       _pendingPath = path;
-      _pendingKind = 'document';
+      _pendingKind = _audioExtensions.contains(ext) ? 'audio' : 'document';
       _pendingVoice = false;
     });
   }
 
-  Future<void> _toggleVoice() async {
+  /// One-tap chips for the first few approved templates, inserting the resolved
+  /// content into the composer. Web parity: `ChatComposer` quick-template row.
+  Widget _buildQuickTemplates(
+    WhatsAppChatThreadState state,
+    WhatsAppChatColors colors,
+  ) {
+    final templates = state.templates.take(6).toList();
+    if (templates.isEmpty) return const SizedBox.shrink();
+    return Container(
+      color: colors.composerBg,
+      padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
+      child: SizedBox(
+        height: 32,
+        child: Semantics(
+          label: AppLocalizations.of(context)?.translate('whatsappQuickTemplates'),
+          container: true,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: templates.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 6),
+            itemBuilder: (context, index) {
+              final tpl = templates[index];
+              return ActionChip(
+                label: Text(
+                  tpl.name,
+                  style: const TextStyle(fontSize: 11),
+                ),
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                onPressed: () => _insertTemplate(tpl.content),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Fills placeholders and drops the text into the composer, leaving the user
+  /// free to edit before sending.
+  void _insertTemplate(String content) {
+    final resolved = replaceWhatsAppTemplatePlaceholders(
+      content,
+      customerName: widget.clientName,
+      phone: widget.phoneNumber,
+      employeeName: _employeeName,
+    );
+    _controller.text = resolved;
+    _controller.selection = TextSelection.fromPosition(
+      TextPosition(offset: _controller.text.length),
+    );
+  }
+
+  /// Opens every image/video in the thread as a swipeable album, positioned on
+  /// the tapped message (web parity: `ChatMediaViewer`).
+  void _openMediaAlbum(WhatsAppChatThreadState state, int messageId) {
+    final items = buildWhatsAppMediaAlbum(state.messages);
+    WhatsAppMediaAlbumScreen.open(
+      context,
+      items: items,
+      initialIndex: findWhatsAppMediaAlbumIndex(items, messageId),
+    );
+  }
+
+  Future<void> _pickFromCompanyLibrary() async {
+    final picked = await CompanyLibraryPickerSheet.show(context);
+    if (picked == null || !mounted) return;
+    setState(() {
+      _pendingPath = picked.path;
+      _pendingKind = picked.kind;
+      _pendingVoice = false;
+    });
+  }
+
+  /// Max recorded (unpaused) length, matching the web recorder.
+  static const Duration _voiceCap = Duration(minutes: 4);
+
+  Future<void> _startVoiceRecording() async {
     final loc = AppLocalizations.of(context);
-    if (_recording) {
-      _voiceCapTimer?.cancel();
-      final path = await _recorder.stop();
-      setState(() => _recording = false);
-      if (path != null && File(path).existsSync()) {
-        setState(() {
-          _pendingPath = path;
-          _pendingKind = 'audio';
-          _pendingVoice = true;
-        });
-      }
-      return;
-    }
     if (!await _recorder.hasPermission()) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -468,16 +578,91 @@ class _WhatsAppChatThreadViewState extends State<_WhatsAppChatThreadView>
       return;
     }
     final dir = await getTemporaryDirectory();
-    // Match team chat: AAC-LC .m4a (Meta accepts; OGG preferred on web when available).
+    // Match team chat: AAC-LC .m4a (server converts to OGG/Opus for Meta).
     final path = '${dir.path}/wa_voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
     await _recorder.start(
       const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 64000),
       path: path,
     );
-    setState(() => _recording = true);
+    if (!mounted) return;
+    // The stopwatch excludes paused spans, so the cap counts recorded audio.
+    _recordWatch
+      ..reset()
+      ..start();
+    setState(() {
+      _recording = true;
+      _recordingPaused = false;
+      _recordElapsed = Duration.zero;
+    });
     _voiceCapTimer?.cancel();
-    _voiceCapTimer = Timer(const Duration(minutes: 4), () {
-      if (_recording) unawaited(_toggleVoice());
+    _voiceCapTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted || !_recording) return;
+      setState(() => _recordElapsed = _recordWatch.elapsed);
+      if (_recordWatch.elapsed >= _voiceCap) unawaited(_stopVoiceRecording());
+    });
+  }
+
+  Future<void> _pauseVoiceRecording() async {
+    if (!_recording || _recordingPaused) return;
+    await _recorder.pause();
+    _recordWatch.stop();
+    if (!mounted) return;
+    setState(() => _recordingPaused = true);
+  }
+
+  Future<void> _resumeVoiceRecording() async {
+    if (!_recording || !_recordingPaused) return;
+    await _recorder.resume();
+    _recordWatch.start();
+    if (!mounted) return;
+    setState(() => _recordingPaused = false);
+  }
+
+  /// Stops and keeps the recording as a pending voice-note attachment.
+  Future<void> _stopVoiceRecording() async {
+    if (!_recording) return;
+    _voiceCapTimer?.cancel();
+    _recordWatch.stop();
+    final path = await _recorder.stop();
+    if (!mounted) return;
+    setState(() {
+      _recording = false;
+      _recordingPaused = false;
+      _recordElapsed = Duration.zero;
+    });
+    if (path != null && File(path).existsSync()) {
+      setState(() {
+        _pendingPath = path;
+        _pendingKind = 'audio';
+        _pendingVoice = true;
+      });
+    }
+  }
+
+  /// Discards the recording without attaching it.
+  Future<void> _cancelVoiceRecording() async {
+    if (!_recording) return;
+    _voiceCapTimer?.cancel();
+    _recordWatch.stop();
+    try {
+      await _recorder.cancel();
+    } catch (_) {
+      // Some platforms only support stop(); drop the file either way.
+      final path = await _recorder.stop();
+      if (path != null) {
+        final f = File(path);
+        if (f.existsSync()) {
+          try {
+            await f.delete();
+          } catch (_) {}
+        }
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      _recording = false;
+      _recordingPaused = false;
+      _recordElapsed = Duration.zero;
     });
   }
 
@@ -611,6 +796,8 @@ class _WhatsAppChatThreadViewState extends State<_WhatsAppChatThreadView>
         builder: (context, state) {
           final session = state.sessionWindow;
           final blockFreeText = session != null && session.inSession == false;
+          // No connected account: every control is dead, not just free text.
+          final sendBlocked = state.sendBlocked;
           final items = buildWhatsAppThreadItems(
             state.messages,
             language: language,
@@ -626,26 +813,26 @@ class _WhatsAppChatThreadViewState extends State<_WhatsAppChatThreadView>
 
           return Column(
             children: [
-              if (session != null)
-                WhatsAppSessionBanner(
-                  inSession: session.inSession,
-                  hoursRemaining: session.hoursRemaining,
-                ),
-              if (state.composerAlert != null)
-                Material(
-                  color: colors.alertErrorBg,
-                  child: ListTile(
-                    dense: true,
-                    title: Text(
-                      t(state.composerAlert!),
-                      style: TextStyle(fontSize: 12, color: colors.alertErrorFg),
-                    ),
-                    trailing: IconButton(
-                      icon: Icon(Icons.close, size: 18, color: colors.alertErrorFg),
-                      onPressed: () =>
-                          context.read<WhatsAppChatThreadCubit>().clearComposerAlert(),
-                    ),
-                  ),
+              if (session != null && !state.sendBlocked)
+                WhatsAppSessionBanner(inSession: session.inSession),
+              // Alert precedence matches the web composer: disconnected account
+              // first, then unapproved display name, then the last send error.
+              if (state.sendBlocked)
+                _AlertBar(
+                  message: t('whatsappReconnectRequired'),
+                  colors: colors,
+                )
+              else if (state.displayNameBlocked)
+                _AlertBar(
+                  message: t('whatsapp_display_name_not_approved'),
+                  colors: colors,
+                )
+              else if (state.composerAlert != null)
+                _AlertBar(
+                  message: t(state.composerAlert!),
+                  colors: colors,
+                  onDismiss: () =>
+                      context.read<WhatsAppChatThreadCubit>().clearComposerAlert(),
                 ),
               Expanded(child: _buildThreadBody(state, items, t)),
               if (_pendingPath != null || _compressing)
@@ -678,6 +865,13 @@ class _WhatsAppChatThreadViewState extends State<_WhatsAppChatThreadView>
                     ],
                   ),
                 ),
+              if (!_recording &&
+                  !blockFreeText &&
+                  !sendBlocked &&
+                  session?.inSession == true)
+                WhatsAppSessionOpenHint(hoursRemaining: session?.hoursRemaining),
+              if (!_recording && !sendBlocked && !blockFreeText)
+                _buildQuickTemplates(state, colors),
               ColoredBox(
                 color: colors.composerBg,
                 child: SafeArea(
@@ -687,11 +881,20 @@ class _WhatsAppChatThreadViewState extends State<_WhatsAppChatThreadView>
                       border: Border(top: BorderSide(color: colors.composerBorder)),
                     ),
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                    child: blockFreeText
+                    child: _recording
+                        ? WhatsAppVoiceRecordingBar(
+                            elapsed: _recordElapsed,
+                            paused: _recordingPaused,
+                            onPause: () => unawaited(_pauseVoiceRecording()),
+                            onResume: () => unawaited(_resumeVoiceRecording()),
+                            onStop: () => unawaited(_stopVoiceRecording()),
+                            onCancel: () => unawaited(_cancelVoiceRecording()),
+                          )
+                        : blockFreeText
                         ? SizedBox(
                             width: double.infinity,
                             child: FilledButton.tonalIcon(
-                              onPressed: state.sending
+                              onPressed: (state.sending || sendBlocked)
                                   ? null
                                   : () => _openTemplatesSheet(blockFreeText: true),
                               icon: state.sending
@@ -715,18 +918,23 @@ class _WhatsAppChatThreadViewState extends State<_WhatsAppChatThreadView>
                               children: [
                                 IconButton(
                                   icon: Icon(Icons.add_circle_outline, color: colors.metaIn),
-                                  onPressed: _sendingAttachment ? null : _showAttachSheet,
+                                  onPressed: (_sendingAttachment || sendBlocked)
+                                      ? null
+                                      : _showAttachSheet,
                                   tooltip: t('teamChatAttach'),
                                 ),
                                 IconButton(
                                   icon: Icon(Icons.description_outlined, color: colors.metaIn),
-                                  onPressed: () =>
-                                      _openTemplatesSheet(blockFreeText: false),
+                                  onPressed: sendBlocked
+                                      ? null
+                                      : () =>
+                                          _openTemplatesSheet(blockFreeText: false),
                                   tooltip: t('template'),
                                 ),
                                 Expanded(
                                   child: TextField(
                                     controller: _controller,
+                                    enabled: !sendBlocked,
                                     minLines: 1,
                                     maxLines: 4,
                                     textDirection: composerDir,
@@ -766,8 +974,11 @@ class _WhatsAppChatThreadViewState extends State<_WhatsAppChatThreadView>
                                       backgroundColor: AppTheme.primaryColor,
                                       foregroundColor: Colors.white,
                                     ),
-                                    icon: Icon(_recording ? Icons.stop : Icons.mic),
-                                    onPressed: _sendingAttachment ? null : _toggleVoice,
+                                    icon: const Icon(Icons.mic),
+                                    onPressed: (_sendingAttachment || sendBlocked)
+                                        ? null
+                                        : () =>
+                                            unawaited(_startVoiceRecording()),
                                     tooltip: t('teamChatRecordVoice'),
                                   )
                                 else
@@ -788,9 +999,10 @@ class _WhatsAppChatThreadViewState extends State<_WhatsAppChatThreadView>
                                             ),
                                           )
                                         : const Icon(Icons.send),
-                                    onPressed: (state.sending || _sendingAttachment)
-                                        ? null
-                                        : _sendText,
+                                    onPressed:
+                                        (state.sending || _sendingAttachment || sendBlocked)
+                                            ? null
+                                            : _sendText,
                                   ),
                               ],
                             ),
@@ -867,10 +1079,45 @@ class _WhatsAppChatThreadViewState extends State<_WhatsAppChatThreadView>
               onDelete: () => context
                   .read<WhatsAppChatThreadCubit>()
                   .deleteFailedOrServerMessage(item.message),
+              onOpenAlbum: () => _openMediaAlbum(state, item.message.id),
             );
           }
           return const SizedBox.shrink();
         },
+      ),
+    );
+  }
+}
+
+/// Sticky composer warning bar. Dismissible only when [onDismiss] is given —
+/// account-level blocks stay until the underlying problem is fixed.
+class _AlertBar extends StatelessWidget {
+  const _AlertBar({
+    required this.message,
+    required this.colors,
+    this.onDismiss,
+  });
+
+  final String message;
+  final WhatsAppChatColors colors;
+  final VoidCallback? onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: colors.alertErrorBg,
+      child: ListTile(
+        dense: true,
+        title: Text(
+          message,
+          style: TextStyle(fontSize: 12, color: colors.alertErrorFg),
+        ),
+        trailing: onDismiss == null
+            ? null
+            : IconButton(
+                icon: Icon(Icons.close, size: 18, color: colors.alertErrorFg),
+                onPressed: onDismiss,
+              ),
       ),
     );
   }

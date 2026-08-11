@@ -18,6 +18,8 @@ class WhatsAppChatThreadState extends Equatable {
     required this.templatesLoading,
     required this.templatesExpanded,
     required this.connectedPhoneNumberId,
+    required this.sendBlocked,
+    required this.displayNameBlocked,
     required this.composerAlert,
     required this.playOpenThreadSound,
   });
@@ -35,6 +37,8 @@ class WhatsAppChatThreadState extends Equatable {
         templatesLoading = false,
         templatesExpanded = false,
         connectedPhoneNumberId = null,
+        sendBlocked = false,
+        displayNameBlocked = false,
         composerAlert = null,
         playOpenThreadSound = false;
 
@@ -52,6 +56,10 @@ class WhatsAppChatThreadState extends Equatable {
   final bool templatesLoading;
   final bool templatesExpanded;
   final String? connectedPhoneNumberId;
+  /// No connected+active WhatsApp account — nothing can be sent at all.
+  final bool sendBlocked;
+  /// Meta has not approved the business display name (sends fail with 131037).
+  final bool displayNameBlocked;
   /// Sticky composer warning (session / display name / reconnect).
   final String? composerAlert;
   /// One-shot flag for inbound sound while thread is open.
@@ -73,6 +81,8 @@ class WhatsAppChatThreadState extends Equatable {
     bool? templatesLoading,
     bool? templatesExpanded,
     String? connectedPhoneNumberId,
+    bool? sendBlocked,
+    bool? displayNameBlocked,
     String? composerAlert,
     bool clearComposerAlert = false,
     bool? playOpenThreadSound,
@@ -92,6 +102,8 @@ class WhatsAppChatThreadState extends Equatable {
       templatesLoading: templatesLoading ?? this.templatesLoading,
       templatesExpanded: templatesExpanded ?? this.templatesExpanded,
       connectedPhoneNumberId: connectedPhoneNumberId ?? this.connectedPhoneNumberId,
+      sendBlocked: sendBlocked ?? this.sendBlocked,
+      displayNameBlocked: displayNameBlocked ?? this.displayNameBlocked,
       composerAlert: clearComposerAlert ? null : (composerAlert ?? this.composerAlert),
       playOpenThreadSound: playOpenThreadSound ?? this.playOpenThreadSound,
     );
@@ -111,6 +123,8 @@ class WhatsAppChatThreadState extends Equatable {
         templatesLoading,
         templatesExpanded,
         connectedPhoneNumberId,
+        sendBlocked,
+        displayNameBlocked,
         composerAlert,
         playOpenThreadSound,
       ];

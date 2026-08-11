@@ -26,6 +26,7 @@ import 'screens/deals/view_deal_by_id_screen.dart';
 import 'screens/team_chat/team_chat_screen.dart';
 import 'screens/whatsapp_chat/whatsapp_chat_thread_screen.dart';
 import 'screens/whatsapp_chat/whatsapp_conversation_list_screen.dart';
+import 'widgets/whatsapp_chat/whatsapp_access_guard.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'services/notification_service.dart';
@@ -340,29 +341,37 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                     );
                     return TeamChatScreen(initialConversationId: id);
                   },
-                  '/whatsapp-chat': (context) =>
-                      const WhatsAppConversationListScreen(),
+                  // Deep links from push notifications reach these regardless of
+                  // role, so gate on WhatsApp Chats access before building.
+                  '/whatsapp-chat': (context) => WhatsAppAccessGuard(
+                        builder: (_) => const WhatsAppConversationListScreen(),
+                      ),
                   '/whatsapp-chat/thread': (context) {
                     final args = ModalRoute.of(context)?.settings.arguments;
-                    if (args is Map) {
-                      final clientId = _routeIntArguments(args['clientId']);
-                      final name = args['clientName']?.toString() ?? 'WhatsApp';
-                      final phone = args['phoneNumber']?.toString() ?? '';
-                      return WhatsAppChatThreadScreen(
-                        clientId: clientId,
-                        clientName: name,
-                        phoneNumber: phone,
-                        isManual: clientId == null,
-                      );
-                    }
-                    final id = _routeIntArguments(args);
-                    if (id == null) {
-                      return const WhatsAppConversationListScreen();
-                    }
-                    return WhatsAppChatThreadScreen(
-                      clientId: id,
-                      clientName: 'WhatsApp',
-                      phoneNumber: '',
+                    return WhatsAppAccessGuard(
+                      builder: (_) {
+                        if (args is Map) {
+                          final clientId = _routeIntArguments(args['clientId']);
+                          final name =
+                              args['clientName']?.toString() ?? 'WhatsApp';
+                          final phone = args['phoneNumber']?.toString() ?? '';
+                          return WhatsAppChatThreadScreen(
+                            clientId: clientId,
+                            clientName: name,
+                            phoneNumber: phone,
+                            isManual: clientId == null,
+                          );
+                        }
+                        final id = _routeIntArguments(args);
+                        if (id == null) {
+                          return const WhatsAppConversationListScreen();
+                        }
+                        return WhatsAppChatThreadScreen(
+                          clientId: id,
+                          clientName: 'WhatsApp',
+                          phoneNumber: '',
+                        );
+                      },
                     );
                   },
                   '/2fa': (context) {

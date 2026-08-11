@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/localization/app_localizations.dart';
@@ -42,12 +44,31 @@ class _WhatsAppStartConversationScreenState
   bool _searching = false;
   String? _error;
   List<Map<String, dynamic>> _leads = [];
+  Timer? _searchDebounce;
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _phoneCtrl.dispose();
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  /// Debounced so typing a name does not fire one request per keystroke.
+  void _onSearchChanged(String q) {
+    _searchDebounce?.cancel();
+    if (q.trim().length < 2) {
+      setState(() {
+        _leads = [];
+        _searching = false;
+      });
+      return;
+    }
+    setState(() => _searching = true);
+    _searchDebounce = Timer(
+      const Duration(milliseconds: 350),
+      () => _searchLeads(q),
+    );
   }
 
   Future<void> _searchLeads(String q) async {
@@ -187,7 +208,7 @@ class _WhatsAppStartConversationScreenState
           const SizedBox(height: 8),
           TextField(
             controller: _searchCtrl,
-            onChanged: (v) => _searchLeads(v),
+            onChanged: _onSearchChanged,
             decoration: InputDecoration(
               border: const OutlineInputBorder(),
               prefixIcon: const Icon(Icons.search),

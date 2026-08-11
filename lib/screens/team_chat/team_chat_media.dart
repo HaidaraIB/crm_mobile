@@ -62,6 +62,7 @@ class TenantChatMemoryImage extends StatefulWidget {
     this.attachmentHeight,
     this.suggestedFilename,
     this.onIntrinsicLayout,
+    this.onOpenOverride,
   });
 
   final String url;
@@ -71,6 +72,9 @@ class TenantChatMemoryImage extends StatefulWidget {
   final int? attachmentHeight;
   final String? suggestedFilename;
   final VoidCallback? onIntrinsicLayout;
+
+  /// Replaces the default single-item viewer, e.g. to open a thread album.
+  final VoidCallback? onOpenOverride;
 
   @override
   State<TenantChatMemoryImage> createState() => _TenantChatMemoryImageState();
@@ -158,6 +162,11 @@ class _TenantChatMemoryImageState extends State<TenantChatMemoryImage> {
   void _openViewer() {
     final b = _bytes;
     if (b == null) return;
+    final override = widget.onOpenOverride;
+    if (override != null) {
+      override();
+      return;
+    }
     openAppImageViewer(
       context,
       imageBytes: b,
@@ -338,6 +347,7 @@ class TenantChatMemoryVideo extends StatefulWidget {
     this.attachmentHeight,
     this.suggestedFilename,
     this.onIntrinsicLayout,
+    this.onOpenOverride,
   });
 
   final String url;
@@ -346,6 +356,9 @@ class TenantChatMemoryVideo extends StatefulWidget {
   final int? attachmentHeight;
   final String? suggestedFilename;
   final VoidCallback? onIntrinsicLayout;
+
+  /// Replaces the default single-item viewer, e.g. to open a thread album.
+  final VoidCallback? onOpenOverride;
 
   @override
   State<TenantChatMemoryVideo> createState() => _TenantChatMemoryVideoState();
@@ -430,6 +443,11 @@ class _TenantChatMemoryVideoState extends State<TenantChatMemoryVideo>
     final path = tenantChatNativeFilePath(ds);
     await _video?.pause();
     if (!mounted) return;
+    final override = widget.onOpenOverride;
+    if (override != null) {
+      override();
+      return;
+    }
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (ctx) => TeamChatMediaViewerScreen.video(

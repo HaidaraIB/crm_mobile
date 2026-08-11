@@ -8,6 +8,7 @@ import '../../screens/team_chat/team_chat_media.dart';
 import '../../services/api_service.dart';
 import '../../utils/whatsapp_formatted_text.dart';
 import '../../utils/whatsapp_message_body_localize.dart';
+import '../../utils/whatsapp_meta_error_display.dart';
 import 'whatsapp_chat_theme.dart';
 import 'whatsapp_phone_text.dart';
 import 'whatsapp_status_widgets.dart';
@@ -19,12 +20,17 @@ class WhatsAppMessageBubble extends StatelessWidget {
     this.connectedPhoneNumberId,
     this.onResend,
     this.onDelete,
+    this.onOpenAlbum,
   });
 
   final LeadWhatsAppMessageModel message;
   final String? connectedPhoneNumberId;
   final VoidCallback? onResend;
   final VoidCallback? onDelete;
+
+  /// Opens the thread's media album at this message. When null, the media
+  /// widgets fall back to their single-item viewer.
+  final VoidCallback? onOpenAlbum;
 
   @override
   Widget build(BuildContext context) {
@@ -123,7 +129,7 @@ class WhatsAppMessageBubble extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
-                      message.deliveryError!,
+                      localizeMetaDeliveryError(message.deliveryError, t),
                       style: TextStyle(
                         fontSize: 11,
                         color: isOut ? Colors.white.withValues(alpha: 0.9) : Colors.red.shade300,
@@ -244,6 +250,7 @@ class WhatsAppMessageBubble extends StatelessWidget {
               attachmentWidth: message.attachmentWidth,
               attachmentHeight: message.attachmentHeight,
               suggestedFilename: message.originalFilename,
+              onOpenOverride: onOpenAlbum,
             ),
             if (message.body.isNotEmpty) ...[
               const SizedBox(height: 4),
@@ -260,6 +267,8 @@ class WhatsAppMessageBubble extends StatelessWidget {
           url: url,
           attachmentWidth: message.attachmentWidth,
           attachmentHeight: message.attachmentHeight,
+          suggestedFilename: message.originalFilename,
+          onOpenOverride: onOpenAlbum,
         );
       }
       if (kind == 'audio') {

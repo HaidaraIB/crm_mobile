@@ -1,4 +1,5 @@
 import '../../models/lead_whatsapp_message_model.dart';
+import '../../models/whatsapp_account_status_model.dart';
 import '../../models/whatsapp_conversation_model.dart';
 import '../../models/whatsapp_template_model.dart';
 import '../../services/api_service.dart';
@@ -36,6 +37,7 @@ abstract class WhatsAppChatRepository {
   Future<Map<String, dynamic>?> getContactByPhone(String phone);
   Future<List<WhatsAppTemplateModel>> getApprovedTemplates();
   Future<String?> getConnectedPhoneNumberId();
+  Future<WhatsAppAccountStatus?> getAccountStatus();
   String attachmentUrl(int messageId);
 }
 
@@ -137,6 +139,10 @@ class ApiWhatsAppChatRepository implements WhatsAppChatRepository {
   @override
   Future<String?> getConnectedPhoneNumberId() =>
       _api.getConnectedWhatsAppPhoneNumberId();
+
+  @override
+  Future<WhatsAppAccountStatus?> getAccountStatus() =>
+      _api.getWhatsAppAccountStatus();
 
   @override
   String attachmentUrl(int messageId) => _api.whatsappMessageAttachmentUrl(messageId);

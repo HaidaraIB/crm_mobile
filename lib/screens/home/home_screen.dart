@@ -9,6 +9,7 @@ import '../../services/team_chat_away_service.dart';
 import '../../services/team_chat_unread_holder.dart';
 import '../../services/whatsapp_chat_unread_holder.dart';
 import '../../services/whatsapp_chat_unread_poller.dart';
+import '../../utils/whatsapp_access.dart';
 import '../../widgets/navigation_drawer.dart';
 import '../../widgets/bottom_navigation.dart';
 import '../calendar/calendar_screen.dart';
@@ -46,16 +47,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   bool get _isDataEntry => _sessionUser?.isDataEntry ?? false;
 
-  /// Gate the WhatsApp Chats app bar icon: always visible for admin/owner; supervisors need
-  /// `can_manage_whatsapp_chats`; other staff need `whatsapp_chat_enabled` (defaults true).
-  bool _canAccessWhatsAppChats(UserModel? user) {
-    if (user == null) return false;
-    if (user.isAdmin) return true;
-    if (user.isSupervisor) {
-      return user.hasSupervisorPermission('can_manage_whatsapp_chats');
-    }
-    return user.whatsappChatEnabled;
-  }
+  /// Gate the WhatsApp Chats app bar icon. See `utils/whatsapp_access.dart`.
+  bool _canAccessWhatsAppChats(UserModel? user) => canAccessWhatsAppChats(user);
 
   @override
   void initState() {
@@ -115,6 +108,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         }
       });
       TeamChatAwayService.instance.start();
+      // New session: clear any access-denied latch from a previous account.
+      WhatsAppChatUnreadPoller.instance.reset();
       if (_canAccessWhatsAppChats(user)) {
         WhatsAppChatUnreadPoller.instance.start();
       }

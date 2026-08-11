@@ -22,13 +22,16 @@ class TeamChatMediaViewerScreen extends StatefulWidget {
     this.imageUrl,
     this.imageFilePath,
     this.videoFilePath,
+    this.videoUrl,
     this.suggestedFilename,
+    this.titleSuffix,
   }) : assert(
           [
             imageBytes != null,
             imageUrl != null,
             imageFilePath != null,
             videoFilePath != null,
+            videoUrl != null,
           ].where((x) => x).length ==
               1,
         );
@@ -49,11 +52,28 @@ class TeamChatMediaViewerScreen extends StatefulWidget {
     Key? key,
     required String imageUrl,
     String? suggestedFilename,
+    String? titleSuffix,
   }) {
     return TeamChatMediaViewerScreen._(
       key: key,
       imageUrl: imageUrl,
       suggestedFilename: suggestedFilename,
+      titleSuffix: titleSuffix,
+    );
+  }
+
+  /// Authenticated remote video: downloaded to a temp file, then played.
+  factory TeamChatMediaViewerScreen.networkVideo({
+    Key? key,
+    required String videoUrl,
+    String? suggestedFilename,
+    String? titleSuffix,
+  }) {
+    return TeamChatMediaViewerScreen._(
+      key: key,
+      videoUrl: videoUrl,
+      suggestedFilename: suggestedFilename,
+      titleSuffix: titleSuffix,
     );
   }
 
@@ -85,7 +105,11 @@ class TeamChatMediaViewerScreen extends StatefulWidget {
   final String? imageUrl;
   final String? imageFilePath;
   final String? videoFilePath;
+  final String? videoUrl;
   final String? suggestedFilename;
+
+  /// Appended to the app bar title, e.g. "3 / 12" when viewing an album.
+  final String? titleSuffix;
 
   bool get isImage =>
       imageBytes != null || imageUrl != null || imageFilePath != null;
@@ -138,10 +162,26 @@ class _TeamChatMediaViewerScreenState extends State<TeamChatMediaViewerScreen> {
     }
   }
 
+  /// Local path of the video being shown — downloaded first for remote videos.
+  String? _resolvedVideoPath;
+
   Future<void> _initVideo() async {
-    final raw = widget.videoFilePath;
-    if (raw == null) return;
-    final path = tenantChatNativeFilePath(raw);
+    final String path;
+    if (widget.videoUrl != null) {
+      try {
+        final downloaded = await _downloadVideo(widget.videoUrl!);
+        if (!mounted) return;
+        path = downloaded;
+      } catch (_) {
+        if (mounted) setState(() => _videoFailed = true);
+        return;
+      }
+    } else {
+      final raw = widget.videoFilePath;
+      if (raw == null) return;
+      path = tenantChatNativeFilePath(raw);
+    }
+    _resolvedVideoPath = path;
     final vc = VideoPlayerController.file(File(path));
     try {
       await vc.initialize();
@@ -273,10 +313,30 @@ class _TeamChatMediaViewerScreenState extends State<TeamChatMediaViewerScreen> {
     }
   }
 
+  Future<String> _downloadVideo(String url) async {
+    final bytes = await ApiService().fetchAuthenticatedBinaryGet(url);
+    final dir = await getTemporaryDirectory();
+    var ext = _saveExtFromVideoUrl(url);
+    final f = File(
+      '${dir.path}/chat_vid_${DateTime.now().millisecondsSinceEpoch}$ext',
+    );
+    await f.writeAsBytes(bytes, flush: true);
+    return f.path;
+  }
+
+  String _saveExtFromVideoUrl(String url) {
+    final seg = Uri.parse(url).path.split('/').last.toLowerCase();
+    final d = seg.lastIndexOf('.');
+    final e = d >= 0 ? seg.substring(d) : '';
+    return (e.isEmpty || e == '.') ? '.mp4' : e;
+  }
+
   Future<void> _saveVideo() async {
-    final raw = widget.videoFilePath;
-    if (raw == null) return;
-    final path = tenantChatNativeFilePath(raw);
+    final path = _resolvedVideoPath ??
+        (widget.videoFilePath != null
+            ? tenantChatNativeFilePath(widget.videoFilePath!)
+            : null);
+    if (path == null) return;
     final loc = AppLocalizations.of(context);
     try {
       await _ensureGalleryAccess();
@@ -316,9 +376,12 @@ class _TeamChatMediaViewerScreenState extends State<TeamChatMediaViewerScreen> {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
-    final title = widget.isImage
+    final baseTitle = widget.isImage
         ? (loc?.translate('teamChatMediaPhoto') ?? 'Photo')
         : (loc?.translate('teamChatMediaVideo') ?? 'Video');
+    final title = widget.titleSuffix == null
+        ? baseTitle
+        : '$baseTitle  ${widget.titleSuffix}';
     final saveLabel = loc?.translate('teamChatSaveToGallery') ?? 'Save to gallery';
 
     return Scaffold(

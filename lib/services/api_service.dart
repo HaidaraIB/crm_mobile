@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/api/api_envelope.dart';
 import '../core/api/api_exceptions.dart';
@@ -19,6 +21,7 @@ import '../models/lead_model.dart';
 import '../models/dashboard_summary_model.dart';
 import '../models/user_model.dart';
 import '../models/settings_model.dart';
+import '../models/company_library_file_model.dart';
 import '../models/client_task_model.dart';
 import '../models/client_call_model.dart';
 import '../models/client_visit_model.dart';
@@ -26,6 +29,7 @@ import '../models/client_field_visit_model.dart';
 import '../models/client_event_model.dart';
 import '../models/lead_sms_message_model.dart';
 import '../models/lead_whatsapp_message_model.dart';
+import '../models/whatsapp_account_status_model.dart';
 import '../models/whatsapp_conversation_model.dart';
 import '../models/whatsapp_template_model.dart';
 import '../models/task_model.dart';
@@ -141,6 +145,14 @@ class SmsException implements Exception {
   final String fallbackMessage;
   @override
   String toString() => fallbackMessage;
+}
+
+/// The signed-in user's WhatsApp chat access is switched off (HTTP 403).
+/// Not a transient failure — pollers should stop rather than retry.
+class WhatsAppAccessDeniedException implements Exception {
+  const WhatsAppAccessDeniedException();
+  @override
+  String toString() => 'WhatsApp chat access is disabled for this account';
 }
 
 class ApiService {
@@ -2378,6 +2390,7 @@ class ApiService {
   }
 
   /// GET /integrations/whatsapp/unread-count/
+  /// Throws [WhatsAppAccessDeniedException] on 403 so pollers can stop themselves.
   Future<int> getWhatsAppUnreadCount() async {
     try {
       final response = await _makeRequest(
@@ -2385,9 +2398,12 @@ class ApiService {
         '/integrations/whatsapp/unread-count/',
         timeout: const Duration(seconds: 10),
       );
+      if (response.statusCode == 403) throw const WhatsAppAccessDeniedException();
       if (response.statusCode != 200) return 0;
       final data = _unwrapResponseMap(response);
       return (data['unread_count'] as num?)?.toInt() ?? 0;
+    } on WhatsAppAccessDeniedException {
+      rethrow;
     } catch (_) {
       return 0;
     }
@@ -2407,6 +2423,56 @@ class ApiService {
     } catch (_) {
       return WhatsAppSessionWindow.closed;
     }
+  }
+
+  /// GET /company-library/ — shared tenant files, for attaching in chats.
+  ///
+  /// `page=1` stops [_makeRequest] auto-merging every page; the web picker uses
+  /// the same 200-item window.
+  Future<List<CompanyLibraryFileModel>> listCompanyLibrary({
+    String? search,
+    int pageSize = 200,
+  }) async {
+    final parts = <String>['page=1', 'page_size=$pageSize'];
+    final q = (search ?? '').trim();
+    if (q.isNotEmpty) parts.add('search=${Uri.encodeComponent(q)}');
+    final response = await _makeRequest(
+      'GET',
+      '/company-library/?${parts.join('&')}',
+      timeout: const Duration(seconds: 20),
+    );
+    if (response.statusCode != 200) {
+      throw Exception(_translateError('libraryCouldNotLoad', locale: null));
+    }
+    final decoded = _unwrapResponseDynamic(response);
+    final list = decoded is List
+        ? decoded
+        : (decoded is Map ? decoded['results'] as List? : null);
+    return (list ?? [])
+        .whereType<Map>()
+        .map((e) =>
+            CompanyLibraryFileModel.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+  }
+
+  /// Downloads a library file to a temp path so it can be sent as a WhatsApp
+  /// attachment. Returns the local file path.
+  Future<String> downloadCompanyLibraryFile(
+    int id,
+    String originalFilename,
+  ) async {
+    final cleanBaseUrl =
+        baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final bytes = await fetchAuthenticatedBinaryGet(
+      '$cleanBaseUrl/company-library/$id/download/',
+    );
+    final dir = await getTemporaryDirectory();
+    final safeName = originalFilename.trim().isEmpty
+        ? 'library_$id'
+        : originalFilename.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+    final file = File('${dir.path}/wa_lib_${id}_$safeName');
+    await file.writeAsBytes(bytes, flush: true);
+    return file.path;
   }
 
   /// Absolute URL for `GET whatsapp/messages/<pk>/attachment/`, for use with
@@ -2579,6 +2645,17 @@ class ApiService {
 
   /// Connected WhatsApp account phone_number_id (for “via previous number” badge).
   Future<String?> getConnectedWhatsAppPhoneNumberId() async {
+    final status = await getWhatsAppAccountStatus();
+    return status?.phoneNumberId;
+  }
+
+  /// Connected WhatsApp account, incl. Meta display-name approval state.
+  ///
+  /// Mirrors the web dashboard's `useConnectedAccounts('whatsapp')` gate: the
+  /// composer must warn *before* a send fails when there is no connected
+  /// account or Meta has not approved the display name.
+  /// Returns null when no WhatsApp account exists at all.
+  Future<WhatsAppAccountStatus?> getWhatsAppAccountStatus() async {
     try {
       final response = await _makeRequest(
         'GET',
@@ -2590,27 +2667,22 @@ class ApiService {
       final list = decoded is List
           ? decoded
           : (decoded is Map ? decoded['results'] as List? : null);
+
+      WhatsAppAccountStatus? fallback;
       for (final raw in list ?? []) {
-        final m = Map<String, dynamic>.from(raw as Map);
+        if (raw is! Map) continue;
+        final m = Map<String, dynamic>.from(raw);
         final platform = (m['platform'] ?? m['provider'] ?? m['type'] ?? '')
             .toString()
             .toLowerCase();
-        final connected = m['is_connected'] == true ||
-            m['connected'] == true ||
-            (m['status']?.toString().toLowerCase() == 'connected');
         if (!platform.contains('whatsapp') && platform != 'wa') continue;
-        if (!connected && m['phone_number_id'] == null) {
-          // Still try metadata
-        }
-        final pnid = m['phone_number_id']?.toString() ??
-            (m['metadata'] is Map
-                ? (m['metadata'] as Map)['phone_number_id']?.toString()
-                : null) ??
-            (m['extra_data'] is Map
-                ? (m['extra_data'] as Map)['phone_number_id']?.toString()
-                : null);
-        if (pnid != null && pnid.isNotEmpty) return pnid;
+
+        final status = WhatsAppAccountStatus.fromJson(m);
+        // Prefer an account we can actually send from.
+        if (status.connected && status.phoneNumberId != null) return status;
+        fallback ??= status;
       }
+      return fallback;
     } catch (_) {}
     return null;
   }

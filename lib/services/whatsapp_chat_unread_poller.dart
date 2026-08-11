@@ -14,9 +14,12 @@ class WhatsAppChatUnreadPoller {
   Timer? _timer;
   bool _foreground = true;
   bool _started = false;
+  /// Set after a 403: this account cannot use WhatsApp chats, so stay off until
+  /// the next sign-in (`reset()`), instead of re-asking on every resume.
+  bool _accessDenied = false;
 
   void start() {
-    if (_started) return;
+    if (_started || _accessDenied) return;
     _started = true;
     unawaited(refresh());
     _timer?.cancel();
@@ -31,15 +34,26 @@ class WhatsAppChatUnreadPoller {
     _started = false;
   }
 
+  /// Clear the access-denied latch (call on sign-in / user switch).
+  void reset() {
+    _accessDenied = false;
+  }
+
   void setForeground(bool value) {
     _foreground = value;
-    if (value) unawaited(refresh());
+    if (value && _started && !_accessDenied) unawaited(refresh());
   }
 
   Future<void> refresh() async {
     try {
       final n = await _api.getWhatsAppUnreadCount();
       WhatsAppChatUnreadHolder.setTotal(n);
+    } on WhatsAppAccessDeniedException {
+      // Access was switched off for this account — retrying every 15s only
+      // spams the server log. Next sign-in re-evaluates and may start again.
+      _accessDenied = true;
+      WhatsAppChatUnreadHolder.setTotal(0);
+      stop();
     } catch (e) {
       debugPrint('WhatsApp unread poll failed: $e');
     }

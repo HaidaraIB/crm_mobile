@@ -4,6 +4,7 @@ import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../utils/whatsapp_thread_items.dart';
 import 'whatsapp_chat_theme.dart';
+import 'whatsapp_phone_text.dart';
 
 class WhatsAppStatusSeparator extends StatelessWidget {
   const WhatsAppStatusSeparator({super.key, required this.item});
@@ -57,47 +58,59 @@ class WhatsAppStatusSeparator extends StatelessWidget {
   }
 }
 
+/// Top-of-thread warning shown only while the 24-hour window is closed.
+///
+/// The open-session case is a light caption above the composer
+/// ([WhatsAppSessionOpenHint]) rather than a banner, matching the web composer
+/// and keeping the thread's vertical space for messages.
 class WhatsAppSessionBanner extends StatelessWidget {
-  const WhatsAppSessionBanner({
-    super.key,
-    required this.inSession,
-    this.hoursRemaining,
-  });
+  const WhatsAppSessionBanner({super.key, required this.inSession});
 
   final bool inSession;
+
+  @override
+  Widget build(BuildContext context) {
+    if (inSession) return const SizedBox.shrink();
+    final loc = AppLocalizations.of(context);
+    final colors = WhatsAppChatColors.of(context);
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: colors.sessionWarnBg,
+        border: Border(
+          bottom: BorderSide(color: colors.sessionWarnBorder),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Text(
+        loc?.translate('whatsappSessionClosedHint') ??
+            'No customer message in the last 24 hours. Only approved templates can be sent.',
+        style: TextStyle(fontSize: 12, color: colors.sessionWarnFg, height: 1.35),
+      ),
+    );
+  }
+}
+
+/// "~Nh left in session" caption, rendered just above the composer.
+class WhatsAppSessionOpenHint extends StatelessWidget {
+  const WhatsAppSessionOpenHint({super.key, required this.hoursRemaining});
+
   final double? hoursRemaining;
 
   @override
   Widget build(BuildContext context) {
-    final loc = AppLocalizations.of(context);
-    final colors = WhatsAppChatColors.of(context);
-    if (!inSession) {
-      return Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: colors.sessionWarnBg,
-          border: Border(
-            bottom: BorderSide(color: colors.sessionWarnBorder),
-          ),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Text(
-          loc?.translate('whatsappSessionClosedHint') ??
-              'No customer message in the last 24 hours. Only approved templates can be sent.',
-          style: TextStyle(fontSize: 12, color: colors.sessionWarnFg, height: 1.35),
-        ),
-      );
-    }
     final h = hoursRemaining;
     if (h == null) return const SizedBox.shrink();
+    final loc = AppLocalizations.of(context);
+    final colors = WhatsAppChatColors.of(context);
     final hoursLabel = h >= 10 ? h.round().toString() : h.toStringAsFixed(1);
     final text = (loc?.translate('whatsappSessionOpenHint') ??
             'Free-form messages are allowed for about {h} more hour(s).')
-        .replaceAll('{h}', hoursLabel);
+        .replaceAll('{h}', withLatinDigits(hoursLabel));
     return Container(
       width: double.infinity,
-      color: colors.sessionInfoBg,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      color: colors.composerBg,
+      padding: const EdgeInsets.fromLTRB(14, 4, 14, 0),
       child: Text(
         text,
         style: TextStyle(fontSize: 11, color: colors.sessionInfoFg),
