@@ -48,22 +48,37 @@ String replaceWhatsAppTemplatePlaceholders(
   String? customerName,
   String? phone,
   String? employeeName,
+  /// `meta_variable_map.body`: the CRM variable behind each Meta `{{n}}`, in order.
+  /// Meta freezes that numbering at approval, so it beats guessing by position.
+  List<String> bodyVariables = const [],
 }) {
-  final name = (customerName ?? '').trim();
-  final phoneVal = (phone ?? '').trim();
-  final employee = (employeeName ?? '').trim();
+  final values = {
+    'customer_name': (customerName ?? '').trim(),
+    'phone': (phone ?? '').trim(),
+    'employee_name': (employeeName ?? '').trim(),
+  };
+  final name = values['customer_name']!;
+  final phoneVal = values['phone']!;
 
-  var out = _renderAliases(content, {
-    'customer_name': name,
-    'phone': phoneVal,
-    'employee_name': employee,
-  });
+  var out = _renderAliases(content, values);
 
-  out = out.replaceAll('{{1}}', name.isNotEmpty ? name : phoneVal);
+  if (bodyVariables.isNotEmpty) {
+    out = out.replaceAllMapped(RegExp(r'\{\{\s*(\d+)\s*\}\}'), (m) {
+      final idx = (int.tryParse(m.group(1) ?? '') ?? 0) - 1;
+      if (idx < 0 || idx >= bodyVariables.length) return m.group(0)!;
+      // Unknown or empty variable: leave the token rather than substitute a
+      // different field — that is what made {{1}} show the customer's name.
+      final value = values[bodyVariables[idx]];
+      return (value == null || value.isEmpty) ? m.group(0)! : value;
+    });
+  } else {
+    out = out.replaceAll('{{1}}', name.isNotEmpty ? name : phoneVal);
+  }
+
   out = out.replaceAll('{{customer_name}}', name);
   out = out.replaceAll('{{phone}}', phoneVal);
-  if (employee.isNotEmpty) {
-    out = out.replaceAll('{{employee_name}}', employee);
+  if (values['employee_name']!.isNotEmpty) {
+    out = out.replaceAll('{{employee_name}}', values['employee_name']!);
   }
   return out;
 }

@@ -1,6 +1,7 @@
 import '../core/localization/app_localizations.dart';
 import '../models/settings_model.dart';
 import '../models/user_model.dart';
+import 'whatsapp_message_body_localize.dart';
 
 typedef TimelineTranslate = String Function(String key);
 
@@ -49,6 +50,22 @@ const _eventTypeActionKeys = <String, String>{
   'edit': 'leadEdited',
   're_assignment': 'leadReAssigned',
   'created': 'timelineEventCreated',
+  'whatsapp_message': 'whatsappReceived',
+};
+
+const _waMessageTypeKeys = <String, String>{
+  'text': 'whatsappMessageType_text',
+  'image': 'whatsappMessageType_image',
+  'video': 'whatsappMessageType_video',
+  'audio': 'whatsappMessageType_audio',
+  'document': 'whatsappMessageType_document',
+  'sticker': 'whatsappMessageType_sticker',
+  'location': 'whatsappMessageType_location',
+  'contacts': 'whatsappMessageType_contacts',
+  'interactive': 'whatsappMessageType_interactive',
+  'button': 'whatsappMessageType_button',
+  'reaction': 'whatsappMessageType_reaction',
+  'unknown': 'whatsappMessageType_unknown',
 };
 
 const _sourceValueKeys = <String, String>{
@@ -297,13 +314,17 @@ String inferValueHintFromEditNotes(String? notes) {
   if (eventType == 'created') hint = 'generic';
   if (eventType == 'edit') hint = inferValueHintFromEditNotes(notes);
 
+  String? formatOne(String? value) {
+    if (value == null || value.isEmpty) return null;
+    if (eventType == 'whatsapp_message') {
+      return localizeWhatsAppMessageBody(value, ctx.t);
+    }
+    return formatTimelineEventValue(value, ctx, hint: hint);
+  }
+
   return (
-    oldFormatted: oldValue != null && oldValue.isNotEmpty
-        ? formatTimelineEventValue(oldValue, ctx, hint: hint)
-        : null,
-    newFormatted: newValue != null && newValue.isNotEmpty
-        ? formatTimelineEventValue(newValue, ctx, hint: hint)
-        : null,
+    oldFormatted: formatOne(oldValue),
+    newFormatted: formatOne(newValue),
   );
 }
 
@@ -425,6 +446,30 @@ String localizeTimelineEventNotes(
       }
       return '${_tr(t, 'bulkAssignedTo')} $newVal';
     }
+  }
+
+  final receivedMatch = RegExp(
+    r'^WhatsApp message received:\s*(.+)$',
+    caseSensitive: false,
+  ).firstMatch(trimmed);
+  if (receivedMatch != null || eventType == 'whatsapp_message') {
+    if (RegExp(r'coexistence echo|WhatsApp Business app message',
+            caseSensitive: false)
+        .hasMatch(trimmed)) {
+      return _tr(t, 'timelineWhatsAppCoexistenceEcho');
+    }
+    if (receivedMatch != null) {
+      final typeRaw = receivedMatch.group(1)!.trim().toLowerCase();
+      final typeKey = _waMessageTypeKeys[typeRaw];
+      final typeLabel =
+          typeKey != null ? _tr(t, typeKey) : receivedMatch.group(1)!.trim();
+      return '${_tr(t, 'timelineWhatsAppMessageReceived')}: $typeLabel';
+    }
+  }
+
+  if (RegExp(r'^Client created for WhatsApp conversation$', caseSensitive: false)
+      .hasMatch(trimmed)) {
+    return _tr(t, 'timelineLeadFromWhatsapp');
   }
 
   return trimmed;

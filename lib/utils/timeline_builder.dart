@@ -13,6 +13,7 @@ import '../models/timeline_entry.dart';
 import '../models/user_model.dart';
 import 'timeline_date_format.dart';
 import 'timeline_events.dart';
+import 'whatsapp_message_body_localize.dart';
 
 class TimelineBuilderInput {
   final List<ClientTaskModel> tasks;
@@ -427,7 +428,7 @@ List<TimelineEntry> buildLeadTimeline(TimelineBuilderInput input) {
       type: TimelineEntryType.whatsapp,
       user: actor.name,
       action: isInbound ? _tr(t, 'whatsappReceived') : _tr(t, 'whatsappSent'),
-      details: wa.body,
+      details: localizeWhatsAppMessageBody(wa.body, t),
       date: formatTimelineDate(wa.createdAt, locale),
       timestamp: wa.createdAt.millisecondsSinceEpoch,
       stage: wa.phoneNumber.isNotEmpty ? wa.phoneNumber : null,

@@ -17,6 +17,7 @@ import '../../core/localization/app_localizations.dart';
 import '../../features/whatsapp_chat/cubit/whatsapp_chat_thread_cubit.dart';
 import '../../features/whatsapp_chat/cubit/whatsapp_chat_thread_state.dart';
 import '../../features/whatsapp_chat/whatsapp_chat_repository.dart';
+import '../../models/whatsapp_template_model.dart';
 import '../../services/api_service.dart';
 import '../../utils/compress_image_for_chat.dart';
 import '../../utils/whatsapp_chat_media_album.dart';
@@ -406,7 +407,7 @@ class _WhatsAppChatThreadViewState extends State<_WhatsAppChatThreadView>
                                           await cubit.sendTemplate(tpl.id);
                                           return;
                                         }
-                                        _insertTemplate(tpl.content);
+                                        _insertTemplate(tpl);
                                       },
                                 onLongPress: state.sending || blockFreeText
                                     ? null
@@ -519,7 +520,7 @@ class _WhatsAppChatThreadViewState extends State<_WhatsAppChatThreadView>
                 ),
                 visualDensity: VisualDensity.compact,
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                onPressed: () => _insertTemplate(tpl.content),
+                onPressed: () => _insertTemplate(tpl),
               );
             },
           ),
@@ -530,12 +531,13 @@ class _WhatsAppChatThreadViewState extends State<_WhatsAppChatThreadView>
 
   /// Fills placeholders and drops the text into the composer, leaving the user
   /// free to edit before sending.
-  void _insertTemplate(String content) {
+  void _insertTemplate(WhatsAppTemplateModel tpl) {
     final resolved = replaceWhatsAppTemplatePlaceholders(
-      content,
+      tpl.content,
       customerName: widget.clientName,
       phone: widget.phoneNumber,
       employeeName: _employeeName,
+      bodyVariables: tpl.bodyVariables,
     );
     _controller.text = resolved;
     _controller.selection = TextSelection.fromPosition(
