@@ -83,22 +83,6 @@ class AppLocalizations {
       "passwordRequired": "Password is required",
       "passwordMinLength": "Password must be at least 8 characters",
       "passwordRequirements": "Password must be at least 8 characters",
-      "paymentRequiredTitle": "Complete Payment",
-      "paymentRequiredMessage":
-          "Your subscription requires payment to activate. Open the payment page, complete the payment, then return here and tap \"I've completed payment\".",
-      "openPaymentPage": "Open payment page",
-      "iveCompletedPayment": "I've completed payment",
-      "checkingPaymentStatus": "Checking payment status...",
-      "paymentNotActiveYet":
-          "Payment not active yet. Please complete the payment or wait a moment and try again.",
-      "paymentSuccessGoingToApp":
-          "Payment successful! Taking you to the app...",
-      "paymentSessionError": "Could not open payment page. Please try again.",
-      "loadingPaymentLink": "Loading payment link...",
-      "selectPaymentMethod": "Select Payment Method",
-      "noPaymentGatewaysAvailable": "No payment gateways available",
-      "paymentCompletePleaseLogin":
-          "Payment completed. Please log in to continue.",
       "changePlanOrBilling": "Change plan or billing cycle",
       "confirmPlanSelection": "Confirm selection",
       'appName': 'LOOP CRM',
@@ -502,12 +486,7 @@ class AppLocalizations {
           'Invalid credentials. Please go back and check your username and password.',
       'userNotFound': 'User not found',
       'subscriptionNotActive':
-          'Your subscription is not active. Please contact support or Complete Your Payment to access the system.',
-      'subscriptionNotActiveBeforeLink':
-          'Your subscription is not active. Please contact support or ',
-      'subscriptionNotActiveLink': 'Complete Your Payment',
-      'subscriptionNotActiveAfterLink': ' to access the system.',
-      'unableToOpenPayment': 'Unable to open payment. Please try again.',
+          'Your subscription is not active. Please renew it from the web dashboard or contact support to access the system.',
       'anErrorOccurred': 'An error occurred. Please try again.',
       // Settings
       'settings': 'Settings',
@@ -917,7 +896,7 @@ class AppLocalizations {
       'requestTimedOut': 'Request timed out',
       'sessionExpired': 'Session expired. Please login again.',
       'subscriptionInactive':
-          'Your subscription is not active. Please contact support or renew.',
+          'Your subscription is not active. Please renew it from the web dashboard or contact support.',
       'missingApiKey': 'Missing API key. Please check your .env file.',
       'loginFailed': 'Login failed',
       'loginFailedWithStatus': 'Login failed with status',
@@ -1514,21 +1493,6 @@ class AppLocalizations {
       "passwordRequired": "كلمة المرور مطلوبة",
       "passwordMinLength": "يجب أن تكون كلمة المرور 8 أحرف على الأقل",
       "passwordRequirements": "يجب أن تكون كلمة المرور 8 أحرف على الأقل",
-      "paymentRequiredTitle": "إتمام الدفع",
-      "paymentRequiredMessage":
-          "اشتراكك يتطلب الدفع لتفعيله. افتح صفحة الدفع وأكمل الدفع، ثم ارجع هنا واضغط \"أكملت الدفع\".",
-      "openPaymentPage": "فتح صفحة الدفع",
-      "iveCompletedPayment": "أكملت الدفع",
-      "checkingPaymentStatus": "جاري التحقق من حالة الدفع...",
-      "paymentNotActiveYet":
-          "الدفع غير مفعّل بعد. يرجى إتمام الدفع أو الانتظار قليلاً والمحاولة مرة أخرى.",
-      "paymentSuccessGoingToApp": "تم الدفع بنجاح! جاري نقلك إلى التطبيق...",
-      "paymentSessionError": "تعذر فتح صفحة الدفع. يرجى المحاولة مرة أخرى.",
-      "loadingPaymentLink": "جاري تحميل رابط الدفع...",
-      "selectPaymentMethod": "اختر طريقة الدفع",
-      "noPaymentGatewaysAvailable": "لا توجد بوابات دفع متاحة",
-      "paymentCompletePleaseLogin":
-          "تم إتمام الدفع. يرجى تسجيل الدخول للمتابعة.",
       "changePlanOrBilling": "تغيير الخطة أو دورة الفوترة",
       "confirmPlanSelection": "تأكيد الاختيار",
       'appName': 'LOOP CRM',
@@ -1927,12 +1891,7 @@ class AppLocalizations {
           'بيانات الاعتماد غير صحيحة. يرجى العودة والتحقق من اسم المستخدم وكلمة المرور.',
       'userNotFound': 'المستخدم غير موجود',
       'subscriptionNotActive':
-          'اشتراكك غير نشط. يرجى الاتصال بالدعم أو إتمام الدفع للوصول إلى النظام.',
-      'subscriptionNotActiveBeforeLink':
-          'اشتراكك غير نشط. يرجى الاتصال بالدعم أو ',
-      'subscriptionNotActiveLink': 'إتمام الدفع',
-      'subscriptionNotActiveAfterLink': ' للوصول إلى النظام.',
-      'unableToOpenPayment': 'تعذر فتح صفحة الدفع. يرجى المحاولة مرة أخرى.',
+          'اشتراكك غير نشط. يرجى تجديده من لوحة التحكم على الويب أو التواصل مع الدعم للوصول إلى النظام.',
       'anErrorOccurred': 'حدث خطأ. يرجى المحاولة مرة أخرى.',
       // Settings
       'settings': 'الإعدادات',
@@ -2341,7 +2300,7 @@ class AppLocalizations {
       'requestTimedOut': 'انتهت مهلة الطلب',
       'sessionExpired': 'انتهت الجلسة. يرجى تسجيل الدخول مرة أخرى.',
       'subscriptionInactive':
-          'اشتراكك غير نشط. يرجى التواصل مع الدعم أو التجديد.',
+          'اشتراكك غير نشط. يرجى تجديده من لوحة التحكم على الويب أو التواصل مع الدعم.',
       'missingApiKey': 'مفتاح API مفقود. يرجى التحقق من ملف .env الخاص بك.',
       'loginFailed': 'فشل تسجيل الدخول',
       'loginFailedWithStatus': 'فشل تسجيل الدخول مع الحالة',

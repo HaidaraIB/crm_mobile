@@ -12,7 +12,6 @@ import '../../services/maintenance_gate.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../login/login_screen.dart';
 import '../home/home_screen.dart';
-import '../payment/subscription_payment_screen.dart';
 import 'force_update_screen.dart';
 import 'maintenance_screen.dart';
 
@@ -121,11 +120,13 @@ class _SplashScreenState extends State<SplashScreen>
         final subscription = user.company?.subscription;
         final subscriptionActive = subscription?.isActive == true;
         if (subscription != null && !subscriptionActive) {
+          // The app cannot renew a subscription — that happens on the web
+          // dashboard — so send the user back to login with an explanation
+          // rather than into a Home screen the backend will reject.
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (_) => SubscriptionPaymentScreen(
-                subscriptionId: subscription.id,
-                planId: subscription.plan?.id,
+              builder: (_) => const LoginScreen(
+                logoutReason: 'subscription_inactive',
               ),
             ),
           );

@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/app_constants.dart';
@@ -18,7 +17,6 @@ import '../../widgets/login_verification_gate_card.dart';
 import '../../models/user_model.dart';
 import '../home/home_screen.dart';
 import '../two_factor_auth/two_factor_auth_screen.dart';
-import '../payment/subscription_payment_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   /// When set (e.g. after auto-logout), a message is shown to the user.
@@ -37,7 +35,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   String? _errorMessage;
-  bool _isSubscriptionError = false;
   LoginVerificationRequiredException? _verificationGate;
 
   @override
@@ -66,21 +63,17 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  /// استخراج subscriptionId من استثناء الاشتراك غير المفعل (يرسله الـ API مع 403)
-  int? _getSubscriptionId(Object e) {
+  /// هل يحمل الاستثناء subscriptionId؟ (يرسله الـ API مع 403 للاشتراك غير المفعل)
+  /// يُستخدم للتعرّف على خطأ الاشتراك فقط — التجديد يتم من لوحة التحكم على الويب.
+  bool _hasSubscriptionId(Object e) {
     if (e is SubscriptionInactiveException) {
-      return e.subscriptionId;
+      return e.subscriptionId != null;
     }
     try {
       final dynamic err = e;
-      final v = err.subscriptionId;
-      if (v == null) return null;
-      if (v is int) return v;
-      if (v is num) return v.toInt();
-      if (v is String) return int.tryParse(v);
-      return null;
+      return err.subscriptionId != null;
     } catch (_) {
-      return null;
+      return false;
     }
   }
 
@@ -90,7 +83,6 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
-      _isSubscriptionError = false;
       _verificationGate = null;
     });
 
@@ -145,7 +137,6 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() {
           _verificationGate = e;
           _errorMessage = null;
-          _isSubscriptionError = false;
           _isLoading = false;
         });
         return;
@@ -161,7 +152,6 @@ class _LoginScreenState extends State<LoginScreen> {
       // Determine error type by checking the error message content
       // We don't access .code property to avoid NoSuchMethodError
       final lowerError = cleanError.toLowerCase();
-      bool isSubscriptionError = false;
 
       // Check for network/offline errors first (ClientException, SocketException, host lookup, etc.)
       if (lowerError.contains('socketexception') ||
@@ -183,24 +173,11 @@ class _LoginScreenState extends State<LoginScreen> {
             AppLocalizations.of(context)?.translate('noInternetMessage') ??
             'Please check your internet connection and try again.';
       }
-      // Check for subscription errors → redirect to complete payment (owners only)
+      // Subscription is not active. Renewal happens on the web dashboard, so
+      // the app only explains why sign-in was refused.
       else if (e is SubscriptionInactiveException ||
           ApiEnvelope.isSubscriptionInactiveSignal(message: lowerError) ||
-          (e is Exception && _getSubscriptionId(e) != null)) {
-        final subscriptionId = _getSubscriptionId(e);
-        if (subscriptionId != null) {
-          setState(() => _isLoading = false);
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (_) => SubscriptionPaymentScreen(
-                subscriptionId: subscriptionId,
-                loginUsername: _usernameController.text.trim(),
-                loginPassword: _passwordController.text,
-              ),
-            ),
-          );
-          return;
-        }
+          (e is Exception && _hasSubscriptionId(e))) {
         if (cleanError.isNotEmpty &&
             !cleanError.toLowerCase().contains('failed to request') &&
             !cleanError.toLowerCase().contains('status 403') &&
@@ -211,9 +188,8 @@ class _LoginScreenState extends State<LoginScreen> {
               AppLocalizations.of(
                 context,
               )?.translate('subscriptionNotActive') ??
-              'Your subscription is not active. Please contact support or Complete Your Payment to access the system.';
+              'Your subscription is not active. Please renew it from the web dashboard or contact support to access the system.';
         }
-        isSubscriptionError = true;
       }
       // Check for account temporarily inactive errors
       else if (ApiEnvelope.isAccountTemporarilyInactiveSignal(
@@ -301,47 +277,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
       setState(() {
         _errorMessage = errorMsg;
-        _isSubscriptionError = isSubscriptionError;
         _isLoading = false;
       });
     }
-  }
-
-  /// فتح شاشة الدفع عند النقر على "إتمام الدفع" في رسالة الاشتراك
-  Future<void> _onCompletePaymentTap() async {
-    setState(() => _isLoading = true);
-    try {
-      final apiService = ApiService();
-      final languageBloc = context.read<LanguageBloc>();
-      final language = languageBloc.state.locale.languageCode;
-      await apiService.requestTwoFactorAuth(
-        _usernameController.text.trim(),
-        _passwordController.text,
-        language,
-      );
-    } catch (e) {
-      final subscriptionId = _getSubscriptionId(e);
-      if (mounted && subscriptionId != null) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => SubscriptionPaymentScreen(
-              subscriptionId: subscriptionId,
-              loginUsername: _usernameController.text.trim(),
-              loginPassword: _passwordController.text,
-            ),
-          ),
-        );
-        return;
-      }
-      if (mounted) {
-        SnackbarHelper.showError(
-          context,
-          AppLocalizations.of(context)?.translate('unableToOpenPayment') ??
-              'Unable to open payment. Please try again.',
-        );
-      }
-    }
-    if (mounted) setState(() => _isLoading = false);
   }
 
   @override
@@ -530,54 +468,14 @@ class _LoginScreenState extends State<LoginScreen> {
                             color: Colors.red.withValues(alpha: 0.3),
                           ),
                         ),
-                        child: _isSubscriptionError
-                            ? Text.rich(
-                                TextSpan(
-                                  style: const TextStyle(
-                                    color: Colors.red,
-                                    fontSize: 14,
-                                  ),
-                                  children: [
-                                    TextSpan(
-                                      text:
-                                          localizations?.translate(
-                                            'subscriptionNotActiveBeforeLink',
-                                          ) ??
-                                          'Your subscription is not active. Please contact support or ',
-                                    ),
-                                    TextSpan(
-                                      text:
-                                          localizations?.translate(
-                                            'subscriptionNotActiveLink',
-                                          ) ??
-                                          'Complete Your Payment',
-                                      style: TextStyle(
-                                        color: AppTheme.primaryColor,
-                                        decoration: TextDecoration.underline,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                      recognizer: TapGestureRecognizer()
-                                        ..onTap = _onCompletePaymentTap,
-                                    ),
-                                    TextSpan(
-                                      text:
-                                          localizations?.translate(
-                                            'subscriptionNotActiveAfterLink',
-                                          ) ??
-                                          ' to access the system.',
-                                    ),
-                                  ],
-                                ),
-                                textAlign: TextAlign.center,
-                                textDirection: isRTL
-                                    ? TextDirection.rtl
-                                    : TextDirection.ltr,
-                              )
-                            : Text(
-                                _errorMessage!,
-                                style: const TextStyle(color: Colors.red),
-                                textAlign: TextAlign.center,
-                              ),
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(color: Colors.red),
+                          textAlign: TextAlign.center,
+                          textDirection: isRTL
+                              ? TextDirection.rtl
+                              : TextDirection.ltr,
+                        ),
                       ),
                     ),
 
