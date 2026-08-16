@@ -22,10 +22,10 @@ import '../../models/settings_model.dart';
 import '../../models/timeline_entry.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
-import '../../screens/whatsapp_chat/whatsapp_chat_thread_screen.dart';
 import '../../utils/timeline_builder.dart';
 import '../../utils/timeline_events.dart';
 import '../../utils/whatsapp_access.dart';
+import '../../utils/whatsapp_launch.dart';
 import '../../widgets/modals/assign_lead_modal.dart';
 import '../../widgets/modals/add_action_modal.dart';
 import '../../widgets/modals/add_call_modal.dart';
@@ -540,65 +540,16 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
 
   Future<void> _openWhatsApp(String phoneNumber) async {
     final lead = _lead;
-    if (lead != null && _canAccessWhatsAppChats()) {
-      final phone = phoneNumber.trim().isNotEmpty ? phoneNumber.trim() : lead.phone;
-      if (phone.isEmpty) {
-        final localizations = AppLocalizations.of(context);
-        SnackbarHelper.showError(
-          context,
-          localizations?.translate('invalidPhoneNumber') ?? 'Invalid phone number',
-        );
-        return;
-      }
-      await Navigator.push<void>(
-        context,
-        MaterialPageRoute<void>(
-          settings: const RouteSettings(name: 'WhatsAppChatThreadScreen'),
-          builder: (_) => WhatsAppChatThreadScreen(
-            clientId: lead.id,
-            clientName: lead.name.isNotEmpty ? lead.name : phone,
-            phoneNumber: phone,
-          ),
-        ),
-      );
-      return;
-    }
-
-    try {
-      // Clean phone number - remove all non-digit characters
-      final cleanPhone = phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
-      if (cleanPhone.isEmpty) {
-        if (mounted) {
-          final localizations = AppLocalizations.of(context);
-          SnackbarHelper.showError(
-            context,
-            localizations?.translate('invalidPhoneNumber') ?? 'Invalid phone number',
-          );
-        }
-        return;
-      }
-      
-      final uri = Uri.parse('https://wa.me/$cleanPhone');
-      final launched = await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
-      if (!launched && mounted) {
-        final localizations = AppLocalizations.of(context);
-        SnackbarHelper.showError(
-          context,
-          localizations?.translate('couldNotOpenWhatsApp') ?? 'Could not open WhatsApp',
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        final localizations = AppLocalizations.of(context);
-        SnackbarHelper.showError(
-          context,
-          localizations?.translate('couldNotOpenWhatsApp') ?? 'Could not open WhatsApp',
-        );
-      }
-    }
+    final phone = phoneNumber.trim().isNotEmpty
+        ? phoneNumber.trim()
+        : (lead?.phone ?? '');
+    await openWhatsAppForLead(
+      context,
+      phoneNumber: phone,
+      clientId: lead?.id,
+      clientName: lead?.name,
+      currentUser: _currentUser,
+    );
   }
   
   void _showSendSMSModal(LeadModel lead, [String? phoneNumber]) {

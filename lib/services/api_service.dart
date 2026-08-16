@@ -2466,7 +2466,33 @@ class ApiService {
   /// composer must warn *before* a send fails when there is no connected
   /// account or Meta has not approved the display name.
   /// Returns null when no WhatsApp account exists at all.
-  Future<WhatsAppAccountStatus?> getWhatsAppAccountStatus() async {
+  ///
+  /// Cached with the same 60s TTL the web query uses, so tap handlers that need
+  /// to branch on connectivity (the WhatsApp button on a lead's phone number)
+  /// don't pay a network round-trip on every tap. The cached value is held in a
+  /// list because `_cacheGet` cannot distinguish a cached null from a miss —
+  /// an empty list is the "no WhatsApp account at all" answer.
+  Future<WhatsAppAccountStatus?> getWhatsAppAccountStatus({
+    bool forceRefresh = false,
+    Duration cacheTtl = _defaultCacheTtl,
+  }) async {
+    const cacheKey = 'whatsapp_account_status';
+    final cached = _cacheGet<List<WhatsAppAccountStatus>>(
+      cacheKey,
+      forceRefresh: forceRefresh,
+    );
+    if (cached != null) return cached.isEmpty ? null : cached.first;
+
+    final status = await _fetchWhatsAppAccountStatus();
+    _cacheSet<List<WhatsAppAccountStatus>>(
+      cacheKey,
+      status == null ? const [] : [status],
+      ttl: cacheTtl,
+    );
+    return status;
+  }
+
+  Future<WhatsAppAccountStatus?> _fetchWhatsAppAccountStatus() async {
     try {
       final response = await _makeRequest(
         'GET',

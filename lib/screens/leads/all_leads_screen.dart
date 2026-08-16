@@ -29,8 +29,8 @@ import 'create_lead_screen.dart';
 import 'edit_lead_screen.dart';
 import 'import_leads_screen.dart';
 import 'lead_profile_screen.dart';
-import '../whatsapp_chat/whatsapp_chat_thread_screen.dart';
 import '../../services/leads_excel_service.dart';
+import '../../utils/whatsapp_launch.dart';
 
 /// Label/checkmark color on selected filter chips (readable on tinted fills).
 Color _filterChipOnBase(Color baseColor) {
@@ -530,83 +530,14 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     setState(() {}); // Trigger rebuild to update filter indicator
   }
 
-  bool _canAccessWhatsAppChats() {
-    final user = _currentUser;
-    if (user == null) return false;
-    if (user.isAdmin) return true;
-    if (user.isSupervisor) {
-      return user.hasSupervisorPermission('can_manage_whatsapp_chats');
-    }
-    if (user.isDataEntry || user.isReception) return false;
-    return user.whatsappChatEnabled;
-  }
-
   Future<void> _openWhatsApp(LeadModel lead, [String? phoneNumber]) async {
-    final phone = (phoneNumber ?? resolvePrimaryPhone(lead)).trim();
-    if (_canAccessWhatsAppChats()) {
-      if (phone.isEmpty) {
-        if (mounted) {
-          final localizations = AppLocalizations.of(context);
-          SnackbarHelper.showError(
-            context,
-            localizations?.translate('invalidPhoneNumber') ??
-                'Invalid phone number',
-          );
-        }
-        return;
-      }
-      await Navigator.push<void>(
-        context,
-        MaterialPageRoute<void>(
-          settings: const RouteSettings(name: 'WhatsAppChatThreadScreen'),
-          builder: (_) => WhatsAppChatThreadScreen(
-            clientId: lead.id,
-            clientName: lead.name.isNotEmpty ? lead.name : phone,
-            phoneNumber: phone,
-          ),
-        ),
-      );
-      return;
-    }
-
-    try {
-      // Clean phone number - remove all non-digit characters
-      final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
-      if (cleanPhone.isEmpty) {
-        if (mounted) {
-          final localizations = AppLocalizations.of(context);
-          SnackbarHelper.showError(
-            context,
-            localizations?.translate('invalidPhoneNumber') ??
-                'Invalid phone number',
-          );
-        }
-        return;
-      }
-
-      final uri = Uri.parse('https://wa.me/$cleanPhone');
-      final launched = await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
-      if (!launched && mounted) {
-        final localizations = AppLocalizations.of(context);
-        SnackbarHelper.showError(
-          context,
-          localizations?.translate('couldNotOpenWhatsApp') ??
-              'Could not open WhatsApp',
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        final localizations = AppLocalizations.of(context);
-        SnackbarHelper.showError(
-          context,
-          localizations?.translate('couldNotOpenWhatsApp') ??
-              'Could not open WhatsApp',
-        );
-      }
-    }
+    await openWhatsAppForLead(
+      context,
+      phoneNumber: (phoneNumber ?? resolvePrimaryPhone(lead)).trim(),
+      clientId: lead.id,
+      clientName: lead.name,
+      currentUser: _currentUser,
+    );
   }
 
   Future<void> _pbxDial(int clientId, String phoneNumber) async {
