@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../models/lead_whatsapp_message_model.dart';
 import '../../../models/whatsapp_conversation_model.dart';
 import '../../../utils/whatsapp_thread_items.dart';
+import '../../../services/sync_invalidation.dart';
 import '../whatsapp_chat_repository.dart';
 import 'whatsapp_chat_thread_state.dart';
 
@@ -26,6 +27,7 @@ class WhatsAppChatThreadCubit extends Cubit<WhatsAppChatThreadState> {
   /// Without it the 5s poll keeps firing while the app is backgrounded.
   bool _foreground = true;
   Timer? _timer;
+  StreamSubscription<Map<String, String>>? _invalidateSub;
   int _localIdSeq = -1;
   DateTime? _lastKnownInboundAt;
   bool _hydrated = false;
@@ -97,10 +99,17 @@ class WhatsAppChatThreadCubit extends Cubit<WhatsAppChatThreadState> {
     }
     unawaited(_loadAccountStatus());
     _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 5), (_) {
+    _timer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (!isClosed && _foreground && _isForeground()) {
         unawaited(refresh(silent: true));
       }
+    });
+    _invalidateSub?.cancel();
+    _invalidateSub = SyncInvalidation.instance.stream.listen((event) {
+      if (event['invalidate'] != 'whatsapp:conversations') return;
+      final cid = event['client_id'];
+      if (cid != null && clientId != null && cid != clientId.toString()) return;
+      unawaited(refresh(silent: true));
     });
   }
 
@@ -542,6 +551,7 @@ class WhatsAppChatThreadCubit extends Cubit<WhatsAppChatThreadState> {
   @override
   Future<void> close() {
     _timer?.cancel();
+    _invalidateSub?.cancel();
     return super.close();
   }
 }

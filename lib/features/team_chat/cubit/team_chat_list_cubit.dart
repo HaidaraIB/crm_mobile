@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../models/tenant_chat_models.dart';
 import '../../../services/notification_service.dart';
+import '../../../services/sync_invalidation.dart';
 import '../../../services/team_chat_away_service.dart';
 import '../../../services/team_chat_unread_holder.dart';
 import '../team_chat_equality.dart';
@@ -21,6 +22,7 @@ class TeamChatListCubit extends Cubit<TeamChatListState> {
   final TeamChatRepository _repository;
   final bool Function() _isForeground;
   Timer? _convTimer;
+  StreamSubscription<Map<String, String>>? _invalidateSub;
 
   Future<void> bootstrap({int? initialConversationId}) async {
     try {
@@ -38,8 +40,14 @@ class TeamChatListCubit extends Cubit<TeamChatListState> {
       }
     }
     _convTimer?.cancel();
-    _convTimer = Timer.periodic(const Duration(seconds: 8), (_) {
+    _convTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (_isForeground()) {
+        unawaited(refreshConversations(silent: true));
+      }
+    });
+    _invalidateSub?.cancel();
+    _invalidateSub = SyncInvalidation.instance.stream.listen((event) {
+      if (event['invalidate'] == 'tenant_chat:messages') {
         unawaited(refreshConversations(silent: true));
       }
     });
@@ -132,6 +140,7 @@ class TeamChatListCubit extends Cubit<TeamChatListState> {
   @override
   Future<void> close() {
     _convTimer?.cancel();
+    _invalidateSub?.cancel();
     TeamChatAwayService.instance.setActiveConversationId(null);
     return super.close();
   }

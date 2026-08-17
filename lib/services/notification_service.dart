@@ -15,6 +15,8 @@ import '../core/constants/app_constants.dart';
 import 'api_service.dart';
 import 'device_fcm_token.dart';
 import 'team_chat_away_service.dart';
+import 'sync_invalidation.dart';
+import 'whatsapp_chat_unread_poller.dart';
 
 const int _kTenantChatMergedNotifIdBase = 1900000000;
 const int _kTenantChatMergeMaxLines = 5;
@@ -279,6 +281,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   debugPrint('Handling background message: ${message.messageId}');
 
   final payload = NotificationPayload.fromRemoteMessage(message);
+  _publishInvalidationFromPayload(payload);
   if (NotificationService.isTenantChatPush(payload)) {
     // iOS team chat is delivered as an APNs alert with custom sound; Android merges locally.
     if (Platform.isIOS) {
@@ -302,6 +305,21 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       '[FCM] Background non-chat skipped — system notification already present',
     );
   }
+}
+
+void _publishInvalidationFromPayload(NotificationPayload payload) {
+  final data = payload.data;
+  if (data == null) return;
+  final invalidate = data['invalidate']?.toString();
+  if (invalidate == null || invalidate.isEmpty) return;
+  final event = <String, String>{
+    'invalidate': invalidate,
+    if (data['client_id'] != null) 'client_id': data['client_id'].toString(),
+    if (data['conversation_id'] != null)
+      'conversation_id': data['conversation_id'].toString(),
+  };
+  SyncInvalidation.instance.emit(event);
+  unawaited(WhatsAppChatUnreadPoller.instance.refresh());
 }
 
 class NotificationService {
@@ -620,6 +638,7 @@ class NotificationService {
 
     // استخدام RemoteMessage مباشرة (سيتم استخراج notification و data تلقائياً)
     final payload = NotificationPayload.fromRemoteMessage(message);
+    _publishInvalidationFromPayload(payload);
 
     // عرض إشعار محلي
     // استخدام title و body من payload (تم استخراجهما من message.notification)

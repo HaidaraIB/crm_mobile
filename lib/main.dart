@@ -28,13 +28,14 @@ import 'screens/whatsapp_chat/whatsapp_chat_thread_screen.dart';
 import 'screens/whatsapp_chat/whatsapp_conversation_list_screen.dart';
 import 'widgets/whatsapp_chat/whatsapp_access_guard.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:http/http.dart' as http;
 import 'services/notification_service.dart';
 import 'services/notification_router.dart';
 import 'services/api_service.dart';
 import 'models/notification_model.dart';
 import 'services/team_chat_away_service.dart';
 import 'services/team_chat_route_observer.dart';
+import 'services/whatsapp_chat_unread_poller.dart';
+import 'services/sync_invalidation.dart';
 import 'core/utils/snackbar_helper.dart';
 
 int? _routeIntArguments(Object? args) {
@@ -118,7 +119,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   // GlobalKey للـ Navigator للوصول إليه من أي مكان
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
   Timer? _presenceTimer;
-  Timer? _reachabilityTimer;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   bool _reachabilityCheckInFlight = false;
   bool _reachabilitySeeded = false;
@@ -137,7 +137,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   void dispose() {
     _presenceTimer?.cancel();
-    _reachabilityTimer?.cancel();
     _connectivitySubscription?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -153,6 +152,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       ApiService().sendPresenceHeartbeat(source: 'mobile');
       _startPresenceHeartbeat();
       unawaited(_runReachabilityCheck());
+      // Background FCM isolate cannot reach foreground cubits; catch up on resume.
+      unawaited(WhatsAppChatUnreadPoller.instance.refresh());
+      SyncInvalidation.instance.emitResumeRefresh();
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
@@ -173,31 +175,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen((_) {
       unawaited(_runReachabilityCheck());
     });
-
-    _reachabilityTimer?.cancel();
-    _reachabilityTimer = Timer.periodic(const Duration(seconds: 20), (_) {
-      unawaited(_runReachabilityCheck());
-    });
-
     unawaited(_runReachabilityCheck());
-  }
-
-  /// Local interface can be "connected" while there is no real internet (same issue as `navigator.onLine` on web).
-  Future<bool> _probeHasInternet() async {
-    const timeout = Duration(seconds: 5);
-    final uris = <Uri>[
-      Uri.parse('https://www.gstatic.com/generate_204'),
-      Uri.parse('https://cp.cloudflare.com/generate_204'),
-    ];
-    for (final uri in uris) {
-      try {
-        final r = await http.get(uri).timeout(timeout);
-        if (r.statusCode == 204 || r.statusCode == 200) return true;
-      } catch (_) {
-        continue;
-      }
-    }
-    return false;
   }
 
   Future<void> _runReachabilityCheck() async {
@@ -205,8 +183,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     _reachabilityCheckInFlight = true;
     try {
       final results = await Connectivity().checkConnectivity();
-      final hasInterface = results.any((c) => c != ConnectivityResult.none);
-      final reachable = hasInterface && await _probeHasInternet();
+      final reachable = results.any((c) => c != ConnectivityResult.none);
       _applyReachability(reachable);
     } finally {
       _reachabilityCheckInFlight = false;

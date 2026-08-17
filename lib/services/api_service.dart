@@ -2205,6 +2205,19 @@ class ApiService {
     }
   }
 
+  /// GET /sync/digest/ — badge counters. `whatsapp_unread` is null when gated.
+  Future<Map<String, dynamic>> getSyncDigest() async {
+    final response = await _makeRequest(
+      'GET',
+      '/sync/digest/',
+      timeout: const Duration(seconds: 10),
+    );
+    if (response.statusCode != 200) {
+      return <String, dynamic>{};
+    }
+    return _unwrapResponseMap(response);
+  }
+
   /// GET /integrations/whatsapp/unread-count/
   /// Throws [WhatsAppAccessDeniedException] on 403 so pollers can stop themselves.
   Future<int> getWhatsAppUnreadCount() async {

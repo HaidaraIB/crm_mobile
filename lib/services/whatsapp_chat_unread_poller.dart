@@ -3,9 +3,10 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import 'api_service.dart';
+import 'team_chat_unread_holder.dart';
 import 'whatsapp_chat_unread_holder.dart';
 
-/// Polls `GET /whatsapp/unread-count/` so the home app-bar badge works without opening the list.
+/// Polls `GET /sync/digest/` so home badges work without opening chat lists.
 class WhatsAppChatUnreadPoller {
   WhatsAppChatUnreadPoller._();
   static final WhatsAppChatUnreadPoller instance = WhatsAppChatUnreadPoller._();
@@ -14,16 +15,14 @@ class WhatsAppChatUnreadPoller {
   Timer? _timer;
   bool _foreground = true;
   bool _started = false;
-  /// Set after a 403: this account cannot use WhatsApp chats, so stay off until
-  /// the next sign-in (`reset()`), instead of re-asking on every resume.
   bool _accessDenied = false;
 
   void start() {
-    if (_started || _accessDenied) return;
+    if (_started) return;
     _started = true;
     unawaited(refresh());
     _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 15), (_) {
+    _timer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (_foreground) unawaited(refresh());
     });
   }
@@ -34,28 +33,32 @@ class WhatsAppChatUnreadPoller {
     _started = false;
   }
 
-  /// Clear the access-denied latch (call on sign-in / user switch).
   void reset() {
     _accessDenied = false;
   }
 
   void setForeground(bool value) {
     _foreground = value;
-    if (value && _started && !_accessDenied) unawaited(refresh());
+    if (value && _started) unawaited(refresh());
   }
 
   Future<void> refresh() async {
     try {
-      final n = await _api.getWhatsAppUnreadCount();
-      WhatsAppChatUnreadHolder.setTotal(n);
-    } on WhatsAppAccessDeniedException {
-      // Access was switched off for this account — retrying every 15s only
-      // spams the server log. Next sign-in re-evaluates and may start again.
-      _accessDenied = true;
-      WhatsAppChatUnreadHolder.setTotal(0);
-      stop();
+      final data = await _api.getSyncDigest();
+      if (data.isEmpty) return;
+      TeamChatUnreadHolder.setTotal((data['tenant_chat_unread'] as num?)?.toInt() ?? 0);
+      final wa = data['whatsapp_unread'];
+      if (wa == null) {
+        if (!_accessDenied) {
+          _accessDenied = true;
+          WhatsAppChatUnreadHolder.setTotal(0);
+        }
+        return;
+      }
+      _accessDenied = false;
+      WhatsAppChatUnreadHolder.setTotal((wa as num?)?.toInt() ?? 0);
     } catch (e) {
-      debugPrint('WhatsApp unread poll failed: $e');
+      debugPrint('Sync digest poll failed: $e');
     }
   }
 }

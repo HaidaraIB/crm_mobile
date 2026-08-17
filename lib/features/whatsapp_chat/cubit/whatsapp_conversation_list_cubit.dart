@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../models/whatsapp_conversation_model.dart';
 import '../../../services/whatsapp_chat_unread_holder.dart';
+import '../../../services/sync_invalidation.dart';
 import '../../../utils/whatsapp_manual_chats_storage.dart';
 import '../whatsapp_chat_repository.dart';
 import 'whatsapp_conversation_list_state.dart';
@@ -24,6 +25,7 @@ class WhatsAppConversationListCubit extends Cubit<WhatsAppConversationListState>
   final bool includeManualChats;
   Timer? _timer;
   Timer? _awaySoundTimer;
+  StreamSubscription<Map<String, String>>? _invalidateSub;
   int _lastUnreadTotal = 0;
   final AudioPlayer _awayPlayer = AudioPlayer();
 
@@ -31,15 +33,20 @@ class WhatsAppConversationListCubit extends Cubit<WhatsAppConversationListState>
     await refresh();
     if (isClosed) return;
     _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 3), (_) {
+    _timer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (!isClosed && _isForeground()) {
         unawaited(refresh(silent: true));
       }
     });
-    // Away/other-thread unread sound (~2s while foreground).
     _awaySoundTimer?.cancel();
-    _awaySoundTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+    _awaySoundTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (!isClosed && _isForeground()) unawaited(_checkAwaySound());
+    });
+    _invalidateSub?.cancel();
+    _invalidateSub = SyncInvalidation.instance.stream.listen((event) {
+      if (event['invalidate'] == 'whatsapp:conversations') {
+        unawaited(refresh(silent: true));
+      }
     });
   }
 
@@ -136,6 +143,7 @@ class WhatsAppConversationListCubit extends Cubit<WhatsAppConversationListState>
   Future<void> close() {
     _timer?.cancel();
     _awaySoundTimer?.cancel();
+    _invalidateSub?.cancel();
     _awayPlayer.dispose();
     return super.close();
   }

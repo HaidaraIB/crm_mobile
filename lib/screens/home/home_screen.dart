@@ -108,11 +108,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         }
       });
       TeamChatAwayService.instance.start();
-      // New session: clear any access-denied latch from a previous account.
       WhatsAppChatUnreadPoller.instance.reset();
-      if (_canAccessWhatsAppChats(user)) {
-        WhatsAppChatUnreadPoller.instance.start();
-      }
+      WhatsAppChatUnreadPoller.instance.start();
     } catch (e) {
       debugPrint('Failed to load session user: $e');
     }

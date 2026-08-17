@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../services/sync_invalidation.dart';
 import '../models/chat_list_row.dart';
 import '../models/chat_message.dart';
 import '../registry/message_registry.dart';
@@ -41,6 +42,7 @@ class ChatThreadCubit<T extends ChatMessage> extends Cubit<ChatThreadState> {
   final bool Function(T message) isFirstUnreadPeerMessage;
 
   Timer? _pollTimer;
+  StreamSubscription<Map<String, String>>? _invalidateSub;
   bool _pollTickInFlight = false;
 
   List<ChatListRow> _buildRows() => registry.buildRows(
@@ -108,10 +110,16 @@ class ChatThreadCubit<T extends ChatMessage> extends Cubit<ChatThreadState> {
     }
   }
 
-  void startPolling({Duration interval = const Duration(milliseconds: 2800)}) {
+  void startPolling({Duration interval = const Duration(seconds: 30)}) {
     stopPolling();
     _pollTimer = Timer.periodic(interval, (_) {
       unawaited(_pollTick());
+    });
+    _invalidateSub?.cancel();
+    _invalidateSub = SyncInvalidation.instance.stream.listen((event) {
+      if (event['invalidate'] == 'tenant_chat:messages') {
+        unawaited(_pollTick());
+      }
     });
   }
 
@@ -171,6 +179,7 @@ class ChatThreadCubit<T extends ChatMessage> extends Cubit<ChatThreadState> {
   @override
   Future<void> close() {
     stopPolling();
+    _invalidateSub?.cancel();
     return super.close();
   }
 }
