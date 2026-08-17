@@ -35,6 +35,8 @@ import '../../widgets/modals/send_sms_modal.dart';
 import '../../widgets/phone_input.dart';
 import '../../widgets/lead_contact_action_button.dart';
 import '../../widgets/lead_status_badge.dart';
+import '../../widgets/lead_tag_chips.dart';
+import '../../widgets/tag_multi_select_field.dart';
 import '../../widgets/lead_assignee_badge.dart';
 import '../../widgets/lead_urgent_switch.dart';
 import '../../widgets/scrolling_single_line_text.dart';
@@ -57,6 +59,8 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   List<StatusModel> _statuses = [];
+  List<TagModel> _tags = [];
+  bool _isUpdatingTags = false;
   bool _isUpdatingStatus = false;
   bool _isUpdatingAssignee = false;
   List<UserModel> _users = [];
@@ -78,6 +82,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
     _loadCurrentUser();
     _loadLead();
     _loadStatuses();
+    _loadTags();
     _loadUsers();
   }
 
@@ -193,6 +198,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
           whatsappMessages: results[6] as List<LeadWhatsAppMessageModel>,
           users: _users,
           statuses: _statuses,
+          tags: _tags,
           channels: _channels,
           stages: _stages,
           callMethods: _callMethods,
@@ -360,7 +366,40 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
       // Silently fail - statuses are optional
     }
   }
-  
+
+  Future<void> _loadTags() async {
+    try {
+      final tags = await _apiService.getTags();
+      if (!mounted) return;
+      setState(() {
+        _tags = tags;
+      });
+    } catch (e) {
+      // Silently fail - tags are optional
+    }
+  }
+
+  /// Inline tag edit — patches immediately so users never open the Edit screen
+  /// just to change a tag.
+  Future<void> _updateTags(List<int> nextTagIds) async {
+    final lead = _lead;
+    if (lead == null) return;
+    setState(() => _isUpdatingTags = true);
+    try {
+      final updated = await _apiService.updateLead(id: lead.id, tagIds: nextTagIds);
+      if (!mounted) return;
+      setState(() {
+        _lead = updated;
+        _isUpdatingTags = false;
+      });
+      _loadTimeline();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isUpdatingTags = false);
+      SnackbarHelper.showError(context, ApiErrorHelper.toUserMessage(context, e));
+    }
+  }
+
   Color _parseColor(String colorString) {
     try {
       // Remove # if present
@@ -852,6 +891,19 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                         ],
                       ],
                     ),
+                  if (_tags.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    TagMultiSelectField(
+                      tags: _tags,
+                      selectedIds:
+                          (_lead!.tags ?? const []).map((t) => t.id).toList(),
+                      onChanged: _updateTags,
+                      enabled: !_isUpdatingTags,
+                    ),
+                  ] else if ((_lead!.tags ?? const []).isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    LeadTagChips(tags: _lead!.tags!),
+                  ],
                   const SizedBox(height: 10),
                   _buildAssigneeDropdown(context, localizations),
                   if (_creatorHeaderText(_lead!, localizations) != null) ...[

@@ -45,6 +45,7 @@ const _editNoteFieldKeys = <String, String>{
 
 const _eventTypeActionKeys = <String, String>{
   'status_change': 'statusUpdated',
+  'tags_change': 'timelineTagsUpdated',
   'assignment': 'leadAssigned',
   'location_update': 'timeline',
   'edit': 'leadEdited',
@@ -145,6 +146,31 @@ TimelineActorFallback? timelineEventActorFallback({
     return TimelineActorFallback.system;
   }
   return TimelineActorFallback.system;
+}
+
+/// Names split out of a tag-change event's machine key.
+class ParsedTagsChange {
+  final List<String> added;
+  final List<String> removed;
+
+  const ParsedTagsChange({required this.added, required this.removed});
+}
+
+/// Split the API's machine key for a tag change — `tags_updated:+VIP,Hot|-Cold`
+/// (either side may be empty). Returns null when the notes are not that shape.
+ParsedTagsChange? parseTagsChangeNotes(String? notes) {
+  final match =
+      RegExp(r'^tags_updated:\+(.*)\|-(.*)$').firstMatch((notes ?? '').trim());
+  if (match == null) return null;
+  List<String> split(String? raw) => (raw ?? '')
+      .split(',')
+      .map((v) => v.trim())
+      .where((v) => v.isNotEmpty)
+      .toList();
+  return ParsedTagsChange(
+    added: split(match.group(1)),
+    removed: split(match.group(2)),
+  );
 }
 
 String? parseEditFieldKeyFromNotes(String? notes) {
@@ -375,6 +401,23 @@ String localizeTimelineEventNotes(
         channels: const [],
       );
       return '${_tr(t, 'statusChangedFrom')} ${formatTimelineEventValue(statusMatch.group(1), emptyCtx)} ${_tr(t, 'statusChangedTo')} ${formatTimelineEventValue(statusMatch.group(2), emptyCtx)}';
+    }
+  }
+
+  if (eventType == 'tags_change') {
+    final parsed = parseTagsChangeNotes(trimmed);
+    if (parsed != null) {
+      final added = parsed.added;
+      final removed = parsed.removed;
+      final parts = <String>[];
+      if (added.isNotEmpty) {
+        parts.add('${_tr(t, 'timelineTagsAdded')}: ${added.join(', ')}');
+      }
+      if (removed.isNotEmpty) {
+        parts.add('${_tr(t, 'timelineTagsRemoved')}: ${removed.join(', ')}');
+      }
+      if (parts.isNotEmpty) return parts.join(' · ');
+      return _tr(t, 'timelineTagsUpdated');
     }
   }
 

@@ -15,6 +15,7 @@ import '../../widgets/phone_input.dart';
 import '../../widgets/lead_location_map_picker.dart';
 import '../../widgets/lead_urgent_switch.dart';
 import '../../widgets/lead_interest_inventory_fields.dart';
+import '../../widgets/tag_multi_select_field.dart';
 
 class CreateLeadScreen extends StatefulWidget {
   final Function(LeadModel)? onLeadCreated;
@@ -50,6 +51,8 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
   List<UserModel> _users = [];
   List<ChannelModel> _channels = [];
   List<StatusModel> _statuses = [];
+  List<TagModel> _tags = [];
+  List<int> _selectedTagIds = [];
   UserModel? _currentUser;
   bool _isLoading = false;
   bool _isLoadingData = true;
@@ -92,6 +95,7 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
       final usersData = await _apiService.getUsers();
       final channels = await _apiService.getChannels();
       final statuses = await _apiService.getStatuses();
+      final tags = await _apiService.getTags();
 
       final allUsers = (usersData['results'] as List).cast<UserModel>();
       setState(() {
@@ -99,6 +103,7 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
         _users = usersForLeadAssigneePicker(allUsers);
         _channels = channels;
         _statuses = statuses;
+        _tags = tags;
         _isLoadingData = false;
 
         // Set defaults
@@ -309,6 +314,7 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
         priority: _selectedPriority,
         isUrgent: _isUrgent,
         statusId: statusId,
+        tagIds: _selectedTagIds,
         leadCompanyName: _companyNameController.text.trim().isEmpty ? null : _companyNameController.text.trim(),
         profession: _professionController.text.trim().isEmpty ? null : _professionController.text.trim(),
         residence: _residenceController.text.trim().isEmpty ? null : _residenceController.text.trim(),
@@ -744,6 +750,15 @@ class _CreateLeadScreenState extends State<CreateLeadScreen> {
                                   });
                                 },
                               ),
+                              if (_tags.isNotEmpty) ...[
+                                const SizedBox(height: 16),
+                                TagMultiSelectField(
+                                  tags: _tags,
+                                  selectedIds: _selectedTagIds,
+                                  onChanged: (ids) =>
+                                      setState(() => _selectedTagIds = ids),
+                                ),
+                              ],
                             ],
                           ),
 

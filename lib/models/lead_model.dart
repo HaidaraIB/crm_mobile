@@ -1,3 +1,5 @@
+import 'settings_model.dart';
+
 class LeadModel {
   final int id;
   final String name;
@@ -18,6 +20,8 @@ class LeadModel {
   final String? notes;
   final String? lastStage;
   final String? statusName;
+  /// Secondary classification; a lead may carry many (API: tags / tags_detail).
+  final List<TagModel>? tags;
   final List<PhoneNumber>? phoneNumbers;
   final String? leadCompanyName;
   final String? profession;
@@ -63,6 +67,7 @@ class LeadModel {
     this.notes,
     this.lastStage,
     this.statusName,
+    this.tags,
     this.phoneNumbers,
     this.leadCompanyName,
     this.profession,
@@ -178,6 +183,12 @@ class LeadModel {
       notes: json['notes'] as String?,
       lastStage: json['last_stage'] as String? ?? json['lastStage'] as String?,
       statusName: json['status_name'] as String?,
+      // Only tags_detail carries names/colors; a bare `tags` list holds ids.
+      tags: json['tags_detail'] != null
+          ? (json['tags_detail'] as List)
+              .map((e) => TagModel.fromJson(e as Map<String, dynamic>))
+              .toList()
+          : null,
       phoneNumbers: json['phone_numbers'] != null
           ? (json['phone_numbers'] as List)
               .map((e) => PhoneNumber.fromJson(e as Map<String, dynamic>))
@@ -252,6 +263,7 @@ class LeadModel {
       'notes': notes,
       'last_stage': lastStage,
       'status_name': statusName,
+      'tags': tags?.map((e) => e.id).toList(),
       'phone_numbers': phoneNumbers?.map((e) => e.toJson()).toList(),
       'lead_company_name': leadCompanyName,
       'profession': profession,

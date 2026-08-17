@@ -1861,6 +1861,7 @@ class ApiService {
     String? status,
     String? type,
     String? search,
+    List<int>? tagIds,
     int? page,
     bool forceRefresh = false,
     Duration cacheTtl = _defaultCacheTtl,
@@ -1873,6 +1874,10 @@ class ApiService {
     if (status != null && status != 'All') queryParams['status'] = status;
     if (type != null && type != 'All') queryParams['type'] = type;
     if (search != null && search.isNotEmpty) queryParams['search'] = search;
+    // OR match: a lead with any of these tags qualifies. Part of the cache key.
+    if (tagIds != null && tagIds.isNotEmpty) {
+      queryParams['tags'] = tagIds.join(',');
+    }
     if (page != null) queryParams['page'] = page.toString();
 
     // For employees, filter by assigned_to
@@ -2973,6 +2978,7 @@ class ApiService {
     bool isUrgent = false,
     String? status, // Deprecated: use statusId instead
     int? statusId, // Preferred: status ID
+    List<int>? tagIds,
     String? leadCompanyName,
     String? profession,
     String? residence,
@@ -3022,6 +3028,8 @@ class ApiService {
     } else if (status != null) {
       body['status'] = status;
     }
+
+    if (tagIds != null) body['tags'] = tagIds;
 
     // Always send lead_company_name when provided (including null/empty to clear)
     if (leadCompanyName != null) {
@@ -3086,6 +3094,8 @@ class ApiService {
     String? priority,
     String? status, // Deprecated: use statusId instead
     int? statusId, // Preferred: status ID
+    /// Full replacement set; omit to leave the lead's tags untouched.
+    List<int>? tagIds,
     String? leadCompanyName,
     String? profession,
     String? notes,
@@ -3122,6 +3132,8 @@ class ApiService {
     } else if (status != null) {
       body['status'] = status;
     }
+
+    if (tagIds != null) body['tags'] = tagIds;
 
     // Always send lead_company_name when provided (so API can set or clear the field)
     if (leadCompanyName != null) {
@@ -4056,6 +4068,122 @@ class ApiService {
       throw Exception(errorMessage);
     }
     _invalidateSettingsCache();
+  }
+
+  // Tags CRUD — secondary lead classification (a lead may carry many)
+  Future<List<TagModel>> getTags({
+    bool forceRefresh = false,
+    Duration cacheTtl = _defaultCacheTtl,
+  }) async {
+    const cacheKey = 'settings_tags';
+    final cached = _cacheGet<List<TagModel>>(cacheKey, forceRefresh: forceRefresh);
+    if (cached != null) return cached;
+    final response = await _makeRequest('GET', '/settings/tags/');
+
+    if (response.statusCode == 200) {
+      final data = _unwrapResponseDynamic(response);
+      List<TagModel> tags = <TagModel>[];
+      if (data is List) {
+        tags = data
+            .map((item) => TagModel.fromJson(item as Map<String, dynamic>))
+            .toList();
+      } else if (data is Map && data['results'] != null) {
+        tags = (data['results'] as List)
+            .map((item) => TagModel.fromJson(item as Map<String, dynamic>))
+            .toList();
+      }
+      _cacheSet<List<TagModel>>(cacheKey, tags, ttl: cacheTtl);
+      return tags;
+    } else {
+      throw Exception('Failed to get tags');
+    }
+  }
+
+  Future<TagModel> createTag({
+    required String name,
+    String? description,
+    required String color,
+  }) async {
+    final currentUser = await getCurrentUser();
+    if (currentUser.company == null) {
+      throw Exception(
+        _translateError('userMustBeAssociatedWithCompany', locale: null),
+      );
+    }
+
+    final response = await _makeRequest(
+      'POST',
+      '/settings/tags/',
+      body: <String, dynamic>{
+        'name': name,
+        'description': description,
+        'color': color,
+        'company': currentUser.company!.id,
+      },
+    );
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final tag = TagModel.fromJson(_unwrapResponseMap(response));
+      _invalidateSettingsCache();
+      return tag;
+    }
+    throw Exception(_tagErrorMessage(response.body, 'Failed to create tag'));
+  }
+
+  Future<TagModel> updateTag({
+    required int tagId,
+    required String name,
+    String? description,
+    required String color,
+  }) async {
+    final currentUser = await getCurrentUser();
+    if (currentUser.company == null) {
+      throw Exception(
+        _translateError('userMustBeAssociatedWithCompany', locale: null),
+      );
+    }
+
+    final response = await _makeRequest(
+      'PATCH',
+      '/settings/tags/$tagId/',
+      body: <String, dynamic>{
+        'name': name,
+        'description': description,
+        'color': color,
+        'company': currentUser.company!.id,
+      },
+    );
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final tag = TagModel.fromJson(_unwrapResponseMap(response));
+      _invalidateSettingsCache();
+      return tag;
+    }
+    throw Exception(_tagErrorMessage(response.body, 'Failed to update tag'));
+  }
+
+  Future<void> deleteTag(int tagId) async {
+    final response = await _makeRequest('DELETE', '/settings/tags/$tagId/');
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_tagErrorMessage(response.body, 'Failed to delete tag'));
+    }
+    _invalidateSettingsCache();
+    // A deleted tag detaches from every lead — drop cached lead lists too.
+    _cacheInvalidateByPrefix('leads');
+  }
+
+  String _tagErrorMessage(String body, String fallback) {
+    try {
+      final error = _errorContextFromBody(body);
+      for (final key in ['name', 'company', 'non_field_errors']) {
+        final values = error[key] as List?;
+        if (values != null && values.isNotEmpty) return values.first.toString();
+      }
+      return error['detail'] ?? error['message'] ?? fallback;
+    } catch (_) {
+      return fallback;
+    }
   }
 
   // Call Methods CRUD

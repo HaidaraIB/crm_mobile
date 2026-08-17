@@ -90,6 +90,9 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
   String?
   _selectedStatus; // 'untouched', 'touched', 'following', or null for all
   int? _selectedAssigneeId; // User ID or null for all
+  List<TagModel> _tags = [];
+  /// Selected tag ids; a lead matches if it carries ANY of them (OR).
+  List<int> _selectedTagIds = [];
 
   /// Key for export button; used to get sharePositionOrigin on iPad/iOS.
   final GlobalKey _exportButtonKey = GlobalKey();
@@ -103,6 +106,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     _loadCurrentUser();
     _loadLeads();
     _loadStatuses();
+    _loadTags();
     _loadUsers();
   }
 
@@ -267,6 +271,18 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       });
     } catch (e) {
       // Silently fail - statuses are optional
+    }
+  }
+
+  Future<void> _loadTags() async {
+    try {
+      final tags = await _apiService.getTags();
+      if (!mounted) return;
+      setState(() {
+        _tags = tags;
+      });
+    } catch (e) {
+      // Silently fail - tags are optional
     }
   }
 
@@ -511,6 +527,14 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
           final leadStatus = (lead.statusName ?? lead.status ?? '')
               .toLowerCase();
           return leadStatus == _selectedStatus!.toLowerCase();
+        }).toList();
+      }
+
+      // Apply tag filter (OR: any of the selected tags)
+      if (_selectedTagIds.isNotEmpty) {
+        filtered = filtered.where((lead) {
+          final leadTagIds = (lead.tags ?? const []).map((t) => t.id);
+          return leadTagIds.any(_selectedTagIds.contains);
         }).toList();
       }
 
@@ -1774,6 +1798,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
   bool hasActiveFilters() {
     return _selectedType != null ||
         _selectedStatus != null ||
+        _selectedTagIds.isNotEmpty ||
         _selectedAssigneeId != null;
   }
 
@@ -1940,6 +1965,62 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                             ],
                           ),
                     const SizedBox(height: 24),
+
+                    // Tag filter — multi-select, matches ANY selected tag
+                    if (_tags.isNotEmpty) ...[
+                      Text(
+                        localizations?.translate('tags') ?? 'Tags',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        localizations?.translate('tagsFilterAnyHint') ?? '',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _buildFilterChip(
+                            label: localizations?.translate('all') ?? 'All',
+                            isSelected: _selectedTagIds.isEmpty,
+                            onTap: () {
+                              setState(() {
+                                _selectedTagIds = [];
+                              });
+                              setModalState(() {});
+                            },
+                            theme: theme,
+                          ),
+                          ..._tags.map((tag) {
+                            return _buildFilterChip(
+                              label: tag.name,
+                              isSelected: _selectedTagIds.contains(tag.id),
+                              onTap: () {
+                                setState(() {
+                                  final next = List<int>.from(_selectedTagIds);
+                                  if (next.contains(tag.id)) {
+                                    next.remove(tag.id);
+                                  } else {
+                                    next.add(tag.id);
+                                  }
+                                  _selectedTagIds = next;
+                                });
+                                setModalState(() {});
+                              },
+                              theme: theme,
+                              color: _parseColor(tag.color),
+                            );
+                          }),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                    ],
 
                     // Assignee Filter - only for admin
                     if ((_currentUser?.isAdmin ?? false) ||

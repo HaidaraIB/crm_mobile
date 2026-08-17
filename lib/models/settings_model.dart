@@ -294,3 +294,53 @@ class VisitTypeModel {
   }
 }
 
+
+/// Per-tenant secondary classification for leads. Unlike status, a lead may
+/// carry many tags, so there is no `is_default`.
+class TagModel {
+  final int id;
+  final String name;
+  final String? description;
+  final String color; // Hex color code
+
+  TagModel({
+    required this.id,
+    required this.name,
+    this.description,
+    required this.color,
+  });
+
+  factory TagModel.fromJson(Map<String, dynamic> json) {
+    return TagModel(
+      id: json['id'] as int,
+      name: json['name'] as String,
+      description: json['description'] as String?,
+      color: json['color'] as String? ?? '#808080',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'description': description,
+      'color': color,
+    };
+  }
+
+  Map<String, dynamic> toCreateJson() {
+    return {
+      'name': name,
+      'description': description,
+      'color': color,
+    };
+  }
+
+  Map<String, dynamic> toUpdateJson() {
+    return {
+      'name': name,
+      'description': description,
+      'color': color,
+    };
+  }
+}

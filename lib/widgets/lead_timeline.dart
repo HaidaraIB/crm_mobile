@@ -13,6 +13,7 @@ import '../core/utils/lead_location.dart';
 import '../core/utils/media_url_utils.dart';
 import '../models/timeline_entry.dart';
 import '../services/api_service.dart';
+import 'lead_tag_chips.dart' show parseTagHexColor;
 import 'media/open_app_media_viewer.dart';
 
 const _timelineSortKey = 'leadTimelineSortOrder';
@@ -475,7 +476,10 @@ class _TimelineRow extends StatelessWidget {
                     loc: loc,
                     onOpenUrl: onOpenUrl,
                   ),
+                if (entry.tagChanges != null && !entry.tagChanges!.isEmpty)
+                  _TagChanges(tagChanges: entry.tagChanges!, loc: loc),
                 if (entry.details.isNotEmpty &&
+                    entry.tagChanges == null &&
                     entry.type != TimelineEntryType.locationUpdate &&
                     entry.type != TimelineEntryType.whatsappThread) ...[
                   const SizedBox(height: 6),
@@ -943,6 +947,109 @@ class _StageChip extends StatelessWidget {
           color: fg,
         ),
       ),
+    );
+  }
+}
+
+/// Added/removed tag chips, colored from each tag's own hex (parity with web).
+class _TagChanges extends StatelessWidget {
+  final TimelineTagChanges tagChanges;
+  final AppLocalizations? loc;
+
+  const _TagChanges({required this.tagChanges, this.loc});
+
+  static const _defaultTagColor = Color(0xFF94A3B8);
+
+  @override
+  Widget build(BuildContext context) {
+    if (tagChanges.isEmpty) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    final muted = _timelineMutedColor(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    Widget chip(TimelineTagRef tag, bool struck) {
+      final accent = tag.color == null
+          ? _defaultTagColor
+          : parseTagHexColor(tag.color!);
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: Color.alphaBlend(
+            accent.withValues(alpha: isDark ? 0.16 : 0.12),
+            theme.cardColor,
+          ),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: accent.withValues(alpha: isDark ? 0.42 : 0.38),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 6),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 140),
+              child: Text(
+                tag.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.onSurface,
+                  decoration: struck ? TextDecoration.lineThrough : null,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    Widget row(String label, List<TimelineTagRef> tags, bool struck) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: muted,
+                fontSize: 12,
+              ),
+            ),
+            for (final tag in tags)
+              Opacity(opacity: struck ? 0.7 : 1, child: chip(tag, struck)),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (tagChanges.added.isNotEmpty)
+          row(
+            loc?.translate('timelineTagsAdded') ?? 'Added',
+            tagChanges.added,
+            false,
+          ),
+        if (tagChanges.removed.isNotEmpty)
+          row(
+            loc?.translate('timelineTagsRemoved') ?? 'Removed',
+            tagChanges.removed,
+            true,
+          ),
+      ],
     );
   }
 }

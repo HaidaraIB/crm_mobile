@@ -25,6 +25,8 @@ class TimelineBuilderInput {
   final List<LeadWhatsAppMessageModel> whatsappMessages;
   final List<UserModel> users;
   final List<StatusModel> statuses;
+  /// Used to resolve tag names in tags_change events back to their colors.
+  final List<TagModel> tags;
   final List<ChannelModel> channels;
   final List<StageModel> stages;
   final List<CallMethodModel> callMethods;
@@ -46,6 +48,7 @@ class TimelineBuilderInput {
     required this.whatsappMessages,
     required this.users,
     required this.statuses,
+    this.tags = const [],
     required this.channels,
     required this.stages,
     required this.callMethods,
@@ -327,6 +330,27 @@ List<TimelineEntry> buildLeadTimeline(TimelineBuilderInput input) {
           )
         : null;
 
+    // Resolve tag names back to their configured colors. A tag deleted since
+    // the event was logged simply renders with the default color.
+    List<TimelineTagRef> toTagRefs(List<String> names) => names.map((name) {
+          String? color;
+          for (final tag in input.tags) {
+            if (tag.name == name) {
+              color = tag.color;
+              break;
+            }
+          }
+          return TimelineTagRef(name: name, color: color);
+        }).toList();
+    final parsedTagChange =
+        ce.eventType == 'tags_change' ? parseTagsChangeNotes(ce.notes) : null;
+    final tagChanges = parsedTagChange == null
+        ? null
+        : TimelineTagChanges(
+            added: toTagRefs(parsedTagChange.added),
+            removed: toTagRefs(parsedTagChange.removed),
+          );
+
     String? eventColor;
     if (ce.eventType == 'status_change') {
       try {
@@ -363,6 +387,7 @@ List<TimelineEntry> buildLeadTimeline(TimelineBuilderInput input) {
     }
 
     final showValuePair = ce.eventType != 'location_update' &&
+        ce.eventType != 'tags_change' &&
         (pair.oldFormatted != null || pair.newFormatted != null);
     final suppressDetailsWithPair = showValuePair &&
         ['edit', 'status_change', 'assignment', 'created']
@@ -378,15 +403,22 @@ List<TimelineEntry> buildLeadTimeline(TimelineBuilderInput input) {
       user: actor.name,
       action: actionText,
       fieldLabel: editFieldLabel,
+      tagChanges: tagChanges,
       details: detailsOnly ? translatedDetails : '',
       date: formatTimelineDate(ce.createdAt, locale),
       timestamp: ce.createdAt.millisecondsSinceEpoch,
+      // tags_change: the localized "Added / Removed" details line already says
+      // everything; the raw comma-joined pair would just repeat it.
       oldValue: ce.eventType == 'location_update'
           ? ce.oldValue
-          : pair.oldFormatted,
+          : ce.eventType == 'tags_change'
+              ? null
+              : pair.oldFormatted,
       newValue: ce.eventType == 'location_update'
           ? ce.newValue
-          : pair.newFormatted,
+          : ce.eventType == 'tags_change'
+              ? null
+              : pair.newFormatted,
       color: eventColor,
     );
   });

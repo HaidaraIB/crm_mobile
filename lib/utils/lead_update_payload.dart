@@ -36,6 +36,8 @@ Map<String, dynamic> buildLeadUpdatePayload({
   required String? priority,
   required bool isUrgent,
   required int? statusId,
+  /// Selected tag ids; sorted into the payload so the diff ignores pick order.
+  List<int> tagIds = const [],
   required String? leadCompanyName,
   required String? profession,
   required String? notes,
@@ -93,6 +95,7 @@ Map<String, dynamic> buildLeadUpdatePayload({
     'priority': priority?.toLowerCase(),
     'is_urgent': isUrgent,
     'status': statusId,
+    'tags': (List<int>.from(tagIds)..sort()),
     'lead_company_name':
         leadCompanyName == null || leadCompanyName.trim().isEmpty
             ? null

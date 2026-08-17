@@ -7,6 +7,7 @@ import 'channels_settings_screen.dart';
 import 'general_settings_screen.dart';
 import 'stages_settings_screen.dart';
 import 'statuses_settings_screen.dart';
+import 'tags_settings_screen.dart';
 import 'call_methods_settings_screen.dart';
 import 'visit_types_settings_screen.dart';
 
@@ -55,7 +56,7 @@ class _SettingsScreenState extends State<SettingsScreen> with TickerProviderStat
           final showVisitTypesTab = (isAdmin || hasSettingsPerm) &&
               (spec == 'real_estate' || spec == 'services' || spec == 'medical');
           final tabCount = (isAdmin || hasSettingsPerm)
-              ? (5 + (showVisitTypesTab ? 1 : 0))
+              ? (6 + (showVisitTypesTab ? 1 : 0))
               : 1;
           _tabController?.dispose();
           _tabController = TabController(length: tabCount, vsync: this);
@@ -110,6 +111,7 @@ class _SettingsScreenState extends State<SettingsScreen> with TickerProviderStat
             if (canManageSettings) Tab(child: _tabLabel(localizations?.translate('channels') ?? 'Channels')),
             if (canManageSettings) Tab(child: _tabLabel(localizations?.translate('stages') ?? 'Stages')),
             if (canManageSettings) Tab(child: _tabLabel(localizations?.translate('statuses') ?? 'Statuses')),
+            if (canManageSettings) Tab(child: _tabLabel(localizations?.translate('tags') ?? 'Tags')),
             if (canManageSettings) Tab(child: _tabLabel(localizations?.translate('callMethods') ?? 'Call Methods')),
             if (showVisitTypesTab)
               Tab(child: _tabLabel(localizations?.translate('visitTypes') ?? 'Visit types')),
@@ -123,6 +125,7 @@ class _SettingsScreenState extends State<SettingsScreen> with TickerProviderStat
           if (canManageSettings) const ChannelsSettingsScreen(),
           if (canManageSettings) const StagesSettingsScreen(),
           if (canManageSettings) const StatusesSettingsScreen(),
+          if (canManageSettings) const TagsSettingsScreen(),
           if (canManageSettings) const CallMethodsSettingsScreen(),
           if (showVisitTypesTab) const VisitTypesSettingsScreen(),
         ],

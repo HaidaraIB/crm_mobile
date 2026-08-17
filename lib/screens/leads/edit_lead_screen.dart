@@ -16,6 +16,7 @@ import '../../widgets/phone_input.dart';
 import '../../widgets/lead_location_map_picker.dart';
 import '../../widgets/lead_urgent_switch.dart';
 import '../../widgets/lead_interest_inventory_fields.dart';
+import '../../widgets/tag_multi_select_field.dart';
 
 class EditLeadScreen extends StatefulWidget {
   final LeadModel lead;
@@ -52,6 +53,8 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
   List<UserModel> _users = [];
   List<ChannelModel> _channels = [];
   List<StatusModel> _statuses = [];
+  List<TagModel> _tags = [];
+  List<int> _selectedTagIds = [];
   bool _isLoading = false;
   bool _isLoadingData = true;
   String _companyTimeZone = 'UTC';
@@ -92,6 +95,7 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
     _selectedPriority = widget.lead.priority?.toLowerCase();
     _isUrgent = widget.lead.isUrgent;
     _selectedStatus = widget.lead.statusName;
+    _selectedTagIds = (widget.lead.tags ?? const []).map((t) => t.id).toList();
     _selectedChannel = widget.lead.communicationWay;
     _selectedUserId = widget.lead.assignedTo > 0
         ? widget.lead.assignedTo
@@ -145,10 +149,12 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
       final usersData = await _apiService.getUsers();
       final channels = await _apiService.getChannels();
       final statuses = await _apiService.getStatuses();
+      final tags = await _apiService.getTags();
 
       final raw = (usersData['results'] as List).cast<UserModel>();
       final pickable = usersForLeadAssigneePicker(raw);
       setState(() {
+        _tags = tags;
         _companyTimeZone = me.company?.timezone ?? 'UTC';
         _specialization = me.company?.specialization;
         _users = pickable;
@@ -343,6 +349,7 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
       priority: _selectedPriority,
       isUrgent: _isUrgent,
       statusId: _resolveStatusId(),
+      tagIds: _selectedTagIds,
       leadCompanyName: _companyNameController.text.trim(),
       profession: _professionController.text.trim(),
       residence: _residenceController.text.trim(),
@@ -810,6 +817,15 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
                                   });
                                 },
                               ),
+                              if (_tags.isNotEmpty) ...[
+                                const SizedBox(height: 16),
+                                TagMultiSelectField(
+                                  tags: _tags,
+                                  selectedIds: _selectedTagIds,
+                                  onChanged: (ids) =>
+                                      setState(() => _selectedTagIds = ids),
+                                ),
+                              ],
                             ],
                           ),
 
