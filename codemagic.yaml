@@ -29,6 +29,7 @@ workflows:
           flutter pub get
       - name: Install CocoaPods dependencies
         script: |
+          flutter precache --ios
           cd ios && pod install
       - name: Create .env file for production
         script: |
