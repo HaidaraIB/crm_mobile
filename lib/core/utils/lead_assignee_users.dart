@@ -1,9 +1,9 @@
 import '../../models/user_model.dart';
 
 /// Whether [role] may appear in manual lead/deal assignee pickers.
-/// Matches web `showInLeadAssigneePicker`: data-entry and reception are excluded.
+/// Matches web `showInLeadAssigneePicker`: data-entry, reception and call center are excluded.
 bool showInLeadAssigneePicker(UserModel user) =>
-    !user.isDataEntry && !user.isReception;
+    !user.isDataEntry && !user.isReception && !user.isCallCenter;
 
 /// Users shown in manual “assign lead” / edit-lead assignee UI.
 /// Mirrors web `buildLeadAssigneePickerOptions`: active users only, excludes

@@ -18,6 +18,7 @@ import '../utils/lead_update_payload.dart' show buildInterestedInventoryApiBody;
 import '../core/utils/field_visit_api_errors.dart';
 import '../core/utils/app_locales.dart';
 import '../models/lead_model.dart';
+import '../models/lead_arrival_model.dart';
 import '../models/dashboard_summary_model.dart';
 import '../models/user_model.dart';
 import '../models/settings_model.dart';
@@ -1929,6 +1930,76 @@ class ApiService {
     } else {
       throw Exception(_translateError('failedToGetLead', locale: null));
     }
+  }
+
+  /// Announce a walk-in arrival (CALL_CENTER front desk). POST /lead-arrivals/
+  /// Throws [ApiEnvelopeException] with code 'arrival_cooldown_active' (409) when the
+  /// same lead was just announced — `details['arrival']` carries the existing row.
+  Future<LeadArrivalModel> announceLeadArrival({
+    required int clientId,
+    String? notes,
+  }) async {
+    final response = await _makeRequest(
+      'POST',
+      '/lead-arrivals/',
+      body: {'client': clientId, 'notes': notes ?? ''},
+    );
+    if (response.statusCode == 201) {
+      return LeadArrivalModel.fromJson(_unwrapResponseMap(response));
+    }
+    final ctx = ApiEnvelope.errorContextFromBody(response.body);
+    throw ApiEnvelopeException(
+      code: ctx['code']?.toString() ?? 'error',
+      message: ctx['message']?.toString() ?? 'Failed to announce arrival',
+      details: ctx['arrival'] is Map
+          ? {'arrival': Map<String, dynamic>.from(ctx['arrival'] as Map)}
+          : null,
+    );
+  }
+
+  /// Acknowledge a walk-in arrival ("Understood"). Idempotent. POST /lead-arrivals/:id/acknowledge/
+  Future<LeadArrivalModel> acknowledgeLeadArrival(int arrivalId) async {
+    final response = await _makeRequest(
+      'POST',
+      '/lead-arrivals/$arrivalId/acknowledge/',
+    );
+    if (response.statusCode == 200) {
+      return LeadArrivalModel.fromJson(_unwrapResponseMap(response));
+    }
+    throw Exception('Failed to acknowledge arrival');
+  }
+
+  /// Today's (or ?date=) company arrivals board. GET /lead-arrivals/
+  Future<List<LeadArrivalModel>> getLeadArrivals({String? date, String? status}) async {
+    final queryParams = <String>[];
+    if (date != null) queryParams.add('date=$date');
+    if (status != null) queryParams.add('status=$status');
+    final query = queryParams.isEmpty ? '' : '?${queryParams.join('&')}';
+    final response = await _makeRequest('GET', '/lead-arrivals/$query');
+    if (response.statusCode == 200) {
+      final data = _unwrapResponseMap(response);
+      final resultsList = data['results'] as List?;
+      return resultsList
+              ?.map((e) => LeadArrivalModel.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [];
+    }
+    throw Exception('Failed to load arrivals');
+  }
+
+  /// Current user's unacknowledged arrivals. GET /lead-arrivals/pending/
+  Future<List<LeadArrivalModel>> getPendingLeadArrivals() async {
+    final response = await _makeRequest('GET', '/lead-arrivals/pending/');
+    if (response.statusCode == 200) {
+      final data = ApiEnvelope.decodeAndUnwrap(response.body);
+      if (data is List) {
+        return data
+            .map((e) => LeadArrivalModel.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+      return const [];
+    }
+    throw Exception('Failed to load pending arrivals');
   }
 
   // Add action to lead

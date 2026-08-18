@@ -97,6 +97,12 @@ class UserModel {
     return roleLower == 'data_entry';
   }
 
+  /// Front-desk role: search all leads, create leads, announce walk-in arrivals.
+  bool get isCallCenter {
+    final roleLower = role.toLowerCase();
+    return roleLower == 'call_center';
+  }
+
   /// True if user is supervisor, active, and has the given permission.
   bool hasSupervisorPermission(String key) {
     if (!isSupervisor || supervisorIsActive != true) return false;
@@ -112,6 +118,7 @@ class UserModel {
     if (isDataEntry) return 'DATA_ENTRY';
     if (isReception) return 'RECEPTION';
     if (isDoctor) return 'DOCTOR';
+    if (isCallCenter) return 'CALL_CENTER';
     return 'EMPLOYEE';
   }
   

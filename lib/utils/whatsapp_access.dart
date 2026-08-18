@@ -17,7 +17,7 @@ bool canAccessWhatsAppChats(UserModel? user) {
   if (user.isSupervisor) {
     return user.hasSupervisorPermission('can_manage_whatsapp_chats');
   }
-  if (user.isDataEntry || user.isReception) return false;
+  if (user.isDataEntry || user.isReception || user.isCallCenter) return false;
   return user.whatsappChatEnabled;
 }
 

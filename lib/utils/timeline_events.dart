@@ -52,6 +52,8 @@ const _eventTypeActionKeys = <String, String>{
   're_assignment': 'leadReAssigned',
   'created': 'timelineEventCreated',
   'whatsapp_message': 'whatsappReceived',
+  'customer_arrived': 'timelineCustomerArrived',
+  'customer_arrival_acknowledged': 'timelineCustomerArrivalAcknowledged',
 };
 
 const _waMessageTypeKeys = <String, String>{

@@ -14,13 +14,17 @@ import '../screens/inventory/services_inventory_screen.dart';
 import '../screens/inventory/products_inventory_screen.dart';
 import '../screens/deals/deals_screen.dart';
 import '../screens/support/support_tickets_screen.dart';
+import '../screens/call_center/call_center_home_screen.dart';
 import '../screens/whatsapp_chat/whatsapp_conversation_list_screen.dart';
 import '../services/team_chat_away_service.dart';
 import '../services/team_chat_unread_holder.dart';
 import '../services/whatsapp_chat_unread_holder.dart';
 import '../utils/whatsapp_access.dart';
+import '../utils/inventory_access.dart' as inventory_access;
 import '../models/user_model.dart';
 import '../services/api_service.dart';
+import 'permission_guard.dart';
+import 'whatsapp_chat/whatsapp_access_guard.dart';
 
 class NavigationDrawer extends StatefulWidget {
   final VoidCallback? onProfileUpdated;
@@ -74,21 +78,6 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
       }
       debugPrint('Failed to load user in drawer: $e');
     }
-  }
-
-  /// True if user can see the Inventory section (admin always; supervisor only if they have the permission matching company specialization).
-  bool _canAccessInventory(UserModel? user) {
-    if (user == null || user.company == null) return false;
-    if (user.isDataEntry || user.isReception) return false;
-    if (user.isAdmin) return true;
-    if (user.isSupervisor) {
-      final spec = user.company!.specialization;
-      if (spec == 'real_estate') return user.hasSupervisorPermission('can_manage_real_estate');
-      if (spec == 'products') return user.hasSupervisorPermission('can_manage_products');
-      if (spec == 'services') return user.hasSupervisorPermission('can_manage_services');
-      return false;
-    }
-    return true; // employees can see inventory (access controlled per screen)
   }
 
   @override
@@ -163,7 +152,47 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
 
           // Menu Items
           Expanded(
-            child: (_currentUser?.isDataEntry == true || _currentUser?.isReception == true)
+            child: _currentUser?.isCallCenter == true
+                ? ListView(
+                    // Front desk: no arrivals board yet (ships in a later phase) —
+                    // lead search/create plus generic support for now.
+                    padding: EdgeInsets.zero,
+                    children: [
+                      _buildMenuItem(
+                        context,
+                        icon: Icons.phone_in_talk,
+                        title:
+                            localizations?.translate('callCenter') ??
+                            'Call Center',
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const CallCenterHomeScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      _buildMenuItem(
+                        context,
+                        icon: Icons.headset_mic,
+                        title:
+                            localizations?.translate('supportCenter') ??
+                            'Support Center',
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SupportTicketsScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  )
+                : (_currentUser?.isDataEntry == true || _currentUser?.isReception == true)
                 ? ListView(
                     padding: EdgeInsets.zero,
                     children: [
@@ -253,7 +282,7 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
                 ],
                 // Inventory menu - show only if user has company and (is admin or has the inventory permission matching specialization)
                 if (_currentUser?.company != null &&
-                    _canAccessInventory(_currentUser)) ...[
+                    inventory_access.canAccessInventory(_currentUser)) ...[
                   _buildMenuItem(
                     context,
                     icon: Icons.inventory,
@@ -280,7 +309,11 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const PropertiesInventoryScreen(),
+                              builder: (_) => RoleAccessGuard(
+                                allowed: inventory_access.canAccessInventory,
+                                builder: (_) =>
+                                    const PropertiesInventoryScreen(),
+                              ),
                             ),
                           );
                         },
@@ -293,7 +326,10 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const OwnersScreen(),
+                              builder: (_) => RoleAccessGuard(
+                                allowed: inventory_access.canAccessInventory,
+                                builder: (_) => const OwnersScreen(),
+                              ),
                             ),
                           );
                         },
@@ -310,7 +346,11 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const ServicesInventoryScreen(),
+                              builder: (_) => RoleAccessGuard(
+                                allowed: inventory_access.canAccessInventory,
+                                builder: (_) =>
+                                    const ServicesInventoryScreen(),
+                              ),
                             ),
                           );
                         },
@@ -327,7 +367,11 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const ProductsInventoryScreen(),
+                              builder: (_) => RoleAccessGuard(
+                                allowed: inventory_access.canAccessInventory,
+                                builder: (_) =>
+                                    const ProductsInventoryScreen(),
+                              ),
                             ),
                           );
                         },
@@ -378,7 +422,10 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
                           settings: const RouteSettings(
                             name: 'WhatsAppConversationListScreen',
                           ),
-                          builder: (_) => const WhatsAppConversationListScreen(),
+                          builder: (_) => WhatsAppAccessGuard(
+                            builder: (_) =>
+                                const WhatsAppConversationListScreen(),
+                          ),
                         ),
                       );
                     },
