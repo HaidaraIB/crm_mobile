@@ -152,7 +152,12 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
 
           // Menu Items
           Expanded(
-            child: _currentUser?.isCallCenter == true
+            child: _isLoadingUser
+                // The menu is role-dependent, so rendering anything concrete before
+                // the user resolves shows restricted roles a flash of items they
+                // will never have (call center saw Leads/Deals/Settings).
+                ? _buildMenuSkeleton(theme)
+                : _currentUser?.isCallCenter == true
                 ? ListView(
                     // Front desk: the lead search *is* this role's home screen, so it
                     // gets no entry of its own here. Mirrors the web sidebar
@@ -190,9 +195,28 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
                           );
                         },
                       ),
+                      // Personal preferences (language, theme, 2FA, notifications).
+                      // SettingsScreen renders only its General tab without admin or
+                      // can_manage_settings, so this exposes nothing company-wide.
+                      _buildMenuItem(
+                        context,
+                        icon: Icons.settings,
+                        title:
+                            localizations?.translate('settings') ?? 'Settings',
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SettingsScreen(),
+                            ),
+                          );
+                        },
+                      ),
                     ],
                   )
-                : (_currentUser?.isDataEntry == true || _currentUser?.isReception == true)
+                : (_currentUser?.isDataEntry == true ||
+                      _currentUser?.isReception == true)
                 ? ListView(
                     padding: EdgeInsets.zero,
                     children: [
@@ -222,262 +246,290 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
                     ],
                   )
                 : ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                _buildMenuItem(
-                  context,
-                  icon: Icons.track_changes,
-                  title: localizations?.translate('leads') ?? 'Leads',
-                  hasSubItems: true,
-                  isExpanded: _leadsExpanded,
-                  onTap: () {
-                    setState(() {
-                      _leadsExpanded = !_leadsExpanded;
-                    });
-                  },
-                ),
-                // Sub-items for Leads
-                if (_leadsExpanded) ...[
-                  _buildSubMenuItem(
-                    context,
-                    title: localizations?.translate('allLeads') ?? 'All Leads',
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
+                    padding: EdgeInsets.zero,
+                    children: [
+                      _buildMenuItem(
                         context,
-                        MaterialPageRoute(
-                          builder: (_) => const AllLeadsScreen(),
+                        icon: Icons.track_changes,
+                        title: localizations?.translate('leads') ?? 'Leads',
+                        hasSubItems: true,
+                        isExpanded: _leadsExpanded,
+                        onTap: () {
+                          setState(() {
+                            _leadsExpanded = !_leadsExpanded;
+                          });
+                        },
+                      ),
+                      // Sub-items for Leads
+                      if (_leadsExpanded) ...[
+                        _buildSubMenuItem(
+                          context,
+                          title:
+                              localizations?.translate('allLeads') ??
+                              'All Leads',
+                          onTap: () {
+                            Navigator.pop(context);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const AllLeadsScreen(),
+                              ),
+                            );
+                          },
                         ),
-                      );
-                    },
-                  ),
-                  _buildSubMenuItem(
-                    context,
-                    title:
-                        localizations?.translate('freshLeads') ?? 'Fresh Leads',
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const FreshLeadsScreen(),
+                        _buildSubMenuItem(
+                          context,
+                          title:
+                              localizations?.translate('freshLeads') ??
+                              'Fresh Leads',
+                          onTap: () {
+                            Navigator.pop(context);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const FreshLeadsScreen(),
+                              ),
+                            );
+                          },
                         ),
-                      );
-                    },
-                  ),
-                  _buildSubMenuItem(
-                    context,
-                    title:
-                        localizations?.translate('coldLeads') ?? 'Cold Leads',
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const ColdLeadsScreen(),
+                        _buildSubMenuItem(
+                          context,
+                          title:
+                              localizations?.translate('coldLeads') ??
+                              'Cold Leads',
+                          onTap: () {
+                            Navigator.pop(context);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const ColdLeadsScreen(),
+                              ),
+                            );
+                          },
                         ),
-                      );
-                    },
-                  ),
-                ],
-                // Inventory menu - show only if user has company and (is admin or has the inventory permission matching specialization)
-                if (_currentUser?.company != null &&
-                    inventory_access.canAccessInventory(_currentUser)) ...[
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.inventory,
-                    title: localizations?.translate('inventory') ?? 'Inventory',
-                    hasSubItems: true,
-                    isExpanded: _inventoryExpanded,
-                    onTap: () {
-                      setState(() {
-                        _inventoryExpanded = !_inventoryExpanded;
-                      });
-                    },
-                  ),
-                  // Sub-items for Inventory - based on specialization
-                  if (_inventoryExpanded) ...[
-                    // Real Estate specialization items
-                    if (SpecializationHelper.isRealEstate(_currentUser)) ...[
-                      _buildSubMenuItem(
+                      ],
+                      // Inventory menu - show only if user has company and (is admin or has the inventory permission matching specialization)
+                      if (_currentUser?.company != null &&
+                          inventory_access.canAccessInventory(
+                            _currentUser,
+                          )) ...[
+                        _buildMenuItem(
+                          context,
+                          icon: Icons.inventory,
+                          title:
+                              localizations?.translate('inventory') ??
+                              'Inventory',
+                          hasSubItems: true,
+                          isExpanded: _inventoryExpanded,
+                          onTap: () {
+                            setState(() {
+                              _inventoryExpanded = !_inventoryExpanded;
+                            });
+                          },
+                        ),
+                        // Sub-items for Inventory - based on specialization
+                        if (_inventoryExpanded) ...[
+                          // Real Estate specialization items
+                          if (SpecializationHelper.isRealEstate(
+                            _currentUser,
+                          )) ...[
+                            _buildSubMenuItem(
+                              context,
+                              title:
+                                  localizations?.translate('properties') ??
+                                  'Properties',
+                              onTap: () {
+                                Navigator.pop(context);
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => RoleAccessGuard(
+                                      allowed:
+                                          inventory_access.canAccessInventory,
+                                      builder: (_) =>
+                                          const PropertiesInventoryScreen(),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            _buildSubMenuItem(
+                              context,
+                              title:
+                                  localizations?.translate('owners') ??
+                                  'Owners',
+                              onTap: () {
+                                Navigator.pop(context);
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => RoleAccessGuard(
+                                      allowed:
+                                          inventory_access.canAccessInventory,
+                                      builder: (_) => const OwnersScreen(),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                          // Services specialization items
+                          if (SpecializationHelper.hasServiceInventory(
+                            _currentUser,
+                          )) ...[
+                            _buildSubMenuItem(
+                              context,
+                              title:
+                                  localizations?.translate('services') ??
+                                  'Services',
+                              onTap: () {
+                                Navigator.pop(context);
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => RoleAccessGuard(
+                                      allowed:
+                                          inventory_access.canAccessInventory,
+                                      builder: (_) =>
+                                          const ServicesInventoryScreen(),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                          // Products specialization items
+                          if (SpecializationHelper.isProducts(
+                            _currentUser,
+                          )) ...[
+                            _buildSubMenuItem(
+                              context,
+                              title:
+                                  localizations?.translate('products') ??
+                                  'Products',
+                              onTap: () {
+                                Navigator.pop(context);
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => RoleAccessGuard(
+                                      allowed:
+                                          inventory_access.canAccessInventory,
+                                      builder: (_) =>
+                                          const ProductsInventoryScreen(),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ],
+                      ],
+                      // WhatsApp Chats — the web sidebar exposes it on every page, so
+                      // the drawer makes it reachable outside the Dashboard tab too.
+                      if (canAccessWhatsAppChats(_currentUser))
+                        ListTile(
+                          leading: const Icon(Icons.chat),
+                          title: Text(
+                            localizations?.translate('whatsappChats') ??
+                                'WhatsApp Chats',
+                          ),
+                          trailing: ValueListenableBuilder<int>(
+                            valueListenable:
+                                WhatsAppChatUnreadHolder.totalUnread,
+                            builder: (context, count, _) {
+                              if (count <= 0) return const SizedBox.shrink();
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                constraints: const BoxConstraints(minWidth: 20),
+                                child: Text(
+                                  count > 99 ? '99+' : '$count',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              );
+                            },
+                          ),
+                          onTap: () {
+                            Navigator.pop(context);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute<void>(
+                                settings: const RouteSettings(
+                                  name: 'WhatsAppConversationListScreen',
+                                ),
+                                builder: (_) => WhatsAppAccessGuard(
+                                  builder: (_) =>
+                                      const WhatsAppConversationListScreen(),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      _buildMenuItem(
                         context,
+                        icon: Icons.handshake,
+                        title: localizations?.translate('deals') ?? 'Deals',
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const DealsScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      _buildMenuItem(
+                        context,
+                        icon: Icons.headset_mic,
                         title:
-                            localizations?.translate('properties') ??
-                            'Properties',
+                            localizations?.translate('supportCenter') ??
+                            'Support Center',
                         onTap: () {
                           Navigator.pop(context);
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => RoleAccessGuard(
-                                allowed: inventory_access.canAccessInventory,
-                                builder: (_) =>
-                                    const PropertiesInventoryScreen(),
-                              ),
+                              builder: (_) => const SupportTicketsScreen(),
                             ),
                           );
                         },
                       ),
-                      _buildSubMenuItem(
+                      // Settings (accessible to all users)
+                      _buildMenuItem(
                         context,
-                        title: localizations?.translate('owners') ?? 'Owners',
-                        onTap: () {
-                          Navigator.pop(context);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => RoleAccessGuard(
-                                allowed: inventory_access.canAccessInventory,
-                                builder: (_) => const OwnersScreen(),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                    // Services specialization items
-                    if (SpecializationHelper.hasServiceInventory(_currentUser)) ...[
-                      _buildSubMenuItem(
-                        context,
+                        icon: Icons.settings,
                         title:
-                            localizations?.translate('services') ?? 'Services',
+                            localizations?.translate('settings') ?? 'Settings',
                         onTap: () {
                           Navigator.pop(context);
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => RoleAccessGuard(
-                                allowed: inventory_access.canAccessInventory,
-                                builder: (_) =>
-                                    const ServicesInventoryScreen(),
-                              ),
+                              builder: (_) => const SettingsScreen(),
                             ),
                           );
                         },
                       ),
+                      // Admin-only menu items
+                      if (_currentUser?.isAdmin == true) ...[
+                        // Note: Add Users, Reports, Employees, Integrations here when implemented
+                        // For now, these features are not yet implemented in mobile app
+                      ],
                     ],
-                    // Products specialization items
-                    if (SpecializationHelper.isProducts(_currentUser)) ...[
-                      _buildSubMenuItem(
-                        context,
-                        title:
-                            localizations?.translate('products') ?? 'Products',
-                        onTap: () {
-                          Navigator.pop(context);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => RoleAccessGuard(
-                                allowed: inventory_access.canAccessInventory,
-                                builder: (_) =>
-                                    const ProductsInventoryScreen(),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ],
-                ],
-                // WhatsApp Chats — the web sidebar exposes it on every page, so
-                // the drawer makes it reachable outside the Dashboard tab too.
-                if (canAccessWhatsAppChats(_currentUser))
-                  ListTile(
-                    leading: const Icon(Icons.chat),
-                    title: Text(
-                      localizations?.translate('whatsappChats') ??
-                          'WhatsApp Chats',
-                    ),
-                    trailing: ValueListenableBuilder<int>(
-                      valueListenable: WhatsAppChatUnreadHolder.totalUnread,
-                      builder: (context, count, _) {
-                        if (count <= 0) return const SizedBox.shrink();
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          constraints: const BoxConstraints(minWidth: 20),
-                          child: Text(
-                            count > 99 ? '99+' : '$count',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        );
-                      },
-                    ),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute<void>(
-                          settings: const RouteSettings(
-                            name: 'WhatsAppConversationListScreen',
-                          ),
-                          builder: (_) => WhatsAppAccessGuard(
-                            builder: (_) =>
-                                const WhatsAppConversationListScreen(),
-                          ),
-                        ),
-                      );
-                    },
                   ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.handshake,
-                  title: localizations?.translate('deals') ?? 'Deals',
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const DealsScreen()),
-                    );
-                  },
-                ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.headset_mic,
-                  title:
-                      localizations?.translate('supportCenter') ??
-                      'Support Center',
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const SupportTicketsScreen(),
-                      ),
-                    );
-                  },
-                ),
-                // Settings (accessible to all users)
-                _buildMenuItem(
-                  context,
-                  icon: Icons.settings,
-                  title: localizations?.translate('settings') ?? 'Settings',
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                    );
-                  },
-                ),
-                // Admin-only menu items
-                if (_currentUser?.isAdmin == true) ...[
-                  // Note: Add Users, Reports, Employees, Integrations here when implemented
-                  // For now, these features are not yet implemented in mobile app
-                ],
-              ],
-            ),
           ),
 
           // Divider before logout
@@ -567,6 +619,40 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
     if (result == true) {
       widget.onProfileUpdated?.call();
     }
+  }
+
+  /// Neutral placeholder rows shown while the role is unknown. Laid out on the
+  /// same 56px `ListTile` grid as [_buildMenuItem] so the real menu drops in
+  /// without the list jumping.
+  Widget _buildMenuSkeleton(ThemeData theme) {
+    final placeholderColor =
+        theme.iconTheme.color?.withValues(alpha: 0.12) ??
+        Colors.grey.withValues(alpha: 0.12);
+    return ListView(
+      padding: EdgeInsets.zero,
+      physics: const NeverScrollableScrollPhysics(),
+      children: List.generate(4, (index) {
+        return ListTile(
+          leading: Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: placeholderColor,
+              borderRadius: BorderRadius.circular(6),
+            ),
+          ),
+          title: Container(
+            height: 14,
+            // Uneven widths read as text rather than as a broken layout.
+            width: index.isEven ? 120 : 96,
+            decoration: BoxDecoration(
+              color: placeholderColor,
+              borderRadius: BorderRadius.circular(7),
+            ),
+          ),
+        );
+      }),
+    );
   }
 
   Widget _buildMenuItem(

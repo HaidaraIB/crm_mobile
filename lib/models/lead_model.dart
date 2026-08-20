@@ -7,7 +7,11 @@ class LeadModel {
   final String? status;
   final String type; // 'fresh', 'hot', 'cold', etc.
   final int assignedTo;
+
+  /// Assignee display name (API: assigned_to_username); null when unassigned.
+  final String? assignedToName;
   final double budget;
+
   /// Upper bound when budget is a range; null means single value ([budget] only).
   final double? budgetMax;
   final String? communicationWay;
@@ -20,14 +24,17 @@ class LeadModel {
   final String? notes;
   final String? lastStage;
   final String? statusName;
+
   /// Secondary classification; a lead may carry many (API: tags / tags_detail).
   final List<TagModel>? tags;
   final List<PhoneNumber>? phoneNumbers;
   final String? leadCompanyName;
   final String? profession;
   final String? residence;
+
   /// Per-company clinic file number (API: patient_file_number), read-only.
   final int? patientFileNumber;
+
   /// CRM user id who created the lead (null for integrations / legacy).
   final int? createdBy;
   final String? createdByName;
@@ -44,6 +51,7 @@ class LeadModel {
   final int? campaign;
   final String? campaignName;
   final String? metaLeadgenId;
+
   /// null | qualified | unqualified
   final String? metaQualificationStatus;
   final DateTime? metaQualificationSentAt;
@@ -56,6 +64,7 @@ class LeadModel {
     this.status,
     required this.type,
     required this.assignedTo,
+    this.assignedToName,
     required this.budget,
     this.budgetMax,
     this.communicationWay,
@@ -166,6 +175,9 @@ class LeadModel {
       status: statusValue,
       type: toStringOrNull(json['type']) ?? 'All',
       assignedTo: toInt(json['assigned_to'] ?? json['assignedTo'], 0),
+      assignedToName: toStringOrNull(
+        json['assigned_to_username'] ?? json['assignedToName'],
+      ),
       budget: toDouble(json['budget']),
       budgetMax: toDoubleOrNull(json['budget_max'] ?? json['budgetMax']),
       communicationWay: communicationWayValue,
@@ -174,25 +186,25 @@ class LeadModel {
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)
           : (json['createdAt'] != null
-              ? DateTime.parse(json['createdAt'] as String)
-              : DateTime.now()),
+                ? DateTime.parse(json['createdAt'] as String)
+                : DateTime.now()),
       lastFeedback:
           json['last_feedback'] as String? ?? json['lastFeedback'] as String?,
-      lastFeedbackAt: parseDt(json['last_feedback_at']) ??
-          parseDt(json['lastFeedbackAt']),
+      lastFeedbackAt:
+          parseDt(json['last_feedback_at']) ?? parseDt(json['lastFeedbackAt']),
       notes: json['notes'] as String?,
       lastStage: json['last_stage'] as String? ?? json['lastStage'] as String?,
       statusName: json['status_name'] as String?,
       // Only tags_detail carries names/colors; a bare `tags` list holds ids.
       tags: json['tags_detail'] != null
           ? (json['tags_detail'] as List)
-              .map((e) => TagModel.fromJson(e as Map<String, dynamic>))
-              .toList()
+                .map((e) => TagModel.fromJson(e as Map<String, dynamic>))
+                .toList()
           : null,
       phoneNumbers: json['phone_numbers'] != null
           ? (json['phone_numbers'] as List)
-              .map((e) => PhoneNumber.fromJson(e as Map<String, dynamic>))
-              .toList()
+                .map((e) => PhoneNumber.fromJson(e as Map<String, dynamic>))
+                .toList()
           : null,
       leadCompanyName: json['lead_company_name'] as String?,
       profession: json['profession'] as String?,
@@ -229,14 +241,14 @@ class LeadModel {
       campaign: toIntOrNull(json['campaign']),
       campaignName:
           json['campaign_name'] as String? ?? json['campaignName'] as String?,
-      metaLeadgenId:
-          toStringOrNull(json['meta_leadgen_id'] ?? json['metaLeadgenId']),
+      metaLeadgenId: toStringOrNull(
+        json['meta_leadgen_id'] ?? json['metaLeadgenId'],
+      ),
       metaQualificationStatus: toStringOrNull(
         json['meta_qualification_status'] ?? json['metaQualificationStatus'],
       ),
-      metaQualificationSentAt: parseDt(
-            json['meta_qualification_sent_at'],
-          ) ??
+      metaQualificationSentAt:
+          parseDt(json['meta_qualification_sent_at']) ??
           parseDt(json['metaQualificationSentAt']),
       metaQualificationError: MetaQualificationError.fromJson(
         json['meta_qualification_error'] ?? json['metaQualificationError'],
@@ -292,8 +304,8 @@ class LeadModel {
       if (metaQualificationStatus != null)
         'meta_qualification_status': metaQualificationStatus,
       if (metaQualificationSentAt != null)
-        'meta_qualification_sent_at':
-            metaQualificationSentAt!.toIso8601String(),
+        'meta_qualification_sent_at': metaQualificationSentAt!
+            .toIso8601String(),
       if (metaQualificationError != null)
         'meta_qualification_error': metaQualificationError!.toJson(),
     };
@@ -375,8 +387,5 @@ class CreateLeadResult {
   final LeadModel lead;
   final String? urgentAssignmentWarning;
 
-  const CreateLeadResult({
-    required this.lead,
-    this.urgentAssignmentWarning,
-  });
+  const CreateLeadResult({required this.lead, this.urgentAssignmentWarning});
 }

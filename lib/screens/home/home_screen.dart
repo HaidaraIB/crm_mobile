@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart' hide NavigationDrawer;
 import 'package:intl/intl.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/utils/app_locales.dart';
 import '../../models/user_model.dart';
 import '../../services/notification_service.dart';
@@ -101,8 +102,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    WhatsAppChatUnreadPoller.instance
-        .setForeground(state == AppLifecycleState.resumed);
+    WhatsAppChatUnreadPoller.instance.setForeground(
+      state == AppLifecycleState.resumed,
+    );
   }
 
   Future<void> _loadSessionUser() async {
@@ -113,7 +115,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       // send it to its own screen instead of mounting tabs it would only 403 on.
       if (user.isCallCenter) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const CallCenterHomeScreen(isRoot: true)),
+          MaterialPageRoute(
+            builder: (_) => const CallCenterHomeScreen(isRoot: true),
+          ),
         );
         return;
       }
@@ -229,12 +233,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               return const Icon(Icons.chat_outlined);
             },
           ),
-          tooltip: localizations?.translate('whatsappChats') ?? 'WhatsApp Chats',
+          tooltip:
+              localizations?.translate('whatsappChats') ?? 'WhatsApp Chats',
           onPressed: () async {
             await Navigator.push<void>(
               context,
               MaterialPageRoute<void>(
-                settings: const RouteSettings(name: 'WhatsAppConversationListScreen'),
+                settings: const RouteSettings(
+                  name: 'WhatsAppConversationListScreen',
+                ),
                 builder: (_) => const WhatsAppConversationListScreen(),
               ),
             );
@@ -268,6 +275,36 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           },
         ),
       ],
+    );
+  }
+
+  /// Shown on every cold start until the role is known — a bare
+  /// [CircularProgressIndicator] on an empty page read as a broken screen.
+  Widget _buildSessionLoadingState(AppLocalizations? localizations) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 44,
+            height: 44,
+            child: CircularProgressIndicator(
+              strokeWidth: 3.5,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                AppTheme.primaryAccent(theme.brightness),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            localizations?.translate('loading') ?? 'Loading...',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.textTheme.bodySmall?.color,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -378,13 +415,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     onPressed: () => _importLeadsCallback?.call(),
                   ),
                   if (!_isDataEntry)
-                  IconButton(
-                    icon: const Icon(Icons.file_upload_outlined),
-                    tooltip:
-                        localizations?.translate('exportLeads') ??
-                        'Export to Excel',
-                    onPressed: () => _exportLeadsCallback?.call(),
-                  ),
+                    IconButton(
+                      icon: const Icon(Icons.file_upload_outlined),
+                      tooltip:
+                          localizations?.translate('exportLeads') ??
+                          'Export to Excel',
+                      onPressed: () => _exportLeadsCallback?.call(),
+                    ),
                   Builder(
                     builder: (context) {
                       // Check if filters are active
@@ -481,38 +518,34 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         },
       ),
       body: !_sessionResolved
-          ? const Center(child: CircularProgressIndicator())
+          ? _buildSessionLoadingState(localizations)
           : _isDataEntry
           ? _allLeadsScreen
           : IndexedStack(
               index: _currentIndex,
-              children: [
-                _dashboardScreen,
-                _allLeadsScreen,
-                _calendarScreen,
-              ],
+              children: [_dashboardScreen, _allLeadsScreen, _calendarScreen],
             ),
       bottomNavigationBar: (!_sessionResolved || _isDataEntry)
           ? null
           : BottomNavigation(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          // Refresh data when switching tabs
-          if (index == 0 && _currentIndex != 0) {
-            // Switching to dashboard - refresh dashboard data
-            _dashboardKey.currentState?.refreshDashboardData();
-          } else if (index == 1 && _currentIndex != 1) {
-            // Switching to all leads - refresh leads data
-            // The AllLeadsScreen will handle its own refresh via PopScope
-          } else if (index == 2 && _currentIndex != 2) {
-            // Switching to calendar should not force refresh; keep cache-friendly behavior.
-            // Manual refresh remains available via the calendar app bar button.
-          }
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-      ),
+              currentIndex: _currentIndex,
+              onTap: (index) {
+                // Refresh data when switching tabs
+                if (index == 0 && _currentIndex != 0) {
+                  // Switching to dashboard - refresh dashboard data
+                  _dashboardKey.currentState?.refreshDashboardData();
+                } else if (index == 1 && _currentIndex != 1) {
+                  // Switching to all leads - refresh leads data
+                  // The AllLeadsScreen will handle its own refresh via PopScope
+                } else if (index == 2 && _currentIndex != 2) {
+                  // Switching to calendar should not force refresh; keep cache-friendly behavior.
+                  // Manual refresh remains available via the calendar app bar button.
+                }
+                setState(() {
+                  _currentIndex = index;
+                });
+              },
+            ),
     );
   }
 }

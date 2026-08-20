@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart' hide NavigationDrawer;
 import '../../core/api/api_envelope.dart';
 import '../../core/localization/app_localizations.dart';
@@ -28,7 +26,6 @@ class CallCenterHomeScreen extends StatefulWidget {
 class _CallCenterHomeScreenState extends State<CallCenterHomeScreen> {
   final TextEditingController _searchController = TextEditingController();
   final ApiService _apiService = ApiService();
-  Timer? _debounce;
 
   bool _loading = false;
   bool _searched = false;
@@ -57,23 +54,30 @@ class _CallCenterHomeScreenState extends State<CallCenterHomeScreen> {
 
   @override
   void dispose() {
-    _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
-  void _onSearchChanged(String value) {
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 400), () {
-      final term = value.trim();
-      if (term.isEmpty) {
-        setState(() {
-          _searched = false;
-          _results = const [];
-        });
-        return;
-      }
-      _runSearch(term);
+  /// Search runs on submit only — the old keystroke debounce fired a request per
+  /// pause while typing a name or a 13-digit phone number.
+  void _submitSearch() {
+    final term = _searchController.text.trim();
+    if (term.isEmpty) {
+      setState(() {
+        _searched = false;
+        _results = const [];
+      });
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    _runSearch(term);
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() {
+      _searched = false;
+      _results = const [];
     });
   }
 
@@ -116,9 +120,9 @@ class _CallCenterHomeScreenState extends State<CallCenterHomeScreen> {
         setState(() => _announcedIds.add(lead.id));
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
       setState(() => _announcingIds.remove(lead.id));
@@ -200,32 +204,76 @@ class _CallCenterHomeScreenState extends State<CallCenterHomeScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            TextField(
-              controller: _searchController,
-              autofocus: true,
-              textInputAction: TextInputAction.search,
-              onChanged: _onSearchChanged,
-              decoration: InputDecoration(
-                hintText:
-                    localizations?.translate('searchLeadByNameOrPhone') ??
-                    'Search by name or phone',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() {
-                            _searched = false;
-                            _results = const [];
-                          });
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
+            // Rebuilds on every keystroke so the clear/submit affordances track the
+            // field, without a keystroke ever triggering a request.
+            ValueListenableBuilder<TextEditingValue>(
+              valueListenable: _searchController,
+              builder: (context, value, _) {
+                final hasText = value.text.trim().isNotEmpty;
+                return Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        autofocus: true,
+                        textInputAction: TextInputAction.search,
+                        onSubmitted: (_) => _submitSearch(),
+                        decoration: InputDecoration(
+                          hintText:
+                              localizations?.translate(
+                                'searchLeadByNameOrPhone',
+                              ) ??
+                              'Search by name or phone',
+                          prefixIcon: const Icon(Icons.search),
+                          suffixIcon: value.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  tooltip:
+                                      localizations?.translate('clear') ??
+                                      'Clear',
+                                  onPressed: _clearSearch,
+                                )
+                              : null,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      // Matches the outlined field's default height so the row
+                      // doesn't read as two mismatched controls.
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: hasText && !_loading ? _submitSearch : null,
+                        style: _primaryButtonStyle.copyWith(
+                          padding: const WidgetStatePropertyAll(
+                            EdgeInsets.symmetric(horizontal: 16),
+                          ),
+                          shape: WidgetStatePropertyAll(
+                            RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                        child: _loading
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Text(
+                                localizations?.translate('search') ?? 'Search',
+                              ),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 16),
             Expanded(child: _buildBody(localizations)),
@@ -240,101 +288,232 @@ class _CallCenterHomeScreenState extends State<CallCenterHomeScreen> {
       return const Center(child: CircularProgressIndicator());
     }
     if (!_searched) {
-      return Center(
-        child: Text(
-          localizations?.translate('searchLeadByNameOrPhone') ??
-              'Search by name or phone to find a lead.',
-          textAlign: TextAlign.center,
-          style: const TextStyle(color: Colors.grey),
-        ),
+      return _buildPlaceholder(
+        icon: Icons.person_search_outlined,
+        message:
+            localizations?.translate('searchLeadByNameOrPhone') ??
+            'Search by name or phone to find a lead.',
       );
     }
     if (_results.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              localizations?.translate('leadNotFoundCreateOne') ??
-                  'No matching lead found.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: _openCreateLead,
-              icon: const Icon(Icons.add),
-              label: Text(localizations?.translate('createLead') ?? 'Create Lead'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-                foregroundColor: Colors.white,
-              ),
-            ),
-          ],
+      return _buildPlaceholder(
+        icon: Icons.search_off,
+        message:
+            localizations?.translate('leadNotFoundCreateOne') ??
+            'No matching lead found.',
+        action: ElevatedButton.icon(
+          style: _primaryButtonStyle,
+          onPressed: _openCreateLead,
+          icon: const Icon(Icons.add),
+          label: Text(localizations?.translate('createLead') ?? 'Create Lead'),
         ),
       );
     }
-    return ListView.separated(
+    return ListView.builder(
+      padding: const EdgeInsets.only(bottom: 16),
       itemCount: _results.length,
-      separatorBuilder: (_, __) => const Divider(height: 1),
-      itemBuilder: (context, index) {
-        final lead = _results[index];
-        final assigned = lead.assignedTo != 0;
-        final isAnnouncing = _announcingIds.contains(lead.id);
-        final isAnnounced = _announcedIds.contains(lead.id);
-        return ListTile(
-          title: Text(lead.name),
-          subtitle: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(lead.phone, textDirection: TextDirection.ltr),
-              Text(
-                assigned
-                    ? (localizations?.translate('assigned') ?? 'Assigned')
-                    : (localizations?.translate('unassigned') ?? 'Unassigned'),
-                style: TextStyle(
-                  color: assigned ? Colors.grey : Colors.orange,
-                  fontSize: 12,
-                ),
-              ),
-            ],
+      itemBuilder: (context, index) =>
+          _buildResultCard(_results[index], localizations),
+    );
+  }
+
+  Widget _buildPlaceholder({
+    required IconData icon,
+    required String message,
+    Widget? action,
+  }) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 56, color: theme.disabledColor),
+          const SizedBox(height: 12),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.textTheme.bodySmall?.color,
+            ),
           ),
-          trailing: isAnnounced
-              ? Text(
-                  localizations?.translate('arrivalAnnouncedToast') ??
-                      'Arrival announced',
-                  style: const TextStyle(color: Colors.green, fontSize: 12),
-                )
-              : SizedBox(
-                  width: 110,
-                  child: ElevatedButton(
-                    onPressed: isAnnouncing ? null : () => _announceArrival(lead),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
+          if (action != null) ...[const SizedBox(height: 16), action],
+        ],
+      ),
+    );
+  }
+
+  /// Solid brand purple with white text — the convention across this app. M3's
+  /// FilledButton default resolves the seed to a pale lavender on the dark theme,
+  /// which reads as disabled next to everything else.
+  ButtonStyle get _primaryButtonStyle => ElevatedButton.styleFrom(
+    backgroundColor: AppTheme.primaryColor,
+    foregroundColor: Colors.white,
+    disabledBackgroundColor: AppTheme.primaryColor.withValues(alpha: 0.45),
+    disabledForegroundColor: Colors.white70,
+  );
+
+  Widget _buildResultCard(LeadModel lead, AppLocalizations? localizations) {
+    final theme = Theme.of(context);
+    final assigned = lead.assignedTo != 0;
+    final isAnnouncing = _announcingIds.contains(lead.id);
+    final isAnnounced = _announcedIds.contains(lead.id);
+    final mutedStyle = theme.textTheme.bodySmall?.copyWith(
+      color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.75),
+    );
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(12, 12, 12, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  // Solid brand purple with a white glyph — the 15%-alpha tint on
+                  // top of a dark card left the initial barely legible.
+                  backgroundColor: AppTheme.primaryColor,
+                  child: Text(
+                    _initial(lead.name),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
                     ),
-                    child: isAnnouncing
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : Text(
-                            localizations?.translate('announceArrival') ??
-                                'Customer arrived',
-                            style: const TextStyle(fontSize: 11),
-                            textAlign: TextAlign.center,
-                            maxLines: 2,
-                          ),
                   ),
                 ),
-        );
-      },
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        lead.name,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (lead.phone.isNotEmpty)
+                        Text(
+                          lead.phone,
+                          // E.164 needs an explicit LTR run or the leading + jumps in RTL.
+                          textDirection: TextDirection.ltr,
+                          textAlign: TextAlign.start,
+                          style: mutedStyle,
+                        ),
+                      const SizedBox(height: 6),
+                      // Who the walk-in belongs to, by name — the web board shows
+                      // assigned_to_username here, and "Assigned" alone doesn't tell
+                      // the desk which colleague to go and fetch.
+                      if (assigned)
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.person_outline,
+                              size: 14,
+                              color: mutedStyle?.color,
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                lead.assignedToName?.trim().isNotEmpty == true
+                                    ? lead.assignedToName!
+                                    : (localizations?.translate('assigned') ??
+                                          'Assigned'),
+                                style: mutedStyle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        )
+                      else
+                        _buildBadge(
+                          localizations?.translate('unassigned') ??
+                              'Unassigned',
+                          Colors.orange,
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: isAnnounced
+                  // Confirmation stays on the row so the agent can see at a glance
+                  // which of several look-alike results they already announced.
+                  ? _buildBadge(
+                      localizations?.translate('arrivalAnnouncedToast') ??
+                          'Arrival announced',
+                      Colors.green,
+                      icon: Icons.check_circle,
+                    )
+                  : ElevatedButton.icon(
+                      style: _primaryButtonStyle,
+                      onPressed: isAnnouncing
+                          ? null
+                          : () => _announceArrival(lead),
+                      icon: isAnnouncing
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.campaign_outlined, size: 18),
+                      // No fixed width: the label and its Arabic translation were
+                      // wrapping mid-word inside the old 110px box.
+                      label: Text(
+                        localizations?.translate('announceArrival') ??
+                            'Customer arrived',
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
     );
+  }
+
+  Widget _buildBadge(String label, Color color, {IconData? icon}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 12, color: color),
+            const SizedBox(width: 4),
+          ],
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _initial(String name) {
+    final trimmed = name.trim();
+    return trimmed.isEmpty ? '?' : trimmed.characters.first.toUpperCase();
   }
 }
