@@ -14,7 +14,7 @@ import '../screens/inventory/services_inventory_screen.dart';
 import '../screens/inventory/products_inventory_screen.dart';
 import '../screens/deals/deals_screen.dart';
 import '../screens/support/support_tickets_screen.dart';
-import '../screens/call_center/call_center_home_screen.dart';
+import '../screens/call_center/arrivals_board_screen.dart';
 import '../screens/whatsapp_chat/whatsapp_conversation_list_screen.dart';
 import '../services/team_chat_away_service.dart';
 import '../services/team_chat_unread_holder.dart';
@@ -154,22 +154,22 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
           Expanded(
             child: _currentUser?.isCallCenter == true
                 ? ListView(
-                    // Front desk: no arrivals board yet (ships in a later phase) —
-                    // lead search/create plus generic support for now.
+                    // Front desk: the lead search *is* this role's home screen, so it
+                    // gets no entry of its own here. Mirrors the web sidebar
+                    // (Arrivals + Support Center) — see AppContext canAccessPage.
                     padding: EdgeInsets.zero,
                     children: [
                       _buildMenuItem(
                         context,
-                        icon: Icons.phone_in_talk,
+                        icon: Icons.notifications_outlined,
                         title:
-                            localizations?.translate('callCenter') ??
-                            'Call Center',
+                            localizations?.translate('arrivals') ?? 'Arrivals',
                         onTap: () {
                           Navigator.pop(context);
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const CallCenterHomeScreen(),
+                              builder: (_) => const ArrivalsBoardScreen(),
                             ),
                           );
                         },

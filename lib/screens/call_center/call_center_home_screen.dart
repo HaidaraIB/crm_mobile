@@ -8,7 +8,7 @@ import '../../models/lead_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/navigation_drawer.dart';
 import '../leads/create_lead_screen.dart';
-import 'arrivals_board_screen.dart';
+import '../notifications/notifications_screen.dart';
 
 /// Front-desk lead search for the CALL_CENTER role: search all company leads by
 /// name/phone, announce a walk-in's arrival, or jump to Create Lead when nobody
@@ -35,6 +35,25 @@ class _CallCenterHomeScreenState extends State<CallCenterHomeScreen> {
   List<LeadModel> _results = const [];
   final Set<int> _announcingIds = {};
   final Set<int> _announcedIds = {};
+  int _unreadNotificationsCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isRoot) _loadUnreadCount();
+  }
+
+  Future<void> _loadUnreadCount({bool forceRefresh = false}) async {
+    try {
+      final count = await _apiService.getUnreadNotificationsCount(
+        forceRefresh: forceRefresh,
+      );
+      if (!mounted) return;
+      setState(() => _unreadNotificationsCount = count);
+    } catch (e) {
+      debugPrint('Warning: Failed to load unread notifications count: $e');
+    }
+  }
 
   @override
   void dispose() {
@@ -120,10 +139,45 @@ class _CallCenterHomeScreenState extends State<CallCenterHomeScreen> {
     );
   }
 
-  void _openArrivalsBoard() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const ArrivalsBoardScreen()),
+  Widget _notificationsAppBarAction(AppLocalizations? localizations) {
+    return Stack(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.notifications_outlined),
+          tooltip: localizations?.translate('notifications') ?? 'Notifications',
+          onPressed: () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+            );
+            if (mounted) _loadUnreadCount(forceRefresh: true);
+          },
+        ),
+        if (_unreadNotificationsCount > 0)
+          Positioned(
+            right: 8,
+            top: 8,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: const BoxDecoration(
+                color: Colors.red,
+                shape: BoxShape.circle,
+              ),
+              constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+              child: Text(
+                _unreadNotificationsCount > 99
+                    ? '99+'
+                    : '$_unreadNotificationsCount',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -136,11 +190,10 @@ class _CallCenterHomeScreenState extends State<CallCenterHomeScreen> {
       appBar: AppBar(
         title: Text(localizations?.translate('callCenter') ?? 'Call Center'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            tooltip: localizations?.translate('arrivals') ?? 'Arrivals',
-            onPressed: _openArrivalsBoard,
-          ),
+          // Arrivals lives in the drawer (like the web sidebar). This slot keeps the
+          // notifications bell every other role has in the same place — landing here
+          // is otherwise a call-center user's only screen, with no route to them.
+          if (widget.isRoot) _notificationsAppBarAction(localizations),
         ],
       ),
       body: Padding(
