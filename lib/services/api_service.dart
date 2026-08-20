@@ -391,6 +391,49 @@ class ApiService {
     }
   }
 
+  /// Roles whose actual CRM usage time is measured ("working hours").
+  ///
+  /// Every company role, owners/admins included. Only `super_admin` is excluded: it
+  /// is the platform operator, not company staff. Mirrors WORK_TRACKED_ROLES in
+  /// accounts/work_tracking.py, which is the actual enforcement point.
+  static bool roleTracksWorkHours(String? role) {
+    final token = (role ?? '').trim().toLowerCase().replaceAll(RegExp(r'\s+'), '_');
+    if (token.isEmpty || token == 'super_admin') return false;
+    return true;
+  }
+
+  /// Credit measured CRM usage time for the current user.
+  ///
+  /// Sends the source only — never a duration. The server derives the elapsed
+  /// interval from its own clock and cursor, so a dropped or delayed ping is
+  /// recovered automatically (up to the server's cap) and nothing is double
+  /// counted when web and mobile are open at the same time. Also refreshes
+  /// presence, so callers running this loop can skip [sendPresenceHeartbeat].
+  Future<Map<String, dynamic>?> sendWorkSessionPing() async {
+    if (!await hasStoredAccessToken()) return null;
+    try {
+      final response = await _makeRequest(
+        'POST',
+        '/work-sessions/ping/',
+        body: <String, dynamic>{'source': 'mobile'},
+      );
+      return _unwrapResponseMap(response);
+    } catch (_) {
+      // Best-effort: a failed ping must not disturb the app.
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> fetchWorkSessionToday() async {
+    if (!await hasStoredAccessToken()) return null;
+    try {
+      final response = await _makeRequest('GET', '/work-sessions/today/');
+      return _unwrapResponseMap(response);
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<Map<String, String>> _getHeaders({bool includeAuth = true}) async {
     final headers = <String, String>{'Content-Type': 'application/json'};
 

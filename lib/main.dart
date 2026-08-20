@@ -34,6 +34,7 @@ import 'services/api_service.dart';
 import 'models/notification_model.dart';
 import 'services/team_chat_away_service.dart';
 import 'services/team_chat_route_observer.dart';
+import 'services/work_session_service.dart';
 import 'services/whatsapp_chat_unread_poller.dart';
 import 'services/sync_invalidation.dart';
 import 'core/utils/snackbar_helper.dart';
@@ -120,6 +121,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
   Timer? _presenceTimer;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  bool _workIdleDialogOpen = false;
   bool _reachabilityCheckInFlight = false;
   bool _reachabilitySeeded = false;
   bool _lastReachable = true;
@@ -132,12 +134,16 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     _setupNotificationListener();
     _startPresenceHeartbeat();
     _setupConnectivityListener();
+    WorkSessionService.instance.snapshot.addListener(_onWorkSessionChanged);
+    unawaited(WorkSessionService.instance.start());
   }
 
   @override
   void dispose() {
     _presenceTimer?.cancel();
     _connectivitySubscription?.cancel();
+    WorkSessionService.instance.snapshot.removeListener(_onWorkSessionChanged);
+    WorkSessionService.instance.stop();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -151,6 +157,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       NotificationService().sendTokenToServerIfLoggedIn();
       ApiService().sendPresenceHeartbeat(source: 'mobile');
       _startPresenceHeartbeat();
+      // Bringing the app forward is itself deliberate activity.
+      WorkSessionService.instance.markActivity();
+      unawaited(WorkSessionService.instance.start());
       unawaited(_runReachabilityCheck());
       // Background FCM isolate cannot reach foreground cubits; catch up on resume.
       unawaited(WhatsAppChatUnreadPoller.instance.refresh());
@@ -160,15 +169,71 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         state == AppLifecycleState.detached) {
       TeamChatAwayService.instance.setAppForeground(false);
       _presenceTimer?.cancel();
+      // Backgrounded means not in use, so stop accruing. Nothing needs flushing:
+      // the server credits retroactively, so at most one ping interval is lost.
+      WorkSessionService.instance.stop();
     }
+  }
+
+  /// Surface the idle dialog when working-hours tracking pauses itself.
+  void _onWorkSessionChanged() {
+    if (WorkSessionService.instance.state != WorkSessionState.paused) return;
+    if (_workIdleDialogOpen) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final ctx = navigatorKey.currentContext;
+      if (ctx == null || !ctx.mounted) return;
+      if (_workIdleDialogOpen) return;
+      _workIdleDialogOpen = true;
+
+      final loc = AppLocalizations.of(ctx);
+      final minutes = WorkSessionService.instance.snapshot.value.idleTimeoutMinutes;
+      final title = loc?.translate('workTrackingPausedTitle') ?? 'Time tracking paused';
+      final body = (loc?.translate('workTrackingPausedBody') ??
+              "We didn't detect any activity for {minutes} minutes, so your CRM usage "
+                  'time is no longer being counted. Press Resume to continue.')
+          .replaceAll('{minutes}', '$minutes');
+      final resume = loc?.translate('workTrackingResume') ?? 'Resume tracking';
+
+      try {
+        await showDialog<void>(
+          context: ctx,
+          // Resuming must be an explicit acknowledgement, same as on web: a tap
+          // outside would dismiss it before it was read.
+          barrierDismissible: false,
+          builder: (dialogContext) => AlertDialog(
+            title: Text(title),
+            content: Text(body),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: Text(resume),
+              ),
+            ],
+          ),
+        );
+      } finally {
+        _workIdleDialogOpen = false;
+        WorkSessionService.instance.resume();
+      }
+    });
   }
 
   void _startPresenceHeartbeat() {
     _presenceTimer?.cancel();
-    ApiService().sendPresenceHeartbeat(source: 'mobile');
+    _sendPresenceHeartbeatIfNeeded();
     _presenceTimer = Timer.periodic(const Duration(seconds: 60), (_) {
-      ApiService().sendPresenceHeartbeat(source: 'mobile');
+      _sendPresenceHeartbeatIfNeeded();
     });
+  }
+
+  /// The work-session ping refreshes `last_seen_at` in the same UPDATE, so running
+  /// both loops would double the write rate on `users` for no benefit. Checked per
+  /// tick rather than once, because whether the user is tracked is only known after
+  /// the first ping response.
+  void _sendPresenceHeartbeatIfNeeded() {
+    if (WorkSessionService.instance.state != WorkSessionState.off) return;
+    ApiService().sendPresenceHeartbeat(source: 'mobile');
   }
 
   void _setupConnectivityListener() {
@@ -365,6 +430,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                     return const LoginScreen();
                   },
                 },
+                // Root pointer observer feeding working-hours tracking. `Listener`
+                // never enters the gesture arena, so it observes touches without
+                // consuming them or competing with any widget below.
+                builder: (context, child) => Listener(
+                  behavior: HitTestBehavior.translucent,
+                  onPointerDown: (_) => WorkSessionService.instance.markActivity(),
+                  onPointerMove: (_) => WorkSessionService.instance.markActivity(),
+                  child: child ?? const SizedBox.shrink(),
+                ),
                 home: const SplashScreen(),
               );
             },

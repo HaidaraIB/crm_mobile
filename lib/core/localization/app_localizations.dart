@@ -394,6 +394,14 @@ class AppLocalizations {
       'connectivityOfflineWarning':
           'You are offline. Your changes may not be saved until internet is restored.',
       'connectivityBackOnline': 'Internet connection is back online.',
+      // Working hours tracking (measured CRM usage time)
+      'workTrackingPausedTitle': 'Time tracking paused',
+      'workTrackingPausedBody':
+          "We didn't detect any activity for {minutes} minutes, so your CRM usage time is no longer being counted. Press Resume to continue.",
+      'workTrackingResume': 'Resume tracking',
+      'workTrackingTodayLabel': 'Working hours today',
+      'hoursShort': 'h',
+      'minutesShort': 'm',
       'connectionError': 'Connection Error',
       'connectionErrorMessage':
           'Unable to connect to the server. Please try again later',
@@ -1854,6 +1862,14 @@ class AppLocalizations {
       'connectivityOfflineWarning':
           'انقطع اتصال الإنترنت. قد لا يتم حفظ التغييرات حتى يعود الاتصال.',
       'connectivityBackOnline': 'عاد اتصال الإنترنت بنجاح.',
+      // احتساب ساعات العمل الفعلية
+      'workTrackingPausedTitle': 'تم إيقاف احتساب الوقت مؤقتاً',
+      'workTrackingPausedBody':
+          'لم نلاحظ أي نشاط لمدة {minutes} دقيقة، لذلك توقف احتساب وقت استخدامك للنظام. اضغط استئناف للمتابعة.',
+      'workTrackingResume': 'استئناف الاحتساب',
+      'workTrackingTodayLabel': 'ساعات العمل اليوم',
+      'hoursShort': 'س',
+      'minutesShort': 'د',
       'connectionError': 'خطأ في الاتصال',
       'connectionErrorMessage':
           'تعذر الاتصال بالخادم. يرجى المحاولة مرة أخرى لاحقاً',

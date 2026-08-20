@@ -236,6 +236,10 @@ class CompanyModel {
   final bool? fieldVisitEnabled;
   final bool? fieldVisitAdminAllowed;
   final String? fieldVisitAdminMessage;
+  /// Measured CRM usage time ("working hours"). Must round-trip through toJson,
+  /// or WorkSessionService can't tell whether the company opted in.
+  final bool? workHoursTrackingEnabled;
+  final int? workHoursIdleTimeoutMinutes;
 
   CompanyModel({
     required this.id,
@@ -251,6 +255,8 @@ class CompanyModel {
     this.fieldVisitEnabled,
     this.fieldVisitAdminAllowed,
     this.fieldVisitAdminMessage,
+    this.workHoursTrackingEnabled,
+    this.workHoursIdleTimeoutMinutes,
   });
   
   factory CompanyModel.fromJson(Map<String, dynamic> json) {
@@ -267,6 +273,8 @@ class CompanyModel {
       fieldVisitEnabled: json['field_visit_enabled'] as bool?,
       fieldVisitAdminAllowed: json['field_visit_admin_allowed'] as bool?,
       fieldVisitAdminMessage: json['field_visit_admin_message'] as String?,
+      workHoursTrackingEnabled: json['work_hours_tracking_enabled'] as bool?,
+      workHoursIdleTimeoutMinutes: json['work_hours_idle_timeout_minutes'] as int?,
       subscription: json['subscription'] != null
           ? SubscriptionModel.fromJson(json['subscription'] as Map<String, dynamic>)
           : null,
@@ -287,6 +295,10 @@ class CompanyModel {
       if (fieldVisitEnabled != null) 'field_visit_enabled': fieldVisitEnabled,
       if (fieldVisitAdminAllowed != null) 'field_visit_admin_allowed': fieldVisitAdminAllowed,
       if (fieldVisitAdminMessage != null) 'field_visit_admin_message': fieldVisitAdminMessage,
+      if (workHoursTrackingEnabled != null)
+        'work_hours_tracking_enabled': workHoursTrackingEnabled,
+      if (workHoursIdleTimeoutMinutes != null)
+        'work_hours_idle_timeout_minutes': workHoursIdleTimeoutMinutes,
       'subscription': subscription?.toJson(),
     };
   }

@@ -12,6 +12,7 @@ import '../../services/whatsapp_chat_unread_poller.dart';
 import '../../utils/whatsapp_access.dart';
 import '../../widgets/navigation_drawer.dart';
 import '../../widgets/bottom_navigation.dart';
+import '../../widgets/work_hours_chip.dart';
 import '../calendar/calendar_screen.dart';
 import '../leads/all_leads_screen.dart';
 import '../notifications/notifications_screen.dart';
@@ -402,6 +403,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ),
                 ],
                 if (_currentIndex == 0) ...[
+                  const WorkHoursChip(),
                   if (_canAccessWhatsAppChats(_sessionUser))
                     _whatsAppChatAppBarAction(localizations),
                   _teamChatAppBarAction(localizations),
