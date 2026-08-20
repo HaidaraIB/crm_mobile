@@ -14,6 +14,7 @@ import '../../widgets/navigation_drawer.dart';
 import '../../widgets/bottom_navigation.dart';
 import '../../widgets/work_hours_chip.dart';
 import '../calendar/calendar_screen.dart';
+import '../call_center/call_center_home_screen.dart';
 import '../leads/all_leads_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../team_chat/team_chat_screen.dart';
@@ -45,6 +46,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   late final Widget _dashboardScreen;
   late final Widget _allLeadsScreen;
   late final Widget _calendarScreen;
+
+  /// False until `_loadSessionUser` settles. The tab bodies stay unmounted until
+  /// then: `IndexedStack` builds *every* child, so mounting it before the role is
+  /// known fires dashboard/calendar requests that restricted roles (call center,
+  /// data entry, reception) are forbidden from making.
+  bool _sessionResolved = false;
 
   bool get _isDataEntry => _sessionUser?.isDataEntry ?? false;
 
@@ -102,8 +109,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     try {
       final user = await _apiService.getCurrentUser();
       if (!mounted) return;
+      // Call center is a front-desk role with no dashboard/leads/calendar access —
+      // send it to its own screen instead of mounting tabs it would only 403 on.
+      if (user.isCallCenter) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const CallCenterHomeScreen(isRoot: true)),
+        );
+        return;
+      }
       setState(() {
         _sessionUser = user;
+        _sessionResolved = true;
         if (user.isDataEntry || user.isReception) {
           _currentIndex = 1;
         }
@@ -113,6 +129,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       WhatsAppChatUnreadPoller.instance.start();
     } catch (e) {
       debugPrint('Failed to load session user: $e');
+      // Fall back to the default tabs rather than stranding the user on a spinner.
+      if (mounted) setState(() => _sessionResolved = true);
     }
   }
 
@@ -462,7 +480,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           _dashboardKey.currentState?.refreshUserData();
         },
       ),
-      body: _isDataEntry
+      body: !_sessionResolved
+          ? const Center(child: CircularProgressIndicator())
+          : _isDataEntry
           ? _allLeadsScreen
           : IndexedStack(
               index: _currentIndex,
@@ -472,7 +492,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 _calendarScreen,
               ],
             ),
-      bottomNavigationBar: _isDataEntry
+      bottomNavigationBar: (!_sessionResolved || _isDataEntry)
           ? null
           : BottomNavigation(
         currentIndex: _currentIndex,

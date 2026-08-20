@@ -1,11 +1,12 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide NavigationDrawer;
 import '../../core/api/api_envelope.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/lead_model.dart';
 import '../../services/api_service.dart';
+import '../../widgets/navigation_drawer.dart';
 import '../leads/create_lead_screen.dart';
 import 'arrivals_board_screen.dart';
 
@@ -13,7 +14,12 @@ import 'arrivals_board_screen.dart';
 /// name/phone, announce a walk-in's arrival, or jump to Create Lead when nobody
 /// is found.
 class CallCenterHomeScreen extends StatefulWidget {
-  const CallCenterHomeScreen({super.key});
+  const CallCenterHomeScreen({super.key, this.isRoot = false});
+
+  /// True when this is the landing screen for a CALL_CENTER user (pushed from
+  /// [HomeScreen] instead of the tab shell). Adds the app drawer, which is the
+  /// role's only route to profile, support and logout.
+  final bool isRoot;
 
   @override
   State<CallCenterHomeScreen> createState() => _CallCenterHomeScreenState();
@@ -126,6 +132,7 @@ class _CallCenterHomeScreenState extends State<CallCenterHomeScreen> {
     final localizations = AppLocalizations.of(context);
 
     return Scaffold(
+      drawer: widget.isRoot ? const NavigationDrawer() : null,
       appBar: AppBar(
         title: Text(localizations?.translate('callCenter') ?? 'Call Center'),
         actions: [

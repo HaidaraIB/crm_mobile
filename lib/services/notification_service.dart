@@ -329,6 +329,10 @@ class NotificationService {
 
   static void _forgetCachedDeviceTokenAfterLogout() {
     _instance._fcmToken = null;
+    // The server maps token -> user, so the next login must re-register even if
+    // the device token itself is unchanged.
+    _instance._lastSentToken = null;
+    _instance._lastSentLanguage = null;
   }
 
   final FlutterLocalNotificationsPlugin _localNotifications =
@@ -337,6 +341,17 @@ class NotificationService {
   
   bool _initialized = false;
   String? _fcmToken;
+
+  /// Last (token, language) pair the server accepted, and the send currently in
+  /// flight. Registration is triggered from several places at once — login, the
+  /// home screen plus its 3s/8s iOS retries, app resume and `onTokenRefresh` — and
+  /// without this they all POST the same token concurrently and contend on the
+  /// same row until they time out. See [_sendTokenToServer].
+  String? _lastSentToken;
+  String? _lastSentLanguage;
+  String? _inFlightToken;
+  String? _inFlightLanguage;
+  Future<void>? _inFlightTokenSend;
   StreamController<NotificationPayload>? _notificationStreamController;
   
   /// الحصول على FirebaseMessaging instance (lazy initialization)
@@ -823,8 +838,38 @@ class NotificationService {
       // الحصول على اللغة الحالية من SharedPreferences
       final languageCode = prefs.getString(AppConstants.languageKey) ?? 'ar';
 
-      await ApiService().updateFCMToken(token, language: languageCode);
-      debugPrint('FCM Token and language sent to server successfully');
+      // Already registered with this exact pair — nothing to do.
+      if (token == _lastSentToken && languageCode == _lastSentLanguage) {
+        debugPrint('FCM Token unchanged since last successful send, skipping');
+        return;
+      }
+
+      // An identical send is already in flight: join it instead of racing it.
+      final pending = _inFlightTokenSend;
+      if (pending != null &&
+          token == _inFlightToken &&
+          languageCode == _inFlightLanguage) {
+        debugPrint('FCM Token send already in flight, awaiting it');
+        await pending;
+        return;
+      }
+
+      final send = ApiService().updateFCMToken(token, language: languageCode);
+      _inFlightTokenSend = send;
+      _inFlightToken = token;
+      _inFlightLanguage = languageCode;
+      try {
+        await send;
+        _lastSentToken = token;
+        _lastSentLanguage = languageCode;
+        debugPrint('FCM Token and language sent to server successfully');
+      } finally {
+        if (identical(_inFlightTokenSend, send)) {
+          _inFlightTokenSend = null;
+          _inFlightToken = null;
+          _inFlightLanguage = null;
+        }
+      }
     } catch (e) {
       debugPrint('Warning: Error sending FCM token to server: $e');
       // لا نرمي exception هنا لأن الإشعارات المحلية ستعمل حتى بدون إرسال Token

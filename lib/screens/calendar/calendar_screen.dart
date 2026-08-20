@@ -5,7 +5,11 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/api_error_helper.dart';
 import '../../core/utils/app_locales.dart';
 import '../../core/utils/snackbar_helper.dart';
+import '../../models/client_call_model.dart';
+import '../../models/client_task_model.dart';
 import '../../models/lead_model.dart';
+import '../../models/settings_model.dart';
+import '../../models/task_model.dart';
 import '../../services/api_service.dart';
 import '../leads/lead_profile_screen.dart';
 import '../../widgets/pull_to_refresh_body.dart';
@@ -46,6 +50,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
     _loadEvents(forceRefresh: true);
   }
 
+  /// Attaches [fallback] to [future] immediately so a failure can never escape as
+  /// an unhandled async error, whatever order the concurrent calendar fetches
+  /// finish in. Used for the secondary event sources only.
+  Future<T> _softFail<T>(Future<T> future, T fallback, String label) {
+    return future.catchError((Object error) {
+      debugPrint('Calendar: failed to load $label — $error');
+      return fallback;
+    });
+  }
+
   Future<void> _loadEvents({bool forceRefresh = false}) async {
     setState(() {
       _isLoading = true;
@@ -54,13 +68,28 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     try {
       // Start independent calendar fetches together, then await (typed).
-      final stagesFuture = _apiService.getStages();
-      final callMethodsFuture = _apiService.getCallMethods();
+      // Every secondary fetch gets its fallback attached at creation time, not at
+      // its await: these run concurrently, so one failing while an earlier await is
+      // still pending would otherwise complete with no listener and be reported as
+      // an unhandled async error (and the first throw would skip the rest entirely).
+      // A denied or failing side endpoint degrades that event type only; leads stay
+      // unguarded because without them there is no calendar to show.
+      final stagesFuture = _softFail(
+        _apiService.getStages(), const <StageModel>[], 'stages');
+      final callMethodsFuture = _softFail(
+        _apiService.getCallMethods(), const <CallMethodModel>[], 'call methods');
       final leadsFuture = _apiService.getLeads(forceRefresh: forceRefresh);
-      final dealsFuture = _apiService.getDeals(forceRefresh: forceRefresh);
-      final dealTasksFuture = _apiService.getAllTasks();
-      final clientTasksFuture = _apiService.getAllClientTasks();
-      final clientCallsFuture = _apiService.getAllClientCalls();
+      final dealsFuture = _softFail(
+        _apiService.getDeals(forceRefresh: forceRefresh),
+        const <String, dynamic>{'results': <dynamic>[]},
+        'deals',
+      );
+      final dealTasksFuture = _softFail(
+        _apiService.getAllTasks(), const <TaskModel>[], 'deal tasks');
+      final clientTasksFuture = _softFail(
+        _apiService.getAllClientTasks(), const <ClientTaskModel>[], 'client tasks');
+      final clientCallsFuture = _softFail(
+        _apiService.getAllClientCalls(), const <ClientCallModel>[], 'client calls');
 
       final stages = await stagesFuture;
       final callMethods = await callMethodsFuture;
