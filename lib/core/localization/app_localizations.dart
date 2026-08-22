@@ -804,7 +804,10 @@ class AppLocalizations {
       'lead': 'Lead',
       'employee': 'Employee',
       'dataEntry': 'Data entry',
-      'callCenter': 'Call Center',
+      // Page/nav label for the call-center desk. The `call_center` ROLE uses
+      // `callCenterRole` so it never collides with the medical `reception` role.
+      'callCenter': 'Reception',
+      'callCenterRole': 'Receptionist',
       'searchLeadByNameOrPhone': 'Search by name or phone',
       'leadNotFoundCreateOne': 'No matching lead found.',
       'arrivals': 'Arrivals',
@@ -2255,7 +2258,8 @@ class AppLocalizations {
       'lead': 'العميل المحتمل',
       'employee': 'الموظف',
       'dataEntry': 'إدخال بيانات',
-      'callCenter': 'مركز الاتصال',
+      'callCenter': 'الاستقبال',
+      'callCenterRole': 'الريسبشن',
       'searchLeadByNameOrPhone': 'ابحث بالاسم أو رقم الهاتف',
       'leadNotFoundCreateOne': 'لم يتم العثور على عميل مطابق.',
       'arrivals': 'الوصول',

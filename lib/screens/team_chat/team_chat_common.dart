@@ -100,7 +100,7 @@ String tenantChatPeerRoleLabel(String role, String Function(String key) tr) {
     case 'data_entry':
       return tr('dataEntry');
     case 'call_center':
-      return tr('callCenter');
+      return tr('callCenterRole');
     default:
       if (role.isEmpty) return '';
       return role.replaceAll('_', ' ');
