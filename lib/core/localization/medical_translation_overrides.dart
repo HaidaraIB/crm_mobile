@@ -37,6 +37,9 @@ const Map<String, Map<String, String>> kMedicalTranslationOverrides = {
     'searchByClientNameOrId': 'Search by patient name or ID',
     'lead': 'Patient',
     'employee': 'Doctor',
+    'topEmployee': 'Top Doctor',
+    'employeeWeeklyDayOffAssignError':
+        'This doctor is on their weekly day off and cannot be assigned patients today.',
     'dataEntry': 'Reception',
     'leadRequired': 'Patient is required',
     'addNewLead': 'Add new patient',
@@ -118,6 +121,9 @@ const Map<String, Map<String, String>> kMedicalTranslationOverrides = {
     'searchByClientNameOrId': 'البحث باسم المريض أو المعرف',
     'lead': 'مريض',
     'employee': 'طبيب',
+    'topEmployee': 'أفضل طبيب',
+    'employeeWeeklyDayOffAssignError':
+        'هذا الطبيب في يوم إجازته الأسبوعية ولا يمكن إسناد مرضى إليه اليوم.',
     'dataEntry': 'موظف استقبال',
     'leadRequired': 'المريض مطلوب',
     'addNewLead': 'إضافة مريض جديد',
