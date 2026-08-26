@@ -62,6 +62,8 @@ class TimelineEntry {
   final String? color;
   final String? oldValue;
   final String? newValue;
+  /// User-supplied justification, e.g. why a lead was moved into this status.
+  final String? reason;
   final String? fieldLabel;
   /// Resolved tags added/removed by a tags_change event, for colored chips.
   final TimelineTagChanges? tagChanges;
@@ -88,6 +90,7 @@ class TimelineEntry {
     this.color,
     this.oldValue,
     this.newValue,
+    this.reason,
     this.fieldLabel,
     this.tagChanges,
     this.callDatetime,

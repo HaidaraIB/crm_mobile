@@ -470,6 +470,8 @@ class _TimelineRow extends StatelessWidget {
                     newValue: entry.newValue,
                     loc: loc,
                   ),
+                if (entry.reason != null && entry.reason!.isNotEmpty)
+                  _ChangeReason(reason: entry.reason!, loc: loc),
                 if (entry.type == TimelineEntryType.locationUpdate)
                   _LocationBlock(
                     entry: entry,
@@ -1050,6 +1052,52 @@ class _TagChanges extends StatelessWidget {
             true,
           ),
       ],
+    );
+  }
+}
+
+/// The written justification captured when a lead moves into a status that
+/// settings flagged as requiring one. Mirrors the web timeline's reason block.
+class _ChangeReason extends StatelessWidget {
+  final String reason;
+  final AppLocalizations? loc;
+
+  const _ChangeReason({required this.reason, this.loc});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final muted = _timelineMutedColor(context);
+    final strong = _timelineStrongColor(context);
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: theme.dividerColor),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              loc?.translate('statusChangeReasonLabel') ?? 'Reason',
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: muted,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              reason,
+              style: theme.textTheme.bodyMedium?.copyWith(color: strong),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

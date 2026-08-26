@@ -13,6 +13,7 @@ import '../../core/utils/lead_assignee_users.dart';
 import '../../core/utils/budget_range_utils.dart';
 import '../../utils/lead_update_payload.dart';
 import '../../widgets/phone_input.dart';
+import '../../widgets/status_change_reason_dialog.dart';
 import '../../widgets/lead_location_map_picker.dart';
 import '../../widgets/lead_urgent_switch.dart';
 import '../../widgets/lead_interest_inventory_fields.dart';
@@ -369,22 +370,40 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
       return;
     }
 
+    final nextPayload = _buildUpdatePayload();
+    final diff = buildLeadUpdateDiff(_initialUpdatePayload ?? {}, nextPayload);
+
+    if (diff.isEmpty) {
+      if (mounted) {
+        Navigator.pop(context);
+      }
+      return;
+    }
+
+    // A `status` key in the sparse diff means the status actually changed, so a
+    // flagged target status collects its reason before the patch goes out.
+    if (diff.containsKey('status')) {
+      final targetId = diff['status'];
+      StatusModel? target;
+      for (final s in _statuses) {
+        if (s.id == targetId) {
+          target = s;
+          break;
+        }
+      }
+      final gate = await resolveStatusChangeReason(context, target);
+      if (!gate.proceed || !mounted) return;
+      if (gate.reason != null) {
+        diff['status_change_reason'] = gate.reason;
+      }
+    }
+
     setState(() {
       _isLoading = true;
       _errors.clear();
     });
 
     try {
-      final nextPayload = _buildUpdatePayload();
-      final diff = buildLeadUpdateDiff(_initialUpdatePayload ?? {}, nextPayload);
-
-      if (diff.isEmpty) {
-        if (mounted) {
-          Navigator.pop(context);
-        }
-        return;
-      }
-
       final lead = await _apiService.patchLead(widget.lead.id, diff);
 
       if (mounted) {

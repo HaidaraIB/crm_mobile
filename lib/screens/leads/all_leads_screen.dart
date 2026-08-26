@@ -13,6 +13,7 @@ import '../../models/lead_model.dart';
 import '../../models/settings_model.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
+import '../../widgets/status_change_reason_dialog.dart';
 import '../../widgets/modals/add_action_modal.dart';
 import '../../widgets/modals/add_call_modal.dart';
 import '../../widgets/modals/add_visit_modal.dart';
@@ -315,6 +316,10 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
   Future<void> _updateStatus(LeadModel lead, StatusModel? newStatus) async {
     if (newStatus == null) return;
 
+    // Statuses flagged in settings collect a written reason before the patch goes out.
+    final gate = await resolveStatusChangeReason(context, newStatus);
+    if (!gate.proceed) return;
+
     if (!mounted) return;
     setState(() {
       _updatingStatusMap[lead.id] = true;
@@ -324,6 +329,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       final updatedLead = await _apiService.updateLead(
         id: lead.id,
         statusId: newStatus.id,
+        statusChangeReason: gate.reason,
       );
 
       if (!mounted) return;

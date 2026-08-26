@@ -1229,6 +1229,8 @@ class AppLocalizations {
           'This phone number cannot receive WhatsApp messages (not on WhatsApp, wrong number, or not added as a Meta test recipient).',
       'whatsapp_ecosystem_engagement_limit':
           'Meta blocked this message to limit marketing volume to this contact (error 131049). Wait at least 24 hours before sending another marketing template to the same person.',
+      'whatsapp_recipient_experiment_block':
+          "Meta temporarily blocked delivery to this customer's number as part of an internal test (error 130472). This isn't caused by your account or message — it's assigned by Meta to the recipient's number and usually clears on its own. Try again later or reach the customer another way.",
       'close': 'Close',
       'libraryPickerTitle': 'Company library',
       'librarySearchHint': 'Search files',
@@ -1304,6 +1306,16 @@ class AppLocalizations {
       'leadReAssigned': 'Lead re-assigned',
       'statusChangedFrom': 'Status changed from',
       'statusChangedTo': 'to',
+      'requiresChangeReasonLabel': 'Require a reason when moving a lead to this status',
+      'requiresChangeReasonHelp':
+          'Users must write why they are moving a lead into this status. The reason is saved and shown in the lead timeline.',
+      'requiresChangeReasonColumn': 'Reason required',
+      'statusChangeReasonTitle': 'Reason for status change',
+      'statusChangeReasonIntro': 'You are moving this lead to "{status}".',
+      'statusChangeReasonLabel': 'Reason',
+      'statusChangeReasonPlaceholder': 'Why is this lead being moved to this status?',
+      'statusChangeReasonRequired': 'A reason is required for this status',
+      'statusChangeReasonConfirm': 'Confirm',
       'bulkAssignedTo': 'Bulk assigned to',
       'assignedToAction': 'Assigned to',
       'was': 'was',
@@ -2673,6 +2685,8 @@ class AppLocalizations {
           'لا يمكن لهذا الرقم استلام رسائل واتساب (غير مسجل على واتساب، رقم خاطئ، أو غير مضاف كرقم اختبار في ميتا).',
       'whatsapp_ecosystem_engagement_limit':
           'ميتا حظرت هذه الرسالة للحد من حجم الرسائل التسويقية لهذا الرقم (خطأ 131049). انتظر 24 ساعة على الأقل قبل إرسال قالب تسويقي آخر لنفس الشخص.',
+      'whatsapp_recipient_experiment_block':
+          'منعت ميتا مؤقتاً إرسال الرسائل لرقم هذا العميل ضمن تجربة داخلية (خطأ 130472). هذا لا علاقة له بحسابك أو محتوى رسالتك — القيد مرتبط برقم العميل من طرف ميتا وعادةً ما يزول تلقائياً. حاول لاحقاً أو تواصل مع العميل بوسيلة أخرى.',
       'close': 'إغلاق',
       'libraryPickerTitle': 'مكتبة الشركة',
       'librarySearchHint': 'ابحث في الملفات',
@@ -2743,6 +2757,16 @@ class AppLocalizations {
       'leadReAssigned': 'تم إعادة إسناد العميل',
       'statusChangedFrom': 'تم تغيير الحالة من',
       'statusChangedTo': 'إلى',
+      'requiresChangeReasonLabel': 'طلب كتابة سبب عند نقل العميل إلى هذه الحالة',
+      'requiresChangeReasonHelp':
+          'يجب على المستخدمين كتابة سبب نقل العميل إلى هذه الحالة. يُحفظ السبب ويظهر في السجل الزمني للعميل.',
+      'requiresChangeReasonColumn': 'السبب مطلوب',
+      'statusChangeReasonTitle': 'سبب تغيير الحالة',
+      'statusChangeReasonIntro': 'أنت تنقل هذا العميل إلى "{status}".',
+      'statusChangeReasonLabel': 'السبب',
+      'statusChangeReasonPlaceholder': 'لماذا يتم نقل هذا العميل إلى هذه الحالة؟',
+      'statusChangeReasonRequired': 'يجب كتابة سبب لهذه الحالة',
+      'statusChangeReasonConfirm': 'تأكيد',
       'bulkAssignedTo': 'تعيين جماعي إلى',
       'assignedToAction': 'تم الإسناد إلى',
       'was': 'كان',

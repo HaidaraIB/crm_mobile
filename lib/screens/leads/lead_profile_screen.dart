@@ -26,6 +26,7 @@ import '../../utils/timeline_builder.dart';
 import '../../utils/timeline_events.dart';
 import '../../utils/whatsapp_access.dart';
 import '../../utils/whatsapp_launch.dart';
+import '../../widgets/status_change_reason_dialog.dart';
 import '../../widgets/modals/assign_lead_modal.dart';
 import '../../widgets/modals/add_action_modal.dart';
 import '../../widgets/modals/add_call_modal.dart';
@@ -428,15 +429,20 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
   
   Future<void> _updateStatus(StatusModel? newStatus) async {
     if (newStatus == null || _lead == null) return;
-    
+
+    // Statuses flagged in settings collect a written reason before the patch goes out.
+    final gate = await resolveStatusChangeReason(context, newStatus);
+    if (!gate.proceed || !mounted) return;
+
     setState(() {
       _isUpdatingStatus = true;
     });
-    
+
     try {
       final updatedLead = await _apiService.updateLead(
         id: _lead!.id,
         statusId: newStatus.id,
+        statusChangeReason: gate.reason,
       );
       
       setState(() {

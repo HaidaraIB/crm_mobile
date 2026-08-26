@@ -34,6 +34,7 @@ class _EditStatusModalState extends State<EditStatusModal> {
   late String _selectedCategory;
   late bool _isDefault;
   late bool _isHidden;
+  late bool _requiresChangeReason;
   bool _isLoading = false;
   String? _errorMessage;
   int? _companyId;
@@ -65,6 +66,7 @@ class _EditStatusModalState extends State<EditStatusModal> {
     }
     _isDefault = widget.status.isDefault;
     _isHidden = widget.status.isHidden;
+    _requiresChangeReason = widget.status.requiresChangeReason;
     _loadInitialPayload();
   }
 
@@ -101,6 +103,7 @@ class _EditStatusModalState extends State<EditStatusModal> {
       'is_hidden': _isHidden,
       if (_companyId != null) 'company': _companyId,
       'auto_delete_after_hours': autoDeleteHours,
+      'requires_change_reason': _requiresChangeReason,
     };
   }
 
@@ -424,6 +427,22 @@ class _EditStatusModalState extends State<EditStatusModal> {
                           onChanged: (value) {
                             setState(() {
                               _isDefault = value;
+                            });
+                          },
+                        ),
+                        // Requires a written reason to move a lead into this status
+                        AppSwitchListTile(
+                          title: Text(
+                            localizations?.translate('requiresChangeReasonLabel') ??
+                                'Require a reason when moving a lead to this status',
+                          ),
+                          subtitle: Text(
+                            localizations?.translate('requiresChangeReasonHelp') ?? '',
+                          ),
+                          value: _requiresChangeReason,
+                          onChanged: (value) {
+                            setState(() {
+                              _requiresChangeReason = value;
                             });
                           },
                         ),

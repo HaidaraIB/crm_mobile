@@ -3221,6 +3221,8 @@ class ApiService {
     String? priority,
     String? status, // Deprecated: use statusId instead
     int? statusId, // Preferred: status ID
+    /// Required by the API when the target status is flagged in settings.
+    String? statusChangeReason,
     /// Full replacement set; omit to leave the lead's tags untouched.
     List<int>? tagIds,
     String? leadCompanyName,
@@ -3258,6 +3260,10 @@ class ApiService {
       body['status'] = statusId;
     } else if (status != null) {
       body['status'] = status;
+    }
+
+    if (statusChangeReason != null && statusChangeReason.trim().isNotEmpty) {
+      body['status_change_reason'] = statusChangeReason.trim();
     }
 
     if (tagIds != null) body['tags'] = tagIds;
@@ -3999,6 +4005,7 @@ class ApiService {
     required bool isDefault,
     required bool isHidden,
     int? autoDeleteAfterHours,
+    bool requiresChangeReason = false,
   }) async {
     // Get current user to retrieve company ID
     final currentUser = await getCurrentUser();
@@ -4022,6 +4029,7 @@ class ApiService {
       'is_default': isDefault,
       'is_hidden': isHidden,
       'company': currentUser.company!.id,
+      'requires_change_reason': requiresChangeReason,
     };
     if (autoDeleteAfterHours != null) {
       body['auto_delete_after_hours'] = autoDeleteAfterHours;
@@ -4073,6 +4081,7 @@ class ApiService {
     required bool isHidden,
     bool includeAutoDeleteAfterHours = false,
     int? autoDeleteAfterHours,
+    bool requiresChangeReason = false,
   }) async {
     // Get current user to retrieve company ID
     final currentUser = await getCurrentUser();
@@ -4096,6 +4105,7 @@ class ApiService {
       'is_default': isDefault,
       'is_hidden': isHidden,
       'company': currentUser.company!.id,
+      'requires_change_reason': requiresChangeReason,
     };
     if (includeAutoDeleteAfterHours) {
       body['auto_delete_after_hours'] = autoDeleteAfterHours;

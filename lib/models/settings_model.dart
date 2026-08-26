@@ -127,6 +127,7 @@ class StatusModel {
   final bool isDefault;
   final bool isHidden;
   final int? autoDeleteAfterHours;
+  final bool requiresChangeReason;
 
   StatusModel({
     required this.id,
@@ -137,6 +138,7 @@ class StatusModel {
     required this.isDefault,
     required this.isHidden,
     this.autoDeleteAfterHours,
+    this.requiresChangeReason = false,
   });
 
   factory StatusModel.fromJson(Map<String, dynamic> json) {
@@ -156,6 +158,9 @@ class StatusModel {
       isDefault: json['is_default'] as bool? ?? json['isDefault'] as bool? ?? false,
       isHidden: json['is_hidden'] as bool? ?? json['isHidden'] as bool? ?? false,
       autoDeleteAfterHours: hours,
+      requiresChangeReason: json['requires_change_reason'] as bool? ??
+          json['requiresChangeReason'] as bool? ??
+          false,
     );
   }
 
@@ -169,6 +174,7 @@ class StatusModel {
       'is_default': isDefault,
       'is_hidden': isHidden,
       if (autoDeleteAfterHours != null) 'auto_delete_after_hours': autoDeleteAfterHours,
+      'requires_change_reason': requiresChangeReason,
     };
   }
 
@@ -180,6 +186,7 @@ class StatusModel {
       'color': color,
       'is_default': isDefault,
       'is_hidden': isHidden,
+      'requires_change_reason': requiresChangeReason,
     };
   }
 
@@ -192,6 +199,7 @@ class StatusModel {
       'is_default': isDefault,
       'is_hidden': isHidden,
       if (autoDeleteAfterHours != null) 'auto_delete_after_hours': autoDeleteAfterHours,
+      'requires_change_reason': requiresChangeReason,
     };
   }
 }

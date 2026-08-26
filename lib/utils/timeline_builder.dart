@@ -419,6 +419,7 @@ List<TimelineEntry> buildLeadTimeline(TimelineBuilderInput input) {
           : ce.eventType == 'tags_change'
               ? null
               : pair.newFormatted,
+      reason: (ce.reason?.trim().isNotEmpty ?? false) ? ce.reason!.trim() : null,
       color: eventColor,
     );
   });

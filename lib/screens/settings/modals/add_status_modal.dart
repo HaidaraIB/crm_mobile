@@ -34,6 +34,7 @@ class _AddStatusModalState extends State<AddStatusModal> {
   String _selectedCategory = 'Active';
   bool _isDefault = false;
   bool _isHidden = false;
+  bool _requiresChangeReason = false;
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -110,6 +111,7 @@ class _AddStatusModalState extends State<AddStatusModal> {
         isDefault: _isDefault,
         isHidden: _isHidden,
         autoDeleteAfterHours: autoDeleteHours,
+        requiresChangeReason: _requiresChangeReason,
       );
 
       if (mounted) {
@@ -369,6 +371,22 @@ class _AddStatusModalState extends State<AddStatusModal> {
                           onChanged: (value) {
                             setState(() {
                               _isDefault = value;
+                            });
+                          },
+                        ),
+                        // Requires a written reason to move a lead into this status
+                        AppSwitchListTile(
+                          title: Text(
+                            localizations?.translate('requiresChangeReasonLabel') ??
+                                'Require a reason when moving a lead to this status',
+                          ),
+                          subtitle: Text(
+                            localizations?.translate('requiresChangeReasonHelp') ?? '',
+                          ),
+                          value: _requiresChangeReason,
+                          onChanged: (value) {
+                            setState(() {
+                              _requiresChangeReason = value;
                             });
                           },
                         ),

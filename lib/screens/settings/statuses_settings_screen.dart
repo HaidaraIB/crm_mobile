@@ -296,6 +296,17 @@ class _StatusesSettingsScreenState extends State<StatusesSettingsScreen> {
                                           label: _getCategoryLabel(status.category, localizations),
                                           color: _getCategoryColor(status.category),
                                         ),
+                                        if (status.requiresChangeReason) ...[
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            localizations?.translate('requiresChangeReasonColumn') ??
+                                                'Reason required',
+                                            style: theme.textTheme.labelSmall?.copyWith(
+                                              color: theme.colorScheme.primary,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
                                         if (status.autoDeleteAfterHours != null &&
                                             status.autoDeleteAfterHours! >= 1) ...[
                                           const SizedBox(height: 6),
