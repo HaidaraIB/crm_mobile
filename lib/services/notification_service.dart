@@ -39,7 +39,52 @@ const List<String> _kAllAndroidNotificationChannelIds = <String>[
   'system',
   'tenant_chat',
   'team_activity',
+  'arrival',
 ];
+
+/// Walk-in arrival channel: rings like an incoming call instead of chiming like a
+/// message, because someone has to walk out and greet a customer at the desk.
+const String kArrivalChannelId = 'arrival';
+const String _kArrivalChannelName = 'Customer Reception';
+const String _kArrivalChannelDescription =
+    'Ringing alert when reception announces a walk-in customer';
+
+/// Android FLAG_INSISTENT — repeats the channel sound until the notification is
+/// dismissed or tapped, which is what makes the arrival alert ring like a call.
+final Int32List _kInsistentNotificationFlags = Int32List.fromList(<int>[4]);
+
+AndroidNotificationChannel _buildArrivalNotificationChannel() =>
+    AndroidNotificationChannel(
+      kArrivalChannelId,
+      _kArrivalChannelName,
+      description: _kArrivalChannelDescription,
+      importance: Importance.max,
+      playSound: true,
+      sound: _androidSoundForChannelId(kArrivalChannelId),
+      enableVibration: true,
+      audioAttributesUsage: AudioAttributesUsage.notificationRingtone,
+    );
+
+AndroidNotificationDetails _buildArrivalAndroidDetails() =>
+    AndroidNotificationDetails(
+      kArrivalChannelId,
+      _kArrivalChannelName,
+      channelDescription: _kArrivalChannelDescription,
+      importance: Importance.max,
+      priority: Priority.max,
+      playSound: true,
+      sound: _androidSoundForChannelId(kArrivalChannelId),
+      enableVibration: true,
+      category: AndroidNotificationCategory.call,
+      audioAttributesUsage: AudioAttributesUsage.notificationRingtone,
+      additionalFlags: _kInsistentNotificationFlags,
+      icon: '@mipmap/ic_launcher',
+    );
+
+/// Announced walk-in arrivals (`kind: lead_arrival`) ring; the after-the-fact
+/// acknowledgement (`lead_arrival_ack`) deliberately does not.
+bool _isArrivalRingPush(NotificationPayload? payload) =>
+    payload?.data?['kind'] == 'lead_arrival';
 
 /// Android `res/raw` basename without extension; null = platform default sound.
 String? _androidRawSoundBasenameForChannelId(String channelId) {
@@ -64,6 +109,8 @@ String? _androidRawSoundBasenameForChannelId(String channelId) {
       return 'notif_reports';
     case 'system':
       return 'notif_system';
+    case kArrivalChannelId:
+      return 'notif_arrival';
     case 'general':
       return null;
     default:
@@ -205,9 +252,40 @@ Future<void> _ensureFcmBackgroundLocalNotificationsInitialized() async {
       enableVibration: true,
     );
     await androidPlugin.createNotificationChannel(tenantChatChannel);
+    await androidPlugin.createNotificationChannel(
+      _buildArrivalNotificationChannel(),
+    );
   }
 
   _fcmBackgroundLocalNotificationsInitialized = true;
+}
+
+/// Posts the ringing walk-in alert from the background isolate. Android arrivals are
+/// pushed data-only precisely so this runs: a system-posted FCM notification plays the
+/// channel sound once, while this one carries FLAG_INSISTENT and keeps ringing.
+Future<void> _showArrivalRingFromBackground(NotificationPayload payload) async {
+  await _ensureFcmBackgroundLocalNotificationsInitialized();
+
+  final title = payload.title.isNotEmpty ? payload.title : _kArrivalChannelName;
+  final notificationId = payload.notificationId ??
+      DateTime.now().millisecondsSinceEpoch.remainder(100000);
+
+  await _fcmBackgroundLocalNotifications.show(
+    notificationId,
+    title,
+    payload.body,
+    NotificationDetails(
+      android: _buildArrivalAndroidDetails(),
+      iOS: DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+        sound: _iosSoundFileForChannelId(kArrivalChannelId),
+        interruptionLevel: InterruptionLevel.timeSensitive,
+      ),
+    ),
+    payload: NotificationService.notificationPayloadJsonForLocalTap(payload),
+  );
 }
 
 Future<void> _showTenantChatMergedFromBackground(NotificationPayload payload) async {
@@ -294,6 +372,24 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       await _showTenantChatMergedFromBackground(payload);
     } catch (e, st) {
       debugPrint('[FCM] Background tenant_chat local notification failed: $e');
+      debugPrint('$st');
+    }
+    return;
+  }
+
+  if (_isArrivalRingPush(payload)) {
+    // iOS arrivals arrive as an APNs alert with the ringtone attached; only Android
+    // is data-only, so only Android has to post the tray item itself.
+    if (Platform.isIOS) {
+      debugPrint(
+        '[FCM] Background arrival skipped on iOS — APNs alert handles tray + sound',
+      );
+      return;
+    }
+    try {
+      await _showArrivalRingFromBackground(payload);
+    } catch (e, st) {
+      debugPrint('[FCM] Background arrival ring notification failed: $e');
       debugPrint('$st');
     }
     return;
@@ -585,6 +681,9 @@ class NotificationService {
       await androidPlugin.createNotificationChannel(systemChannel);
       await androidPlugin.createNotificationChannel(tenantChatChannel);
       await androidPlugin.createNotificationChannel(teamActivityChannel);
+      await androidPlugin.createNotificationChannel(
+        _buildArrivalNotificationChannel(),
+      );
     }
   }
 
@@ -1070,6 +1169,7 @@ class NotificationService {
       return explicitChannelId;
     }
     if (_isTenantChatPush(payload)) return 'tenant_chat';
+    if (_isArrivalRingPush(payload)) return kArrivalChannelId;
     final action = payload?.data?['action']?.toString();
     return _getChannelForType(payload?.type, action: action);
   }
@@ -1085,9 +1185,11 @@ class NotificationService {
     if (!_initialized) await initialize();
 
     final tenantChat = _isTenantChatPush(payload);
+    final arrivalRing = _isArrivalRingPush(payload);
 
-    // إشعارات دردشة الفريق تتبع السيرفر (skip_settings_check) — لا تخفيها إذا كان "عام" معطلاً
-    if (!tenantChat && payload?.type != null) {
+    // إشعارات دردشة الفريق ووصول الزبائن تتبع السيرفر (skip_settings_check)
+    // — لا تخفيها إذا كان "عام" معطلاً أو خارج أوقات الإشعارات
+    if (!tenantChat && !arrivalRing && payload?.type != null) {
       final settings = await app_settings.NotificationSettings.load();
 
       if (!settings.enabled) {
@@ -1150,23 +1252,27 @@ class NotificationService {
       displayTitle,
       displayBody,
       NotificationDetails(
-        android: AndroidNotificationDetails(
-          notificationChannel,
-          _getChannelName(notificationChannel),
-          channelDescription: _getChannelDescription(notificationChannel),
-          importance: notificationImportance,
-          priority: Priority.high,
-          playSound: true,
-          sound: androidSound,
-          enableVibration: true,
-          icon: '@mipmap/ic_launcher',
-          styleInformation: androidStyle,
-        ),
+        android: arrivalRing
+            ? _buildArrivalAndroidDetails()
+            : AndroidNotificationDetails(
+                notificationChannel,
+                _getChannelName(notificationChannel),
+                channelDescription: _getChannelDescription(notificationChannel),
+                importance: notificationImportance,
+                priority: Priority.high,
+                playSound: true,
+                sound: androidSound,
+                enableVibration: true,
+                icon: '@mipmap/ic_launcher',
+                styleInformation: androidStyle,
+              ),
         iOS: DarwinNotificationDetails(
           presentAlert: true,
           presentBadge: true,
           presentSound: true,
           sound: iosSound,
+          interruptionLevel:
+              arrivalRing ? InterruptionLevel.timeSensitive : null,
           subtitle: tenantMergeLines != null && tenantMergeLines.length > 1
               ? '${tenantMergeLines.length} messages'
               : null,
@@ -1317,6 +1423,8 @@ class NotificationService {
         return 'Team Activity';
       case 'reminders':
         return 'Reminders';
+      case kArrivalChannelId:
+        return _kArrivalChannelName;
       default:
         return 'General Notifications';
     }
@@ -1345,6 +1453,8 @@ class NotificationService {
         return 'Company owner alerts when teammates act on leads';
       case 'reminders':
         return 'Reminder notifications';
+      case kArrivalChannelId:
+        return _kArrivalChannelDescription;
       default:
         return 'General notifications from CRM';
     }
