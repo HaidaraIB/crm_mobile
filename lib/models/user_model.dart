@@ -21,6 +21,15 @@ class UserModel {
   /// Daily work window (HH:MM or HH:MM:SS); both null = excluded from urgent routing.
   final String? workStartTime;
   final String? workEndTime;
+  /// Planned leave window (YYYY-MM-DD, inclusive on both ends); null when none.
+  final String? timeOffStartDate;
+  final String? timeOffEndDate;
+  /// Why routing skips this user right now: time_off | unavailable | weekly_day_off,
+  /// or null when they accept new assignments. Server-computed in company time.
+  final String? availabilityReason;
+  /// When the block ends: a date for planned leave, a timestamp for the ad-hoc
+  /// "away" toggle, null for a weekly day off (which needs no end marker).
+  final String? availabilityUntil;
   final bool? isCompanyOwner;
   final bool? loginTwoFactorEnabled;
   /// When true, employee/supervisor may delete customers (clients).
@@ -50,6 +59,10 @@ class UserModel {
     this.weeklyDayOff,
     this.workStartTime,
     this.workEndTime,
+    this.timeOffStartDate,
+    this.timeOffEndDate,
+    this.availabilityReason,
+    this.availabilityUntil,
     this.isCompanyOwner,
     this.loginTwoFactorEnabled,
     this.canDeleteClients = false,
@@ -163,6 +176,12 @@ class UserModel {
       }
     }
 
+    // Routing availability, computed server-side in company time (null on payloads
+    // that predate it — the widgets fall back to the raw schedule fields).
+    final availability = json['availability'] is Map<String, dynamic>
+        ? json['availability'] as Map<String, dynamic>
+        : null;
+
     return UserModel(
       id: json['id'] as int,
       firstName: json['first_name'] as String? ?? json['firstName'] as String?,
@@ -184,6 +203,12 @@ class UserModel {
           : (json['weekly_day_off'] as num?)?.toInt(),
       workStartTime: json['work_start_time'] as String? ?? json['workStartTime'] as String?,
       workEndTime: json['work_end_time'] as String? ?? json['workEndTime'] as String?,
+      timeOffStartDate: json['time_off_start_date'] as String? ??
+          json['timeOffStartDate'] as String?,
+      timeOffEndDate:
+          json['time_off_end_date'] as String? ?? json['timeOffEndDate'] as String?,
+      availabilityReason: availability?['reason'] as String?,
+      availabilityUntil: availability?['until'] as String?,
       isCompanyOwner: json['is_company_owner'] as bool? ?? json['isCompanyOwner'] as bool?,
       loginTwoFactorEnabled: json['login_two_factor_enabled'] as bool? ?? json['loginTwoFactorEnabled'] as bool?,
       canDeleteClients: json['can_delete_clients'] == true || json['canDeleteClients'] == true,
@@ -213,6 +238,14 @@ class UserModel {
       if (weeklyDayOff != null) 'weekly_day_off': weeklyDayOff,
       if (workStartTime != null) 'work_start_time': workStartTime,
       if (workEndTime != null) 'work_end_time': workEndTime,
+      if (timeOffStartDate != null) 'time_off_start_date': timeOffStartDate,
+      if (timeOffEndDate != null) 'time_off_end_date': timeOffEndDate,
+      // Round-trips through storage so the dashboard card survives a cold start.
+      'availability': {
+        'accepts_new_assignments': availabilityReason == null,
+        'reason': availabilityReason,
+        'until': availabilityUntil,
+      },
       if (isCompanyOwner != null) 'is_company_owner': isCompanyOwner,
       if (loginTwoFactorEnabled != null) 'login_two_factor_enabled': loginTwoFactorEnabled,
       'can_delete_clients': canDeleteClients,

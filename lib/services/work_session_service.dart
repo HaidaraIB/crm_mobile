@@ -115,6 +115,9 @@ class WorkSessionService {
       final decoded = jsonDecode(storedUserJson);
       if (decoded is! Map<String, dynamic>) return false;
       if (!ApiService.roleTracksWorkHours(decoded['role']?.toString())) return false;
+      // Owners are excluded server-side (they read these numbers, they are not
+      // measured by them); skip the loop instead of pinging for an inert answer.
+      if (decoded['is_company_owner'] == true) return false;
       final company = decoded['company'];
       if (company is Map && company['work_hours_tracking_enabled'] == false) {
         return false;

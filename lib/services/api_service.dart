@@ -393,9 +393,11 @@ class ApiService {
 
   /// Roles whose actual CRM usage time is measured ("working hours").
   ///
-  /// Every company role, owners/admins included. Only `super_admin` is excluded: it
-  /// is the platform operator, not company staff. Mirrors WORK_TRACKED_ROLES in
-  /// accounts/work_tracking.py, which is the actual enforcement point.
+  /// Every company role, admins included. Only `super_admin` is excluded here: it is
+  /// the platform operator, not company staff. The company owner is excluded too,
+  /// but by identity rather than role — see WorkSessionService._isTrackedUser.
+  /// Mirrors WORK_TRACKED_ROLES in accounts/work_tracking.py, which is the actual
+  /// enforcement point.
   static bool roleTracksWorkHours(String? role) {
     final token = (role ?? '').trim().toLowerCase().replaceAll(RegExp(r'\s+'), '_');
     if (token.isEmpty || token == 'super_admin') return false;
@@ -2013,10 +2015,16 @@ class ApiService {
   }
 
   /// Today's (or ?date=) company arrivals board. GET /lead-arrivals/
-  Future<List<LeadArrivalModel>> getLeadArrivals({String? date, String? status}) async {
+  Future<List<LeadArrivalModel>> getLeadArrivals({
+    String? date,
+    String? status,
+    bool mine = false,
+  }) async {
     final queryParams = <String>[];
     if (date != null) queryParams.add('date=$date');
     if (status != null) queryParams.add('status=$status');
+    // Server-side: arrivals this user announced or was notified about.
+    if (mine) queryParams.add('mine=1');
     final query = queryParams.isEmpty ? '' : '?${queryParams.join('&')}';
     final response = await _makeRequest('GET', '/lead-arrivals/$query');
     if (response.statusCode == 200) {

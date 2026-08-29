@@ -252,15 +252,25 @@ class _LoginScreenState extends State<LoginScreen> {
           lowerError.contains('invalid password') ||
           lowerError.contains('user not found') ||
           lowerError.contains('unable to log in') ||
-          lowerError.contains('no active account')) {
-        // Use the actual backend error message, with localization fallback
-        if (cleanError.isNotEmpty &&
-            !cleanError.toLowerCase().contains('failed to request')) {
-          errorMsg = cleanError;
-        } else if (lowerError.contains('user not found')) {
+          lowerError.contains('no active account') ||
+          lowerError.contains('account is inactive')) {
+        // Localize known backend messages instead of showing raw English text
+        if (lowerError.contains('user not found')) {
           errorMsg =
               AppLocalizations.of(context)?.translate('userNotFound') ??
               'User not found';
+        } else if (lowerError.contains('no active account')) {
+          errorMsg =
+              AppLocalizations.of(context)?.translate('noActiveAccount') ??
+              'No active account found with the given credentials';
+        } else if (lowerError.contains('unable to log in')) {
+          errorMsg =
+              AppLocalizations.of(context)?.translate('unableToLogin') ??
+              'Unable to log in with provided credentials';
+        } else if (lowerError.contains('account is inactive')) {
+          errorMsg =
+              AppLocalizations.of(context)?.translate('accountInactive') ??
+              'Account is inactive';
         } else {
           errorMsg =
               AppLocalizations.of(context)?.translate('invalidCredentials') ??

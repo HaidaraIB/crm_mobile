@@ -25,6 +25,7 @@ import '../models/user_model.dart';
 import '../services/api_service.dart';
 import 'permission_guard.dart';
 import 'whatsapp_chat/whatsapp_access_guard.dart';
+import 'working_hours_today_card.dart';
 
 class NavigationDrawer extends StatefulWidget {
   final VoidCallback? onProfileUpdated;
@@ -148,6 +149,13 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
                 ),
               ],
             ),
+          ),
+
+          // Today's shift, for every role: the drawer is the one surface all of
+          // them share (reception and data entry have no dashboard tab).
+          WorkingHoursTodayCard(
+            user: _currentUser,
+            margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
           ),
 
           // Menu Items
