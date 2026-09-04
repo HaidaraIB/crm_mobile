@@ -21,6 +21,7 @@ import '../../features/team_chat/tenant_chat_message_adapter.dart';
 import '../../models/tenant_chat_models.dart';
 import '../../services/api_service.dart';
 import 'team_chat_message_bubble.dart';
+import 'widgets/team_chat_thread_empty.dart';
 
 /// Message list + scroll/pagination for one conversation. Uses [ChatThreadCubit] + indexed list.
 class TeamChatThreadPane extends StatefulWidget {
@@ -399,6 +400,14 @@ class TeamChatThreadPaneState extends State<TeamChatThreadPane> {
           }
           if (state.error != null && state.rows.isEmpty) {
             return Center(child: Text(state.error!));
+          }
+          if (state.rows.isEmpty) {
+            return ColoredBox(
+              color: scheme.surfaceContainerLowest,
+              child: TeamChatThreadEmpty(
+                isCompanyGroup: widget.isCompanyGroup,
+              ),
+            );
           }
 
           return Stack(

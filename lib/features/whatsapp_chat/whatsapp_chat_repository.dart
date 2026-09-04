@@ -5,7 +5,23 @@ import '../../models/whatsapp_template_model.dart';
 import '../../services/api_service.dart';
 
 abstract class WhatsAppChatRepository {
-  Future<List<WhatsAppConversationModel>> getConversations();
+  Future<WhatsAppConversationsPage> getConversations({
+    String? status,
+    String? assignment,
+    int? agentId,
+    bool? starred,
+    bool? unreplied,
+    String? search,
+    int? limit,
+    int? offset,
+  });
+  Future<Map<String, dynamic>> updateConversationState({
+    required int clientId,
+    String? status,
+    String? snoozedUntil,
+    bool? isStarred,
+    bool? isUnsubscribed,
+  });
   Future<List<LeadWhatsAppMessageModel>> getMessages({int? clientId, String? phone});
   Future<void> sendMessage({required String to, required String message, int? clientId});
   Future<void> sendMedia({
@@ -47,9 +63,42 @@ class ApiWhatsAppChatRepository implements WhatsAppChatRepository {
   final ApiService _api;
 
   @override
-  Future<List<WhatsAppConversationModel>> getConversations() =>
-      _api.getWhatsAppConversations();
+  Future<WhatsAppConversationsPage> getConversations({
+    String? status,
+    String? assignment,
+    int? agentId,
+    bool? starred,
+    bool? unreplied,
+    String? search,
+    int? limit,
+    int? offset,
+  }) =>
+      _api.getWhatsAppConversations(
+        status: status,
+        assignment: assignment,
+        agentId: agentId,
+        starred: starred,
+        unreplied: unreplied,
+        search: search,
+        limit: limit,
+        offset: offset,
+      );
 
+  @override
+  Future<Map<String, dynamic>> updateConversationState({
+    required int clientId,
+    String? status,
+    String? snoozedUntil,
+    bool? isStarred,
+    bool? isUnsubscribed,
+  }) =>
+      _api.updateWhatsAppConversationState(
+        clientId: clientId,
+        status: status,
+        snoozedUntil: snoozedUntil,
+        isStarred: isStarred,
+        isUnsubscribed: isUnsubscribed,
+      );
   @override
   Future<List<LeadWhatsAppMessageModel>> getMessages({int? clientId, String? phone}) {
     if (clientId != null) {

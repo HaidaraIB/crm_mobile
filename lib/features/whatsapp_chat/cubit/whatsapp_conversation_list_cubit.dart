@@ -4,6 +4,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../models/whatsapp_conversation_model.dart';
+import '../../../services/api_service.dart';
 import '../../../services/whatsapp_chat_unread_holder.dart';
 import '../../../services/sync_invalidation.dart';
 import '../../../utils/whatsapp_manual_chats_storage.dart';
@@ -25,6 +26,7 @@ class WhatsAppConversationListCubit extends Cubit<WhatsAppConversationListState>
   final bool includeManualChats;
   Timer? _timer;
   Timer? _awaySoundTimer;
+  Timer? _searchDebounce;
   StreamSubscription<Map<String, String>>? _invalidateSub;
   int _lastUnreadTotal = 0;
   final AudioPlayer _awayPlayer = AudioPlayer();
@@ -66,17 +68,117 @@ class WhatsAppConversationListCubit extends Cubit<WhatsAppConversationListState>
     } catch (_) {}
   }
 
+  void setStatusFilter(String status) {
+    emit(state.copyWith(
+      filters: state.filters.copyWith(status: status, starred: false),
+    ));
+    unawaited(refresh());
+  }
+
+  void setAssignment(String assignment) {
+    emit(state.copyWith(
+      filters: state.filters.copyWith(
+        assignment: assignment,
+        starred: false,
+        clearAgent: true,
+      ),
+    ));
+    unawaited(refresh());
+  }
+
+  void setAgent(int? agentId) {
+    emit(state.copyWith(
+      filters: state.filters.copyWith(
+        agentId: agentId,
+        assignment: 'all',
+        starred: false,
+        clearAgent: agentId == null,
+      ),
+    ));
+    unawaited(refresh());
+  }
+
+  void toggleStarred() {
+    final next = !state.filters.starred;
+    emit(state.copyWith(
+      filters: state.filters.copyWith(
+        starred: next,
+        status: next ? 'all' : state.filters.status,
+        assignment: next ? 'all' : state.filters.assignment,
+        clearAgent: next,
+      ),
+    ));
+    unawaited(refresh());
+  }
+
+  void toggleUnreplied() {
+    emit(state.copyWith(
+      filters: state.filters.copyWith(unreplied: !state.filters.unreplied),
+    ));
+    unawaited(refresh());
+  }
+
+  void setSearch(String search) {
+    emit(state.copyWith(filters: state.filters.copyWith(search: search)));
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      unawaited(refresh(silent: true));
+    });
+  }
+
+  Future<void> updateConversationState({
+    required int clientId,
+    String? status,
+    String? snoozedUntil,
+    bool? isStarred,
+    bool? isUnsubscribed,
+  }) async {
+    try {
+      await _repository.updateConversationState(
+        clientId: clientId,
+        status: status,
+        snoozedUntil: snoozedUntil,
+        isStarred: isStarred,
+        isUnsubscribed: isUnsubscribed,
+      );
+      if (isClosed) return;
+      final updated = state.conversations.map((c) {
+        if (c.id != clientId) return c;
+        return c.copyWith(
+          status: status,
+          snoozedUntil: snoozedUntil != null ? DateTime.tryParse(snoozedUntil) : null,
+          clearSnoozedUntil: status != null && status != 'snoozed',
+          isStarred: isStarred,
+          isUnsubscribed: isUnsubscribed,
+        );
+      }).toList();
+      emit(state.copyWith(conversations: updated));
+      await refresh(silent: true);
+    } catch (e) {
+      if (isClosed) return;
+      emit(state.copyWith(loadError: e.toString()));
+    }
+  }
+
   Future<void> refresh({bool silent = false}) async {
     if (isClosed) return;
     if (!silent) {
       emit(state.copyWith(loading: true));
     }
     try {
-      final conversations = await _repository.getConversations();
+      final f = state.filters;
+      final page = await _repository.getConversations(
+        status: f.starred ? null : (f.status == 'all' ? null : f.status),
+        assignment: f.assignment == 'all' ? null : f.assignment,
+        agentId: f.agentId,
+        starred: f.starred ? true : null,
+        unreplied: f.unreplied ? true : null,
+        search: f.search.trim().isEmpty ? null : f.search.trim(),
+      );
       if (isClosed) return;
-      var merged = List<WhatsAppConversationModel>.from(conversations);
+      var merged = List<WhatsAppConversationModel>.from(page.results);
 
-      if (includeManualChats) {
+      if (includeManualChats && f.isDefault) {
         final manuals = await WhatsAppManualChatsStorage.load();
         if (isClosed) return;
         for (final m in manuals) {
@@ -103,6 +205,7 @@ class WhatsAppConversationListCubit extends Cubit<WhatsAppConversationListState>
       }
 
       final total = merged.fold<int>(0, (s, c) => s + c.unreadCount);
+      WhatsAppChatUnreadHolder.setAvailable(true);
       WhatsAppChatUnreadHolder.setTotal(total);
       _lastUnreadTotal = total;
       if (isClosed) return;
@@ -110,6 +213,19 @@ class WhatsAppConversationListCubit extends Cubit<WhatsAppConversationListState>
         state.copyWith(
           conversations: merged,
           loading: false,
+          statusCounts: page.statusCounts,
+          assignmentCounts: page.assignmentCounts,
+          clearLoadError: true,
+          clearUnavailable: true,
+        ),
+      );
+    } on WhatsAppAccessDeniedException catch (e) {
+      if (isClosed) return;
+      WhatsAppChatUnreadHolder.setAvailable(false);
+      emit(
+        state.copyWith(
+          loading: false,
+          unavailableCode: e.code,
           clearLoadError: true,
         ),
       );
@@ -144,6 +260,7 @@ class WhatsAppConversationListCubit extends Cubit<WhatsAppConversationListState>
   Future<void> close() {
     _timer?.cancel();
     _awaySoundTimer?.cancel();
+    _searchDebounce?.cancel();
     _invalidateSub?.cancel();
     _awayPlayer.dispose();
     return super.close();

@@ -19,7 +19,6 @@ import '../screens/whatsapp_chat/whatsapp_conversation_list_screen.dart';
 import '../services/team_chat_away_service.dart';
 import '../services/team_chat_unread_holder.dart';
 import '../services/whatsapp_chat_unread_holder.dart';
-import '../utils/whatsapp_access.dart';
 import '../utils/inventory_access.dart' as inventory_access;
 import '../models/user_model.dart';
 import '../services/api_service.dart';
@@ -444,12 +443,14 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
                       ],
                       // WhatsApp Chats — the web sidebar exposes it on every page, so
                       // the drawer makes it reachable outside the Dashboard tab too.
-                      if (canAccessWhatsAppChats(_currentUser))
-                        ListTile(
+                      WhatsAppChatsEntryGate(
+                        user: _currentUser,
+                        child: ListTile(
                           leading: const Icon(Icons.chat),
                           title: Text(
-                            localizations?.translate('whatsappChats') ??
-                                'WhatsApp Chats',
+                            (localizations ??
+                                    AppLocalizations(const Locale('en')))
+                                .translate('whatsappChats'),
                           ),
                           trailing: ValueListenableBuilder<int>(
                             valueListenable:
@@ -494,6 +495,7 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
                             );
                           },
                         ),
+                      ),
                       _buildMenuItem(
                         context,
                         icon: Icons.handshake,

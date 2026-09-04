@@ -21,12 +21,14 @@ class WhatsAppMessageBubble extends StatelessWidget {
     this.onResend,
     this.onDelete,
     this.onOpenAlbum,
+    this.showDelete = true,
   });
 
   final LeadWhatsAppMessageModel message;
   final String? connectedPhoneNumberId;
   final VoidCallback? onResend;
   final VoidCallback? onDelete;
+  final bool showDelete;
 
   /// Opens the thread's media album at this message. When null, the media
   /// widgets fall back to their single-item viewer.
@@ -178,13 +180,14 @@ class WhatsAppMessageBubble extends StatelessWidget {
                         ),
                         child: Text(t('resend')),
                       ),
-                      TextButton(
-                        onPressed: onDelete,
-                        style: TextButton.styleFrom(
-                          foregroundColor: isOut ? Colors.white : null,
+                      if (showDelete && onDelete != null)
+                        TextButton(
+                          onPressed: onDelete,
+                          style: TextButton.styleFrom(
+                            foregroundColor: isOut ? Colors.white : null,
+                          ),
+                          child: Text(t('delete')),
                         ),
-                        child: Text(t('delete')),
-                      ),
                     ],
                   ),
               ],

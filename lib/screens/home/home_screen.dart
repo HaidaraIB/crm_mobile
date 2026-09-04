@@ -13,7 +13,6 @@ import '../../services/team_chat_away_service.dart';
 import '../../services/team_chat_unread_holder.dart';
 import '../../services/whatsapp_chat_unread_holder.dart';
 import '../../services/whatsapp_chat_unread_poller.dart';
-import '../../utils/whatsapp_access.dart';
 import '../../widgets/navigation_drawer.dart';
 import '../../widgets/bottom_navigation.dart';
 import '../../widgets/work_hours_chip.dart';
@@ -23,6 +22,7 @@ import '../leads/all_leads_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../team_chat/team_chat_screen.dart';
 import '../whatsapp_chat/whatsapp_conversation_list_screen.dart';
+import '../../widgets/whatsapp_chat/whatsapp_access_guard.dart';
 import 'dashboard_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -57,9 +57,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _sessionResolved = false;
 
   bool get _isDataEntry => _sessionUser?.isDataEntry ?? false;
-
-  /// Gate the WhatsApp Chats app bar icon. See `utils/whatsapp_access.dart`.
-  bool _canAccessWhatsAppChats(UserModel? user) => canAccessWhatsAppChats(user);
 
   @override
   void initState() {
@@ -226,8 +223,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               return const Icon(Icons.chat_outlined);
             },
           ),
-          tooltip:
-              localizations?.translate('whatsappChats') ?? 'WhatsApp Chats',
+          tooltip: localizations?.translate('whatsappChats'),
           onPressed: () async {
             await Navigator.push<void>(
               context,
@@ -235,7 +231,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 settings: const RouteSettings(
                   name: 'WhatsAppConversationListScreen',
                 ),
-                builder: (_) => const WhatsAppConversationListScreen(),
+                builder: (_) => WhatsAppAccessGuard(
+                  builder: (_) => const WhatsAppConversationListScreen(),
+                ),
               ),
             );
           },
@@ -455,8 +453,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ],
                 if (_currentIndex == 0) ...[
                   const WorkHoursChip(),
-                  if (_canAccessWhatsAppChats(_sessionUser))
-                    _whatsAppChatAppBarAction(localizations),
+                  WhatsAppChatsEntryGate(
+                    user: _sessionUser,
+                    child: _whatsAppChatAppBarAction(localizations),
+                  ),
                   _teamChatAppBarAction(localizations),
                   Stack(
                     children: [

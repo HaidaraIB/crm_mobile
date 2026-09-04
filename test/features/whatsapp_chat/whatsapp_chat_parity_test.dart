@@ -1,4 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'package:crm_mobile/core/localization/app_localizations.dart';
 
 import 'package:crm_mobile/features/whatsapp_chat/cubit/whatsapp_chat_thread_cubit.dart';
 import 'package:crm_mobile/models/user_model.dart';
@@ -82,6 +85,53 @@ void main() {
         canAccessWhatsAppChats(_user('doctor', whatsappChatEnabled: false)),
         isFalse,
       );
+    });
+  });
+
+  group('whatsappChatsUnavailableMessageKey', () {
+    test('maps gated API codes to localization keys, not the retryable load error', () {
+      expect(
+        whatsappChatsUnavailableMessageKey('whatsapp_access_disabled'),
+        'whatsappChatAccessDisabled',
+      );
+      expect(
+        whatsappChatsUnavailableMessageKey('integration_disabled'),
+        'whatsappChatsUnavailablePolicy',
+      );
+      expect(
+        whatsappChatsUnavailableMessageKey('plan_integration_not_included'),
+        'whatsappChatsUnavailablePlan',
+      );
+      expect(
+        whatsappChatsUnavailableMessageKey(null),
+        'whatsappChatsUnavailable',
+      );
+      expect(
+        whatsappChatsUnavailableMessageKey('whatsappChatCouldNotLoad'),
+        'whatsappChatsUnavailable',
+      );
+    });
+
+    test('every unavailable message key has distinct EN and AR copy', () {
+      final locEn = AppLocalizations(const Locale('en'));
+      final locAr = AppLocalizations(const Locale('ar'));
+      const codes = <String?>[
+        null,
+        'whatsapp_access_disabled',
+        'integration_disabled',
+        'plan_integration_not_included',
+      ];
+      for (final code in codes) {
+        final key = whatsappChatsUnavailableMessageKey(code);
+        final en = locEn.translate(key);
+        final ar = locAr.translate(key);
+        expect(en, isNot(key), reason: 'missing EN string for $key');
+        expect(ar, isNot(key), reason: 'missing AR string for $key');
+        expect(ar, isNot(en), reason: 'AR copy for $key is still English');
+      }
+      expect(locEn.translate('whatsappChats'), isNot('whatsappChats'));
+      expect(locAr.translate('whatsappChats'), isNot('whatsappChats'));
+      expect(locAr.translate('whatsappChats'), isNot(locEn.translate('whatsappChats')));
     });
   });
 

@@ -24,7 +24,6 @@ class WhatsAppChatUnreadPoller {
   Timer? _timer;
   bool _foreground = true;
   bool _started = false;
-  bool _accessDenied = false;
 
   /// Last slice counters seen, so a change can be told from a first sighting.
   ///
@@ -92,11 +91,11 @@ class WhatsAppChatUnreadPoller {
   }
 
   void reset() {
-    _accessDenied = false;
     // Counters are scoped to a company and a user, so values carried across a
     // session change would compare against a different tenant's sequence and
     // emit a meaningless invalidation on the next poll.
     _lastVersions = const {};
+    WhatsAppChatUnreadHolder.reset();
   }
 
   void setForeground(bool value) {
@@ -154,14 +153,14 @@ class WhatsAppChatUnreadPoller {
         (data['notifications_unread'] as num?)?.toInt() ?? 0,
       );
       final wa = data['whatsapp_unread'];
-      if (wa == null) {
-        if (!_accessDenied) {
-          _accessDenied = true;
-          WhatsAppChatUnreadHolder.setTotal(0);
-        }
+      if (!data.containsKey('whatsapp_unread')) {
         return;
       }
-      _accessDenied = false;
+      if (wa == null) {
+        WhatsAppChatUnreadHolder.setAvailable(false);
+        return;
+      }
+      WhatsAppChatUnreadHolder.setAvailable(true);
       WhatsAppChatUnreadHolder.setTotal((wa as num?)?.toInt() ?? 0);
     } catch (e) {
       debugPrint('Sync digest poll failed: $e');

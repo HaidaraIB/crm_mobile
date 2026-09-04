@@ -21,6 +21,24 @@ bool canAccessWhatsAppChats(UserModel? user) {
   return user.whatsappChatEnabled;
 }
 
+/// Localization key for a chats-unavailable API 403 (`whatsapp_access_disabled`,
+/// `integration_disabled`, `plan_integration_not_included`).
+///
+/// These are not retryable load failures — the icon should hide, and the chats
+/// screen should explain rather than show "Could not load" + Retry.
+String whatsappChatsUnavailableMessageKey(String? code) {
+  switch (code) {
+    case 'integration_disabled':
+      return 'whatsappChatsUnavailablePolicy';
+    case 'plan_integration_not_included':
+      return 'whatsappChatsUnavailablePlan';
+    case 'whatsapp_access_disabled':
+      return 'whatsappChatAccessDisabled';
+    default:
+      return 'whatsappChatsUnavailable';
+  }
+}
+
 /// Can the user open a chat with a number that has no CRM lead?
 ///
 /// Staff scoped to their own assignments (employee/doctor) only ever see leads
@@ -31,3 +49,6 @@ bool canOpenManualWhatsAppChats(UserModel? user) {
   if (!canAccessWhatsAppChats(user)) return false;
   return !user!.isAssignedClinicalStaff;
 }
+
+/// Owner/admin only — WhatsApp history is a compliance record.
+bool canDeleteWhatsAppHistory(UserModel? user) => user?.isAdmin == true;

@@ -20,9 +20,11 @@ import '../../features/whatsapp_chat/whatsapp_chat_repository.dart';
 import '../../models/whatsapp_template_model.dart';
 import '../../services/api_service.dart';
 import '../../utils/compress_image_for_chat.dart';
+import '../../utils/whatsapp_access.dart';
 import '../../utils/whatsapp_chat_media_album.dart';
 import '../../utils/whatsapp_template_placeholders.dart';
 import '../../utils/whatsapp_thread_items.dart';
+import '../../widgets/chat_thread_empty.dart';
 import '../../widgets/whatsapp_chat/company_library_picker_sheet.dart';
 import '../../widgets/whatsapp_chat/whatsapp_chat_theme.dart';
 import '../../widgets/whatsapp_chat/whatsapp_media_album_screen.dart';
@@ -39,12 +41,18 @@ class WhatsAppChatThreadScreen extends StatelessWidget {
     required this.clientName,
     required this.phoneNumber,
     this.isManual = false,
+    this.initialStatus = 'open',
+    this.initialStarred = false,
+    this.initialUnsubscribed = false,
   });
 
   final int? clientId;
   final String clientName;
   final String phoneNumber;
   final bool isManual;
+  final String initialStatus;
+  final bool initialStarred;
+  final bool initialUnsubscribed;
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +66,9 @@ class WhatsAppChatThreadScreen extends StatelessWidget {
         clientName: clientName,
         phoneNumber: phoneNumber,
         clientId: clientId,
+        initialStatus: initialStatus,
+        initialStarred: initialStarred,
+        initialUnsubscribed: initialUnsubscribed,
       ),
     );
   }
@@ -68,11 +79,17 @@ class _WhatsAppChatThreadView extends StatefulWidget {
     required this.clientName,
     required this.phoneNumber,
     this.clientId,
+    this.initialStatus = 'open',
+    this.initialStarred = false,
+    this.initialUnsubscribed = false,
   });
 
   final String clientName;
   final String phoneNumber;
   final int? clientId;
+  final String initialStatus;
+  final bool initialStarred;
+  final bool initialUnsubscribed;
 
   @override
   State<_WhatsAppChatThreadView> createState() => _WhatsAppChatThreadViewState();
@@ -102,10 +119,17 @@ class _WhatsAppChatThreadViewState extends State<_WhatsAppChatThreadView>
   bool _scrolledOnce = false;
   bool _foreground = true;
   String _employeeName = '';
+  bool _canDeleteServer = false;
+  late String _status;
+  late bool _isStarred;
+  late bool _isUnsubscribed;
 
   @override
   void initState() {
     super.initState();
+    _status = widget.initialStatus;
+    _isStarred = widget.initialStarred;
+    _isUnsubscribed = widget.initialUnsubscribed;
     WidgetsBinding.instance.addObserver(this);
     _controller.addListener(() => setState(() {}));
     _loadEmployeeName();
@@ -121,7 +145,50 @@ class _WhatsAppChatThreadViewState extends State<_WhatsAppChatThreadView>
     try {
       final user = await ApiService().getCurrentUser();
       if (!mounted) return;
-      setState(() => _employeeName = user.displayName);
+      setState(() {
+        _employeeName = user.displayName;
+        _canDeleteServer = canDeleteWhatsAppHistory(user);
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _setStatus(String status, {String? snoozedUntil}) async {
+    final id = widget.clientId;
+    if (id == null || id <= 0) return;
+    try {
+      await ApiWhatsAppChatRepository().updateConversationState(
+        clientId: id,
+        status: status,
+        snoozedUntil: snoozedUntil,
+      );
+      if (!mounted) return;
+      setState(() => _status = status);
+    } catch (_) {}
+  }
+
+  Future<void> _toggleStar() async {
+    final id = widget.clientId;
+    if (id == null || id <= 0) return;
+    try {
+      await ApiWhatsAppChatRepository().updateConversationState(
+        clientId: id,
+        isStarred: !_isStarred,
+      );
+      if (!mounted) return;
+      setState(() => _isStarred = !_isStarred);
+    } catch (_) {}
+  }
+
+  Future<void> _toggleUnsubscribed() async {
+    final id = widget.clientId;
+    if (id == null || id <= 0) return;
+    try {
+      await ApiWhatsAppChatRepository().updateConversationState(
+        clientId: id,
+        isUnsubscribed: !_isUnsubscribed,
+      );
+      if (!mounted) return;
+      setState(() => _isUnsubscribed = !_isUnsubscribed);
     } catch (_) {}
   }
 
@@ -769,6 +836,56 @@ class _WhatsAppChatThreadViewState extends State<_WhatsAppChatThreadView>
         ),
         actions: [
           if (widget.clientId != null && widget.clientId! > 0)
+            PopupMenuButton<String>(
+              icon: Chip(
+                label: Text(
+                  t('chatStatus_$_status'),
+                  style: const TextStyle(fontSize: 11, color: Colors.white),
+                ),
+                backgroundColor: Colors.white24,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+              ),
+              onSelected: (v) async {
+                if (v == 'star') {
+                  await _toggleStar();
+                  return;
+                }
+                if (v == 'unsub') {
+                  await _toggleUnsubscribed();
+                  return;
+                }
+                if (v == 'snooze') {
+                  await _setStatus(
+                    'snoozed',
+                    snoozedUntil: DateTime.now()
+                        .add(const Duration(hours: 1))
+                        .toUtc()
+                        .toIso8601String(),
+                  );
+                  return;
+                }
+                await _setStatus(v);
+              },
+              itemBuilder: (_) => [
+                for (final st in ['open', 'pending', 'spam', 'invalid', 'done'])
+                  PopupMenuItem(value: st, child: Text(t('chatStatus_$st'))),
+                PopupMenuItem(value: 'snooze', child: Text(t('chatSnooze1h'))),
+                PopupMenuItem(
+                  value: 'star',
+                  child: Text(_isStarred ? t('chatUnstar') : t('chatStar')),
+                ),
+                PopupMenuItem(
+                  value: 'unsub',
+                  child: Text(
+                    _isUnsubscribed
+                        ? t('chatResubscribe')
+                        : t('chatMarkUnsubscribed'),
+                  ),
+                ),
+              ],
+            ),
+          if (widget.clientId != null && widget.clientId! > 0)
             IconButton(
               icon: const Icon(Icons.person_outline, color: Colors.white),
               tooltip: t('whatsappOpenLead'),
@@ -1051,12 +1168,10 @@ class _WhatsAppChatThreadViewState extends State<_WhatsAppChatThreadView>
       );
     }
     if (items.isEmpty) {
-      final colors = WhatsAppChatColors.of(context);
-      return Center(
-        child: Text(
-          t('whatsappThreadEmpty'),
-          style: TextStyle(color: colors.metaIn),
-        ),
+      return ChatThreadEmpty(
+        icon: Icons.chat_bubble_outline_rounded,
+        title: t('whatsappThreadEmpty'),
+        subtitle: t('whatsappThreadEmptyHint'),
       );
     }
     return Directionality(
@@ -1080,7 +1195,13 @@ class _WhatsAppChatThreadViewState extends State<_WhatsAppChatThreadView>
                   context.read<WhatsAppChatThreadCubit>().resendFailed(item.message),
               onDelete: () => context
                   .read<WhatsAppChatThreadCubit>()
-                  .deleteFailedOrServerMessage(item.message),
+                  .deleteFailedOrServerMessage(
+                    item.message,
+                    canDeleteServer: _canDeleteServer,
+                  ),
+              showDelete: item.message.id <= 0 ||
+                  item.message.isOptimistic ||
+                  _canDeleteServer,
               onOpenAlbum: () => _openMediaAlbum(state, item.message.id),
             );
           }

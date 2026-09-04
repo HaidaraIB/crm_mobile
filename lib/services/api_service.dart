@@ -148,10 +148,11 @@ class SmsException implements Exception {
   String toString() => fallbackMessage;
 }
 
-/// The signed-in user's WhatsApp chat access is switched off (HTTP 403).
-/// Not a transient failure — pollers should stop rather than retry.
+/// WhatsApp Chats are gated (HTTP 403) — per-user access, company policy, or plan.
+/// Not a transient failure — do not show Retry; hide the entry instead.
 class WhatsAppAccessDeniedException implements Exception {
-  const WhatsAppAccessDeniedException();
+  const WhatsAppAccessDeniedException({this.code = 'whatsapp_access_disabled'});
+  final String code;
   @override
   String toString() => 'WhatsApp chat access is disabled for this account';
 }
@@ -2198,21 +2199,102 @@ class ApiService {
 
   // ==================== WhatsApp chat (messaging center) ====================
 
-  /// GET /integrations/whatsapp/conversations/ — clients with WhatsApp threads, sorted by last message.
-  Future<List<WhatsAppConversationModel>> getWhatsAppConversations() async {
+  /// GET /integrations/whatsapp/conversations/ — filterable inbox with rail counts.
+  Future<WhatsAppConversationsPage> getWhatsAppConversations({
+    String? status,
+    String? assignment,
+    int? agentId,
+    bool? starred,
+    bool? unreplied,
+    String? search,
+    int? limit,
+    int? offset,
+  }) async {
+    final q = <String, String>{};
+    if (status != null && status.isNotEmpty) q['status'] = status;
+    if (assignment != null && assignment.isNotEmpty) q['assignment'] = assignment;
+    if (agentId != null) q['agent'] = '$agentId';
+    if (starred == true) q['starred'] = '1';
+    if (unreplied == true) q['unreplied'] = '1';
+    if (search != null && search.trim().isNotEmpty) q['search'] = search.trim();
+    if (limit != null) q['limit'] = '$limit';
+    if (offset != null) q['offset'] = '$offset';
+    final qs = q.isEmpty
+        ? ''
+        : '?${q.entries.map((e) => '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}').join('&')}';
     final response = await _makeRequest(
       'GET',
-      '/integrations/whatsapp/conversations/',
+      '/integrations/whatsapp/conversations/$qs',
       timeout: const Duration(seconds: 20),
     );
+    if (response.statusCode == 403) {
+      final err = _errorContextFromBody(response.body);
+      final code =
+          (err['error_key'] ?? err['code'])?.toString() ?? 'whatsapp_access_disabled';
+      throw WhatsAppAccessDeniedException(code: code);
+    }
     if (response.statusCode != 200) {
       throw Exception(_translateError('whatsappChatCouldNotLoad', locale: null));
     }
     final decoded = _unwrapResponseDynamic(response);
-    final list = decoded is List ? decoded : (decoded is Map ? decoded['results'] : null);
-    return (list as List<dynamic>? ?? [])
-        .map((e) => WhatsAppConversationModel.fromJson(Map<String, dynamic>.from(e as Map)))
-        .toList();
+    if (decoded is List) {
+      final results = decoded
+          .map((e) => WhatsAppConversationModel.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+      return WhatsAppConversationsPage(count: results.length, results: results);
+    }
+    final map = decoded is Map ? Map<String, dynamic>.from(decoded) : <String, dynamic>{};
+    final list = map['results'] as List<dynamic>? ?? [];
+    final statusCounts = <String, int>{};
+    final rawStatus = map['status_counts'];
+    if (rawStatus is Map) {
+      rawStatus.forEach((k, v) {
+        statusCounts[k.toString()] = (v as num?)?.toInt() ?? 0;
+      });
+    }
+    final assignmentCounts = <String, int>{};
+    final rawAssign = map['assignment_counts'];
+    if (rawAssign is Map) {
+      rawAssign.forEach((k, v) {
+        assignmentCounts[k.toString()] = (v as num?)?.toInt() ?? 0;
+      });
+    }
+    return WhatsAppConversationsPage(
+      count: (map['count'] as num?)?.toInt() ?? list.length,
+      results: list
+          .map((e) => WhatsAppConversationModel.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList(),
+      statusCounts: statusCounts,
+      assignmentCounts: assignmentCounts,
+    );
+  }
+
+  /// POST /integrations/whatsapp/conversations/state/
+  Future<Map<String, dynamic>> updateWhatsAppConversationState({
+    required int clientId,
+    String? status,
+    String? snoozedUntil,
+    bool? isStarred,
+    bool? isUnsubscribed,
+  }) async {
+    final body = <String, dynamic>{'client': clientId};
+    if (status != null) body['status'] = status;
+    if (snoozedUntil != null) body['snoozed_until'] = snoozedUntil;
+    if (isStarred != null) body['is_starred'] = isStarred;
+    if (isUnsubscribed != null) body['is_unsubscribed'] = isUnsubscribed;
+    final response = await _makeRequest(
+      'POST',
+      '/integrations/whatsapp/conversations/state/',
+      body: body,
+      timeout: const Duration(seconds: 20),
+    );
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception(_translateError('whatsappChatCouldNotLoad', locale: null));
+    }
+    final decoded = _unwrapResponseDynamic(response);
+    return decoded is Map
+        ? Map<String, dynamic>.from(decoded)
+        : <String, dynamic>{};
   }
 
   /// GET /integrations/whatsapp/messages/?client=:clientId — thread messages, newest first from API.

@@ -533,10 +533,18 @@ class WhatsAppChatThreadCubit extends Cubit<WhatsAppChatThreadState> {
     await sendText(msg.body);
   }
 
-  Future<void> deleteFailedOrServerMessage(LeadWhatsAppMessageModel msg) async {
+  Future<void> deleteFailedOrServerMessage(
+    LeadWhatsAppMessageModel msg, {
+    bool canDeleteServer = false,
+  }) async {
     if (isClosed) return;
     if (msg.id < 0 || msg.isOptimistic) {
       emit(state.copyWith(messages: state.messages.where((m) => m.id != msg.id).toList()));
+      return;
+    }
+    if (!canDeleteServer) {
+      if (isClosed) return;
+      emit(state.copyWith(sendError: 'whatsappDeleteForbidden'));
       return;
     }
     try {

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -13,6 +15,7 @@ import '../../models/whatsapp_conversation_model.dart';
 import '../../services/api_service.dart';
 import '../../utils/whatsapp_access.dart';
 import '../../utils/whatsapp_message_body_localize.dart';
+import '../../widgets/whatsapp_chat/whatsapp_access_guard.dart';
 import '../../widgets/whatsapp_chat/whatsapp_chat_theme.dart';
 import '../../widgets/whatsapp_chat/whatsapp_phone_text.dart';
 import 'whatsapp_chat_thread_screen.dart';
@@ -106,6 +109,9 @@ class _WhatsAppConversationListScreenState
     required String name,
     required String phone,
     bool isManual = false,
+    String status = 'open',
+    bool isStarred = false,
+    bool isUnsubscribed = false,
   }) async {
     setState(() => _openedClientId = (clientId != null && clientId > 0) ? clientId : null);
     await Navigator.push<void>(
@@ -117,18 +123,22 @@ class _WhatsAppConversationListScreenState
           clientName: name,
           phoneNumber: phone,
           isManual: isManual,
+          initialStatus: status,
+          initialStarred: isStarred,
+          initialUnsubscribed: isUnsubscribed,
         ),
       ),
     );
-    if (!mounted || !providerContext.mounted) return;
+    if (!mounted) return;
     setState(() => _openedClientId = null);
-    providerContext.read<WhatsAppConversationListCubit>().refresh(silent: true);
+    unawaited(_cubit?.refresh(silent: true));
   }
 
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
-    String t(String k) => localizations?.translate(k) ?? k;
+    String t(String k) =>
+        (localizations ?? AppLocalizations(const Locale('en'))).translate(k);
     final cubit = _cubit;
 
     if (cubit == null) {
@@ -154,54 +164,71 @@ class _WhatsAppConversationListScreenState
       value: cubit,
       child: Builder(
         builder: (providerContext) {
-          return Scaffold(
-            backgroundColor: colors.listBg,
-            appBar: AppBar(
-              backgroundColor: colors.headerBg,
-              foregroundColor: Colors.white,
-              surfaceTintColor: Colors.transparent,
-              title: Text(t('whatsappChats')),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.add_comment_outlined, color: Colors.white),
-                  tooltip: t('startNewConversation'),
-                  onPressed: () async {
-                    final result =
-                        await Navigator.push<WhatsAppStartConversationResult>(
-                      providerContext,
-                      MaterialPageRoute(
-                        builder: (_) => WhatsAppStartConversationScreen(
-                          allowManual: _includeManual,
-                        ),
-                      ),
-                    );
-                    if (result == null || !providerContext.mounted) return;
+          return BlocBuilder<WhatsAppConversationListCubit,
+              WhatsAppConversationListState>(
+            builder: (context, state) {
+              if (state.unavailableCode != null) {
+                return WhatsAppAccessDeniedScreen(
+                  messageKey: whatsappChatsUnavailableMessageKey(
+                    state.unavailableCode,
+                  ),
+                );
+              }
+              return Scaffold(
+                backgroundColor: colors.listBg,
+                appBar: AppBar(
+                  backgroundColor: colors.headerBg,
+                  foregroundColor: Colors.white,
+                  surfaceTintColor: Colors.transparent,
+                  title: Text(t('whatsappChats')),
+                  actions: [
+                    IconButton(
+                      icon: const Icon(Icons.add_comment_outlined, color: Colors.white),
+                      tooltip: t('startNewConversation'),
+                      onPressed: () async {
+                        final result =
+                            await Navigator.push<WhatsAppStartConversationResult>(
+                          providerContext,
+                          MaterialPageRoute(
+                            builder: (_) => WhatsAppStartConversationScreen(
+                              allowManual: _includeManual,
+                            ),
+                          ),
+                        );
+                        if (result == null || !providerContext.mounted) return;
+                        await _openThread(
+                          providerContext,
+                          clientId: result.clientId,
+                          name: result.name,
+                          phone: result.phone,
+                          isManual: result.isManual,
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                body: _ConversationListBody(
+                  timeLabel: _timeLabel,
+                  t: t,
+                  openedClientId: _openedClientId,
+                  canDelete: canDeleteWhatsAppHistory(_user),
+                  showAssignmentFilters: !(_user?.isAssignedClinicalStaff ?? false),
+                  onOpen: (c) async {
+                    final isManual = c.id <= 0;
                     await _openThread(
                       providerContext,
-                      clientId: result.clientId,
-                      name: result.name,
-                      phone: result.phone,
-                      isManual: result.isManual,
+                      clientId: isManual ? null : c.id,
+                      name: c.name,
+                      phone: c.phoneNumber,
+                      isManual: isManual,
+                      status: c.status,
+                      isStarred: c.isStarred,
+                      isUnsubscribed: c.isUnsubscribed,
                     );
                   },
                 ),
-              ],
-            ),
-            body: _ConversationListBody(
-              timeLabel: _timeLabel,
-              t: t,
-              openedClientId: _openedClientId,
-              onOpen: (c) async {
-                final isManual = c.id <= 0;
-                await _openThread(
-                  providerContext,
-                  clientId: isManual ? null : c.id,
-                  name: c.name,
-                  phone: c.phoneNumber,
-                  isManual: isManual,
-                );
-              },
-            ),
+              );
+            },
           );
         },
       ),
@@ -214,12 +241,16 @@ class _ConversationListBody extends StatefulWidget {
     required this.timeLabel,
     required this.t,
     required this.onOpen,
+    required this.canDelete,
+    this.showAssignmentFilters = true,
     this.openedClientId,
   });
 
   final String Function(DateTime?) timeLabel;
   final String Function(String) t;
   final Future<void> Function(WhatsAppConversationModel) onOpen;
+  final bool canDelete;
+  final bool showAssignmentFilters;
   final int? openedClientId;
 
   @override
@@ -229,10 +260,143 @@ class _ConversationListBody extends StatefulWidget {
 class _ConversationListBodyState extends State<_ConversationListBody> {
   final _searchCtrl = TextEditingController();
 
+  static const _statusKeys = [
+    'all',
+    'open',
+    'pending',
+    'spam',
+    'invalid',
+    'done',
+    'snoozed',
+    'unread',
+    'unsubscribed',
+  ];
+
   @override
   void dispose() {
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _showFilterSheet(BuildContext context) async {
+    final cubit = context.read<WhatsAppConversationListCubit>();
+    final f = cubit.state.filters;
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(widget.t('filter'),
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    if (widget.showAssignmentFilters)
+                      for (final a in ['all', 'mine', 'unassigned'])
+                        FilterChip(
+                          label: Text(widget.t(
+                            a == 'all'
+                                ? 'chatFilterAll'
+                                : a == 'mine'
+                                    ? 'chatFilterAssignedToMe'
+                                    : 'chatFilterUnassigned',
+                          )),
+                          selected: f.assignment == a && !f.starred,
+                          onSelected: (_) {
+                            cubit.setAssignment(a);
+                            Navigator.pop(ctx);
+                          },
+                        ),
+                    FilterChip(
+                      label: Text(widget.t('chatFilterStarred')),
+                      selected: f.starred,
+                      onSelected: (_) {
+                        cubit.toggleStarred();
+                        Navigator.pop(ctx);
+                      },
+                    ),
+                    FilterChip(
+                      label: Text(widget.t('chatFilterUnreplied')),
+                      selected: f.unreplied,
+                      onSelected: (_) {
+                        cubit.toggleUnreplied();
+                        Navigator.pop(ctx);
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showActions(
+    BuildContext context,
+    WhatsAppConversationModel c,
+  ) async {
+    if (c.id <= 0) return;
+    final cubit = context.read<WhatsAppConversationListCubit>();
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final st in ['open', 'pending', 'spam', 'invalid', 'done'])
+              ListTile(
+                title: Text(widget.t('chatStatus_$st')),
+                onTap: () => Navigator.pop(ctx, 'status:$st'),
+              ),
+            ListTile(
+              title: Text(widget.t('chatSnooze1h')),
+              onTap: () => Navigator.pop(ctx, 'snooze:1'),
+            ),
+            ListTile(
+              title: Text(c.isStarred ? widget.t('chatUnstar') : widget.t('chatStar')),
+              onTap: () => Navigator.pop(ctx, 'star'),
+            ),
+            ListTile(
+              title: Text(c.isUnsubscribed
+                  ? widget.t('chatResubscribe')
+                  : widget.t('chatMarkUnsubscribed')),
+              onTap: () => Navigator.pop(ctx, 'unsub'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (action == null || !context.mounted) return;
+    if (action.startsWith('status:')) {
+      await cubit.updateConversationState(
+        clientId: c.id,
+        status: action.substring(7),
+      );
+    } else if (action == 'snooze:1') {
+      await cubit.updateConversationState(
+        clientId: c.id,
+        status: 'snoozed',
+        snoozedUntil: DateTime.now().add(const Duration(hours: 1)).toUtc().toIso8601String(),
+      );
+    } else if (action == 'star') {
+      await cubit.updateConversationState(
+        clientId: c.id,
+        isStarred: !c.isStarred,
+      );
+    } else if (action == 'unsub') {
+      await cubit.updateConversationState(
+        clientId: c.id,
+        isUnsubscribed: !c.isUnsubscribed,
+      );
+    }
   }
 
   @override
@@ -262,29 +426,66 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
           );
         }
 
-        final q = _searchCtrl.text.trim().toLowerCase();
-        final filtered = q.isEmpty
-            ? state.conversations
-            : state.conversations.where((c) {
-                return c.name.toLowerCase().contains(q) ||
-                    c.phoneNumber.toLowerCase().contains(q) ||
-                    c.leadCompanyName.toLowerCase().contains(q) ||
-                    c.lastMessagePreview.toLowerCase().contains(q);
-              }).toList();
+        final filtered = state.conversations;
+        final f = state.filters;
 
         return Column(
           children: [
+            SizedBox(
+              height: 44,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                children: [
+                  for (final key in _statusKeys)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: FilterChip(
+                        label: Text(
+                          '${widget.t('chatStatus_$key')} ${state.statusCounts[key] ?? ''}',
+                        ),
+                        selected: !f.starred && f.status == key,
+                        onSelected: (_) => context
+                            .read<WhatsAppConversationListCubit>()
+                            .setStatusFilter(key),
+                      ),
+                    ),
+                ],
+              ),
+            ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-              child: TextField(
-                controller: _searchCtrl,
-                onChanged: (_) => setState(() {}),
-                decoration: InputDecoration(
-                  hintText: widget.t('searchConversations'),
-                  prefixIcon: const Icon(Icons.search),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  isDense: true,
-                ),
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _searchCtrl,
+                      onChanged: (v) => context
+                          .read<WhatsAppConversationListCubit>()
+                          .setSearch(v),
+                      decoration: InputDecoration(
+                        hintText: widget.t('searchConversations'),
+                        prefixIcon: const Icon(Icons.search),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.tune),
+                    tooltip: widget.t('filter'),
+                    onPressed: () => _showFilterSheet(context),
+                  ),
+                  FilterChip(
+                    label: Text(widget.t('chatFilterUnreplied')),
+                    selected: f.unreplied,
+                    onSelected: (_) => context
+                        .read<WhatsAppConversationListCubit>()
+                        .toggleUnreplied(),
+                  ),
+                ],
               ),
             ),
             Expanded(
@@ -306,6 +507,110 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
                             c.lastMessagePreview,
                             widget.t,
                           );
+
+                          final tile = ListTile(
+                            onTap: () => widget.onOpen(c),
+                            onLongPress: c.id > 0
+                                ? () => _showActions(context, c)
+                                : null,
+                            leading: CircleAvatar(
+                              backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.15),
+                              child: Text(
+                                title.isNotEmpty ? title[0].toUpperCase() : '?',
+                                style: const TextStyle(color: AppTheme.primaryColor),
+                              ),
+                            ),
+                            title: Row(
+                              children: [
+                                if (c.isStarred)
+                                  const Padding(
+                                    padding: EdgeInsetsDirectional.only(end: 4),
+                                    child: Icon(Icons.star, size: 14, color: Colors.amber),
+                                  ),
+                                Expanded(
+                                  child: WhatsAppPhoneText.isPhoneLike(title)
+                                      ? WhatsAppPhoneText(
+                                          title,
+                                          style: TextStyle(
+                                            fontWeight: unread
+                                                ? FontWeight.w700
+                                                : FontWeight.w500,
+                                          ),
+                                        )
+                                      : Text(
+                                          title,
+                                          style: TextStyle(
+                                            fontWeight: unread
+                                                ? FontWeight.w700
+                                                : FontWeight.w500,
+                                          ),
+                                        ),
+                                ),
+                                if (c.status == 'snoozed')
+                                  const Icon(Icons.snooze, size: 14, color: Colors.amber),
+                                Text(
+                                  widget.timeLabel(c.lastMessageAt),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: unread
+                                        ? AppTheme.primaryColor
+                                        : Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            subtitle: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    preview,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (c.status != 'open')
+                                  Container(
+                                    margin: const EdgeInsetsDirectional.only(start: 6),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.shade200,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      widget.t('chatStatus_${c.status}'),
+                                      style: const TextStyle(fontSize: 10),
+                                    ),
+                                  ),
+                                if (unread)
+                                  Container(
+                                    margin: const EdgeInsetsDirectional.only(start: 6),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.primaryColor,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      c.unreadCount > 99
+                                          ? '99+'
+                                          : '${c.unreadCount}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          );
+
+                          if (!widget.canDelete) return tile;
 
                           return Dismissible(
                             key: ValueKey('wa-conv-${c.id}-${c.phoneNumber}'),
@@ -336,89 +641,11 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
                             },
                             background: Container(
                               color: Colors.red,
-                              alignment: Alignment.centerRight,
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              alignment: AlignmentDirectional.centerEnd,
+                              padding: const EdgeInsetsDirectional.only(end: 16),
                               child: const Icon(Icons.delete, color: Colors.white),
                             ),
-                            child: ListTile(
-                              selected: selected,
-                              selectedTileColor: WhatsAppChatColors.of(context).listActiveBg,
-                              leading: CircleAvatar(
-                                backgroundColor: AppTheme.primaryColor.withValues(
-                                  alpha: Theme.of(context).brightness == Brightness.dark
-                                      ? 0.30
-                                      : 0.15,
-                                ),
-                                foregroundColor: AppTheme.primaryAccent(
-                                  Theme.of(context).brightness,
-                                ),
-                                child: Text(
-                                  title.isNotEmpty
-                                      ? title.characters.first.toUpperCase()
-                                      : '#',
-                                ),
-                              ),
-                              title: WhatsAppPhoneText.isPhoneLike(title)
-                                  ? WhatsAppPhoneText(
-                                      title,
-                                      style: TextStyle(
-                                        fontWeight:
-                                            unread ? FontWeight.w700 : FontWeight.w500,
-                                      ),
-                                    )
-                                  : Text(
-                                      title,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontWeight:
-                                            unread ? FontWeight.w700 : FontWeight.w500,
-                                      ),
-                                    ),
-                              subtitle: Text(
-                                preview.isNotEmpty ? preview : c.phoneNumber,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontWeight:
-                                      unread ? FontWeight.w600 : FontWeight.normal,
-                                ),
-                              ),
-                              trailing: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    widget.timeLabel(c.lastMessageAt),
-                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                          fontWeight:
-                                              unread ? FontWeight.w600 : FontWeight.normal,
-                                        ),
-                                  ),
-                                  if (unread) ...[
-                                    const SizedBox(height: 4),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 7,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Theme.of(context).colorScheme.primary,
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: Text(
-                                        c.unreadCount > 99 ? '99+' : '${c.unreadCount}',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 11,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                              onTap: () => widget.onOpen(c),
-                            ),
+                            child: tile,
                           );
                         },
                       ),
