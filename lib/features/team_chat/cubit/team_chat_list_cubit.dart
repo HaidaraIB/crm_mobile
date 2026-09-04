@@ -40,7 +40,8 @@ class TeamChatListCubit extends Cubit<TeamChatListState> {
       }
     }
     _convTimer?.cancel();
-    _convTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+    // Fallback only — the digest's `tenant_chat` slice and FCM both arrive sooner.
+    _convTimer = Timer.periodic(kSyncFallbackPollInterval, (_) {
       if (_isForeground()) {
         unawaited(refreshConversations(silent: true));
       }

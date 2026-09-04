@@ -25,6 +25,7 @@ class WorkingHoursTodayCard extends StatefulWidget {
     super.key,
     required this.user,
     this.margin = const EdgeInsets.only(bottom: 16),
+    this.onRefresh,
   });
 
   final UserModel? user;
@@ -33,12 +34,17 @@ class WorkingHoursTodayCard extends StatefulWidget {
   /// dead space behind it.
   final EdgeInsetsGeometry margin;
 
+  /// Reloads `/users/me/` (shift / leave) and GET `/work-sessions/today/`
+  /// (tracked seconds). Owned by the drawer so `_currentUser` stays in sync.
+  final Future<void> Function()? onRefresh;
+
   @override
   State<WorkingHoursTodayCard> createState() => _WorkingHoursTodayCardState();
 }
 
 class _WorkingHoursTodayCardState extends State<WorkingHoursTodayCard> {
   Timer? _ticker;
+  bool _refreshing = false;
 
   @override
   void initState() {
@@ -53,6 +59,17 @@ class _WorkingHoursTodayCardState extends State<WorkingHoursTodayCard> {
   void dispose() {
     _ticker?.cancel();
     super.dispose();
+  }
+
+  Future<void> _handleRefresh() async {
+    final onRefresh = widget.onRefresh;
+    if (onRefresh == null || _refreshing) return;
+    setState(() => _refreshing = true);
+    try {
+      await onRefresh();
+    } finally {
+      if (mounted) setState(() => _refreshing = false);
+    }
   }
 
   String get _timeZone {
@@ -124,18 +141,26 @@ class _WorkingHoursTodayCardState extends State<WorkingHoursTodayCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Icon(Icons.schedule, size: 18, color: AppTheme.primaryColor),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        loc?.translate('workingHoursTodayTitle') ??
-                            'Working hours today',
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildRefreshButton(loc, theme),
+                        const SizedBox(width: 8),
+                        Text(
+                          loc?.translate('workingHoursTodayTitle') ??
+                              'Working hours today',
+                          maxLines: 1,
+                          softWrap: false,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                     _buildStateBadge(state, loc, theme),
                   ],
@@ -244,6 +269,35 @@ class _WorkingHoursTodayCardState extends State<WorkingHoursTodayCard> {
   Color _pausedColor(ThemeData theme) =>
       _isDark(theme) ? Colors.amber.shade300 : Colors.amber.shade800;
 
+  Widget _buildRefreshButton(AppLocalizations? loc, ThemeData theme) {
+    // Light lavender on navy, deep purple on white — same accent as other
+    // dark-surface icons so the control stays readable on this card.
+    final color = AppTheme.primaryAccent(theme.brightness);
+    final icon = Icon(Icons.schedule, size: 20, color: color);
+    if (widget.onRefresh == null) return icon;
+    return SizedBox(
+      width: 32,
+      height: 32,
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+        visualDensity: VisualDensity.compact,
+        tooltip: loc?.translate('refresh') ?? 'Refresh',
+        onPressed: _refreshing ? null : _handleRefresh,
+        icon: _refreshing
+            ? SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: color,
+                ),
+              )
+            : icon,
+      ),
+    );
+  }
+
   Widget _buildStateBadge(
     _ShiftState state,
     AppLocalizations? loc,
@@ -294,6 +348,8 @@ class _WorkingHoursTodayCardState extends State<WorkingHoursTodayCard> {
       ),
       child: Text(
         label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color),
       ),
     );
@@ -314,10 +370,10 @@ class _WorkingHoursTodayCardState extends State<WorkingHoursTodayCard> {
     final minutes = parseTimeToMinutes(value);
     if (minutes == null) return null;
     final locale = AppLocalizations.of(context)?.locale ?? AppLocales.english;
-    return DateFormat(
-      'h:mm a',
-      AppLocales.intlDateFormat(locale),
-    ).format(DateTime(2000, 1, 1, minutes ~/ 60, minutes % 60));
+    return formatLatin(
+      DateFormat('h:mm a', AppLocales.intlDateFormat(locale)),
+      DateTime(2000, 1, 1, minutes ~/ 60, minutes % 60),
+    );
   }
 
   /// "Until 3 Sep 2026" for planned leave, "Until 3 Sep 2026, 4:30 PM" for the
@@ -335,8 +391,8 @@ class _WorkingHoursTodayCardState extends State<WorkingHoursTodayCard> {
     final tag = AppLocales.intlDateFormat(locale);
     // A bare YYYY-MM-DD is a company-local date; only timestamps get converted.
     final formatted = raw.trim().length <= 10
-        ? DateFormat.yMMMd(tag).format(parsed)
-        : DateFormat.yMMMd(tag).add_jm().format(parsed.toLocal());
+        ? formatLatin(DateFormat.yMMMd(tag), parsed)
+        : formatLatin(DateFormat.yMMMd(tag).add_jm(), parsed.toLocal());
     final template = loc?.translate('untilLabel') ?? 'Until {value}';
     return template.replaceAll('{value}', formatted);
   }

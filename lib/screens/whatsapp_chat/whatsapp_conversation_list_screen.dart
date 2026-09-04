@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/app_locales.dart';
 import '../../features/whatsapp_chat/cubit/whatsapp_conversation_list_cubit.dart';
 import '../../features/whatsapp_chat/cubit/whatsapp_conversation_list_state.dart';
 import '../../features/whatsapp_chat/whatsapp_chat_repository.dart';
@@ -91,8 +92,11 @@ class _WhatsAppConversationListScreenState
     final now = DateTime.now();
     final sameDay =
         local.year == now.year && local.month == now.month && local.day == now.day;
+    final tag = AppLocales.intlDateFormat(
+      AppLocalizations.of(context)?.locale ?? AppLocales.english,
+    );
     final raw =
-        sameDay ? DateFormat.Hm().format(local) : DateFormat.MMMd().format(local);
+        sameDay ? DateFormat.Hm(tag).format(local) : DateFormat.MMMd(tag).format(local);
     return withLatinDigits(raw);
   }
 

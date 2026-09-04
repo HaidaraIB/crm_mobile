@@ -35,6 +35,7 @@ import 'models/notification_model.dart';
 import 'services/team_chat_away_service.dart';
 import 'services/team_chat_route_observer.dart';
 import 'services/work_session_service.dart';
+import 'services/realtime_channel.dart';
 import 'services/whatsapp_chat_unread_poller.dart';
 import 'services/sync_invalidation.dart';
 import 'core/utils/snackbar_helper.dart';
@@ -164,11 +165,18 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       // Background FCM isolate cannot reach foreground cubits; catch up on resume.
       unawaited(WhatsAppChatUnreadPoller.instance.refresh());
       SyncInvalidation.instance.emitResumeRefresh();
+      // The OS suspends sockets shortly after backgrounding, so the connection
+      // is established on the way in rather than held across the gap. Push is
+      // what covers a backgrounded app; this only makes an open app faster.
+      unawaited(RealtimeChannel.instance.start());
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
       TeamChatAwayService.instance.setAppForeground(false);
       _presenceTimer?.cancel();
+      // Closing deliberately rather than letting the OS freeze it: a suspended
+      // socket looks connected while delivering nothing.
+      unawaited(RealtimeChannel.instance.stop());
       // Backgrounded means not in use, so stop accruing. Nothing needs flushing:
       // the server credits retroactively, so at most one ping interval is lost.
       WorkSessionService.instance.stop();

@@ -1,12 +1,19 @@
+import 'dart:async';
 import 'package:flutter/material.dart' hide NavigationDrawer;
 import '../../core/api/api_envelope.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/lead_model.dart';
 import '../../services/api_service.dart';
+import '../../services/notifications_unread_holder.dart';
+import '../../services/realtime_channel.dart';
+import '../../services/team_chat_away_service.dart';
+import '../../services/team_chat_unread_holder.dart';
+import '../../services/whatsapp_chat_unread_poller.dart';
 import '../../widgets/navigation_drawer.dart';
 import '../leads/create_lead_screen.dart';
 import '../notifications/notifications_screen.dart';
+import '../team_chat/team_chat_screen.dart';
 
 /// Front-desk lead search for the CALL_CENTER role: search all company leads by
 /// name/phone, announce a walk-in's arrival, or jump to Create Lead when nobody
@@ -23,7 +30,8 @@ class CallCenterHomeScreen extends StatefulWidget {
   State<CallCenterHomeScreen> createState() => _CallCenterHomeScreenState();
 }
 
-class _CallCenterHomeScreenState extends State<CallCenterHomeScreen> {
+class _CallCenterHomeScreenState extends State<CallCenterHomeScreen>
+    with WidgetsBindingObserver {
   final TextEditingController _searchController = TextEditingController();
   final ApiService _apiService = ApiService();
 
@@ -32,28 +40,39 @@ class _CallCenterHomeScreenState extends State<CallCenterHomeScreen> {
   List<LeadModel> _results = const [];
   final Set<int> _announcingIds = {};
   final Set<int> _announcedIds = {};
-  int _unreadNotificationsCount = 0;
 
   @override
   void initState() {
     super.initState();
-    if (widget.isRoot) _loadUnreadCount();
-  }
-
-  Future<void> _loadUnreadCount({bool forceRefresh = false}) async {
-    try {
-      final count = await _apiService.getUnreadNotificationsCount(
-        forceRefresh: forceRefresh,
-      );
-      if (!mounted) return;
-      setState(() => _unreadNotificationsCount = count);
-    } catch (e) {
-      debugPrint('Warning: Failed to load unread notifications count: $e');
+    if (widget.isRoot) {
+      // [HomeScreen] is replaced before this lands, so its digest poll and
+      // lifecycle hook are gone — without these the team chat badge never moves.
+      WidgetsBinding.instance.addObserver(this);
+      TeamChatAwayService.instance.start();
+      WhatsAppChatUnreadPoller.instance.reset();
+      WhatsAppChatUnreadPoller.instance.start();
+      // Same preconditions as the poller it accelerates: signed in and on a
+      // home screen. Nothing below is removed — the socket only delivers the
+      // same change signal sooner.
+      unawaited(RealtimeChannel.instance.start());
     }
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    WhatsAppChatUnreadPoller.instance.setForeground(
+      state == AppLifecycleState.resumed,
+    );
+  }
+
+  /// The bell badge reads [NotificationsUnreadHolder], fed by the digest poll
+  /// [WhatsAppChatUnreadPoller] already runs for the chat badges. It used to
+  /// fetch `notifications/unread_count` here as well, for a number the same
+  /// digest response was already carrying as `notifications_unread`.
+
+  @override
   void dispose() {
+    if (widget.isRoot) WidgetsBinding.instance.removeObserver(this);
     _searchController.dispose();
     super.dispose();
   }
@@ -143,44 +162,100 @@ class _CallCenterHomeScreenState extends State<CallCenterHomeScreen> {
     );
   }
 
+  /// Team chat entry, same app bar slot and badge source as [HomeScreen] —
+  /// call center has no tab shell, so this is the role's only route to it.
+  Widget _teamChatAppBarAction(AppLocalizations? localizations) {
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.chat_bubble_outline),
+          tooltip: localizations?.translate('teamChat') ?? 'Team Chat',
+          onPressed: () {
+            Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(
+                settings: const RouteSettings(name: 'TeamChatScreen'),
+                builder: (_) => const TeamChatScreen(),
+              ),
+            );
+          },
+        ),
+        ValueListenableBuilder<int>(
+          valueListenable: TeamChatUnreadHolder.totalUnread,
+          builder: (context, count, _) {
+            if (count <= 0) return const SizedBox.shrink();
+            return Positioned(
+              right: 8,
+              top: 8,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                ),
+                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                child: Text(
+                  count > 99 ? '99+' : '$count',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
   Widget _notificationsAppBarAction(AppLocalizations? localizations) {
     return Stack(
       children: [
         IconButton(
           icon: const Icon(Icons.notifications_outlined),
           tooltip: localizations?.translate('notifications') ?? 'Notifications',
-          onPressed: () async {
-            await Navigator.push(
+          onPressed: () {
+            // No reload on return: NotificationsScreen writes the count it
+            // already knows into the holder as the user reads or deletes, so
+            // the badge is correct on pop.
+            Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const NotificationsScreen()),
             );
-            if (mounted) _loadUnreadCount(forceRefresh: true);
           },
         ),
-        if (_unreadNotificationsCount > 0)
-          Positioned(
-            right: 8,
-            top: 8,
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(
-                color: Colors.red,
-                shape: BoxShape.circle,
-              ),
-              constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-              child: Text(
-                _unreadNotificationsCount > 99
-                    ? '99+'
-                    : '$_unreadNotificationsCount',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
+        ValueListenableBuilder<int>(
+          valueListenable: NotificationsUnreadHolder.totalUnread,
+          builder: (context, count, _) {
+            if (count <= 0) return const SizedBox.shrink();
+            return Positioned(
+              right: 8,
+              top: 8,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
                 ),
-                textAlign: TextAlign.center,
+                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                child: Text(
+                  count > 99 ? '99+' : '$count',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
               ),
-            ),
-          ),
+            );
+          },
+        ),
       ],
     );
   }
@@ -197,6 +272,7 @@ class _CallCenterHomeScreenState extends State<CallCenterHomeScreen> {
           // Arrivals lives in the drawer (like the web sidebar). This slot keeps the
           // notifications bell every other role has in the same place — landing here
           // is otherwise a call-center user's only screen, with no route to them.
+          if (widget.isRoot) _teamChatAppBarAction(localizations),
           if (widget.isRoot) _notificationsAppBarAction(localizations),
         ],
       ),

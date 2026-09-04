@@ -10,6 +10,7 @@ import '../../core/utils/snackbar_helper.dart';
 import '../../models/notification_model.dart';
 import '../../services/api_service.dart';
 import '../../services/notification_display.dart';
+import '../../services/notifications_unread_holder.dart';
 import '../../services/notification_router.dart';
 import '../../widgets/pull_to_refresh_body.dart';
 
@@ -94,9 +95,19 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       setState(() {
         _unreadCount = count;
       });
+      _publishUnreadCount();
     } catch (e) {
       debugPrint('Error loading unread count: $e');
     }
+  }
+
+  /// Mirror this screen's count into the shared badge holder.
+  ///
+  /// The home screens' bell reads that holder, so reading or clearing here is
+  /// reflected behind this screen immediately — no reload when it is popped, and
+  /// no wait for the next digest poll.
+  void _publishUnreadCount() {
+    NotificationsUnreadHolder.setTotal(_unreadCount);
   }
 
   Future<void> _refreshNotifications() async {
@@ -112,6 +123,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         _notifications[index]['read_at'] = DateTime.now().toIso8601String();
         if (_unreadCount > 0) _unreadCount--;
       });
+      _publishUnreadCount();
       SnackbarHelper.showSuccess(
         context,
         AppLocalizations.of(context)?.translate('notificationMarkedAsRead') ??
@@ -143,6 +155,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         }
         _unreadCount = 0;
       });
+      _publishUnreadCount();
 
       SnackbarHelper.showSuccess(
         context,
@@ -583,10 +596,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     } else if (difference.inDays < 7) {
       return '${difference.inDays} ${AppLocalizations.of(context)?.translate('daysAgo') ?? 'days ago'}';
     } else {
-      return DateFormat(
-        'MMM d, yyyy',
-        AppLocales.intlDateFormat(locale),
-      ).format(date);
+      return formatLatin(
+        DateFormat('MMM d, yyyy', AppLocales.intlDateFormat(locale)),
+        date,
+      );
     }
   }
 }

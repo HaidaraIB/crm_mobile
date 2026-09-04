@@ -229,10 +229,10 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
     try {
       final date = DateTime.parse(dateStr);
       final loc = AppLocalizations.of(context)?.locale ?? AppLocales.english;
-      return DateFormat(
-        'MMM dd, yyyy',
-        AppLocales.intlDateFormat(loc),
-      ).format(date);
+      return formatLatin(
+        DateFormat('MMM dd, yyyy', AppLocales.intlDateFormat(loc)),
+        date,
+      );
     } catch (e) {
       return dateStr;
     }
@@ -241,10 +241,10 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
   String _formatDateTime(DateTime? dt) {
     if (dt == null) return '-';
     final loc = AppLocalizations.of(context)?.locale ?? AppLocales.english;
-    return DateFormat(
-      'MMM dd, yyyy • h:mm a',
-      AppLocales.intlDateFormat(loc),
-    ).format(dt);
+    return formatLatin(
+      DateFormat('MMM dd, yyyy • h:mm a', AppLocales.intlDateFormat(loc)),
+      dt,
+    );
   }
 
   String _formatStage(String? stage, AppLocalizations? localizations) {

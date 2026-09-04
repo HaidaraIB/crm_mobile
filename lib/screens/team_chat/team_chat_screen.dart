@@ -87,7 +87,13 @@ class _TeamChatProvidersState extends State<_TeamChatProviders>
       },
     );
 
-    unawaited(_listCubit.bootstrap(initialConversationId: widget.initialConversationId));
+    unawaited(
+      _listCubit.bootstrap(initialConversationId: widget.initialConversationId).then((_) {
+        // Lets the presence cubit tell this connection's own echoed frames from a
+        // peer's, so typing on this device does not cost a presence read.
+        _presenceCubit.setCurrentUserId(_listCubit.state.currentUserId);
+      }),
+    );
   }
 
   @override

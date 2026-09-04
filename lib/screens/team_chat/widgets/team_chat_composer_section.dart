@@ -12,6 +12,7 @@ import '../../../features/team_chat/cubit/team_chat_composer_state.dart';
 import '../../../models/tenant_chat_models.dart';
 import '../team_chat_composer.dart';
 import '../team_chat_common.dart';
+import '../team_chat_text_direction.dart';
 
 class TeamChatComposerSection extends StatefulWidget {
   const TeamChatComposerSection({
@@ -98,7 +99,7 @@ class _TeamChatComposerSectionState extends State<TeamChatComposerSection> {
                         ),
                   ),
                   const SizedBox(height: 2),
-                  Text(
+                  TeamChatIsolatedText(
                     r.body.isNotEmpty ? r.body : (r.attachmentKind ?? ''),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,

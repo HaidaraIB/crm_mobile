@@ -398,12 +398,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         // Events for selected date
                         if (eventsForSelectedDate.isNotEmpty) ...[
                           Text(
-                            DateFormat(
-                              'EEEE, MMMM d',
-                              AppLocales.intlDateFormat(
-                                localizations?.locale ?? AppLocales.english,
+                            formatLatin(
+                              DateFormat(
+                                'EEEE, MMMM d',
+                                AppLocales.intlDateFormat(
+                                  localizations?.locale ?? AppLocales.english,
+                                ),
                               ),
-                            ).format(_selectedDate),
+                              _selectedDate,
+                            ),
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
@@ -786,7 +789,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         Icon(Icons.access_time, size: 14, color: muted),
                         const SizedBox(width: 4),
                         Text(
-                          timeFormat.format(event.date),
+                          formatLatin(timeFormat, event.date),
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: muted,
                           ),

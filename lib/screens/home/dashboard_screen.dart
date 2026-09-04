@@ -309,9 +309,10 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
   Widget _buildWelcomeSection(BuildContext context, AppLocalizations? localizations) {
     final greetingKey = _getGreetingKey();
     final locale = localizations?.locale ?? AppLocales.english;
-    final todayStr = DateFormat.yMMMEd(
-      AppLocales.intlDateFormat(locale),
-    ).format(DateTime.now());
+    final todayStr = formatLatin(
+      DateFormat.yMMMEd(AppLocales.intlDateFormat(locale)),
+      DateTime.now(),
+    );
 
     return Container(
       width: double.infinity,

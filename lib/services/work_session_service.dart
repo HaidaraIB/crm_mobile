@@ -93,6 +93,16 @@ class WorkSessionService {
     _timer = null;
   }
 
+  /// Pull the server's current total for today without sending a ping.
+  ///
+  /// Used by the drawer card's refresh control. A ping would credit another
+  /// interval of usage; GET /work-sessions/today/ only reads the existing total.
+  Future<void> refreshToday() async {
+    final data = await ApiService().fetchWorkSessionToday();
+    if (data == null) return;
+    _applyStatus(data);
+  }
+
   /// User acknowledged the idle dialog.
   void resume() {
     if (!_tracked) return;

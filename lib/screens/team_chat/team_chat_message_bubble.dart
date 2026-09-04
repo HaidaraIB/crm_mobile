@@ -7,6 +7,7 @@ import '../../core/utils/app_locales.dart';
 import '../../models/tenant_chat_models.dart';
 import 'team_chat_common.dart';
 import 'team_chat_media.dart';
+import 'team_chat_text_direction.dart';
 
 /// Horizontal swipe toward chat center triggers [onSwipeReply].
 class TeamChatSwipeReplyShell extends StatefulWidget {
@@ -32,12 +33,10 @@ class _TeamChatSwipeReplyShellState extends State<TeamChatSwipeReplyShell> {
   static const double _maxPull = 72;
 
   void _onDragUpdate(DragUpdateDetails d) {
-    final isRtl = switch (Directionality.of(context)) {
-      TextDirection.rtl => true,
-      TextDirection.ltr => false,
-    };
+    // Bubbles sit physically (mine right, theirs left) in both UI languages,
+    // so "toward center" is physical too.
     final dx = d.delta.dx;
-    final towardCenter = widget.mine ? (isRtl ? dx : -dx) : (isRtl ? -dx : dx);
+    final towardCenter = widget.mine ? -dx : dx;
     setState(() {
       _drag = (_drag + towardCenter).clamp(0.0, _maxPull);
     });
@@ -54,11 +53,7 @@ class _TeamChatSwipeReplyShellState extends State<TeamChatSwipeReplyShell> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final isRtl = switch (Directionality.of(context)) {
-      TextDirection.rtl => true,
-      TextDirection.ltr => false,
-    };
-    final childDx = widget.mine ? (isRtl ? _drag : -_drag) : (isRtl ? -_drag : _drag);
+    final childDx = widget.mine ? -_drag : _drag;
 
     return Stack(
       clipBehavior: Clip.none,
@@ -68,9 +63,9 @@ class _TeamChatSwipeReplyShellState extends State<TeamChatSwipeReplyShell> {
           right: widget.mine ? 0 : null,
           left: widget.mine ? null : 0,
           child: Padding(
-            padding: EdgeInsetsDirectional.only(
-              start: widget.mine ? 0 : 8,
-              end: widget.mine ? 8 : 0,
+            padding: EdgeInsets.only(
+              left: widget.mine ? 0 : 8,
+              right: widget.mine ? 8 : 0,
             ),
             child: Icon(
               Icons.reply_rounded,
@@ -190,9 +185,12 @@ class TeamChatMessageBubble extends StatelessWidget {
         ? AppTheme.primaryColor.withValues(alpha: 0.92)
         : scheme.surfaceContainerHigh;
     final fg = mine ? Colors.white : scheme.onSurface;
-    final timeStr = DateFormat.Hm(
-      AppLocales.intlDateFormat(AppLocales.fromLanguageCode(lang)),
-    ).format(DateTime.parse(message.createdAt));
+    // Latin digits, like the web meta row which renders the time in an LTR run.
+    final timeStr = withLatinDigits(
+      DateFormat.Hm(
+        AppLocales.intlDateFormat(AppLocales.fromLanguageCode(lang)),
+      ).format(DateTime.parse(message.createdAt)),
+    );
     final groupHeaderRole =
         !mine && isCompanyGroup ? tenantChatPeerRoleLabel(message.sender.role, tr) : '';
 
@@ -208,6 +206,48 @@ class TeamChatMessageBubble extends StatelessWidget {
       topRight: Radius.circular(18),
       bottomRight: Radius.circular(18),
       bottomLeft: Radius.circular(4),
+    );
+
+    final hasMedia = message.attachmentUrl != null && message.attachmentKind != null;
+    final meta = Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          timeStr,
+          style: TextStyle(
+            fontSize: 11,
+            color: fg.withValues(alpha: 0.72),
+          ),
+        ),
+        if (mine) ...[
+          const SizedBox(width: 4),
+          Tooltip(
+            message: message.readByPeer ? labelRead : labelDelivered,
+            child: Icon(
+              message.readByPeer ? Icons.done_all_rounded : Icons.done_rounded,
+              size: 15,
+              color: message.readByPeer
+                  ? Colors.lightBlueAccent
+                  : fg.withValues(alpha: 0.78),
+            ),
+          ),
+        ],
+      ],
+    );
+    final textAndMeta = Wrap(
+      alignment: WrapAlignment.end,
+      crossAxisAlignment: WrapCrossAlignment.end,
+      spacing: 8,
+      runSpacing: 2,
+      children: [
+        if (message.body.trim().isNotEmpty)
+          TeamChatAutoDirText(
+            message.body,
+            style: TextStyle(color: fg, height: 1.35),
+          ),
+        meta,
+      ],
     );
 
     final bubble = Material(
@@ -226,10 +266,12 @@ class TeamChatMessageBubble extends StatelessWidget {
             children: [
               if (!mine && isCompanyGroup) ...[
                 Row(
+                  // min + Flexible: the header must not stretch the bubble.
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Expanded(
-                      child: Text(
+                    Flexible(
+                      child: TeamChatAutoDirText(
                         tenantChatPeerName(message.sender),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -248,7 +290,7 @@ class TeamChatMessageBubble extends StatelessWidget {
                           color: scheme.primary.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Text(
+                        child: TeamChatAutoDirText(
                           groupHeaderRole.toUpperCase(),
                           style: TextStyle(
                             fontSize: 9,
@@ -264,7 +306,7 @@ class TeamChatMessageBubble extends StatelessWidget {
                 const SizedBox(height: 6),
               ],
               if (message.forwardedFrom != null) ...[
-                Text(
+                TeamChatAutoDirText(
                   labelForwarded,
                   style: TextStyle(fontSize: 11, color: fg.withValues(alpha: 0.85)),
                 ),
@@ -275,7 +317,10 @@ class TeamChatMessageBubble extends StatelessWidget {
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                   onPressed: () => onJump(message.forwardedFrom!.id),
-                  child: Text(labelJumpFwd, style: const TextStyle(fontSize: 12)),
+                  child: TeamChatAutoDirText(
+                    labelJumpFwd,
+                    style: const TextStyle(fontSize: 12),
+                  ),
                 ),
               ],
               if (message.replyTo != null) ...[
@@ -291,9 +336,10 @@ class TeamChatMessageBubble extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Expanded(
-                                child: Text(
+                              Flexible(
+                                child: TeamChatAutoDirText(
                                   tenantChatPeerName(message.replyTo!.sender),
                                   style: TextStyle(
                                     fontWeight: FontWeight.w600,
@@ -322,7 +368,7 @@ class TeamChatMessageBubble extends StatelessWidget {
                                           color: sch.primary.withValues(alpha: 0.12),
                                           borderRadius: BorderRadius.circular(8),
                                         ),
-                                        child: Text(
+                                        child: TeamChatAutoDirText(
                                           rlab.toUpperCase(),
                                           style: TextStyle(
                                             fontSize: 8,
@@ -338,7 +384,7 @@ class TeamChatMessageBubble extends StatelessWidget {
                               ],
                             ],
                           ),
-                          Text(
+                          TeamChatAutoDirText(
                             message.replyTo!.body.isNotEmpty
                                 ? message.replyTo!.body
                                 : (message.replyTo!.attachmentKind ?? ''),
@@ -346,7 +392,7 @@ class TeamChatMessageBubble extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(fontSize: 12, color: fg.withValues(alpha: 0.95)),
                           ),
-                          Text(
+                          TeamChatAutoDirText(
                             labelJumpQ,
                             style: TextStyle(
                               fontSize: 10,
@@ -360,7 +406,7 @@ class TeamChatMessageBubble extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
               ],
-              if (message.attachmentUrl != null && message.attachmentKind != null)
+              if (hasMedia) ...[
                 TeamChatAttachmentPreview(
                   url: message.attachmentUrl!,
                   kind: message.attachmentKind!,
@@ -370,38 +416,16 @@ class TeamChatMessageBubble extends StatelessWidget {
                   attachmentHeight: message.attachmentHeight,
                   labelCouldNotLoad: labelCouldNotLoad,
                 ),
-              if (message.body.trim().isNotEmpty)
-                Text(
-                  message.body,
-                  style: TextStyle(color: fg, height: 1.35),
-                ),
-              const SizedBox(height: 4),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Text(
-                    timeStr,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: fg.withValues(alpha: 0.72),
-                    ),
-                  ),
-                  if (mine) ...[
-                    const SizedBox(width: 4),
-                    Tooltip(
-                      message: message.readByPeer ? labelRead : labelDelivered,
-                      child: Icon(
-                        message.readByPeer ? Icons.done_all_rounded : Icons.done_rounded,
-                        size: 15,
-                        color: message.readByPeer
-                            ? Colors.lightBlueAccent
-                            : fg.withValues(alpha: 0.78),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+                const SizedBox(height: 4),
+              ],
+              // Telegram-style: time + ticks ride on the last text line when
+              // they fit and drop to their own line when they don't, so the
+              // bubble hugs its content instead of stretching to the max width.
+              // Media already fills that width, so there the meta row spans it.
+              if (hasMedia)
+                SizedBox(width: double.infinity, child: textAndMeta)
+              else
+                textAndMeta,
             ],
           ),
         ),
@@ -417,7 +441,10 @@ class TeamChatMessageBubble extends StatelessWidget {
           onSwipeReply: onReply,
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.82),
-            child: bubble,
+            // Bubble internals lay out LTR — same as the web thread's
+            // `dir="ltr"` container — so chrome never mirrors with the app
+            // language; each text run picks its own direction from its content.
+            child: Directionality(textDirection: TextDirection.ltr, child: bubble),
           ),
         ),
       ),

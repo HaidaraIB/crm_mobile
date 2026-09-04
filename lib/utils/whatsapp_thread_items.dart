@@ -1,5 +1,6 @@
 import 'package:intl/intl.dart';
 
+import '../core/utils/app_locales.dart';
 import '../models/lead_whatsapp_message_model.dart';
 
 enum WhatsAppThreadStatusVariant { started, day, newMessages }
@@ -30,8 +31,8 @@ String _dayKey(DateTime d) => '${d.year}-${d.month}-${d.day}';
 
 String _formatStatusDate(DateTime d, String language) {
   // Compact one-line chip (web uses short month + day + year).
-  final locale = language == 'ar' ? 'ar' : 'en_GB';
-  return DateFormat('d MMM y', locale).format(d);
+  final locale = AppLocales.intlDateFormat(AppLocales.fromLanguageCode(language));
+  return withLatinDigits(DateFormat('d MMM y', locale).format(d));
 }
 
 String _formatDayChip(DateTime d, String language, String Function(String) t) {

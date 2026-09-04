@@ -452,10 +452,10 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
     if (date == null) return isoDate;
     final locale =
         AppLocalizations.of(context)?.locale ?? AppLocales.english;
-    return DateFormat(
-      'MMM d, yyyy · h:mm a',
-      AppLocales.intlDateFormat(locale),
-    ).format(date.toLocal());
+    return formatLatin(
+      DateFormat('MMM d, yyyy · h:mm a', AppLocales.intlDateFormat(locale)),
+      date.toLocal(),
+    );
   }
 
   /// Build full image URL for attachment (API may return relative path).

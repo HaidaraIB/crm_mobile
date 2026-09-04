@@ -319,10 +319,18 @@ class ChatScrollService {
       scrollActive = false;
       userDragging = false;
       final metrics = metricsFor(itemCount);
+      // Decides whether *future* messages pull the view down with them. It must
+      // not move the view now.
+      //
+      // It used to: any gesture that ended near the tail was followed by a
+      // jumpTo the last row, and "near" is generous — the last message merely
+      // being on screen qualifies. So a small flick, the kind of tap-scroll used
+      // to glance one line up, was yanked straight back to the bottom, and the
+      // list felt like it was fighting the finger. Where the user let go is where
+      // they meant to be; the tail alignment is re-established when new rows
+      // arrive (see _onPollNewerRows) or the thread is opened, which is where a
+      // snap is something the user asked for.
       stickToTail = metrics.atBottom || metrics.nearBottom;
-      if (stickToTail) {
-        scheduleSnapTailAfterScrollEnd(itemCount);
-      }
     }
     return false;
   }

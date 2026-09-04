@@ -511,6 +511,7 @@ class ApiService {
     bool retryOn401 = true,
     Duration? timeout,
     bool includeAuth = true,
+    Map<String, String>? extraHeaders,
   }) async {
     // Ensure endpoint starts with / and baseUrl doesn't end with /
     var cleanEndpoint = endpoint.startsWith('/') ? endpoint : '/$endpoint';
@@ -523,6 +524,7 @@ class ApiService {
     }
     final url = Uri.parse('$cleanBaseUrl$cleanEndpoint');
     final headers = await _getHeaders(includeAuth: includeAuth);
+    if (extraHeaders != null) headers.addAll(extraHeaders);
 
     // Default timeout of 15 seconds (Postgres + mobile RTT; override per call for long ops)
     final requestTimeout = timeout ?? _defaultRequestTimeout;
@@ -597,8 +599,13 @@ class ApiService {
       rethrow;
     }
 
-    // Log non-2xx responses
-    if (response.statusCode < 200 || response.statusCode >= 300) {
+    // Log non-2xx responses.
+    //
+    // 304 is excluded on purpose: it is the *success* case for a conditional
+    // request — "your copy is current" — and logging it would fill the error log
+    // with one entry per poll.
+    if ((response.statusCode < 200 || response.statusCode >= 300) &&
+        response.statusCode != 304) {
       String? responseBody;
       try {
         responseBody = response.body;
@@ -873,6 +880,9 @@ class ApiService {
   }
 
   Future<void> _clearTokens() async {
+    // Conditional-request state is scoped to the signed-in user; replaying a
+    // cached digest across a session change would show one user another's counts.
+    resetSyncDigestCache();
     await _removeCurrentDeviceFcmTokenBeforeLogout();
     // Keep trusted-device token on normal logout so owner can skip 2FA
     // on the same mobile within trust window.
@@ -2328,16 +2338,48 @@ class ApiService {
   }
 
   /// GET /sync/digest/ — badge counters. `whatsapp_unread` is null when gated.
+  /// Last digest payload and its ETag, so an unchanged poll costs nothing.
+  ///
+  /// This is the mobile half of what makes the change feed affordable. The web
+  /// client has sent `If-None-Match` since the counters were introduced and gets
+  /// a bare 304 back, answered from cache with no database work. Mobile did not,
+  /// so every refresh — and there is one per realtime frame — was a full 200
+  /// that rebuilt every badge count. On a busy chat that is the most expensive
+  /// request the app makes, repeated per message.
+  String? _syncDigestEtag;
+  Map<String, dynamic> _syncDigestCache = const <String, dynamic>{};
+
+  /// Drop conditional state. Must be called when the session identity changes:
+  /// tokens are scoped to a user, and so is the payload behind that ETag.
+  void resetSyncDigestCache() {
+    _syncDigestEtag = null;
+    _syncDigestCache = const <String, dynamic>{};
+  }
+
   Future<Map<String, dynamic>> getSyncDigest() async {
+    final etag = _syncDigestEtag;
     final response = await _makeRequest(
       'GET',
       '/sync/digest/',
       timeout: const Duration(seconds: 10),
+      extraHeaders: etag != null ? {'If-None-Match': etag} : null,
     );
+
+    // Nothing changed since the token we sent: reuse what we already have.
+    if (response.statusCode == 304) {
+      return _syncDigestCache;
+    }
     if (response.statusCode != 200) {
       return <String, dynamic>{};
     }
-    return _unwrapResponseMap(response);
+
+    final data = _unwrapResponseMap(response);
+    final newEtag = response.headers['etag'];
+    if (newEtag != null && newEtag.isNotEmpty) {
+      _syncDigestEtag = newEtag;
+      _syncDigestCache = data;
+    }
+    return data;
   }
 
   /// GET /integrations/whatsapp/unread-count/
@@ -5580,7 +5622,24 @@ class ApiService {
   }
 
   /// `page=1` avoids [_makeRequest] auto-merge of all paginated pages.
-  Future<TenantChatConversationsPage> getTenantChatConversations() async {
+  /// Collapses concurrent conversation-list fetches into one request.
+  ///
+  /// Four independent things ask for this list around launch — the list cubit
+  /// bootstrapping, the away service, a resume invalidation and a screen mount —
+  /// and each produced its own request. They all want the same bytes at the same
+  /// moment, so the later callers await the first instead.
+  Future<TenantChatConversationsPage>? _conversationsInFlight;
+
+  Future<TenantChatConversationsPage> getTenantChatConversations() {
+    final existing = _conversationsInFlight;
+    if (existing != null) return existing;
+    final future = _getTenantChatConversations()
+        .whenComplete(() => _conversationsInFlight = null);
+    _conversationsInFlight = future;
+    return future;
+  }
+
+  Future<TenantChatConversationsPage> _getTenantChatConversations() async {
     final response = await _makeRequest(
       'GET',
       '/tenant-chat/conversations/?page=1&page_size=100',
@@ -5891,6 +5950,16 @@ class ApiService {
   Future<void> updateFCMToken(String fcmToken, {String? language}) async {
     try {
       final body = {'fcm_token': fcmToken};
+
+      // Tell the server what kind of device this token belongs to, so a push
+      // meant for the web dashboard does not also buzz this phone. The server
+      // records "unknown" when this is absent, which is what older builds send
+      // and which stays reachable by any untargeted push.
+      if (Platform.isAndroid) {
+        body['platform'] = 'android';
+      } else if (Platform.isIOS) {
+        body['platform'] = 'ios';
+      }
 
       // إضافة اللغة إذا كانت متوفرة
       if (language != null) {
@@ -6303,8 +6372,29 @@ class ApiService {
     }
   }
 
+  /// Collapses concurrent unread-count requests into one.
+  ///
+  /// Both home screens load this on init, and the response cache cannot help
+  /// while the first request is still in flight — so a launch made two identical
+  /// calls. This makes the second await the first.
+  Future<int>? _unreadCountInFlight;
+
   /// جلب عدد الإشعارات غير المقروءة
   Future<int> getUnreadNotificationsCount({
+    bool forceRefresh = false,
+    Duration cacheTtl = _defaultCacheTtl,
+  }) {
+    final existing = _unreadCountInFlight;
+    if (existing != null && !forceRefresh) return existing;
+    final future = _getUnreadNotificationsCount(
+      forceRefresh: forceRefresh,
+      cacheTtl: cacheTtl,
+    ).whenComplete(() => _unreadCountInFlight = null);
+    _unreadCountInFlight = future;
+    return future;
+  }
+
+  Future<int> _getUnreadNotificationsCount({
     bool forceRefresh = false,
     Duration cacheTtl = _defaultCacheTtl,
   }) async {

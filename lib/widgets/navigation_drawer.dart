@@ -23,6 +23,7 @@ import '../utils/whatsapp_access.dart';
 import '../utils/inventory_access.dart' as inventory_access;
 import '../models/user_model.dart';
 import '../services/api_service.dart';
+import '../services/work_session_service.dart';
 import 'permission_guard.dart';
 import 'whatsapp_chat/whatsapp_access_guard.dart';
 import 'working_hours_today_card.dart';
@@ -79,6 +80,13 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
       }
       debugPrint('Failed to load user in drawer: $e');
     }
+  }
+
+  Future<void> _refreshWorkingHours() async {
+    await Future.wait<void>([
+      _loadUser(forceRefresh: true),
+      WorkSessionService.instance.refreshToday(),
+    ]);
   }
 
   @override
@@ -156,6 +164,7 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
           WorkingHoursTodayCard(
             user: _currentUser,
             margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+            onRefresh: _refreshWorkingHours,
           ),
 
           // Menu Items

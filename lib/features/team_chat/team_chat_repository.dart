@@ -1,6 +1,7 @@
 import '../../models/tenant_chat_models.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
+import '../../services/realtime_channel.dart';
 
 abstract class TeamChatRepository {
   Future<UserModel> getCurrentUser();
@@ -49,9 +50,17 @@ class ApiTeamChatRepository implements TeamChatRepository {
   Future<TenantChatPeerPresenceResponse> getPeerPresence(int conversationId) =>
       _api.getTenantChatPeerPresence(conversationId);
 
+  /// Report own typing/recording state — over the socket when there is one.
+  ///
+  /// This fires every few seconds for as long as somebody is typing, so it is
+  /// the chattiest write in the app. A frame costs a fraction of an
+  /// authenticated POST, and the server writes the same presence cache either
+  /// way, so a colleague whose socket is down still sees this user as active.
   @override
-  Future<void> postPeerPresence(int conversationId, String action) =>
-      _api.postTenantChatPeerPresence(conversationId, action);
+  Future<void> postPeerPresence(int conversationId, String action) async {
+    if (RealtimeChannel.instance.sendPresence(conversationId, action)) return;
+    await _api.postTenantChatPeerPresence(conversationId, action);
+  }
 
   @override
   Future<TenantChatMessage> sendMessage(

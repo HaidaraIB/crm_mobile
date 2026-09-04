@@ -15,6 +15,7 @@ import '../../chat_engine/scroll/chat_scroll_service.dart';
 import '../../chat_engine/ui/chat_message_list_view.dart';
 import '../../chat_engine/ui/chat_scroll_fab.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../core/utils/app_locales.dart';
 import '../../features/team_chat/team_chat_coordinator_factory.dart';
 import '../../features/team_chat/tenant_chat_message_adapter.dart';
 import '../../models/tenant_chat_models.dart';
@@ -364,7 +365,11 @@ class TeamChatThreadPaneState extends State<TeamChatThreadPane> {
     if (dayStart == today) return _t('teamChatDayToday');
     final yesterday = today.subtract(const Duration(days: 1));
     if (dayStart == yesterday) return _t('teamChatDayYesterday');
-    return DateFormat.yMMMd(lang).format(dayStart);
+    return withLatinDigits(
+      DateFormat.yMMMd(
+        AppLocales.intlDateFormat(AppLocales.fromLanguageCode(lang)),
+      ).format(dayStart),
+    );
   }
 
   @override

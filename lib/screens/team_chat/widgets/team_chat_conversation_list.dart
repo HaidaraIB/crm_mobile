@@ -25,12 +25,12 @@ String _conversationRowTime(TenantChatConversation c, String lang) {
     final now = DateTime.now();
     final intlLoc = AppLocales.intlDateFormat(AppLocales.fromLanguageCode(lang));
     if (_dayKey(_startOfLocalDay(dt)) == _dayKey(_startOfLocalDay(now))) {
-      return DateFormat.Hm(intlLoc).format(dt);
+      return withLatinDigits(DateFormat.Hm(intlLoc).format(dt));
     }
     if (dt.year == now.year) {
-      return DateFormat.MMMd(intlLoc).format(dt);
+      return withLatinDigits(DateFormat.MMMd(intlLoc).format(dt));
     }
-    return DateFormat.yMMMd(intlLoc).format(dt);
+    return withLatinDigits(DateFormat.yMMMd(intlLoc).format(dt));
   } catch (_) {
     return '';
   }

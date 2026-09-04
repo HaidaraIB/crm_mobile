@@ -380,7 +380,7 @@ class _ArrivalsBoardScreenState extends State<ArrivalsBoardScreen> {
 
   String _formatDate(DateTime value) {
     final locale = Localizations.localeOf(context);
-    return DateFormat.yMMMd(AppLocales.intlDateFormat(locale)).format(value);
+    return formatLatin(DateFormat.yMMMd(AppLocales.intlDateFormat(locale)), value);
   }
 
   /// Day and scope, with draft state discarded unless Apply is pressed — the same
@@ -736,10 +736,10 @@ class _ArrivalsBoardScreenState extends State<ArrivalsBoardScreen> {
 
   String _formatTime(DateTime value) {
     final locale = Localizations.localeOf(context);
-    return DateFormat(
-      'h:mm a',
-      AppLocales.intlDateFormat(locale),
-    ).format(value.toLocal());
+    return formatLatin(
+      DateFormat('h:mm a', AppLocales.intlDateFormat(locale)),
+      value.toLocal(),
+    );
   }
 
   /// "Announced by X · Notified: Y, Z" — same provenance the web board shows.

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart' hide NavigationDrawer;
 import 'package:intl/intl.dart';
 import '../../core/localization/app_localizations.dart';
@@ -6,6 +7,8 @@ import '../../core/utils/app_locales.dart';
 import '../../models/user_model.dart';
 import '../../services/notification_service.dart';
 import '../../services/api_service.dart';
+import '../../services/notifications_unread_holder.dart';
+import '../../services/realtime_channel.dart';
 import '../../services/team_chat_away_service.dart';
 import '../../services/team_chat_unread_holder.dart';
 import '../../services/whatsapp_chat_unread_holder.dart';
@@ -42,7 +45,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   VoidCallback? _importLeadsCallback;
   VoidCallback? _exportLeadsCallback;
   final ApiService _apiService = ApiService();
-  int _unreadNotificationsCount = 0;
   UserModel? _sessionUser;
   late final Widget _dashboardScreen;
   late final Widget _allLeadsScreen;
@@ -89,8 +91,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _sendFCMTokenIfLoggedIn();
     // على iOS قد يتأخر استلام FCM token؛ إعادة المحاولة بعد 3 و 8 ثوانٍ لضمان حفظ التوكن في الخادم
     _scheduleFCMTokenRetries();
-    // تحميل عدد الإشعارات غير المقروءة
-    _loadUnreadCount();
   }
 
   @override
@@ -131,6 +131,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       TeamChatAwayService.instance.start();
       WhatsAppChatUnreadPoller.instance.reset();
       WhatsAppChatUnreadPoller.instance.start();
+      // Same preconditions as the poller it accelerates: signed in and on a
+      // home screen. Nothing below is removed — the socket only delivers the
+      // same change signal sooner.
+      unawaited(RealtimeChannel.instance.start());
     } catch (e) {
       debugPrint('Failed to load session user: $e');
       // Fall back to the default tabs rather than stranding the user on a spinner.
@@ -150,21 +154,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     });
   }
 
-  /// تحميل عدد الإشعارات غير المقروءة
-  Future<void> _loadUnreadCount({bool forceRefresh = false}) async {
-    try {
-      final count = await _apiService.getUnreadNotificationsCount(
-        forceRefresh: forceRefresh,
-      );
-      if (mounted) {
-        setState(() {
-          _unreadNotificationsCount = count;
-        });
-      }
-    } catch (e) {
-      debugPrint('Warning: Failed to load unread notifications count: $e');
-    }
-  }
+  /// The bell badge reads [NotificationsUnreadHolder], fed by the digest poll
+  /// [WhatsAppChatUnreadPoller] already runs for the chat badges. It used to
+  /// fetch `notifications/unread_count` here as well, for a number the same
+  /// digest response was already carrying as `notifications_unread`.
 
   /// Team chat entry in the app bar (replaces drawer shortcut). Unread badge matches [TeamChatUnreadHolder].
   Widget _teamChatAppBarAction(AppLocalizations? localizations) {
@@ -352,12 +345,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 children: [
                   Text(getAppBarTitle()),
                   Text(
-                    DateFormat(
-                      'MMMM yyyy',
-                      AppLocales.intlDateFormat(
-                        localizations?.locale ?? AppLocales.english,
+                    formatLatin(
+                      DateFormat(
+                        'MMMM yyyy',
+                        AppLocales.intlDateFormat(
+                          localizations?.locale ?? AppLocales.english,
+                        ),
                       ),
-                    ).format(_selectedCalendarDate),
+                      _selectedCalendarDate,
+                    ),
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.normal,
@@ -466,46 +462,48 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.notifications_outlined),
-                        onPressed: () async {
-                          await Navigator.push(
+                        onPressed: () {
+                          // No reload on return: NotificationsScreen writes the
+                          // count it already knows into the holder as the user
+                          // reads or deletes, so the badge is correct on pop.
+                          Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) => const NotificationsScreen(),
                             ),
                           );
-                          // تحديث عدد الإشعارات بعد العودة
-                          if (mounted) {
-                            _loadUnreadCount(forceRefresh: true);
-                          }
                         },
                       ),
-                      if (_unreadNotificationsCount > 0)
-                        Positioned(
-                          right: 8,
-                          top: 8,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: Colors.red,
-                              shape: BoxShape.circle,
-                            ),
-                            constraints: const BoxConstraints(
-                              minWidth: 16,
-                              minHeight: 16,
-                            ),
-                            child: Text(
-                              _unreadNotificationsCount > 99
-                                  ? '99+'
-                                  : '$_unreadNotificationsCount',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
+                      ValueListenableBuilder<int>(
+                        valueListenable: NotificationsUnreadHolder.totalUnread,
+                        builder: (context, count, _) {
+                          if (count <= 0) return const SizedBox.shrink();
+                          return Positioned(
+                            right: 8,
+                            top: 8,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
                               ),
-                              textAlign: TextAlign.center,
+                              constraints: const BoxConstraints(
+                                minWidth: 16,
+                                minHeight: 16,
+                              ),
+                              child: Text(
+                                count > 99 ? '99+' : '$count',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
                             ),
-                          ),
-                        ),
+                          );
+                        },
+                      ),
                     ],
                   ),
                 ],

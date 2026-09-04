@@ -260,10 +260,10 @@ class _DealsScreenState extends State<DealsScreen> {
     try {
       final date = DateTime.parse(dateStr);
       final loc = AppLocalizations.of(context)?.locale ?? AppLocales.english;
-      return DateFormat(
-        'MMM dd, yyyy',
-        AppLocales.intlDateFormat(loc),
-      ).format(date);
+      return formatLatin(
+        DateFormat('MMM dd, yyyy', AppLocales.intlDateFormat(loc)),
+        date,
+      );
     } catch (e) {
       return dateStr;
     }

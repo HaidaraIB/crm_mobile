@@ -33,7 +33,8 @@ class WhatsAppConversationListCubit extends Cubit<WhatsAppConversationListState>
     await refresh();
     if (isClosed) return;
     _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 30), (_) {
+    // Fallback only — the digest's `chat` slice and FCM both arrive sooner.
+    _timer = Timer.periodic(kSyncFallbackPollInterval, (_) {
       if (!isClosed && _isForeground()) {
         unawaited(refresh(silent: true));
       }

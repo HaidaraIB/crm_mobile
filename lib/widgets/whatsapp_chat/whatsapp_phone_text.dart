@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/utils/lead_phone_utils.dart';
 
+export '../../core/utils/app_locales.dart' show withLatinDigits;
+
 /// LTR-isolated phone / E.164 display (mobile equivalent of web PhoneText).
 class WhatsAppPhoneText extends StatelessWidget {
   const WhatsAppPhoneText(
@@ -67,14 +69,4 @@ TextDirection resolveBubbleTextDirection(String text) {
     }
   }
   return TextDirection.ltr;
-}
-
-/// Force Latin digits in time strings under Arabic locale.
-String withLatinDigits(String input) {
-  const eastern = '٠١٢٣٤٥٦٧٨٩';
-  var out = input;
-  for (var i = 0; i < 10; i++) {
-    out = out.replaceAll(eastern[i], '$i');
-  }
-  return out;
 }

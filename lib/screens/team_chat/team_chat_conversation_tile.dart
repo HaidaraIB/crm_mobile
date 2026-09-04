@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/tenant_chat_models.dart';
 import 'team_chat_common.dart';
+import 'team_chat_text_direction.dart';
 
 class TeamChatConversationRow extends StatelessWidget {
   const TeamChatConversationRow({
@@ -82,7 +83,7 @@ class TeamChatConversationRow extends StatelessWidget {
                     Row(
                       children: [
                         Expanded(
-                          child: Text(
+                          child: TeamChatIsolatedText(
                             titleText,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -107,7 +108,7 @@ class TeamChatConversationRow extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Expanded(
-                          child: Text(
+                          child: TeamChatIsolatedText(
                             previewText,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -197,7 +198,7 @@ class TeamChatThreadAppBarTitle extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
+              TeamChatIsolatedText(
                 tenantChatPeerName(peer),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -271,7 +272,7 @@ class TeamChatGroupThreadAppBarTitle extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
+              TeamChatIsolatedText(
                 title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,

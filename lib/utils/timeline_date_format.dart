@@ -10,7 +10,7 @@ String formatTimelineDate(DateTime? date, Locale locale) {
     'MMM d, yyyy h:mm a',
     AppLocales.intlDateFormat(locale),
   );
-  return fmt.format(d.toLocal());
+  return formatLatin(fmt, d.toLocal());
 }
 
 String formatTimelineDetailDateTime(DateTime? date, Locale locale) {

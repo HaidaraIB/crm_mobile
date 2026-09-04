@@ -48,6 +48,22 @@ class TenantChatRepository implements ChatThreadRepository<TenantEngineMessage> 
   }
 
   @override
+  Future<ChatFetchPageResult<TenantEngineMessage>> fetchTailRefresh({
+    required int throughMessageId,
+  }) async {
+    // `before_id` is exclusive, so +1 makes the anchor itself the last row: one
+    // request for exactly the window on screen, rather than the two
+    // count-then-page round trips fetchTailWindow needs.
+    final page = await api.getTenantChatMessages(
+      conversationId,
+      ordering: 'created_at',
+      pageSize: pageSize,
+      beforeId: throughMessageId + 1,
+    );
+    return _toResult(page);
+  }
+
+  @override
   Future<ChatFetchPageResult<TenantEngineMessage>> fetchTailWindow() async {
     // Backward-compatible fallback: get count with tiny page, then fetch last page.
     final head = await api.getTenantChatMessages(

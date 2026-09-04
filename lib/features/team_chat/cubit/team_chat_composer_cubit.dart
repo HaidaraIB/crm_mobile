@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
 import '../../../models/tenant_chat_models.dart';
+import '../../../services/realtime_channel.dart';
 import '../../../utils/compress_image_for_chat.dart';
 import '../team_chat_repository.dart';
 import 'team_chat_composer_state.dart';
@@ -34,15 +35,29 @@ class TeamChatComposerCubit extends Cubit<TeamChatComposerState> {
   AudioRecorder? _recorder;
   String? _voiceTempPath;
 
+  /// Report this user's activity, socket first.
+  ///
+  /// Presence changes at keystroke rate, and the HTTP path meant a request per
+  /// change plus a heartbeat every 3.2s while anyone was typing. The socket also
+  /// gets it there *sooner*: a peer whose own connection is healthy has backed
+  /// its presence poll off to 30s, so a posted state used to reach them only when
+  /// the server fanned it out — which it now does, but a frame is still one hop
+  /// instead of two.
+  ///
+  /// Falls back to the POST whenever there is no connection to send on, so with
+  /// realtime off this behaves exactly as it did before.
+  void _reportPresence(int conversationId, String state) {
+    if (RealtimeChannel.instance.sendPresence(conversationId, state)) return;
+    unawaited(_repository.postPeerPresence(conversationId, state));
+  }
+
   void bindConversation(int? conversationId) {
     final previousId = state.boundConversationId;
     _typingDebounceTimer?.cancel();
     _presenceHeartbeatTimer?.cancel();
     unawaited(_stopVoiceInternal(finalize: false));
     if (previousId != null && previousId != conversationId) {
-      unawaited(
-        _repository.postPeerPresence(previousId, kTenantChatPresenceIdle),
-      );
+      _reportPresence(previousId, kTenantChatPresenceIdle);
     }
     _localPresence = kTenantChatPresenceIdle;
     emit(
@@ -135,15 +150,15 @@ class TeamChatComposerCubit extends Cubit<TeamChatComposerState> {
     }
     if (next == _localPresence) return;
     _localPresence = next;
-    unawaited(_repository.postPeerPresence(id, next));
+    _reportPresence(id, next);
     _presenceHeartbeatTimer?.cancel();
     if (next != kTenantChatPresenceIdle) {
+      // The server expires presence after 12s, so an unbroken activity has to
+      // keep saying so or the peer's indicator would blink out mid-sentence.
       _presenceHeartbeatTimer =
           Timer.periodic(const Duration(milliseconds: 3200), (_) {
         final cid = state.boundConversationId;
-        if (cid != null) {
-          unawaited(_repository.postPeerPresence(cid, _localPresence));
-        }
+        if (cid != null) _reportPresence(cid, _localPresence);
       });
     }
   }
@@ -318,7 +333,7 @@ class TeamChatComposerCubit extends Cubit<TeamChatComposerState> {
     final id = state.boundConversationId;
     await _stopVoiceInternal(finalize: false);
     if (id != null) {
-      unawaited(_repository.postPeerPresence(id, kTenantChatPresenceIdle));
+      _reportPresence(id, kTenantChatPresenceIdle);
     }
     return super.close();
   }

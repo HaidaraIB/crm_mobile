@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import 'team_chat_text_direction.dart';
 
 class TeamChatComposer extends StatelessWidget {
   const TeamChatComposer({
@@ -110,10 +111,19 @@ class TeamChatComposer extends StatelessWidget {
                     ),
                   ),
                   Expanded(
-                    child: TextField(
+                    // Like the web composer: direction follows what is being
+                    // typed, falling back to the UI language while empty.
+                    child: ValueListenableBuilder<TextEditingValue>(
+                      valueListenable: draft,
+                      builder: (context, value, _) => TextField(
                       controller: draft,
                       minLines: 1,
                       maxLines: 5,
+                      textDirection: composerTextDirection(
+                        value.text,
+                        arabicUi: Directionality.of(context) == TextDirection.rtl,
+                      ),
+                      textAlign: TextAlign.start,
                       textAlignVertical: TextAlignVertical.center,
                       textInputAction: TextInputAction.newline,
                       decoration: InputDecoration(
@@ -134,6 +144,7 @@ class TeamChatComposer extends StatelessWidget {
                           borderRadius: BorderRadius.circular(22),
                           borderSide: BorderSide(color: scheme.primary.withValues(alpha: 0.35)),
                         ),
+                      ),
                       ),
                     ),
                   ),
