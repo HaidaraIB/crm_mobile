@@ -590,13 +590,6 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     }
   }
 
-  void _filterLeads() {
-    // Filters are applied server-side in _loadLeads; keep list in sync.
-    setState(() {
-      _filteredLeads = List<LeadModel>.from(_leads);
-    });
-  }
-
   void _applyFilters() {
     _exitSelectionMode();
     _loadLeads(forceRefresh: true);
@@ -1208,17 +1201,20 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       if (!mounted) return;
       _exitSelectionMode();
       await _loadLeads(forceRefresh: true);
+      if (!context.mounted) return;
+      final messengerContext = context;
       SnackbarHelper.showSuccess(
-        this.context,
+        messengerContext,
         (localizations?.translate('leadsDeletedSuccessfullyCount') ??
                 'Successfully deleted {count} lead(s).')
             .replaceAll('{count}', '$deleted'),
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!context.mounted) return;
+      final messengerContext = context;
       SnackbarHelper.showError(
-        this.context,
-        ApiErrorHelper.toUserMessage(this.context, e),
+        messengerContext,
+        ApiErrorHelper.toUserMessage(messengerContext, e),
       );
     } finally {
       if (mounted) setState(() => _isBulkDeleting = false);
