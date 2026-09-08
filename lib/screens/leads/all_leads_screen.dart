@@ -98,6 +98,14 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
   /// Key for export button; used to get sharePositionOrigin on iPad/iOS.
   final GlobalKey _exportButtonKey = GlobalKey();
 
+  // Bulk selection
+  bool _selectionMode = false;
+  final Set<int> _selectedIds = {};
+  bool _selectAllMatching = false;
+  final Set<int> _excludedIds = {};
+  int _totalMatchingCount = 0;
+  bool _isBulkDeleting = false;
+
   @override
   void initState() {
     super.initState();
@@ -180,6 +188,85 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     if (_currentUser == null) return false;
     return _currentUser!.isAdmin ||
         _currentUser!.hasSupervisorPermission('can_manage_leads');
+  }
+
+  bool _canEnterBulkDelete() {
+    if (_currentUser == null) return false;
+    if (_currentUser!.isDataEntry || _currentUser!.isReception) return false;
+    return _currentUser!.isAdmin || _currentUser!.canDeleteClients;
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _selectionMode = false;
+      _selectedIds.clear();
+      _selectAllMatching = false;
+      _excludedIds.clear();
+    });
+  }
+
+  void _enterSelectionMode({int? initialLeadId}) {
+    if (!_canEnterBulkDelete()) return;
+    setState(() {
+      _selectionMode = true;
+      _selectedIds.clear();
+      _selectAllMatching = false;
+      _excludedIds.clear();
+      if (initialLeadId != null) {
+        _selectedIds.add(initialLeadId);
+      }
+    });
+  }
+
+  bool _isLeadSelected(int leadId) {
+    if (_selectAllMatching) return !_excludedIds.contains(leadId);
+    return _selectedIds.contains(leadId);
+  }
+
+  int get _selectedCount {
+    if (_selectAllMatching) {
+      return (_totalMatchingCount - _excludedIds.length).clamp(0, 1 << 30);
+    }
+    return _selectedIds.length;
+  }
+
+  void _toggleLeadSelection(int leadId) {
+    setState(() {
+      if (_selectAllMatching) {
+        if (_excludedIds.contains(leadId)) {
+          _excludedIds.remove(leadId);
+        } else {
+          _excludedIds.add(leadId);
+        }
+      } else {
+        if (_selectedIds.contains(leadId)) {
+          _selectedIds.remove(leadId);
+          if (_selectedIds.isEmpty) {
+            _selectionMode = false;
+          }
+        } else {
+          _selectedIds.add(leadId);
+        }
+      }
+    });
+  }
+
+  void _selectAllVisible() {
+    setState(() {
+      _selectAllMatching = false;
+      _excludedIds.clear();
+      _selectedIds
+        ..clear()
+        ..addAll(_filteredLeads.map((l) => l.id));
+    });
+  }
+
+  void _selectAllMatchingFilters() {
+    setState(() {
+      _selectAllMatching = true;
+      _selectedIds.clear();
+      _excludedIds.clear();
+    });
   }
 
   Future<void> _loadUsers() async {
@@ -462,43 +549,30 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       });
 
       final searchTerm = _searchController.text.trim();
+      final effectiveType = _selectedType ?? widget.type;
+      final effectiveStatus = _selectedStatus ?? widget.status;
       final result = await _apiService.getLeads(
-        type: widget.type,
-        status: widget.status,
+        type: effectiveType,
+        status: effectiveStatus,
         search: searchTerm.isEmpty ? null : searchTerm,
+        tagIds: _selectedTagIds.isEmpty ? null : List<int>.from(_selectedTagIds),
+        assignedTo: _selectedAssigneeId,
         forceRefresh: forceRefresh,
       );
 
       if (!mounted) return;
 
       final leads = (result['results'] as List).cast<LeadModel>();
-
-      // Apply client-side filtering to ensure accuracy
-      List<LeadModel> filteredLeads = leads;
-
-      // Filter by type if provided
-      if (widget.type != null) {
-        filteredLeads = filteredLeads.where((lead) {
-          return lead.type.toLowerCase() == widget.type!.toLowerCase();
-        }).toList();
-      }
-
-      // Filter by status if provided
-      if (widget.status != null) {
-        filteredLeads = filteredLeads.where((lead) {
-          final leadStatus = (lead.statusName ?? lead.status ?? '')
-              .toLowerCase();
-          return leadStatus == widget.status!.toLowerCase();
-        }).toList();
-      }
+      final count = (result['count'] as num?)?.toInt() ?? leads.length;
 
       if (!mounted) return;
       setState(() {
-        _leads = filteredLeads;
+        _leads = leads;
+        _filteredLeads = List<LeadModel>.from(leads);
+        _totalMatchingCount = count;
         _isLoading = false;
         _isListLoading = false;
       });
-      _filterLeads();
     } catch (e) {
       if (!mounted) return;
       if (_leads.isEmpty) {
@@ -517,47 +591,15 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
   }
 
   void _filterLeads() {
+    // Filters are applied server-side in _loadLeads; keep list in sync.
     setState(() {
-      var filtered = _leads;
-
-      // Apply type filter
-      if (_selectedType != null) {
-        filtered = filtered.where((lead) {
-          return lead.type.toLowerCase() == _selectedType!.toLowerCase();
-        }).toList();
-      }
-
-      // Apply status filter
-      if (_selectedStatus != null) {
-        filtered = filtered.where((lead) {
-          final leadStatus = (lead.statusName ?? lead.status ?? '')
-              .toLowerCase();
-          return leadStatus == _selectedStatus!.toLowerCase();
-        }).toList();
-      }
-
-      // Apply tag filter (OR: any of the selected tags)
-      if (_selectedTagIds.isNotEmpty) {
-        filtered = filtered.where((lead) {
-          final leadTagIds = (lead.tags ?? const []).map((t) => t.id);
-          return leadTagIds.any(_selectedTagIds.contains);
-        }).toList();
-      }
-
-      // Apply assignee filter
-      if (_selectedAssigneeId != null) {
-        filtered = filtered.where((lead) {
-          return lead.assignedTo == _selectedAssigneeId;
-        }).toList();
-      }
-
-      _filteredLeads = filtered;
+      _filteredLeads = List<LeadModel>.from(_leads);
     });
   }
 
   void _applyFilters() {
-    _filterLeads();
-    setState(() {}); // Trigger rebuild to update filter indicator
+    _exitSelectionMode();
+    _loadLeads(forceRefresh: true);
   }
 
   Future<void> _openWhatsApp(LeadModel lead, [String? phoneNumber]) async {
@@ -829,8 +871,12 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     final theme = Theme.of(context);
 
     return PopScope(
-      canPop: true,
+      canPop: !_selectionMode,
       onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _selectionMode) {
+          _exitSelectionMode();
+          return;
+        }
         if (didPop && mounted) {
           // Refresh data when popping (going back)
           // Use microtask to ensure widget is still mounted
@@ -842,10 +888,47 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
         }
       },
       child: Scaffold(
-        appBar: widget.showAppBar
+        appBar: _selectionMode
+            ? AppBar(
+                leading: IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: _exitSelectionMode,
+                  tooltip:
+                      localizations?.translate('clearSelection') ??
+                      'Clear selection',
+                ),
+                title: Text(
+                  (localizations?.translate('selectedCount') ??
+                          '{count} selected')
+                      .replaceAll('{count}', '$_selectedCount'),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: _selectAllMatchingFilters,
+                    child: Text(
+                      localizations?.translate('selectAllMatching') ??
+                          'Select all matching',
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _selectAllVisible,
+                    child: Text(
+                      localizations?.translate('selectAll') ?? 'Select all',
+                    ),
+                  ),
+                ],
+              )
+            : widget.showAppBar
             ? AppBar(
                 title: Text(_getTitle(localizations)),
                 actions: [
+                  if (_canEnterBulkDelete())
+                    IconButton(
+                      icon: const Icon(Icons.checklist),
+                      tooltip:
+                          localizations?.translate('select') ?? 'Select',
+                      onPressed: () => _enterSelectionMode(),
+                    ),
                   if (_currentUser?.isDataEntry != true)
                   IconButton(
                     key: _exportButtonKey,
@@ -868,7 +951,8 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                         const Icon(Icons.filter_list),
                         if (_selectedType != null ||
                             _selectedStatus != null ||
-                            _selectedAssigneeId != null)
+                            _selectedAssigneeId != null ||
+                            _selectedTagIds.isNotEmpty)
                           Positioned(
                             right: 0,
                             top: 0,
@@ -997,7 +1081,9 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                   ),
                 ],
               ),
-        floatingActionButton: FloatingActionButton(
+        floatingActionButton: _selectionMode
+            ? null
+            : FloatingActionButton(
           onPressed: () {
             Navigator.push(
               context,
@@ -1014,8 +1100,129 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
           child: const Icon(Icons.add, color: Colors.white),
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+        bottomNavigationBar: _selectionMode && _selectedCount > 0
+            ? SafeArea(
+                child: Material(
+                  elevation: 8,
+                  color: theme.colorScheme.surface,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            (localizations?.translate('selectedCount') ??
+                                    '{count} selected')
+                                .replaceAll('{count}', '$_selectedCount'),
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.red,
+                          ),
+                          onPressed: _isBulkDeleting
+                              ? null
+                              : () => _confirmBulkDelete(
+                                    context,
+                                    localizations,
+                                  ),
+                          child: _isBulkDeleting
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  localizations?.translate('delete') ??
+                                      'Delete',
+                                ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+            : null,
       ),
     );
+  }
+
+  Future<void> _confirmBulkDelete(
+    BuildContext context,
+    AppLocalizations? localizations,
+  ) async {
+    final count = _selectedCount;
+    if (count <= 0) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(localizations?.translate('deleteLeads') ?? 'Delete Leads'),
+        content: Text(
+          (localizations?.translate('deleteLeadsConfirm') ??
+                  'Are you sure you want to permanently delete {count} lead(s)? This cannot be undone.')
+              .replaceAll('{count}', '$count'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(localizations?.translate('cancel') ?? 'Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(
+              localizations?.translate('delete') ?? 'Delete',
+              style: const TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isBulkDeleting = true);
+    try {
+      final searchTerm = _searchController.text.trim();
+      final deleted = _selectAllMatching
+          ? await _apiService.bulkDeleteLeads(
+              selectAll: true,
+              excludeIds: _excludedIds.toList(),
+              expectedCount: count,
+              type: _selectedType ?? widget.type,
+              status: _selectedStatus ?? widget.status,
+              search: searchTerm.isEmpty ? null : searchTerm,
+              tagIds:
+                  _selectedTagIds.isEmpty ? null : List<int>.from(_selectedTagIds),
+              assignedTo: _selectedAssigneeId,
+            )
+          : await _apiService.bulkDeleteLeads(
+              clientIds: _selectedIds.toList(),
+              expectedCount: count,
+            );
+      if (!mounted) return;
+      _exitSelectionMode();
+      await _loadLeads(forceRefresh: true);
+      SnackbarHelper.showSuccess(
+        this.context,
+        (localizations?.translate('leadsDeletedSuccessfullyCount') ??
+                'Successfully deleted {count} lead(s).')
+            .replaceAll('{count}', '$deleted'),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      SnackbarHelper.showError(
+        this.context,
+        ApiErrorHelper.toUserMessage(this.context, e),
+      );
+    } finally {
+      if (mounted) setState(() => _isBulkDeleting = false);
+    }
   }
 
   void _showDeleteConfirmation(
@@ -1110,6 +1317,21 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
         ),
       if (canDelete)
         PopupMenuItem<String>(
+          value: 'select',
+          child: Row(
+            children: [
+              Icon(
+                Icons.check_box_outlined,
+                size: 20,
+                color: theme.textTheme.bodyMedium?.color,
+              ),
+              const SizedBox(width: 12),
+              Text(localizations?.translate('select') ?? 'Select'),
+            ],
+          ),
+        ),
+      if (canDelete)
+        PopupMenuItem<String>(
           value: 'delete',
           child: Row(
             children: [
@@ -1169,6 +1391,8 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
             ),
           );
         });
+      } else if (value == 'select') {
+        _enterSelectionMode(initialLeadId: lead.id);
       } else if (value == 'delete') {
         _showDeleteConfirmation(context, lead, localizations);
       }
@@ -1184,7 +1408,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     return Builder(
       builder: (cardContext) {
         return GestureDetector(
-          onLongPress: _currentUser?.isDataEntry == true
+          onLongPress: _selectionMode || _currentUser?.isDataEntry == true
               ? null
               : () =>
                   _showLeadCardContextMenu(cardContext, lead, localizations),
@@ -1197,7 +1421,9 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
             ),
             child: InkWell(
               borderRadius: BorderRadius.circular(18),
-              onTap: _currentUser?.isDataEntry == true
+              onTap: _selectionMode
+                  ? () => _toggleLeadSelection(lead.id)
+                  : _currentUser?.isDataEntry == true
                   ? null
                   : () async {
                 final result = await Navigator.push(
@@ -1220,6 +1446,13 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        if (_selectionMode) ...[
+                          Checkbox(
+                            value: _isLeadSelected(lead.id),
+                            onChanged: (_) => _toggleLeadSelection(lead.id),
+                          ),
+                          const SizedBox(width: 4),
+                        ],
                         /// Avatar
                         _LeadAvatar(lead: lead),
 

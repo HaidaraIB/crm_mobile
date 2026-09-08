@@ -1919,6 +1919,7 @@ class ApiService {
     String? type,
     String? search,
     List<int>? tagIds,
+    int? assignedTo,
     int? page,
     bool forceRefresh = false,
     Duration cacheTtl = _defaultCacheTtl,
@@ -1937,9 +1938,12 @@ class ApiService {
     }
     if (page != null) queryParams['page'] = page.toString();
 
-    // For employees, filter by assigned_to
+    // For employees, filter by assigned_to (server scope). Admins/supervisors may
+    // pass an explicit assignee filter.
     if (isEmployee) {
       queryParams['assigned_to'] = currentUser.id.toString();
+    } else if (assignedTo != null) {
+      queryParams['assigned_to'] = assignedTo.toString();
     }
 
     final queryString = queryParams.isEmpty
@@ -3464,6 +3468,77 @@ class ApiService {
       );
     }
     _invalidateLeadsCache();
+  }
+
+  /// Bulk hard-delete leads by IDs or all matching list filters.
+  /// POST /clients/bulk_delete/
+  Future<int> bulkDeleteLeads({
+    List<int>? clientIds,
+    bool selectAll = false,
+    List<int>? excludeIds,
+    int? expectedCount,
+    String? status,
+    String? type,
+    String? search,
+    List<int>? tagIds,
+    int? assignedTo,
+  }) async {
+    final queryParams = <String, String>{};
+    if (selectAll) {
+      if (status != null && status.isNotEmpty && status != 'All') {
+        queryParams['status'] = status;
+      }
+      if (type != null && type.isNotEmpty && type != 'All') {
+        queryParams['type'] = type;
+      }
+      if (search != null && search.isNotEmpty) {
+        queryParams['search'] = search;
+      }
+      if (tagIds != null && tagIds.isNotEmpty) {
+        queryParams['tags'] = tagIds.join(',');
+      }
+      if (assignedTo != null) {
+        queryParams['assigned_to'] = assignedTo.toString();
+      }
+    }
+
+    final queryString = queryParams.isEmpty
+        ? ''
+        : '?${queryParams.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&')}';
+
+    final body = <String, dynamic>{};
+    if (selectAll) {
+      body['select_all'] = true;
+      if (excludeIds != null && excludeIds.isNotEmpty) {
+        body['exclude_ids'] = excludeIds;
+      }
+    } else {
+      body['client_ids'] = clientIds ?? <int>[];
+    }
+    if (expectedCount != null) {
+      body['expected_count'] = expectedCount;
+    }
+
+    final response = await _makeRequest(
+      'POST',
+      '/clients/bulk_delete/$queryString',
+      body: body,
+    );
+
+    if (response.statusCode != 200) {
+      final error = _errorContextFromBody(response.body);
+      final code = error['code']?.toString();
+      if (code != null && code.isNotEmpty) {
+        throw Exception(code);
+      }
+      throw Exception(
+        _resolveApiErrorMessage(error, fallbackKey: 'failedToDeleteLead'),
+      );
+    }
+
+    final data = _unwrapResponseMap(response);
+    _invalidateLeadsCache();
+    return (data['deleted_count'] as num?)?.toInt() ?? 0;
   }
 
   // Assign lead(s)
