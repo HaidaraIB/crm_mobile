@@ -192,8 +192,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
 
   bool _canEnterBulkDelete() {
     if (_currentUser == null) return false;
-    if (_currentUser!.isDataEntry || _currentUser!.isReception) return false;
-    return _currentUser!.isAdmin || _currentUser!.canDeleteClients;
+    return _currentUser!.isAdmin;
   }
 
   void _exitSelectionMode() {
