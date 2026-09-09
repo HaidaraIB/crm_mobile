@@ -22,7 +22,28 @@ const Map<String, List<String>> _placeholderAliases = {
   ],
 };
 
-String _normKey(String raw) => raw.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+String _normKey(String raw) {
+  // Mirror API `_norm_key` / web `normKey`: strip bidi/ZWSP, fold alef, strip harakat.
+  var text = raw;
+  final buf = StringBuffer();
+  for (final rune in text.runes) {
+    final ch = String.fromCharCode(rune);
+    // Format chars (Cf): bidi marks, ZWSP, BOM, etc.
+    if ((rune >= 0x200b && rune <= 0x200f) ||
+        rune == 0x061c ||
+        rune == 0xfeff ||
+        (rune >= 0x202a && rune <= 0x202e) ||
+        (rune >= 0x2060 && rune <= 0x2064) ||
+        (rune >= 0x2066 && rune <= 0x206f)) {
+      continue;
+    }
+    buf.write(ch);
+  }
+  text = buf.toString();
+  text = text.replaceAll(RegExp(r'[أإآٱ]'), 'ا');
+  text = text.replaceAll(RegExp(r'[\u064B-\u065F\u0670\u06D6-\u06ED]'), '');
+  return text.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+}
 
 final Map<String, String> _aliasToCanonical = {
   for (final entry in _placeholderAliases.entries)
