@@ -15,6 +15,7 @@ import '../../models/whatsapp_conversation_model.dart';
 import '../../services/api_service.dart';
 import '../../utils/whatsapp_access.dart';
 import '../../utils/whatsapp_message_body_localize.dart';
+import '../../widgets/chat/chat_conversation_status_menu.dart';
 import '../../widgets/whatsapp_chat/whatsapp_access_guard.dart';
 import '../../widgets/whatsapp_chat/whatsapp_chat_theme.dart';
 import '../../widgets/whatsapp_chat/whatsapp_phone_text.dart';
@@ -345,58 +346,20 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
   ) async {
     if (c.id <= 0) return;
     final cubit = context.read<WhatsAppConversationListCubit>();
-    final action = await showModalBottomSheet<String>(
+    final change = await showChatConversationStatusSheet(
       context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final st in ['open', 'pending', 'spam', 'invalid', 'done'])
-              ListTile(
-                title: Text(widget.t('chatStatus_$st')),
-                onTap: () => Navigator.pop(ctx, 'status:$st'),
-              ),
-            ListTile(
-              title: Text(widget.t('chatSnooze1h')),
-              onTap: () => Navigator.pop(ctx, 'snooze:1'),
-            ),
-            ListTile(
-              title: Text(c.isStarred ? widget.t('chatUnstar') : widget.t('chatStar')),
-              onTap: () => Navigator.pop(ctx, 'star'),
-            ),
-            ListTile(
-              title: Text(c.isUnsubscribed
-                  ? widget.t('chatResubscribe')
-                  : widget.t('chatMarkUnsubscribed')),
-              onTap: () => Navigator.pop(ctx, 'unsub'),
-            ),
-          ],
-        ),
-      ),
+      t: widget.t,
+      isStarred: c.isStarred,
+      isUnsubscribed: c.isUnsubscribed,
     );
-    if (action == null || !context.mounted) return;
-    if (action.startsWith('status:')) {
-      await cubit.updateConversationState(
-        clientId: c.id,
-        status: action.substring(7),
-      );
-    } else if (action == 'snooze:1') {
-      await cubit.updateConversationState(
-        clientId: c.id,
-        status: 'snoozed',
-        snoozedUntil: DateTime.now().add(const Duration(hours: 1)).toUtc().toIso8601String(),
-      );
-    } else if (action == 'star') {
-      await cubit.updateConversationState(
-        clientId: c.id,
-        isStarred: !c.isStarred,
-      );
-    } else if (action == 'unsub') {
-      await cubit.updateConversationState(
-        clientId: c.id,
-        isUnsubscribed: !c.isUnsubscribed,
-      );
-    }
+    if (change == null || !context.mounted) return;
+    await cubit.updateConversationState(
+      clientId: c.id,
+      status: change.status,
+      snoozedUntil: change.snoozedUntil,
+      isStarred: change.isStarred,
+      isUnsubscribed: change.isUnsubscribed,
+    );
   }
 
   @override
@@ -496,7 +459,13 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
                           context.read<WhatsAppConversationListCubit>().refresh(),
                       child: ListView.separated(
                         itemCount: filtered.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        separatorBuilder: (_, __) => Divider(
+                          height: 1,
+                          indent: 72,
+                          color: Theme.of(context)
+                              .dividerColor
+                              .withValues(alpha: 0.2),
+                        ),
                         itemBuilder: (context, index) {
                           final c = filtered[index];
                           final selected = widget.openedClientId != null &&

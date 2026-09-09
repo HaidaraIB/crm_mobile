@@ -252,10 +252,7 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
 
   Widget _buildServicesTab(AppLocalizations? localizations, ThemeData theme) {
     if (_isLoadingServices) {
-      return PullToRefreshBody(
-        onRefresh: () => _loadServices(forceRefresh: true),
-        child: const CircularProgressIndicator(),
-      );
+      return const PullToRefreshBody.loading();
     }
     
     if (_errorServices != null) {
@@ -403,10 +400,7 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
 
   Widget _buildPackagesTab(AppLocalizations? localizations, ThemeData theme) {
     if (_isLoadingPackages) {
-      return PullToRefreshBody(
-        onRefresh: () => _loadPackages(forceRefresh: true),
-        child: const CircularProgressIndicator(),
-      );
+      return const PullToRefreshBody.loading();
     }
     
     if (_errorPackages != null) {
@@ -555,10 +549,7 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
 
   Widget _buildProvidersTab(AppLocalizations? localizations, ThemeData theme) {
     if (_isLoadingProviders) {
-      return PullToRefreshBody(
-        onRefresh: () => _loadProviders(forceRefresh: true),
-        child: const CircularProgressIndicator(),
-      );
+      return const PullToRefreshBody.loading();
     }
     
     if (_errorProviders != null) {

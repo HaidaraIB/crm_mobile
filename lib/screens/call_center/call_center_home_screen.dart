@@ -13,6 +13,7 @@ import '../../services/whatsapp_chat_unread_poller.dart';
 import '../../widgets/navigation_drawer.dart';
 import '../leads/create_lead_screen.dart';
 import '../notifications/notifications_screen.dart';
+import '../social_inbox/social_inbox_list_screen.dart';
 import '../team_chat/team_chat_screen.dart';
 
 /// Front-desk lead search for the CALL_CENTER role: search all company leads by
@@ -213,6 +214,23 @@ class _CallCenterHomeScreenState extends State<CallCenterHomeScreen>
     );
   }
 
+  /// Omni-Channel Inbox — call center's primary triage surface (was drawer-only).
+  Widget _socialInboxAppBarAction(AppLocalizations? localizations) {
+    return IconButton(
+      icon: const Icon(Icons.inbox_outlined),
+      tooltip: localizations?.translate('omniChannelInbox') ?? 'Inbox',
+      onPressed: () {
+        Navigator.push<void>(
+          context,
+          MaterialPageRoute<void>(
+            settings: const RouteSettings(name: 'SocialInboxListScreen'),
+            builder: (_) => const SocialInboxListScreen(),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _notificationsAppBarAction(AppLocalizations? localizations) {
     return Stack(
       children: [
@@ -269,9 +287,8 @@ class _CallCenterHomeScreenState extends State<CallCenterHomeScreen>
       appBar: AppBar(
         title: Text(localizations?.translate('callCenter') ?? 'Call Center'),
         actions: [
-          // Arrivals lives in the drawer (like the web sidebar). This slot keeps the
-          // notifications bell every other role has in the same place — landing here
-          // is otherwise a call-center user's only screen, with no route to them.
+          // Inbox + Team Chat + notifications — messaging entries left the drawer.
+          if (widget.isRoot) _socialInboxAppBarAction(localizations),
           if (widget.isRoot) _teamChatAppBarAction(localizations),
           if (widget.isRoot) _notificationsAppBarAction(localizations),
         ],

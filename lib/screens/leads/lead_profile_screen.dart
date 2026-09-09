@@ -17,6 +17,7 @@ import '../../models/client_field_visit_model.dart';
 import '../../models/client_task_model.dart';
 import '../../models/client_visit_model.dart';
 import '../../models/lead_sms_message_model.dart';
+import '../../models/lead_social_message_model.dart';
 import '../../models/lead_whatsapp_message_model.dart';
 import '../../models/settings_model.dart';
 import '../../models/timeline_entry.dart';
@@ -24,7 +25,9 @@ import '../../models/user_model.dart';
 import '../../services/api_service.dart';
 import '../../utils/timeline_builder.dart';
 import '../../utils/timeline_events.dart';
+import '../../utils/social_inbox_access.dart';
 import '../../utils/whatsapp_access.dart';
+import '../social_inbox/social_inbox_list_screen.dart';
 import '../../utils/whatsapp_launch.dart';
 import '../../widgets/status_change_reason_dialog.dart';
 import '../../widgets/modals/assign_lead_modal.dart';
@@ -180,6 +183,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
         _apiService.getClientEvents(leadId),
         _apiService.getLeadSmsMessages(leadId),
         _apiService.getLeadWhatsAppMessages(leadId),
+        _apiService.getLeadSocialMessages(leadId),
       ]);
 
       if (!mounted) return;
@@ -197,6 +201,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
           events: results[4] as List<ClientEventModel>,
           smsMessages: results[5] as List<LeadSmsMessageModel>,
           whatsappMessages: results[6] as List<LeadWhatsAppMessageModel>,
+          socialMessages: results[7] as List<LeadSocialMessageModel>,
           users: _users,
           statuses: _statuses,
           tags: _tags,
@@ -1773,6 +1778,24 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                           ? () {
                               Navigator.pop(sheetContext);
                               _openWhatsApp(resolvePrimaryPhone(_lead!));
+                            }
+                          : null,
+                      // Lands on the Inbox list, not the thread: deep-linking a
+                      // conversation would need the list to accept and honour a
+                      // preselected id, and a link that silently opens the wrong
+                      // thread is worse than one that opens the list.
+                      onOpenSocialInbox: canAccessSocialInbox(_currentUser)
+                          ? () {
+                              Navigator.pop(sheetContext);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute<void>(
+                                  settings: const RouteSettings(
+                                    name: 'SocialInboxListScreen',
+                                  ),
+                                  builder: (_) => const SocialInboxListScreen(),
+                                ),
+                              );
                             }
                           : null,
                     ),

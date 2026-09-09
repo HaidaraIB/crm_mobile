@@ -288,10 +288,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final isTimeout = _errorMessage == 'CONNECTION_TIMEOUT';
 
     return _isLoading
-        ? PullToRefreshBody(
-            onRefresh: () => _loadEvents(forceRefresh: true),
-            child: const CircularProgressIndicator(),
-          )
+        ? const PullToRefreshBody.loading()
         : _errorMessage != null
         ? PullToRefreshBody(
             onRefresh: () => _loadEvents(forceRefresh: true),

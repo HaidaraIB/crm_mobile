@@ -9,9 +9,16 @@ enum TimelineEntryType {
   whatsapp,
   /// Collapsed consecutive WhatsApp messages (parity with web `whatsapp_thread`).
   whatsappThread,
+  /// One Instagram DM / Messenger message (parity with web `social`).
+  social,
+  /// Collapsed consecutive social messages (parity with web `social_thread`).
+  socialThread,
 }
 
-/// One line inside a collapsed WhatsApp conversation card.
+/// Instagram Direct / Facebook Messenger.
+enum TimelineSocialChannel { instagram, messenger }
+
+/// One line inside a collapsed WhatsApp or social conversation card.
 class TimelineWhatsAppThreadMessage {
   final String id;
   final String direction; // inbound | outbound
@@ -73,10 +80,16 @@ class TimelineEntry {
   /// Optional: PBX / WhatsApp call recording playback URL.
   final String? recordingUrl;
   final String? recordingStatus;
-  /// Direction for individual WhatsApp rows (before thread collapse).
+  /// Direction for individual WhatsApp / social rows (before thread collapse).
   final String? direction;
-  /// Messages inside a collapsed WhatsApp conversation block.
+  /// Messages inside a collapsed WhatsApp or social conversation block.
   final List<TimelineWhatsAppThreadMessage>? messages;
+  /// Which network a [TimelineEntryType.social] row came from.
+  final TimelineSocialChannel? socialChannel;
+  /// Conversation this social row belongs to. A lead can hold an Instagram DM
+  /// and a Messenger thread at once, so this — not adjacency alone — decides
+  /// which rows collapse together.
+  final int? socialConversationId;
 
   const TimelineEntry({
     required this.id,
@@ -100,5 +113,7 @@ class TimelineEntry {
     this.recordingStatus,
     this.direction,
     this.messages,
+    this.socialChannel,
+    this.socialConversationId,
   });
 }

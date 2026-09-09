@@ -258,10 +258,7 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
 
   Widget _buildUnitsTab(AppLocalizations? localizations, ThemeData theme) {
     if (_isLoadingUnits) {
-      return PullToRefreshBody(
-        onRefresh: () => _loadUnits(forceRefresh: true),
-        child: const CircularProgressIndicator(),
-      );
+      return const PullToRefreshBody.loading();
     }
     
     if (_errorUnits != null) {
@@ -428,10 +425,7 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
 
   Widget _buildProjectsTab(AppLocalizations? localizations, ThemeData theme) {
     if (_isLoadingProjects) {
-      return PullToRefreshBody(
-        onRefresh: () => _loadProjects(forceRefresh: true),
-        child: const CircularProgressIndicator(),
-      );
+      return const PullToRefreshBody.loading();
     }
     
     if (_errorProjects != null) {
@@ -549,10 +543,7 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
 
   Widget _buildDevelopersTab(AppLocalizations? localizations, ThemeData theme) {
     if (_isLoadingDevelopers) {
-      return PullToRefreshBody(
-        onRefresh: () => _loadDevelopers(forceRefresh: true),
-        child: const CircularProgressIndicator(),
-      );
+      return const PullToRefreshBody.loading();
     }
     
     if (_errorDevelopers != null) {

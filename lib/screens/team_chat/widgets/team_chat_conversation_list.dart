@@ -78,12 +78,7 @@ class TeamChatConversationList extends StatelessWidget {
               ),
             Expanded(
               child: state.loadingConv
-                  ? PullToRefreshBody(
-                      onRefresh: () => context
-                          .read<TeamChatListCubit>()
-                          .refreshConversations(),
-                      child: const CircularProgressIndicator(),
-                    )
+                  ? const PullToRefreshBody.loading()
                   : state.conversations.isEmpty
                       ? PullToRefreshBody(
                           onRefresh: () => context

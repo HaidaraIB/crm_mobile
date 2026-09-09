@@ -49,6 +49,9 @@ class LeadTimeline extends StatefulWidget {
   /// Open in-app WhatsApp Chats for this lead (parity with web Open in Chats).
   final VoidCallback? onOpenWhatsAppChat;
 
+  /// Open the Omni-Channel Inbox (parity with web Open in Inbox).
+  final VoidCallback? onOpenSocialInbox;
+
   const LeadTimeline({
     super.key,
     required this.entries,
@@ -57,6 +60,7 @@ class LeadTimeline extends StatefulWidget {
     this.scrollable = false,
     this.showSectionTitle = true,
     this.onOpenWhatsAppChat,
+    this.onOpenSocialInbox,
   });
 
   @override
@@ -274,6 +278,7 @@ class _LeadTimelineState extends State<LeadTimeline> {
               isLast: i == sorted.length - 1,
               onOpenUrl: _openUrl,
               onOpenWhatsAppChat: widget.onOpenWhatsAppChat,
+              onOpenSocialInbox: widget.onOpenSocialInbox,
             ),
         ],
       ),
@@ -339,6 +344,7 @@ class _TimelineRow extends StatelessWidget {
   final bool isLast;
   final Future<void> Function(String url) onOpenUrl;
   final VoidCallback? onOpenWhatsAppChat;
+  final VoidCallback? onOpenSocialInbox;
 
   const _TimelineRow({
     required this.entry,
@@ -346,6 +352,7 @@ class _TimelineRow extends StatelessWidget {
     required this.isLast,
     required this.onOpenUrl,
     this.onOpenWhatsAppChat,
+    this.onOpenSocialInbox,
   });
 
   @override
@@ -426,7 +433,8 @@ class _TimelineRow extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 8),
-                if (entry.type != TimelineEntryType.whatsappThread)
+                if (entry.type != TimelineEntryType.whatsappThread &&
+                    entry.type != TimelineEntryType.socialThread)
                   Text(
                     entry.user,
                     style: theme.textTheme.bodyMedium?.copyWith(
@@ -462,6 +470,12 @@ class _TimelineRow extends StatelessWidget {
                     entry: entry,
                     loc: loc,
                     onOpenWhatsAppChat: onOpenWhatsAppChat,
+                  ),
+                if (entry.type == TimelineEntryType.socialThread)
+                  _SocialThreadBody(
+                    entry: entry,
+                    loc: loc,
+                    onOpenSocialInbox: onOpenSocialInbox,
                   ),
                 if (entry.type == TimelineEntryType.event &&
                     (entry.oldValue != null || entry.newValue != null))
@@ -612,6 +626,19 @@ _ChipStyle _typeChip(TimelineEntry entry, AppLocalizations? loc) {
         fg: const Color(0xFF166534),
         bg: const Color(0xFFDCFCE7),
       );
+    case TimelineEntryType.social:
+    case TimelineEntryType.socialThread:
+      // The network, not "Inbox" — an owner thinks in Instagram/Messenger.
+      final isMessenger =
+          entry.socialChannel == TimelineSocialChannel.messenger;
+      return _ChipStyle(
+        icon: isMessenger ? Icons.forum : Icons.camera_alt_outlined,
+        label: isMessenger
+            ? t('messenger', 'Messenger')
+            : t('instagram', 'Instagram'),
+        fg: const Color(0xFF9D174D),
+        bg: const Color(0xFFFCE7F3),
+      );
     case TimelineEntryType.sms:
       return _ChipStyle(
         icon: Icons.sms_outlined,
@@ -674,6 +701,8 @@ bool _showActionSubtitle(TimelineEntry entry, String chipLabel) {
   if (entry.action.trim().isEmpty) return false;
   if (entry.type == TimelineEntryType.whatsapp) return true;
   if (entry.type == TimelineEntryType.whatsappThread) return false;
+  if (entry.type == TimelineEntryType.social) return true;
+  if (entry.type == TimelineEntryType.socialThread) return false;
   if (entry.type == TimelineEntryType.action) return false;
   if (entry.type == TimelineEntryType.event &&
       (entry.oldValue != null || entry.newValue != null)) {
@@ -842,6 +871,185 @@ class _WhatsAppThreadBodyState extends State<_WhatsAppThreadBody> {
               ),
               style: TextButton.styleFrom(
                 foregroundColor: const Color(0xFF15803D),
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Expandable Instagram DM / Messenger conversation block (parity with web
+/// SocialThreadBody).
+///
+/// Same behaviour as [_WhatsAppThreadBody] — collapsed by default, latest
+/// message preview with a direction cue, per-message lines when expanded —
+/// because a timeline that presents two chat channels two different ways is
+/// harder to read than either one alone.
+class _SocialThreadBody extends StatefulWidget {
+  final TimelineEntry entry;
+  final AppLocalizations? loc;
+  final VoidCallback? onOpenSocialInbox;
+
+  const _SocialThreadBody({
+    required this.entry,
+    required this.loc,
+    this.onOpenSocialInbox,
+  });
+
+  @override
+  State<_SocialThreadBody> createState() => _SocialThreadBodyState();
+}
+
+class _SocialThreadBodyState extends State<_SocialThreadBody> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final loc = widget.loc;
+    final messages =
+        widget.entry.messages ?? const <TimelineWhatsAppThreadMessage>[];
+    final countLabel =
+        (loc?.translate('socialTimelineMessagesCount') ?? '{count} messages')
+            .replaceAll('{count}', '${messages.isEmpty ? 1 : messages.length}');
+    final latestDirection = messages.isNotEmpty
+        ? messages.last.direction
+        : (widget.entry.direction ?? 'outbound');
+    final previewCue = latestDirection == 'inbound' ? '←' : '→';
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: loc?.translate('socialTimelineConversation') ??
+                      'Inbox conversation',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: _timelineStrongColor(context),
+                  ),
+                ),
+                TextSpan(
+                  text: '  $countLabel',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: _timelineMutedColor(context),
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (!_expanded && widget.entry.details.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              '$previewCue ${widget.entry.details}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: _timelineMutedColor(context),
+              ),
+            ),
+          ],
+          if (_expanded && messages.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              constraints: const BoxConstraints(maxHeight: 260),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface.withValues(alpha: 0.7),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: const Color(0xFFFBCFE8).withValues(alpha: 0.8),
+                ),
+              ),
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: messages.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 6),
+                itemBuilder: (context, i) {
+                  final msg = messages[i];
+                  final cue = msg.direction == 'inbound' ? '←' : '→';
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 16,
+                        child: Text(
+                          cue,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: _timelineMutedColor(context),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          msg.body,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: _timelineStrongColor(context),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        msg.date,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: _timelineMutedColor(context),
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+          if (messages.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            TextButton(
+              onPressed: () => setState(() => _expanded = !_expanded),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFFBE185D),
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(
+                _expanded
+                    ? (loc?.translate('socialTimelineCollapse') ?? 'Collapse')
+                    : (loc?.translate('socialTimelineExpand') ?? 'Expand'),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+          if (widget.onOpenSocialInbox != null) ...[
+            const SizedBox(height: 4),
+            TextButton.icon(
+              onPressed: widget.onOpenSocialInbox,
+              icon: const Icon(Icons.inbox_outlined, size: 16),
+              label: Text(
+                loc?.translate('socialTimelineOpenInbox') ?? 'Open in Inbox',
+                style:
+                    const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFFBE185D),
                 padding: EdgeInsets.zero,
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,

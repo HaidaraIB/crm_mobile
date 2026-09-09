@@ -405,10 +405,7 @@ class _DealsScreenState extends State<DealsScreen> {
 
   Widget _buildContent(AppLocalizations? localizations, ThemeData theme, bool isRealEstate) {
     if (_isLoading) {
-      return PullToRefreshBody(
-        onRefresh: _loadDeals,
-        child: const CircularProgressIndicator(),
-      );
+      return const PullToRefreshBody.loading();
     }
     
     if (_errorMessage != null) {

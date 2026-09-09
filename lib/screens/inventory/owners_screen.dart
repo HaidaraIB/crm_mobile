@@ -163,10 +163,7 @@ class _OwnersScreenState extends State<OwnersScreen> {
 
   Widget _buildContent(AppLocalizations? localizations, ThemeData theme) {
     if (_isLoading) {
-      return PullToRefreshBody(
-        onRefresh: () => _loadOwners(forceRefresh: true),
-        child: const CircularProgressIndicator(),
-      );
+      return const PullToRefreshBody.loading();
     }
     
     if (_errorMessage != null) {

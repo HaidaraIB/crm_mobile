@@ -21,7 +21,9 @@ import '../call_center/call_center_home_screen.dart';
 import '../leads/all_leads_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../team_chat/team_chat_screen.dart';
+import '../social_inbox/social_inbox_list_screen.dart';
 import '../whatsapp_chat/whatsapp_conversation_list_screen.dart';
+import '../../utils/social_inbox_access.dart';
 import '../../widgets/whatsapp_chat/whatsapp_access_guard.dart';
 import 'dashboard_screen.dart';
 
@@ -269,6 +271,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  /// Omni-Channel Inbox — sits next to WhatsApp in the home app bar.
+  Widget _socialInboxAppBarAction(AppLocalizations? localizations) {
+    return IconButton(
+      icon: const Icon(Icons.inbox_outlined),
+      tooltip: localizations?.translate('omniChannelInbox') ?? 'Inbox',
+      onPressed: () async {
+        await Navigator.push<void>(
+          context,
+          MaterialPageRoute<void>(
+            settings: const RouteSettings(name: 'SocialInboxListScreen'),
+            builder: (_) => const SocialInboxListScreen(),
+          ),
+        );
+      },
+    );
+  }
+
   /// Shown on every cold start until the role is known — a bare
   /// [CircularProgressIndicator] on an empty page read as a broken screen.
   Widget _buildSessionLoadingState(AppLocalizations? localizations) {
@@ -457,6 +476,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     user: _sessionUser,
                     child: _whatsAppChatAppBarAction(localizations),
                   ),
+                  if (canAccessSocialInbox(_sessionUser))
+                    _socialInboxAppBarAction(localizations),
                   _teamChatAppBarAction(localizations),
                   Stack(
                     children: [

@@ -41,5 +41,6 @@ class SyncInvalidation {
   void emitResumeRefresh() {
     emit({'invalidate': 'whatsapp:conversations'});
     emit({'invalidate': 'tenant_chat:messages'});
+    emit({'invalidate': 'social:conversations'});
   }
 }

@@ -3,7 +3,6 @@ import 'dart:async' show Timer, unawaited;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart' hide TextDirection;
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../../chat_engine/cubit/chat_thread_cubit.dart';
@@ -15,11 +14,12 @@ import '../../chat_engine/scroll/chat_scroll_service.dart';
 import '../../chat_engine/ui/chat_message_list_view.dart';
 import '../../chat_engine/ui/chat_scroll_fab.dart';
 import '../../core/localization/app_localizations.dart';
-import '../../core/utils/app_locales.dart';
 import '../../features/team_chat/team_chat_coordinator_factory.dart';
 import '../../features/team_chat/tenant_chat_message_adapter.dart';
 import '../../models/tenant_chat_models.dart';
 import '../../services/api_service.dart';
+import '../../widgets/chat/chat_palette.dart';
+import '../../widgets/chat/chat_separators.dart';
 import 'team_chat_message_bubble.dart';
 import 'widgets/team_chat_thread_empty.dart';
 
@@ -361,16 +361,7 @@ class TeamChatThreadPaneState extends State<TeamChatThreadPane> {
   }
 
   String _daySep(DateTime dayStart, String lang) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    if (dayStart == today) return _t('teamChatDayToday');
-    final yesterday = today.subtract(const Duration(days: 1));
-    if (dayStart == yesterday) return _t('teamChatDayYesterday');
-    return withLatinDigits(
-      DateFormat.yMMMd(
-        AppLocales.intlDateFormat(AppLocales.fromLanguageCode(lang)),
-      ).format(dayStart),
-    );
+    return chatDayChipLabel(dayStart, language: lang, t: _t);
   }
 
   @override
@@ -465,44 +456,19 @@ class TeamChatThreadPaneState extends State<TeamChatThreadPane> {
                           );
                         },
                         daySeparatorBuilder: (ctx, row) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        child: Center(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: scheme.surfaceContainerHigh
-                                  .withValues(alpha: 0.92),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Text(
-                              _daySep(row.dayStart, widget.lang),
-                              style: TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w500,
-                                color: scheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                        unreadBuilder: (ctx) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          child: Center(
-                            child: Text(
-                              _t('unread'),
-                              style:
-                                  Theme.of(context).textTheme.labelMedium?.copyWith(
-                                        color: scheme.primary,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                            ),
-                          ),
-                        ),
+                          final palette = TeamChatPalette.of(ctx);
+                          return ChatDaySeparatorChip(
+                            label: _daySep(row.dayStart, widget.lang),
+                            palette: palette,
+                          );
+                        },
+                        unreadBuilder: (ctx) {
+                          final palette = TeamChatPalette.of(ctx);
+                          return ChatUnreadSeparatorChip(
+                            label: _t('unread'),
+                            palette: palette,
+                          );
+                        },
                       ),
                           );
                         },

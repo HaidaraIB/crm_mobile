@@ -69,6 +69,16 @@ class MessageRegistry<T extends ChatMessage> {
     upsertNewer(sorted);
   }
 
+  /// Drop a message by id (optimistic temps after the server echo lands).
+  bool remove(int messageId) {
+    if (!_messages.containsKey(messageId)) return false;
+    _messages.remove(messageId);
+    _orderedIds.remove(messageId);
+    _rebuildIndex();
+    _version++;
+    return true;
+  }
+
   List<ChatListRow> buildRows({
     required bool Function(T current, T? previous) sameSender,
     required bool Function(T message) isFirstUnreadPeerMessage,

@@ -44,6 +44,7 @@ class WhatsAppChatUnreadPoller {
   static const Map<String, String> _sliceInvalidationKeys = {
     'chat': 'whatsapp:conversations',
     'tenant_chat': 'tenant_chat:messages',
+    'inbox': 'social:conversations',
   };
 
   void start() {

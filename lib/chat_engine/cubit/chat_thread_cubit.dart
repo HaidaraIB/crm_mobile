@@ -42,12 +42,21 @@ class ChatThreadCubit<T extends ChatMessage> extends Cubit<ChatThreadState> {
     required this.registry,
     required this.sameSender,
     required this.isFirstUnreadPeerMessage,
-  }) : super(const ChatThreadState.initial());
+    this.invalidationKey = 'tenant_chat:messages',
+    bool Function()? isForeground,
+  })  : _isForeground = isForeground ?? (() => true),
+        super(const ChatThreadState.initial());
 
   final ChatThreadRepository<T> repository;
   final MessageRegistry<T> registry;
   final bool Function(T current, T? previous) sameSender;
   final bool Function(T message) isFirstUnreadPeerMessage;
+
+  /// SyncInvalidation bus key that should wake this thread (e.g.
+  /// `tenant_chat:messages`, `whatsapp:conversations`, `social:conversations`).
+  final String invalidationKey;
+
+  final bool Function() _isForeground;
 
   Timer? _pollTimer;
   Timer? _coalesceTimer;
@@ -141,11 +150,13 @@ class ChatThreadCubit<T extends ChatMessage> extends Cubit<ChatThreadState> {
   void _startPolling(Duration interval) {
     stopPolling();
     _pollTimer = Timer.periodic(interval, (_) {
+      if (!_isForeground()) return;
       unawaited(_pollTick());
     });
     _invalidateSub?.cancel();
     _invalidateSub = SyncInvalidation.instance.stream.listen((event) {
-      if (event['invalidate'] == 'tenant_chat:messages') {
+      if (event['invalidate'] == invalidationKey) {
+        if (!_isForeground()) return;
         _requestPollTick();
       }
     });
@@ -253,6 +264,27 @@ class ChatThreadCubit<T extends ChatMessage> extends Cubit<ChatThreadState> {
   }
 
   T? messageById(int id) => registry.byId(id);
+
+  /// Insert or replace messages already known to the UI (optimistic sends).
+  void upsertMessages(List<T> messages, {bool rebuild = true}) {
+    if (messages.isEmpty) return;
+    registry.upsertNewer(messages);
+    if (!rebuild || isClosed) return;
+    emit(state.copyWith(rows: _buildRows(), version: registry.version));
+  }
+
+  /// Drop an optimistic / temporary message once the server echo arrives.
+  void removeMessage(int messageId, {bool rebuild = true}) {
+    if (!registry.remove(messageId) || isClosed) return;
+    if (!rebuild) return;
+    emit(state.copyWith(rows: _buildRows(), version: registry.version));
+  }
+
+  /// Rebuild rows after an external registry mutation.
+  void rebuildRows() {
+    if (isClosed) return;
+    emit(state.copyWith(rows: _buildRows(), version: registry.version));
+  }
 
   @override
   Future<void> close() {

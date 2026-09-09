@@ -178,10 +178,7 @@ class _CallMethodsSettingsScreenState extends State<CallMethodsSettingsScreen> {
 
     Widget body;
     if (_isLoading) {
-      body = PullToRefreshBody(
-        onRefresh: () => _loadCallMethods(forceRefresh: true),
-        child: const CircularProgressIndicator(),
-      );
+      body = const PullToRefreshBody.loading();
     } else if (_errorMessage != null) {
       body = PullToRefreshBody(
         onRefresh: () => _loadCallMethods(forceRefresh: true),

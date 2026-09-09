@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../models/lead_whatsapp_message_model.dart';
+import '../../../models/whatsapp_account_status_model.dart';
 import '../../../models/whatsapp_conversation_model.dart';
 import '../../../utils/whatsapp_thread_items.dart';
 import '../../../services/sync_invalidation.dart';
@@ -37,6 +38,9 @@ class WhatsAppChatThreadCubit extends Cubit<WhatsAppChatThreadState> {
   Future<void> bootstrap() async {
     if (isClosed) return;
     emit(state.copyWith(loading: true));
+    // Account status is fetched in parallel but applied in the same emit as
+    // messages + session, so the composer never flashes 24h-lock → disconnected.
+    final accountFuture = _fetchAccountStatus();
     try {
       final results = await Future.wait([
         _repository.getMessages(
@@ -78,18 +82,31 @@ class WhatsAppChatThreadCubit extends Cubit<WhatsAppChatThreadState> {
         );
       }
 
+      final account = await accountFuture;
+      if (isClosed) return;
       emit(
-        state.copyWith(
-          messages: apiOldest,
-          loading: false,
-          clearLoadError: true,
-          newMessagesBeforeApiId: firstUnreadInboundId(apiOldest),
-          sessionWindow: window,
+        _withResolvedAccount(
+          state.copyWith(
+            messages: apiOldest,
+            loading: false,
+            clearLoadError: true,
+            newMessagesBeforeApiId: firstUnreadInboundId(apiOldest),
+            sessionWindow: window,
+          ),
+          status: account.status,
+          failed: account.failed,
         ),
       );
     } catch (e) {
+      final account = await accountFuture;
       if (isClosed) return;
-      emit(state.copyWith(loading: false, loadError: e.toString()));
+      emit(
+        _withResolvedAccount(
+          state.copyWith(loading: false, loadError: e.toString()),
+          status: account.status,
+          failed: account.failed,
+        ),
+      );
     }
 
     if (isClosed) return;
@@ -97,7 +114,6 @@ class WhatsAppChatThreadCubit extends Cubit<WhatsAppChatThreadState> {
       _markReadOnce = true;
       unawaited(markRead());
     }
-    unawaited(_loadAccountStatus());
     _timer?.cancel();
     // Fallback only — the digest's `chat` slice and FCM both arrive sooner.
     _timer = Timer.periodic(kSyncFallbackPollInterval, (_) {
@@ -124,6 +140,7 @@ class WhatsAppChatThreadCubit extends Cubit<WhatsAppChatThreadState> {
     if (!silent) {
       emit(state.copyWith(loading: true));
     }
+    final accountFuture = silent ? null : _fetchAccountStatus();
     try {
       final newestFirst = await _repository.getMessages(
         clientId: clientId,
@@ -190,16 +207,24 @@ class WhatsAppChatThreadCubit extends Cubit<WhatsAppChatThreadState> {
       }
 
       if (isClosed) return;
-      emit(
-        state.copyWith(
-          messages: merged,
-          loading: false,
-          clearLoadError: true,
-          newMessagesBeforeApiId: newBefore,
-          sessionWindow: window,
-          playOpenThreadSound: playSound,
-        ),
+      var next = state.copyWith(
+        messages: merged,
+        loading: false,
+        clearLoadError: true,
+        newMessagesBeforeApiId: newBefore,
+        sessionWindow: window,
+        playOpenThreadSound: playSound,
       );
+      if (accountFuture != null) {
+        final account = await accountFuture;
+        if (isClosed) return;
+        next = _withResolvedAccount(
+          next,
+          status: account.status,
+          failed: account.failed,
+        );
+      }
+      emit(next);
       if (playSound && !isClosed) {
         // clear one-shot after emit so listeners can react once
         emit(state.copyWith(playOpenThreadSound: false));
@@ -247,28 +272,36 @@ class WhatsAppChatThreadCubit extends Cubit<WhatsAppChatThreadState> {
     }
   }
 
-  /// Resolves the connected account up front so the composer can warn before a
-  /// send fails, matching the web dashboard's `whatsappSendBlocked` /
-  /// `displayNameBlockedHint` gate in `pages/ChatsPage.tsx`.
-  Future<void> _loadAccountStatus() async {
+  /// Fetches the connected-account gate without failing the thread bootstrap.
+  ///
+  /// A thrown error is [failed]: true so a blip does not lock the composer.
+  /// A successful null payload means there is no account at all.
+  Future<({WhatsAppAccountStatus? status, bool failed})> _fetchAccountStatus() async {
     try {
-      final status = await _repository.getAccountStatus();
-      if (isClosed) return;
-      if (status == null) {
-        // No WhatsApp account at all — nothing can be sent.
-        emit(state.copyWith(sendBlocked: true));
-        return;
-      }
-      emit(
-        state.copyWith(
-          connectedPhoneNumberId: status.phoneNumberId,
-          sendBlocked: !status.connected,
-          displayNameBlocked: status.displayNameBlocked,
-        ),
-      );
+      return (status: await _repository.getAccountStatus(), failed: false);
     } catch (_) {
-      // Unknown state — do not block sending on a transient failure.
+      return (status: null, failed: true);
     }
+  }
+
+  /// Applies account status onto [next] and marks the composer chrome ready.
+  WhatsAppChatThreadState _withResolvedAccount(
+    WhatsAppChatThreadState next, {
+    required WhatsAppAccountStatus? status,
+    required bool failed,
+  }) {
+    if (failed) {
+      return next.copyWith(composerReady: true);
+    }
+    if (status == null) {
+      return next.copyWith(sendBlocked: true, composerReady: true);
+    }
+    return next.copyWith(
+      connectedPhoneNumberId: status.phoneNumberId,
+      sendBlocked: !status.connected,
+      displayNameBlocked: status.displayNameBlocked,
+      composerReady: true,
+    );
   }
 
   void setTemplatesExpanded(bool value) {

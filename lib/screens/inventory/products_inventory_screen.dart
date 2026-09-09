@@ -258,10 +258,7 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
 
   Widget _buildProductsTab(AppLocalizations? localizations, ThemeData theme) {
     if (_isLoadingProducts) {
-      return PullToRefreshBody(
-        onRefresh: () => _loadProducts(forceRefresh: true),
-        child: const CircularProgressIndicator(),
-      );
+      return const PullToRefreshBody.loading();
     }
     
     if (_errorProducts != null) {
@@ -549,10 +546,7 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
 
   Widget _buildCategoriesTab(AppLocalizations? localizations, ThemeData theme) {
     if (_isLoadingCategories) {
-      return PullToRefreshBody(
-        onRefresh: () => _loadCategories(forceRefresh: true),
-        child: const CircularProgressIndicator(),
-      );
+      return const PullToRefreshBody.loading();
     }
     
     if (_errorCategories != null) {
@@ -736,10 +730,7 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
 
   Widget _buildSuppliersTab(AppLocalizations? localizations, ThemeData theme) {
     if (_isLoadingSuppliers) {
-      return PullToRefreshBody(
-        onRefresh: () => _loadSuppliers(forceRefresh: true),
-        child: const CircularProgressIndicator(),
-      );
+      return const PullToRefreshBody.loading();
     }
     
     if (_errorSuppliers != null) {

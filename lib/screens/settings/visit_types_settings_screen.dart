@@ -171,10 +171,7 @@ class _VisitTypesSettingsScreenState extends State<VisitTypesSettingsScreen> {
 
     Widget body;
     if (_isLoading) {
-      body = PullToRefreshBody(
-        onRefresh: () => _loadVisitTypes(forceRefresh: true),
-        child: const CircularProgressIndicator(),
-      );
+      body = const PullToRefreshBody.loading();
     } else if (_errorMessage != null) {
       body = PullToRefreshBody(
         onRefresh: () => _loadVisitTypes(forceRefresh: true),

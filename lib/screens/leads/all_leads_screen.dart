@@ -21,6 +21,7 @@ import '../../widgets/modals/add_field_visit_modal.dart';
 import '../../widgets/modals/send_sms_modal.dart';
 import '../../widgets/pull_to_refresh_body.dart';
 import '../../widgets/modals/assign_lead_modal.dart';
+import '../../widgets/bulk_action_bar.dart';
 import '../../widgets/lead_contact_action_button.dart';
 import '../../widgets/lead_status_badge.dart';
 import '../../widgets/lead_assignee_badge.dart';
@@ -266,6 +267,60 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       _selectedIds.clear();
       _excludedIds.clear();
     });
+  }
+
+  bool get _isAllVisibleSelected {
+    if (_filteredLeads.isEmpty) return false;
+    if (_selectAllMatching) return _excludedIds.isEmpty;
+    return _filteredLeads.every((l) => _selectedIds.contains(l.id));
+  }
+
+  String? _bulkStatusActionLabel(AppLocalizations? loc) {
+    if (_selectAllMatching || _filteredLeads.isEmpty) return null;
+    final count = _isAllVisibleSelected
+        ? _totalMatchingCount
+        : _filteredLeads.length;
+    if (_isAllVisibleSelected && _totalMatchingCount <= _filteredLeads.length) {
+      return null;
+    }
+    return (loc?.translate('selectAllMatchingShort') ?? 'Select all {count}')
+        .replaceAll('{count}', '$count');
+  }
+
+  String? _bulkStatusActionTitle(AppLocalizations? loc) {
+    if (_selectAllMatching ||
+        !_isAllVisibleSelected ||
+        _totalMatchingCount <= _filteredLeads.length) {
+      return null;
+    }
+    return (loc?.translate('selectAllMatchingFilters') ??
+            'Select all {count} leads matching filters')
+        .replaceAll('{count}', '$_totalMatchingCount');
+  }
+
+  VoidCallback? _bulkStatusAction() {
+    if (_selectAllMatching || _filteredLeads.isEmpty) return null;
+    if (_isAllVisibleSelected) {
+      if (_totalMatchingCount > _filteredLeads.length) {
+        return _selectAllMatchingFilters;
+      }
+      return null;
+    }
+    return _selectAllVisible;
+  }
+
+  void _openBulkAssign() {
+    if (_selectAllMatching || _selectedIds.isEmpty) return;
+    showDialog(
+      context: context,
+      builder: (context) => AssignLeadModal(
+        leadIds: _selectedIds.toList(),
+        onAssigned: () {
+          _exitSelectionMode();
+          _loadLeads(forceRefresh: true);
+        },
+      ),
+    );
   }
 
   Future<void> _loadUsers() async {
@@ -880,46 +935,22 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
         }
       },
       child: Scaffold(
-        appBar: _selectionMode
-            ? AppBar(
-                leading: IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: _exitSelectionMode,
-                  tooltip:
-                      localizations?.translate('clearSelection') ??
-                      'Clear selection',
-                ),
-                title: Text(
-                  (localizations?.translate('selectedCount') ??
-                          '{count} selected')
-                      .replaceAll('{count}', '$_selectedCount'),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: _selectAllMatchingFilters,
-                    child: Text(
-                      localizations?.translate('selectAllMatching') ??
-                          'Select all matching',
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: _selectAllVisible,
-                    child: Text(
-                      localizations?.translate('selectAll') ?? 'Select all',
-                    ),
-                  ),
-                ],
-              )
-            : widget.showAppBar
+        appBar: widget.showAppBar
             ? AppBar(
                 title: Text(_getTitle(localizations)),
                 actions: [
                   if (_canEnterBulkDelete())
                     IconButton(
-                      icon: const Icon(Icons.checklist),
-                      tooltip:
-                          localizations?.translate('select') ?? 'Select',
-                      onPressed: () => _enterSelectionMode(),
+                      icon: Icon(
+                        _selectionMode ? Icons.close : Icons.checklist,
+                      ),
+                      tooltip: _selectionMode
+                          ? (localizations?.translate('clearSelection') ??
+                              'Clear selection')
+                          : (localizations?.translate('select') ?? 'Select'),
+                      onPressed: _selectionMode
+                          ? _exitSelectionMode
+                          : () => _enterSelectionMode(),
                     ),
                   if (_currentUser?.isDataEntry != true)
                   IconButton(
@@ -967,19 +998,16 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                 ],
               )
             : null,
-        body: _isLoading && _leads.isEmpty
-            ? PullToRefreshBody(
-                onRefresh: () => _loadLeads(forceRefresh: true),
-                child: const CircularProgressIndicator(),
-              )
-            : _errorMessage != null && _leads.isEmpty
+        body: Stack(
+          children: [
+            _errorMessage != null && _leads.isEmpty
             ? PullToRefreshBody(
                 onRefresh: () => _loadLeads(forceRefresh: true),
                 child: _buildErrorWidget(context, localizations, theme),
               )
             : Column(
                 children: [
-                  // Search Bar
+                  // Search Bar — keep chrome visible while the list loads
                   Padding(
                     padding: const EdgeInsets.all(16),
                     child: Row(
@@ -1039,11 +1067,8 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
 
                   // Leads List
                   Expanded(
-                    child: _isListLoading
-                        ? PullToRefreshBody(
-                            onRefresh: () => _loadLeads(forceRefresh: true),
-                            child: const CircularProgressIndicator(),
-                          )
+                    child: (_isLoading && _leads.isEmpty) || _isListLoading
+                        ? const PullToRefreshBody.loading()
                         : _filteredLeads.isEmpty
                             ? PullToRefreshBody(
                                 onRefresh: () => _loadLeads(forceRefresh: true),
@@ -1057,8 +1082,13 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                               )
                             : PullToRefreshBody.list(
                                 onRefresh: () => _loadLeads(forceRefresh: true),
-                                listPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
+                                listPadding: EdgeInsets.fromLTRB(
+                                  16,
+                                  0,
+                                  16,
+                                  _selectionMode && _selectedCount > 0
+                                      ? 96
+                                      : 16,
                                 ),
                                 itemCount: _filteredLeads.length,
                                 itemBuilder: (context, index) {
@@ -1073,6 +1103,66 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                   ),
                 ],
               ),
+            if (_selectionMode && _selectedCount > 0)
+              Positioned(
+                left: 12,
+                right: 12,
+                bottom: 0,
+                child: SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: BulkActionBar(
+                      selectedCount: _selectedCount,
+                      selectedLabel:
+                          (localizations?.translate('selectedCount') ??
+                                  '{count} selected')
+                              .replaceAll('{count}', '$_selectedCount'),
+                      badgeLabel: _selectAllMatching
+                          ? (localizations?.translate('matchingFiltersBadge') ??
+                              'Matching filters')
+                          : null,
+                      statusActionLabel: _bulkStatusActionLabel(localizations),
+                      statusActionTitle: _bulkStatusActionTitle(localizations),
+                      onStatusAction: _bulkStatusAction(),
+                      clearLabel:
+                          localizations?.translate('clearSelection') ??
+                          'Clear selection',
+                      onClear: _exitSelectionMode,
+                      actions: [
+                        if (_canAssignLead())
+                          BulkBarActionButton(
+                            label:
+                                localizations?.translate('assignLead') ??
+                                'Assign Lead',
+                            icon: Icons.person_add_alt_1,
+                            onPressed:
+                                _selectAllMatching || _selectedIds.isEmpty
+                                ? null
+                                : _openBulkAssign,
+                          ),
+                        if (_canEnterBulkDelete())
+                          BulkBarActionButton(
+                            label:
+                                localizations?.translate('bulkDelete') ??
+                                'Delete',
+                            icon: Icons.delete_outline,
+                            variant: BulkBarActionVariant.danger,
+                            loading: _isBulkDeleting,
+                            onPressed: _isBulkDeleting
+                                ? null
+                                : () => _confirmBulkDelete(
+                                      context,
+                                      localizations,
+                                    ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
         floatingActionButton: _selectionMode
             ? null
             : FloatingActionButton(
@@ -1092,56 +1182,6 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
           child: const Icon(Icons.add, color: Colors.white),
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-        bottomNavigationBar: _selectionMode && _selectedCount > 0
-            ? SafeArea(
-                child: Material(
-                  elevation: 8,
-                  color: theme.colorScheme.surface,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            (localizations?.translate('selectedCount') ??
-                                    '{count} selected')
-                                .replaceAll('{count}', '$_selectedCount'),
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                        FilledButton(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: Colors.red,
-                          ),
-                          onPressed: _isBulkDeleting
-                              ? null
-                              : () => _confirmBulkDelete(
-                                    context,
-                                    localizations,
-                                  ),
-                          child: _isBulkDeleting
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : Text(
-                                  localizations?.translate('delete') ??
-                                      'Delete',
-                                ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              )
-            : null,
       ),
     );
   }

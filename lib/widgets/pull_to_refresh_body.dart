@@ -15,6 +15,22 @@ class PullToRefreshBody extends StatelessWidget {
         listPadding = null,
         _mode = _PullToRefreshMode.viewport;
 
+  /// Centered spinner without [RefreshIndicator].
+  ///
+  /// Wrapping a [CircularProgressIndicator] in the viewport constructor stacks
+  /// Material's refresh spinner on top of the child spinner.
+  const PullToRefreshBody.loading({
+    super.key,
+    this.child = const CircularProgressIndicator(),
+  })  : onRefresh = _noopRefresh,
+        padding = null,
+        centerChild = true,
+        itemCount = null,
+        itemBuilder = null,
+        separatorBuilder = null,
+        listPadding = null,
+        _mode = _PullToRefreshMode.loading;
+
   /// Single scroll view list under [RefreshIndicator].
   const PullToRefreshBody.list({
     super.key,
@@ -27,6 +43,8 @@ class PullToRefreshBody extends StatelessWidget {
         padding = null,
         centerChild = false,
         _mode = _PullToRefreshMode.list;
+
+  static Future<void> _noopRefresh() async {}
 
   final Future<void> Function() onRefresh;
   final Widget? child;
@@ -42,6 +60,10 @@ class PullToRefreshBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (_mode == _PullToRefreshMode.loading) {
+      return Center(child: child ?? const CircularProgressIndicator());
+    }
+
     if (_mode == _PullToRefreshMode.list) {
       final count = itemCount!;
       final builder = itemBuilder!;
@@ -86,4 +108,4 @@ class PullToRefreshBody extends StatelessWidget {
   }
 }
 
-enum _PullToRefreshMode { viewport, list }
+enum _PullToRefreshMode { viewport, list, loading }

@@ -7,12 +7,14 @@ import '../models/client_field_visit_model.dart';
 import '../models/client_task_model.dart';
 import '../models/client_visit_model.dart';
 import '../models/lead_sms_message_model.dart';
+import '../models/lead_social_message_model.dart';
 import '../models/lead_whatsapp_message_model.dart';
 import '../models/settings_model.dart';
 import '../models/timeline_entry.dart';
 import '../models/user_model.dart';
 import 'timeline_date_format.dart';
 import 'timeline_events.dart';
+import 'social_message_body_localize.dart';
 import 'whatsapp_message_body_localize.dart';
 
 class TimelineBuilderInput {
@@ -23,6 +25,7 @@ class TimelineBuilderInput {
   final List<ClientEventModel> events;
   final List<LeadSmsMessageModel> smsMessages;
   final List<LeadWhatsAppMessageModel> whatsappMessages;
+  final List<LeadSocialMessageModel> socialMessages;
   final List<UserModel> users;
   final List<StatusModel> statuses;
   /// Used to resolve tag names in tags_change events back to their colors.
@@ -46,6 +49,7 @@ class TimelineBuilderInput {
     required this.events,
     required this.smsMessages,
     required this.whatsappMessages,
+    this.socialMessages = const [],
     required this.users,
     required this.statuses,
     this.tags = const [],
@@ -469,6 +473,45 @@ List<TimelineEntry> buildLeadTimeline(TimelineBuilderInput input) {
     );
   });
 
+  final socialEntries = input.socialMessages.map((msg) {
+    final isInbound = msg.isInbound;
+    final actor = resolveTimelineActor(
+      createdById: msg.createdBy,
+      createdByUsername: msg.createdByUsername,
+      users: users,
+      t: t,
+      fallback: isInbound
+          ? TimelineActorFallback.contact
+          : TimelineActorFallback.system,
+      // These channels carry no phone number — the handle is the identity.
+      contactName: msg.contactName.isNotEmpty
+          ? msg.contactName
+          : input.leadContactName,
+      contactPhone: '',
+    );
+    final at = msg.occurredAt;
+    return TimelineEntry(
+      id: 'social-${msg.id}',
+      type: TimelineEntryType.social,
+      user: actor.name,
+      action: isInbound ? _tr(t, 'socialReceived') : _tr(t, 'socialSent'),
+      details: localizeSocialMessageBody(
+        msg.body,
+        msg.attachmentKind,
+        msg.isVoiceNote,
+        t,
+      ),
+      date: formatTimelineDate(at, locale),
+      timestamp: at.millisecondsSinceEpoch,
+      stage: msg.contactName.isNotEmpty ? msg.contactName : null,
+      direction: isInbound ? 'inbound' : 'outbound',
+      socialChannel: msg.channel == 'messenger'
+          ? TimelineSocialChannel.messenger
+          : TimelineSocialChannel.instagram,
+      socialConversationId: msg.conversation,
+    );
+  });
+
   final merged = [
     ...actions,
     ...calls,
@@ -477,8 +520,12 @@ List<TimelineEntry> buildLeadTimeline(TimelineBuilderInput input) {
     ...events,
     ...smsEntries,
     ...waEntries,
+    ...socialEntries,
   ];
-  return collapseConsecutiveWhatsAppThreads(merged, t);
+  return collapseConsecutiveSocialThreads(
+    collapseConsecutiveWhatsAppThreads(merged, t),
+    t,
+  );
 }
 
 /// Collapse consecutive WhatsApp rows (after chronological sort) into thread cards.
@@ -518,6 +565,73 @@ List<TimelineEntry> collapseConsecutiveWhatsAppThreads(
         stage: (latest.stage != null && latest.stage!.isNotEmpty)
             ? latest.stage
             : earliest.stage,
+        messages: group
+            .map(
+              (g) => TimelineWhatsAppThreadMessage(
+                id: g.id,
+                direction: g.direction == 'inbound' ? 'inbound' : 'outbound',
+                body: g.details,
+                date: g.date,
+                timestamp: g.timestamp,
+                user: g.user,
+              ),
+            )
+            .toList(),
+      ),
+    );
+  }
+  return result;
+}
+
+/// Collapse consecutive social rows (after chronological sort) into thread cards.
+/// Parity with web `collapseConsecutiveSocialThreads` in ViewLeadPage.
+///
+/// Same shape as the WhatsApp collapse above, with one deliberate difference: a
+/// change of conversation also breaks the group. WhatsApp lumps a lead's numbers
+/// together because a thread there is identified by the lead; a social thread is
+/// identified by a person on a network, and a lead can carry an Instagram DM and
+/// a Messenger thread at once. Merging those would put two strangers' messages
+/// under one heading.
+List<TimelineEntry> collapseConsecutiveSocialThreads(
+  List<TimelineEntry> entries,
+  TimelineTranslate t,
+) {
+  final sorted = List<TimelineEntry>.from(entries)
+    ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+  final result = <TimelineEntry>[];
+  var i = 0;
+  while (i < sorted.length) {
+    final entry = sorted[i];
+    if (entry.type != TimelineEntryType.social) {
+      result.add(entry);
+      i += 1;
+      continue;
+    }
+    final conversationId = entry.socialConversationId;
+    final group = <TimelineEntry>[entry];
+    i += 1;
+    while (i < sorted.length &&
+        sorted[i].type == TimelineEntryType.social &&
+        sorted[i].socialConversationId == conversationId) {
+      group.add(sorted[i]);
+      i += 1;
+    }
+    final latest = group.last;
+    final earliest = group.first;
+    result.add(
+      TimelineEntry(
+        id: 'social-thread-${earliest.id}-${latest.id}',
+        type: TimelineEntryType.socialThread,
+        user: latest.user,
+        action: _tr(t, 'socialTimelineConversation'),
+        details: latest.details,
+        date: latest.date,
+        timestamp: latest.timestamp,
+        stage: (latest.stage != null && latest.stage!.isNotEmpty)
+            ? latest.stage
+            : earliest.stage,
+        socialChannel: latest.socialChannel,
+        socialConversationId: conversationId,
         messages: group
             .map(
               (g) => TimelineWhatsAppThreadMessage(

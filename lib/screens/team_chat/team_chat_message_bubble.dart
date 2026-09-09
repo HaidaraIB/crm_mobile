@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 
-import '../../core/theme/app_theme.dart';
 import '../../core/utils/app_locales.dart';
 import '../../models/tenant_chat_models.dart';
+import '../../widgets/chat/chat_bubble_shell.dart';
+import '../../widgets/chat/chat_palette.dart';
 import 'team_chat_common.dart';
 import 'team_chat_media.dart';
 import 'team_chat_text_direction.dart';
@@ -181,10 +182,8 @@ class TeamChatMessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final bubbleColor = mine
-        ? AppTheme.primaryColor.withValues(alpha: 0.92)
-        : scheme.surfaceContainerHigh;
-    final fg = mine ? Colors.white : scheme.onSurface;
+    final palette = TeamChatPalette.of(context);
+    final fg = mine ? palette.bubbleOutFg : palette.bubbleInFg;
     // Latin digits, like the web meta row which renders the time in an LTR run.
     final timeStr = withLatinDigits(
       DateFormat.Hm(
@@ -195,18 +194,6 @@ class TeamChatMessageBubble extends StatelessWidget {
         !mine && isCompanyGroup ? tenantChatPeerRoleLabel(message.sender.role, tr) : '';
 
     final topPad = sameSenderAsPrevious ? 2.0 : 8.0;
-    final brMine = const BorderRadius.only(
-      topLeft: Radius.circular(18),
-      topRight: Radius.circular(18),
-      bottomLeft: Radius.circular(18),
-      bottomRight: Radius.circular(4),
-    );
-    final brTheirs = const BorderRadius.only(
-      topLeft: Radius.circular(18),
-      topRight: Radius.circular(18),
-      bottomRight: Radius.circular(18),
-      bottomLeft: Radius.circular(4),
-    );
 
     final hasMedia = message.attachmentUrl != null && message.attachmentKind != null;
     final meta = Row(
@@ -235,33 +222,17 @@ class TeamChatMessageBubble extends StatelessWidget {
         ],
       ],
     );
-    final textAndMeta = Wrap(
-      alignment: WrapAlignment.end,
-      crossAxisAlignment: WrapCrossAlignment.end,
-      spacing: 8,
-      runSpacing: 2,
-      children: [
-        if (message.body.trim().isNotEmpty)
-          TeamChatAutoDirText(
-            message.body,
-            style: TextStyle(color: fg, height: 1.35),
-          ),
-        meta,
-      ],
+    final textAndMeta = ChatBubbleTextAndMeta(
+      body: message.body.trim().isNotEmpty
+          ? TeamChatAutoDirText(
+              message.body,
+              style: TextStyle(color: fg, height: 1.35),
+            )
+          : null,
+      meta: meta,
     );
 
-    final bubble = Material(
-      color: bubbleColor,
-      elevation: mine ? 0 : 0.5,
-      shadowColor: Colors.black26,
-      borderRadius: mine ? brMine : brTheirs,
-      clipBehavior: Clip.antiAlias,
-      child: GestureDetector(
-        onLongPressStart: (d) => _showActionMenu(context, d),
-        behavior: HitTestBehavior.opaque,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
-          child: Column(
+    final content = Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (!mine && isCompanyGroup) ...[
@@ -419,33 +390,22 @@ class TeamChatMessageBubble extends StatelessWidget {
                 const SizedBox(height: 4),
               ],
               // Telegram-style: time + ticks ride on the last text line when
-              // they fit and drop to their own line when they don't, so the
-              // bubble hugs its content instead of stretching to the max width.
-              // Media already fills that width, so there the meta row spans it.
-              if (hasMedia)
-                SizedBox(width: double.infinity, child: textAndMeta)
-              else
-                textAndMeta,
+              // they fit and drop to their own line when they don't.
+              textAndMeta,
             ],
-          ),
-        ),
-      ),
     );
 
     return Padding(
       padding: EdgeInsets.only(top: topPad),
-      child: Align(
-        alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-        child: TeamChatSwipeReplyShell(
-          mine: mine,
-          onSwipeReply: onReply,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.82),
-            // Bubble internals lay out LTR — same as the web thread's
-            // `dir="ltr"` container — so chrome never mirrors with the app
-            // language; each text run picks its own direction from its content.
-            child: Directionality(textDirection: TextDirection.ltr, child: bubble),
-          ),
+      child: TeamChatSwipeReplyShell(
+        mine: mine,
+        onSwipeReply: onReply,
+        child: ChatBubbleShell(
+          isInbound: !mine,
+          palette: palette,
+          margin: EdgeInsets.zero,
+          onLongPressStart: (d) => _showActionMenu(context, d),
+          child: content,
         ),
       ),
     );

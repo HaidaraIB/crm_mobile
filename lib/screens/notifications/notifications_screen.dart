@@ -396,10 +396,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ],
       ),
       body: _isLoading
-          ? PullToRefreshBody(
-              onRefresh: _refreshNotifications,
-              child: const CircularProgressIndicator(),
-            )
+          ? const PullToRefreshBody.loading()
           : _error != null
           ? PullToRefreshBody(
               onRefresh: _refreshNotifications,

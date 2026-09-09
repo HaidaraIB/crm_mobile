@@ -141,10 +141,7 @@ class _StagesSettingsScreenState extends State<StagesSettingsScreen> {
 
     Widget body;
     if (_isLoading) {
-      body = PullToRefreshBody(
-        onRefresh: () => _loadStages(forceRefresh: true),
-        child: const CircularProgressIndicator(),
-      );
+      body = const PullToRefreshBody.loading();
     } else if (_errorMessage != null) {
       body = PullToRefreshBody(
         onRefresh: () => _loadStages(forceRefresh: true),

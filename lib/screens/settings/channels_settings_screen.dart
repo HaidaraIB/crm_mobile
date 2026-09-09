@@ -172,10 +172,7 @@ class _ChannelsSettingsScreenState extends State<ChannelsSettingsScreen> {
 
     Widget body;
     if (_isLoading) {
-      body = PullToRefreshBody(
-        onRefresh: () => _loadChannels(forceRefresh: true),
-        child: const CircularProgressIndicator(),
-      );
+      body = const PullToRefreshBody.loading();
     } else if (_errorMessage != null) {
       body = PullToRefreshBody(
         onRefresh: () => _loadChannels(forceRefresh: true),

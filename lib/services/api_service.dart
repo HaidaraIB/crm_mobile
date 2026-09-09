@@ -29,9 +29,12 @@ import '../models/client_visit_model.dart';
 import '../models/client_field_visit_model.dart';
 import '../models/client_event_model.dart';
 import '../models/lead_sms_message_model.dart';
+import '../models/lead_social_message_model.dart';
 import '../models/lead_whatsapp_message_model.dart';
 import '../models/whatsapp_account_status_model.dart';
 import '../models/whatsapp_conversation_model.dart';
+import '../models/social_conversation_model.dart';
+import '../models/social_message_model.dart';
 import '../models/whatsapp_template_model.dart';
 import '../models/task_model.dart';
 import '../models/inventory_model.dart';
@@ -150,6 +153,23 @@ class SmsException implements Exception {
 
 /// WhatsApp Chats are gated (HTTP 403) — per-user access, company policy, or plan.
 /// Not a transient failure — do not show Retry; hide the entry instead.
+class SocialInboxAccessDeniedException implements Exception {
+  const SocialInboxAccessDeniedException({this.code = 'social_inbox_access_disabled'});
+  final String code;
+  @override
+  String toString() => 'Omni-channel inbox access is disabled for this account';
+}
+
+/// Carries the backend `error_key` so the UI can explain *why* a send failed
+/// (closed window, opted-out contact, expired page token) instead of a generic retry.
+class SocialSendException implements Exception {
+  const SocialSendException({required this.code, required this.message});
+  final String code;
+  final String message;
+  @override
+  String toString() => message;
+}
+
 class WhatsAppAccessDeniedException implements Exception {
   const WhatsAppAccessDeniedException({this.code = 'whatsapp_access_disabled'});
   final String code;
@@ -2201,6 +2221,37 @@ class ApiService {
     }
   }
 
+  /// GET /integrations/inbox/lead-messages/?client=:leadId
+  ///
+  /// The timeline's Instagram/Messenger source. Scoped by the inbox ACL, which
+  /// is narrower than lead access — reception and data entry get 403 here while
+  /// still being able to open the lead. That is the expected answer, so this
+  /// returns an empty list rather than throwing and blanking the whole timeline.
+  Future<List<LeadSocialMessageModel>> getLeadSocialMessages(int leadId) async {
+    final response = await _makeRequest(
+      'GET',
+      '/integrations/inbox/lead-messages/?client=$leadId&limit=200',
+    );
+
+    if (response.statusCode == 403 || response.statusCode == 404) {
+      return <LeadSocialMessageModel>[];
+    }
+    if (response.statusCode != 200) {
+      throw Exception(
+        _translateError('failedToGetLeadSocialMessages', locale: null),
+      );
+    }
+
+    final data = _unwrapResponseMap(response);
+    final resultsList = data['results'] as List?;
+    return resultsList != null
+        ? resultsList
+            .map((e) =>
+                LeadSocialMessageModel.fromJson(e as Map<String, dynamic>))
+            .toList()
+        : <LeadSocialMessageModel>[];
+  }
+
   // ==================== WhatsApp chat (messaging center) ====================
 
   /// GET /integrations/whatsapp/conversations/ — filterable inbox with rail counts.
@@ -2556,6 +2607,255 @@ class ApiService {
 
   /// Absolute URL for `GET whatsapp/messages/<pk>/attachment/`, for use with
   /// [fetchAuthenticatedBinaryGet] or an authenticated image provider.
+  // ==========================================================================
+  // Omni-Channel Inbox - Instagram Direct + Facebook Messenger
+  //
+  // A conversation here is its own row, not a lead: `client` stays null until an
+  // agent converts it. See integrations/views/social_inbox.py.
+  // ==========================================================================
+
+  /// GET /integrations/inbox/conversations/
+  Future<SocialConversationsPage> getSocialConversations({
+    String? channel,
+    String? status,
+    String? assignment,
+    int? agentId,
+    String? converted,
+    bool? starred,
+    bool? unreplied,
+    String? search,
+    int? limit,
+    int? offset,
+  }) async {
+    final q = <String, String>{};
+    if (channel != null && channel.isNotEmpty && channel != 'all') {
+      q['channel'] = channel;
+    }
+    if (status != null && status.isNotEmpty && status != 'all') {
+      q['status'] = status;
+    }
+    if (assignment != null && assignment.isNotEmpty && assignment != 'all') {
+      q['assignment'] = assignment;
+    }
+    if (agentId != null) q['agent'] = '$agentId';
+    if (converted != null && converted.isNotEmpty) q['converted'] = converted;
+    if (starred == true) q['starred'] = '1';
+    if (unreplied == true) q['unreplied'] = '1';
+    if (search != null && search.trim().isNotEmpty) q['search'] = search.trim();
+    if (limit != null) q['limit'] = '$limit';
+    if (offset != null) q['offset'] = '$offset';
+    final qs = q.isEmpty
+        ? ''
+        : '?${q.entries.map((e) => '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}').join('&')}';
+
+    final response = await _makeRequest(
+      'GET',
+      '/integrations/inbox/conversations/$qs',
+      timeout: const Duration(seconds: 20),
+    );
+    if (response.statusCode == 403) {
+      final err = _errorContextFromBody(response.body);
+      final code = (err['error_key'] ?? err['code'])?.toString() ??
+          'social_inbox_access_disabled';
+      throw SocialInboxAccessDeniedException(code: code);
+    }
+    if (response.statusCode != 200) {
+      throw Exception(_translateError('socialInboxCouldNotLoad', locale: null));
+    }
+    final decoded = _unwrapResponseDynamic(response);
+    final map = decoded is Map ? Map<String, dynamic>.from(decoded) : <String, dynamic>{};
+    return SocialConversationsPage.fromJson(map);
+  }
+
+  /// GET `/integrations/inbox/conversations/<id>/messages/` - oldest-first.
+  Future<List<SocialMessageModel>> getSocialMessages(int conversationId) async {
+    final response = await _makeRequest(
+      'GET',
+      '/integrations/inbox/conversations/$conversationId/messages/?limit=200',
+      timeout: const Duration(seconds: 20),
+    );
+    if (response.statusCode == 403) {
+      final err = _errorContextFromBody(response.body);
+      final code = (err['error_key'] ?? err['code'])?.toString() ??
+          'social_inbox_access_disabled';
+      throw SocialInboxAccessDeniedException(code: code);
+    }
+    if (response.statusCode != 200) {
+      throw Exception(_translateError('socialInboxCouldNotLoad', locale: null));
+    }
+    final decoded = _unwrapResponseDynamic(response);
+    final map = decoded is Map ? Map<String, dynamic>.from(decoded) : <String, dynamic>{};
+    final rows = map['results'] as List<dynamic>? ?? const [];
+    return rows
+        .whereType<Map>()
+        .map((e) => SocialMessageModel.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+  }
+
+  /// GET /integrations/inbox/window/ - drives the composer's enabled state.
+  Future<SocialSendWindow> getSocialSendWindow(int conversationId) async {
+    final response = await _makeRequest(
+      'GET',
+      '/integrations/inbox/window/?conversation=$conversationId',
+    );
+    if (response.statusCode != 200) return const SocialSendWindow();
+    final decoded = _unwrapResponseDynamic(response);
+    final map = decoded is Map ? Map<String, dynamic>.from(decoded) : <String, dynamic>{};
+    return SocialSendWindow.fromJson(map);
+  }
+
+  /// POST /integrations/inbox/send/
+  Future<SocialMessageModel?> sendSocialMessage({
+    required int conversationId,
+    required String text,
+  }) async {
+    final response = await _makeRequest(
+      'POST',
+      '/integrations/inbox/send/',
+      body: {'conversation': conversationId, 'text': text},
+    );
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      final err = _errorContextFromBody(response.body);
+      final code = (err['error_key'] ?? err['code'])?.toString() ?? '';
+      // The window closing is expected, not a failure to retry blindly.
+      throw SocialSendException(
+        code: code,
+        message: err['message']?.toString() ??
+            _translateError('socialInboxCouldNotSend', locale: null),
+      );
+    }
+    final decoded = _unwrapResponseDynamic(response);
+    final map = decoded is Map ? Map<String, dynamic>.from(decoded) : <String, dynamic>{};
+    final message = map['message'];
+    if (message is Map) {
+      return SocialMessageModel.fromJson(Map<String, dynamic>.from(message));
+    }
+    return null;
+  }
+
+  /// POST /integrations/inbox/send-media/ (multipart).
+  Future<void> sendSocialMedia({
+    required int conversationId,
+    required String filePath,
+    String? text,
+  }) async {
+    final cleanBaseUrl =
+        baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final url = Uri.parse('$cleanBaseUrl/integrations/inbox/send-media/');
+    final token = await _getAccessToken();
+    if (token == null) {
+      throw Exception(_translateError('notAuthenticated', locale: null));
+    }
+    final request = http.MultipartRequest('POST', url);
+    request.headers['Authorization'] = 'Bearer $token';
+    final apiKey = AppConstants.apiKey;
+    if (apiKey.isNotEmpty) {
+      request.headers['X-API-Key'] = apiKey;
+    }
+    request.fields['conversation'] = '$conversationId';
+    if (text != null && text.trim().isNotEmpty) {
+      request.fields['text'] = text.trim();
+    }
+    request.files.add(await http.MultipartFile.fromPath('file', filePath));
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      final err = _errorContextFromBody(response.body);
+      throw SocialSendException(
+        code: (err['error_key'] ?? err['code'])?.toString() ?? '',
+        message: err['message']?.toString() ??
+            _translateError('socialInboxCouldNotSend', locale: null),
+      );
+    }
+  }
+
+  /// POST /integrations/inbox/conversations/mark-read/
+  Future<void> markSocialConversationRead(int conversationId) async {
+    await _makeRequest(
+      'POST',
+      '/integrations/inbox/conversations/mark-read/',
+      body: {'conversation': conversationId},
+    );
+  }
+
+  /// POST /integrations/inbox/conversations/state/
+  Future<void> updateSocialConversationState({
+    required int conversationId,
+    String? status,
+    String? snoozedUntil,
+    bool? isStarred,
+    bool? isUnsubscribed,
+  }) async {
+    final body = <String, dynamic>{'conversation': conversationId};
+    if (status != null) body['status'] = status;
+    if (snoozedUntil != null) body['snoozed_until'] = snoozedUntil;
+    if (isStarred != null) body['is_starred'] = isStarred;
+    if (isUnsubscribed != null) body['is_unsubscribed'] = isUnsubscribed;
+    final response = await _makeRequest(
+      'POST',
+      '/integrations/inbox/conversations/state/',
+      body: body,
+    );
+    if (response.statusCode != 200) {
+      throw Exception(_translateError('socialInboxCouldNotUpdate', locale: null));
+    }
+  }
+
+  /// POST `/integrations/inbox/conversations/<id>/convert/` - create a CRM lead.
+  ///
+  /// Phone is optional and must stay so: Instagram/Messenger carry no phone
+  /// number, and the backend refuses to fabricate a placeholder.
+  Future<Map<String, dynamic>> convertSocialConversation({
+    required int conversationId,
+    String? name,
+    String? phone,
+    int? assignedTo,
+    bool autoAssign = true,
+    String? notes,
+  }) async {
+    final response = await _makeRequest(
+      'POST',
+      '/integrations/inbox/conversations/$conversationId/convert/',
+      body: {
+        if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+        if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
+        'assigned_to': assignedTo,
+        'auto_assign': autoAssign,
+        if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
+      },
+    );
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      final err = _errorContextFromBody(response.body);
+      throw SocialSendException(
+        code: (err['error_key'] ?? err['code'])?.toString() ?? '',
+        message: err['message']?.toString() ??
+            _translateError('socialInboxCouldNotConvert', locale: null),
+      );
+    }
+    final decoded = _unwrapResponseDynamic(response);
+    return decoded is Map ? Map<String, dynamic>.from(decoded) : <String, dynamic>{};
+  }
+
+  /// GET /integrations/inbox/unread-count/
+  Future<int> getSocialInboxUnreadCount() async {
+    try {
+      final response = await _makeRequest('GET', '/integrations/inbox/unread-count/');
+      if (response.statusCode != 200) return 0;
+      final decoded = _unwrapResponseDynamic(response);
+      final map = decoded is Map ? Map<String, dynamic>.from(decoded) : <String, dynamic>{};
+      return (map['unread'] as num?)?.toInt() ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  /// Auth-gated attachment URL - media inherits the thread's ACL.
+  String socialMessageAttachmentUrl(int messageId) {
+    final cleanBaseUrl =
+        baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    return '$cleanBaseUrl/integrations/inbox/messages/$messageId/attachment/';
+  }
+
   String whatsappMessageAttachmentUrl(int messageId) {
     final cleanBaseUrl = baseUrl.endsWith('/')
         ? baseUrl.substring(0, baseUrl.length - 1)

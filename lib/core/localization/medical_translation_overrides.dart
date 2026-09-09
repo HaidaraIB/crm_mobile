@@ -25,6 +25,8 @@ const Map<String, Map<String, String>> kMedicalTranslationOverrides = {
     'deleteLeadsConfirm':
         'Are you sure you want to permanently delete {count} patient(s)? This cannot be undone.',
     'leadsDeletedSuccessfullyCount': 'Successfully deleted {count} patient(s).',
+    'selectAllMatchingFilters':
+        'Select all {count} patients matching filters',
     'deleteLeadComingSoon': 'Delete patient (coming soon)',
     'leadCreatedSuccessfully': 'Patient created successfully',
     'leadUpdatedSuccessfully': 'Patient updated successfully',
@@ -113,6 +115,8 @@ const Map<String, Map<String, String>> kMedicalTranslationOverrides = {
     'deleteLeadsConfirm':
         'هل أنت متأكد أنك تريد حذف {count} مريض نهائياً؟ لا يمكن التراجع عن هذا الإجراء.',
     'leadsDeletedSuccessfullyCount': 'تم حذف {count} مريض بنجاح.',
+    'selectAllMatchingFilters':
+        'تحديد كل الـ {count} مريض مطابق للفلاتر',
     'deleteLeadComingSoon': 'حذف مريض (قريباً)',
     'leadCreatedSuccessfully': 'تم إنشاء المريض بنجاح',
     'leadUpdatedSuccessfully': 'تم تحديث المريض بنجاح',
