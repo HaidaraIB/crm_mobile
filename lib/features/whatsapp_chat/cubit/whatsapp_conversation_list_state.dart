@@ -55,6 +55,9 @@ class WhatsAppConversationListState extends Equatable {
   const WhatsAppConversationListState({
     required this.conversations,
     required this.loading,
+    required this.loadingMore,
+    required this.totalCount,
+    required this.hasMore,
     required this.loadError,
     required this.unavailableCode,
     required this.filters,
@@ -65,6 +68,9 @@ class WhatsAppConversationListState extends Equatable {
   const WhatsAppConversationListState.initial()
       : conversations = const [],
         loading = true,
+        loadingMore = false,
+        totalCount = 0,
+        hasMore = false,
         loadError = null,
         unavailableCode = null,
         filters = const WhatsAppChatListFilters(),
@@ -73,6 +79,9 @@ class WhatsAppConversationListState extends Equatable {
 
   final List<WhatsAppConversationModel> conversations;
   final bool loading;
+  final bool loadingMore;
+  final int totalCount;
+  final bool hasMore;
   final String? loadError;
   /// Non-null when chats are gated (403). Not a retryable load failure.
   final String? unavailableCode;
@@ -83,6 +92,9 @@ class WhatsAppConversationListState extends Equatable {
   WhatsAppConversationListState copyWith({
     List<WhatsAppConversationModel>? conversations,
     bool? loading,
+    bool? loadingMore,
+    int? totalCount,
+    bool? hasMore,
     String? loadError,
     String? unavailableCode,
     WhatsAppChatListFilters? filters,
@@ -94,6 +106,9 @@ class WhatsAppConversationListState extends Equatable {
     return WhatsAppConversationListState(
       conversations: conversations ?? this.conversations,
       loading: loading ?? this.loading,
+      loadingMore: loadingMore ?? this.loadingMore,
+      totalCount: totalCount ?? this.totalCount,
+      hasMore: hasMore ?? this.hasMore,
       loadError: clearLoadError ? null : (loadError ?? this.loadError),
       unavailableCode:
           clearUnavailable ? null : (unavailableCode ?? this.unavailableCode),
@@ -107,6 +122,9 @@ class WhatsAppConversationListState extends Equatable {
   List<Object?> get props => [
         conversations,
         loading,
+        loadingMore,
+        totalCount,
+        hasMore,
         loadError,
         unavailableCode,
         filters,

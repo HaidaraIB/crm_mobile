@@ -11,6 +11,8 @@ import '../../../utils/whatsapp_manual_chats_storage.dart';
 import '../whatsapp_chat_repository.dart';
 import 'whatsapp_conversation_list_state.dart';
 
+const int kWhatsAppConversationsPageSize = 100;
+
 class WhatsAppConversationListCubit extends Cubit<WhatsAppConversationListState> {
   WhatsAppConversationListCubit({
     required WhatsAppChatRepository repository,
@@ -163,20 +165,51 @@ class WhatsAppConversationListCubit extends Cubit<WhatsAppConversationListState>
   Future<void> refresh({bool silent = false}) async {
     if (isClosed) return;
     if (!silent) {
-      emit(state.copyWith(loading: true));
+      emit(state.copyWith(loading: true, loadingMore: false));
     }
     try {
       final f = state.filters;
-      final page = await _repository.getConversations(
-        status: f.starred ? null : (f.status == 'all' ? null : f.status),
-        assignment: f.assignment == 'all' ? null : f.assignment,
-        agentId: f.agentId,
-        starred: f.starred ? true : null,
-        unreplied: f.unreplied ? true : null,
-        search: f.search.trim().isEmpty ? null : f.search.trim(),
-      );
-      if (isClosed) return;
-      var merged = List<WhatsAppConversationModel>.from(page.results);
+      final keepLoaded = silent
+          ? state.conversations.where((c) => c.id > 0).length
+          : 0;
+      final merged = <WhatsAppConversationModel>[];
+      var apiCount = 0;
+      Map<String, int> statusCounts = const {};
+      Map<String, int> assignmentCounts = const {};
+      var offset = 0;
+      // Silent poll re-fetches every already-loaded page so scroll position is kept.
+      // Manual refresh always starts from the first page only.
+      final stopAfter = silent && keepLoaded > 0
+          ? keepLoaded
+          : kWhatsAppConversationsPageSize;
+
+      while (true) {
+        final page = await _repository.getConversations(
+          status: f.starred ? null : (f.status == 'all' ? null : f.status),
+          assignment: f.assignment == 'all' ? null : f.assignment,
+          agentId: f.agentId,
+          starred: f.starred ? true : null,
+          unreplied: f.unreplied ? true : null,
+          search: f.search.trim().isEmpty ? null : f.search.trim(),
+          limit: kWhatsAppConversationsPageSize,
+          offset: offset,
+        );
+        if (isClosed) return;
+        if (offset == 0) {
+          apiCount = page.count;
+          statusCounts = page.statusCounts;
+          assignmentCounts = page.assignmentCounts;
+        }
+        for (final c in page.results) {
+          if (!merged.any((e) => e.id == c.id)) merged.add(c);
+        }
+        offset = merged.length;
+        final gotFullPage =
+            page.results.length >= kWhatsAppConversationsPageSize;
+        if (!gotFullPage || offset >= apiCount) break;
+        if (!silent) break; // first page only on manual/filter refresh
+        if (offset >= stopAfter) break;
+      }
 
       if (includeManualChats && f.isDefault) {
         final manuals = await WhatsAppManualChatsStorage.load();
@@ -204,17 +237,21 @@ class WhatsAppConversationListCubit extends Cubit<WhatsAppConversationListState>
         }
       }
 
-      final total = merged.fold<int>(0, (s, c) => s + c.unreadCount);
+      final unreadTotal = merged.fold<int>(0, (s, c) => s + c.unreadCount);
       WhatsAppChatUnreadHolder.setAvailable(true);
-      WhatsAppChatUnreadHolder.setTotal(total);
-      _lastUnreadTotal = total;
+      WhatsAppChatUnreadHolder.setTotal(unreadTotal);
+      _lastUnreadTotal = unreadTotal;
       if (isClosed) return;
+      final crmLoaded = merged.where((c) => c.id > 0).length;
       emit(
         state.copyWith(
           conversations: merged,
           loading: false,
-          statusCounts: page.statusCounts,
-          assignmentCounts: page.assignmentCounts,
+          loadingMore: false,
+          totalCount: apiCount,
+          hasMore: crmLoaded < apiCount,
+          statusCounts: statusCounts,
+          assignmentCounts: assignmentCounts,
           clearLoadError: true,
           clearUnavailable: true,
         ),
@@ -225,6 +262,7 @@ class WhatsAppConversationListCubit extends Cubit<WhatsAppConversationListState>
       emit(
         state.copyWith(
           loading: false,
+          loadingMore: false,
           unavailableCode: e.code,
           clearLoadError: true,
         ),
@@ -234,9 +272,59 @@ class WhatsAppConversationListCubit extends Cubit<WhatsAppConversationListState>
       emit(
         state.copyWith(
           loading: false,
+          loadingMore: false,
           loadError: silent ? state.loadError : e.toString(),
         ),
       );
+    }
+  }
+
+  Future<void> loadMore() async {
+    if (isClosed) return;
+    if (state.loading || state.loadingMore || !state.hasMore) return;
+    emit(state.copyWith(loadingMore: true));
+    try {
+      final f = state.filters;
+      // Offset is CRM rows only (exclude local manual placeholders with id <= 0).
+      final offset = state.conversations.where((c) => c.id > 0).length;
+      final page = await _repository.getConversations(
+        status: f.starred ? null : (f.status == 'all' ? null : f.status),
+        assignment: f.assignment == 'all' ? null : f.assignment,
+        agentId: f.agentId,
+        starred: f.starred ? true : null,
+        unreplied: f.unreplied ? true : null,
+        search: f.search.trim().isEmpty ? null : f.search.trim(),
+        limit: kWhatsAppConversationsPageSize,
+        offset: offset,
+      );
+      if (isClosed) return;
+      final seen = {for (final c in state.conversations) c.id};
+      final appended = <WhatsAppConversationModel>[
+        ...state.conversations,
+        for (final c in page.results)
+          if (!seen.contains(c.id)) c,
+      ];
+      final apiCount = page.count;
+      final crmLoaded = appended.where((c) => c.id > 0).length;
+      emit(
+        state.copyWith(
+          conversations: appended,
+          loadingMore: false,
+          totalCount: apiCount,
+          hasMore: page.results.length >= kWhatsAppConversationsPageSize &&
+              crmLoaded < apiCount,
+          statusCounts: page.statusCounts.isNotEmpty
+              ? page.statusCounts
+              : state.statusCounts,
+          assignmentCounts: page.assignmentCounts.isNotEmpty
+              ? page.assignmentCounts
+              : state.assignmentCounts,
+          clearLoadError: true,
+        ),
+      );
+    } catch (e) {
+      if (isClosed) return;
+      emit(state.copyWith(loadingMore: false, loadError: e.toString()));
     }
   }
 

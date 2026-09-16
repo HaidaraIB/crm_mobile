@@ -260,6 +260,7 @@ class _ConversationListBody extends StatefulWidget {
 
 class _ConversationListBodyState extends State<_ConversationListBody> {
   final _searchCtrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
 
   static const _statusKeys = [
     'all',
@@ -274,7 +275,23 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _scrollCtrl.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (!_scrollCtrl.hasClients) return;
+    final pos = _scrollCtrl.position;
+    if (pos.pixels >= pos.maxScrollExtent - 240) {
+      context.read<WhatsAppConversationListCubit>().loadMore();
+    }
+  }
+
+  @override
   void dispose() {
+    _scrollCtrl.removeListener(_onScroll);
+    _scrollCtrl.dispose();
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -458,7 +475,13 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
                       onRefresh: () =>
                           context.read<WhatsAppConversationListCubit>().refresh(),
                       child: ListView.separated(
-                        itemCount: filtered.length,
+                        controller: _scrollCtrl,
+                        itemCount: filtered.length +
+                            ((state.hasMore ||
+                                    (state.totalCount > 0 &&
+                                        filtered.length < state.totalCount))
+                                ? 1
+                                : 0),
                         separatorBuilder: (_, __) => Divider(
                           height: 1,
                           indent: 72,
@@ -467,6 +490,54 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
                               .withValues(alpha: 0.2),
                         ),
                         itemBuilder: (context, index) {
+                          if (index >= filtered.length) {
+                            final shown = filtered.length;
+                            final total = state.totalCount > 0
+                                ? state.totalCount
+                                : shown;
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 16,
+                                horizontal: 16,
+                              ),
+                              child: Column(
+                                children: [
+                                  Text(
+                                    widget
+                                        .t('chatListShowingCount')
+                                        .replaceAll('{shown}', '$shown')
+                                        .replaceAll('{total}', '$total'),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  if (state.hasMore) ...[
+                                    const SizedBox(height: 8),
+                                    if (state.loadingMore)
+                                      const Padding(
+                                        padding: EdgeInsets.all(8),
+                                        child: SizedBox(
+                                          width: 24,
+                                          height: 24,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        ),
+                                      )
+                                    else
+                                      TextButton(
+                                        onPressed: () => context
+                                            .read<WhatsAppConversationListCubit>()
+                                            .loadMore(),
+                                        child: Text(widget.t('chatListLoadMore')),
+                                      ),
+                                  ],
+                                ],
+                              ),
+                            );
+                          }
                           final c = filtered[index];
                           final selected = widget.openedClientId != null &&
                               widget.openedClientId == c.id;
