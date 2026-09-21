@@ -34,6 +34,8 @@ subprojects {
 subprojects {
     pluginManager.withPlugin("com.android.library") {
         extensions.configure<LibraryExtension>("android") {
+            // Keep plugins aligned with Flutter's compileSdk (36) for AGP 9 AAR metadata checks.
+            compileSdk = 36
             compileOptions {
                 sourceCompatibility = JavaVersion.VERSION_21
                 targetCompatibility = JavaVersion.VERSION_21
@@ -42,9 +44,14 @@ subprojects {
     }
 
     afterEvaluate {
-        extensions.findByType(LibraryExtension::class.java)?.compileOptions {
-            sourceCompatibility = JavaVersion.VERSION_21
-            targetCompatibility = JavaVersion.VERSION_21
+        extensions.findByType(LibraryExtension::class.java)?.apply {
+            if ((compileSdk ?: 0) < 36) {
+                compileSdk = 36
+            }
+            compileOptions {
+                sourceCompatibility = JavaVersion.VERSION_21
+                targetCompatibility = JavaVersion.VERSION_21
+            }
         }
     }
 

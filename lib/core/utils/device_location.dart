@@ -102,7 +102,7 @@ Future<Position> getAccurateDevicePosition({
       return fallback;
     }
 
-    return Geolocator.getCurrentPosition(locationSettings: settings);
+    return await Geolocator.getCurrentPosition(locationSettings: settings);
   } finally {
     await subscription.cancel();
   }
