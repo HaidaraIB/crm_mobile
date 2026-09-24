@@ -16,7 +16,7 @@ enum TimelineEntryType {
 }
 
 /// Instagram Direct / Facebook Messenger.
-enum TimelineSocialChannel { instagram, messenger }
+enum TimelineSocialChannel { instagram, messenger, whatsapp }
 
 /// One line inside a collapsed WhatsApp or social conversation card.
 class TimelineWhatsAppThreadMessage {

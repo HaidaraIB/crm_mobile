@@ -507,7 +507,9 @@ List<TimelineEntry> buildLeadTimeline(TimelineBuilderInput input) {
       direction: isInbound ? 'inbound' : 'outbound',
       socialChannel: msg.channel == 'messenger'
           ? TimelineSocialChannel.messenger
-          : TimelineSocialChannel.instagram,
+          : msg.channel == 'whatsapp'
+              ? TimelineSocialChannel.whatsapp
+              : TimelineSocialChannel.instagram,
       socialConversationId: msg.conversation,
     );
   });

@@ -1261,9 +1261,9 @@ class AppLocalizations {
       'allChannels': 'All channels',
       'noSocialConversations': 'No conversations yet',
       'noSocialConversationsHint':
-          'Instagram and Messenger messages will appear here.',
+          'Instagram, Messenger, and WhatsApp inbox messages will appear here.',
       'noSocialConversationsHintAssigned':
-          'You will see Instagram and Messenger threads here after they are converted to a lead and assigned to you.',
+          'You will see Instagram, Messenger, and WhatsApp inbox threads here after they are converted to a lead and assigned to you.',
       'socialInboxCouldNotLoad': 'Could not load the inbox',
       'socialInboxCouldNotSend': 'Could not send the message',
       'socialInboxCouldNotUpdate': 'Could not update the conversation',
@@ -1284,11 +1284,18 @@ class AppLocalizations {
       'convertedToLead': 'Converted to lead',
       'convertConversationTitle': 'Convert conversation to lead',
       'convertConversationHint':
-          'Create a CRM lead from this conversation and assign it to an employee.',
+          'Enter the lead phone number. Instagram and Messenger do not provide one automatically; WhatsApp inbox may prefill from the contact.',
       'leadName': 'Lead name',
-      'phoneOptional': 'Phone (optional)',
-      'phoneOptionalHint':
-          'Instagram and Messenger do not provide a phone number. Add one if you have it.',
+      'convertConversationPhoneHint':
+          'Required for every inbox conversion. Use the customer\'s real number.',
+      'social_phone_required':
+          'A phone number is required to convert this conversation.',
+      'social_phone_invalid': 'Enter a valid phone number.',
+      'inboxSendTemplate': 'Send template',
+      'inboxTemplateRequiredHint':
+          'The 24-hour window closed. Send an approved WhatsApp template to reopen the chat.',
+      'inboxTemplateWebOnlyHint': 'Use the web Inbox to pick and send a template.',
+      'typeAMessage': 'Type a message',
       'autoAssign': 'Auto-assign',
       'replyWindowClosed': 'Reply window closed',
       'replyWindowClosedHint':
@@ -2883,9 +2890,10 @@ class AppLocalizations {
       'facebookMessenger': 'ماسنجر',
       'allChannels': 'كل القنوات',
       'noSocialConversations': 'لا توجد محادثات بعد',
-      'noSocialConversationsHint': 'ستظهر هنا رسائل إنستغرام وماسنجر.',
+      'noSocialConversationsHint':
+          'ستظهر هنا رسائل إنستغرام وماسنجر وواتساب (صندوق الوارد).',
       'noSocialConversationsHintAssigned':
-          'ستظهر هنا محادثات إنستغرام وماسنجر بعد تحويلها إلى عميل محتمل وإسنادها إليك.',
+          'ستظهر هنا محادثات إنستغرام وماسنجر وواتساب (صندوق الوارد) بعد تحويلها إلى عميل محتمل وإسنادها إليك.',
       'socialInboxCouldNotLoad': 'تعذر تحميل صندوق الوارد',
       'socialInboxCouldNotSend': 'تعذر إرسال الرسالة',
       'socialInboxCouldNotUpdate': 'تعذر تحديث المحادثة',
@@ -2904,11 +2912,17 @@ class AppLocalizations {
       'convertedToLead': 'تم التحويل إلى عميل محتمل',
       'convertConversationTitle': 'تحويل المحادثة إلى عميل محتمل',
       'convertConversationHint':
-          'أنشئ عميلاً محتملاً من هذه المحادثة وأسنده إلى موظف.',
+          'أدخل رقم هاتف العميل المحتمل. إنستغرام وماسنجر لا يوفّران رقماً تلقائياً؛ قد يُملأ رقم واتساب (صندوق الوارد) من جهة الاتصال.',
       'leadName': 'اسم العميل المحتمل',
-      'phoneOptional': 'رقم الهاتف (اختياري)',
-      'phoneOptionalHint':
-          'لا يوفر إنستغرام وماسنجر رقم هاتف. أضِف الرقم إن توفّر.',
+      'convertConversationPhoneHint':
+          'مطلوب لكل تحويل من صندوق الوارد. استخدم الرقم الحقيقي للعميل.',
+      'social_phone_required': 'رقم الهاتف مطلوب لتحويل هذه المحادثة.',
+      'social_phone_invalid': 'أدخل رقم هاتف صالحاً.',
+      'inboxSendTemplate': 'إرسال قالب',
+      'inboxTemplateRequiredHint':
+          'انتهت نافذة 24 ساعة. أرسل قالب واتساب معتمداً لإعادة فتح المحادثة.',
+      'inboxTemplateWebOnlyHint': 'استخدم صندوق الوارد على الويب لاختيار القالب وإرساله.',
+      'typeAMessage': 'اكتب رسالة',
       'autoAssign': 'إسناد تلقائي',
       'replyWindowClosed': 'انتهت مهلة الرد',
       'replyWindowClosedHint':

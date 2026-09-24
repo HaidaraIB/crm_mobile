@@ -29,7 +29,9 @@ class SocialInboxThreadState extends Equatable {
 
   const SocialInboxThreadState.initial() : this();
 
-  bool get composerBlocked => !window.open;
+  bool get requiresTemplate => window.requiresTemplate;
+
+  bool get composerBlocked => !window.open && !requiresTemplate;
 
   SocialInboxThreadState copyWith({
     SocialThreadStatus? status,
@@ -59,6 +61,7 @@ class SocialInboxThreadState extends Equatable {
         window.open,
         window.mode,
         window.expiresAt,
+        window.requiresTemplate,
         isSending,
         errorMessage,
         sendErrorKey,

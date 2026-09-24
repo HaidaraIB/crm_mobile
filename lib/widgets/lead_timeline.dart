@@ -629,6 +629,14 @@ _ChipStyle _typeChip(TimelineEntry entry, AppLocalizations? loc) {
     case TimelineEntryType.social:
     case TimelineEntryType.socialThread:
       // The network, not "Inbox" — an owner thinks in Instagram/Messenger.
+      if (entry.socialChannel == TimelineSocialChannel.whatsapp) {
+        return _ChipStyle(
+          icon: Icons.chat,
+          label: t('whatsApp', 'WhatsApp'),
+          fg: const Color(0xFF166534),
+          bg: const Color(0xFFDCFCE7),
+        );
+      }
       final isMessenger =
           entry.socialChannel == TimelineSocialChannel.messenger;
       return _ChipStyle(

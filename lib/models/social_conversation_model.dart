@@ -115,6 +115,7 @@ class SocialConversationModel {
 
   bool get isConverted => clientId != null;
   bool get isInstagram => channel == 'instagram';
+  bool get isWhatsapp => channel == 'whatsapp';
 
   SocialConversationModel copyWith({
     String? status,
@@ -200,6 +201,7 @@ class SocialSendWindow {
   final DateTime? lastInboundAt;
   final DateTime? expiresAt;
   final bool humanAgentAvailable;
+  final bool requiresTemplate;
 
   const SocialSendWindow({
     this.open = false,
@@ -207,6 +209,7 @@ class SocialSendWindow {
     this.lastInboundAt,
     this.expiresAt,
     this.humanAgentAvailable = false,
+    this.requiresTemplate = false,
   });
 
   factory SocialSendWindow.fromJson(Map<String, dynamic> json) {
@@ -216,6 +219,7 @@ class SocialSendWindow {
       lastInboundAt: SocialConversationModel._date(json['last_inbound_at']),
       expiresAt: SocialConversationModel._date(json['expires_at']),
       humanAgentAvailable: json['human_agent_available'] as bool? ?? false,
+      requiresTemplate: json['requires_template'] as bool? ?? false,
     );
   }
 

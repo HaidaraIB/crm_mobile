@@ -336,6 +336,7 @@ class _SocialInboxThreadViewState extends State<_SocialInboxThreadView>
         final hasDraft =
             _controller.text.trim().isNotEmpty || _pendingPath != null;
         final blocked = state.composerBlocked;
+        final requiresTemplate = state.requiresTemplate;
 
         return Scaffold(
           backgroundColor: palette.threadBackground,
@@ -351,9 +352,11 @@ class _SocialInboxThreadViewState extends State<_SocialInboxThreadView>
                   style: const TextStyle(fontSize: 16),
                 ),
                 Text(
-                  conversation.isInstagram
-                      ? t('instagramDirect')
-                      : t('facebookMessenger'),
+                  conversation.isWhatsapp
+                      ? t('whatsapp')
+                      : conversation.isInstagram
+                          ? t('instagramDirect')
+                          : t('facebookMessenger'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 11),
@@ -405,6 +408,37 @@ class _SocialInboxThreadViewState extends State<_SocialInboxThreadView>
           ),
           body: Column(
             children: [
+              if (requiresTemplate)
+                Material(
+                  color: Colors.amber.withValues(alpha: 0.15),
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          t('replyWindowClosed'),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                        Text(
+                          t('inboxTemplateRequiredHint'),
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          t('inboxTemplateWebOnlyHint'),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Theme.of(context).hintColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               if (blocked)
                 Material(
                   color: Colors.amber.withValues(alpha: 0.15),

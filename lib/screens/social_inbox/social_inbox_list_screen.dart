@@ -228,6 +228,7 @@ class _Filters extends StatelessWidget {
                   ['all', 'allChannels'],
                   ['instagram', 'instagramDirect'],
                   ['messenger', 'facebookMessenger'],
+                  ['whatsapp', 'whatsapp'],
                 ])
                   Padding(
                     padding: const EdgeInsetsDirectional.only(end: 6),
@@ -288,13 +289,16 @@ class _ConversationTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final label = conversation.contact.label;
-    final initials = label.isNotEmpty ? label.characters.first.toUpperCase() : '?';
     final unread = conversation.unreadCount;
     final rawPreview = conversation.lastMessagePreview.trim();
     final preview = rawPreview.isNotEmpty
         ? localizeSocialMessageBody(rawPreview, null, false, t)
         : t(
-            conversation.isInstagram ? 'instagramDirect' : 'facebookMessenger',
+            conversation.isWhatsapp
+                ? 'whatsapp'
+                : conversation.isInstagram
+                    ? 'instagramDirect'
+                    : 'facebookMessenger',
           );
 
     return Material(
@@ -310,17 +314,9 @@ class _ConversationTile extends StatelessWidget {
               Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  CircleAvatar(
-                    radius: 26,
-                    backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.12),
-                    child: Text(
-                      initials,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: scheme.primary,
-                      ),
-                    ),
+                  _SocialContactAvatar(
+                    displayName: label,
+                    profilePicUrl: conversation.contact.profilePicUrl,
                   ),
                   Positioned(
                     right: -2,
@@ -335,7 +331,9 @@ class _ConversationTile extends StatelessWidget {
                       child: Icon(
                         conversation.isInstagram
                             ? Icons.camera_alt_outlined
-                            : Icons.chat_bubble_outline,
+                            : conversation.isWhatsapp
+                                ? Icons.phone_android_outlined
+                                : Icons.chat_bubble_outline,
                         size: 12,
                         color: scheme.onSurfaceVariant,
                       ),
@@ -363,26 +361,6 @@ class _ConversationTile extends StatelessWidget {
                             ),
                           ),
                         ),
-                        if (conversation.isConverted) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.green.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              t('convertedToLead'),
-                              style: const TextStyle(
-                                fontSize: 10,
-                                color: Colors.green,
-                              ),
-                            ),
-                          ),
-                        ],
                         if (timeLabel.isNotEmpty) ...[
                           const SizedBox(width: 8),
                           Text(
@@ -440,6 +418,29 @@ class _ConversationTile extends StatelessWidget {
                         ],
                       ],
                     ),
+                    if (conversation.isConverted) ...[
+                      const SizedBox(height: 4),
+                      Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            t('convertedToLead'),
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: Colors.green,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -520,6 +521,57 @@ class _CenteredMessage extends StatelessWidget {
             ],
             if (action != null) ...[const SizedBox(height: 12), action!],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SocialContactAvatar extends StatefulWidget {
+  const _SocialContactAvatar({
+    required this.displayName,
+    required this.profilePicUrl,
+  });
+
+  final String displayName;
+  final String profilePicUrl;
+
+  @override
+  State<_SocialContactAvatar> createState() => _SocialContactAvatarState();
+}
+
+class _SocialContactAvatarState extends State<_SocialContactAvatar> {
+  bool _imageFailed = false;
+
+  String _initials() {
+    final parts = widget.displayName.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
+    if (parts.isEmpty) return '?';
+    return parts.take(2).map((p) => p[0].toUpperCase()).join();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final url = widget.profilePicUrl.trim();
+    if (url.isNotEmpty && !_imageFailed) {
+      return CircleAvatar(
+        radius: 26,
+        backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.12),
+        backgroundImage: NetworkImage(url),
+        onBackgroundImageError: (_, __) {
+          if (mounted) setState(() => _imageFailed = true);
+        },
+      );
+    }
+    return CircleAvatar(
+      radius: 26,
+      backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.12),
+      child: Text(
+        _initials(),
+        style: TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+          color: scheme.primary,
         ),
       ),
     );

@@ -6,9 +6,7 @@ import '../../widgets/app_switch.dart';
 
 /// Convert an inbox conversation into a CRM lead.
 ///
-/// Phone is optional and must stay optional: Instagram and Messenger carry no
-/// phone number, and the backend deliberately refuses to fabricate a placeholder
-/// (it would consume the company-wide unique phone key).
+/// Phone is required on every inbox conversion.
 class ConvertConversationSheet extends StatefulWidget {
   const ConvertConversationSheet({
     super.key,
@@ -43,6 +41,9 @@ class _ConvertConversationSheetState extends State<ConvertConversationSheet> {
     super.initState();
     final contact = widget.conversation.contact;
     _nameController = TextEditingController(text: contact.label);
+    if (widget.conversation.channel == 'whatsapp' && contact.externalId.isNotEmpty) {
+      _phoneController.text = contact.externalId;
+    }
   }
 
   @override
@@ -54,7 +55,7 @@ class _ConvertConversationSheetState extends State<ConvertConversationSheet> {
   }
 
   Future<void> _submit(String Function(String) t) async {
-    if (_nameController.text.trim().isEmpty) return;
+    if (_nameController.text.trim().isEmpty || _phoneController.text.trim().isEmpty) return;
     setState(() => _submitting = true);
     final clientId = await widget.onConvert(
       name: _nameController.text.trim(),
@@ -120,8 +121,8 @@ class _ConvertConversationSheetState extends State<ConvertConversationSheet> {
               keyboardType: TextInputType.phone,
               textDirection: TextDirection.ltr,
               decoration: InputDecoration(
-                labelText: t('phoneOptional'),
-                helperText: t('phoneOptionalHint'),
+                labelText: t('phoneRequired'),
+                helperText: t('convertConversationPhoneHint'),
                 helperMaxLines: 3,
                 border: const OutlineInputBorder(),
                 isDense: true,

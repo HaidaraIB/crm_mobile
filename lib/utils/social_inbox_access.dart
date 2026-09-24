@@ -99,6 +99,10 @@ String socialSendErrorMessageKey(String? code) {
       return 'socialAlreadyConverted';
     case 'plan_quota_max_clients_exceeded':
       return 'socialLeadQuotaReached';
+    case 'social_phone_required':
+      return 'social_phone_required';
+    case 'social_phone_invalid':
+      return 'social_phone_invalid';
     default:
       return 'socialInboxCouldNotSend';
   }
