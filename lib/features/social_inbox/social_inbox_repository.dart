@@ -52,6 +52,24 @@ abstract class SocialInboxRepository {
 
   Future<int> getUnreadCount();
 
+  Future<void> sendLocation({
+    required int conversationId,
+    required double latitude,
+    required double longitude,
+    String? name,
+    String? address,
+  });
+
+  Future<void> sendTemplate({
+    required int conversationId,
+    required int templateId,
+    List<String>? bodyParameters,
+  });
+
+  Future<void> deleteConversation(int conversationId);
+
+  Future<List<Map<String, dynamic>>> getCalls(int conversationId);
+
   String attachmentUrl(int messageId);
 }
 
@@ -151,6 +169,42 @@ class ApiSocialInboxRepository implements SocialInboxRepository {
 
   @override
   Future<int> getUnreadCount() => _api.getSocialInboxUnreadCount();
+
+  @override
+  Future<void> sendLocation({
+    required int conversationId,
+    required double latitude,
+    required double longitude,
+    String? name,
+    String? address,
+  }) =>
+      _api.sendSocialInboxLocation(
+        conversationId: conversationId,
+        latitude: latitude,
+        longitude: longitude,
+        name: name,
+        address: address,
+      );
+
+  @override
+  Future<void> sendTemplate({
+    required int conversationId,
+    required int templateId,
+    List<String>? bodyParameters,
+  }) =>
+      _api.sendSocialInboxTemplate(
+        conversationId: conversationId,
+        templateId: templateId,
+        bodyParameters: bodyParameters,
+      );
+
+  @override
+  Future<void> deleteConversation(int conversationId) =>
+      _api.deleteSocialConversation(conversationId);
+
+  @override
+  Future<List<Map<String, dynamic>>> getCalls(int conversationId) =>
+      _api.getWhatsAppCallsForConversation(conversationId);
 
   @override
   String attachmentUrl(int messageId) => _api.socialMessageAttachmentUrl(messageId);

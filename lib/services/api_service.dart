@@ -2836,6 +2836,89 @@ class ApiService {
     return decoded is Map ? Map<String, dynamic>.from(decoded) : <String, dynamic>{};
   }
 
+  /// POST /integrations/inbox/send-location/
+  Future<void> sendSocialInboxLocation({
+    required int conversationId,
+    required double latitude,
+    required double longitude,
+    String? name,
+    String? address,
+  }) async {
+    final response = await _makeRequest(
+      'POST',
+      '/integrations/inbox/send-location/',
+      body: {
+        'conversation': conversationId,
+        'latitude': latitude,
+        'longitude': longitude,
+        if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+        if (address != null && address.trim().isNotEmpty) 'address': address.trim(),
+      },
+    );
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      final err = _errorContextFromBody(response.body);
+      throw SocialSendException(
+        code: (err['error_key'] ?? err['code'])?.toString() ?? '',
+        message: err['message']?.toString() ??
+            _translateError('socialInboxCouldNotSend', locale: null),
+      );
+    }
+  }
+
+  /// POST /integrations/inbox/send-template/
+  Future<void> sendSocialInboxTemplate({
+    required int conversationId,
+    required int templateId,
+    List<String>? bodyParameters,
+  }) async {
+    final response = await _makeRequest(
+      'POST',
+      '/integrations/inbox/send-template/',
+      body: {
+        'conversation': conversationId,
+        'template_id': templateId,
+        if (bodyParameters != null) 'body_parameters': bodyParameters,
+      },
+    );
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      final err = _errorContextFromBody(response.body);
+      throw SocialSendException(
+        code: (err['error_key'] ?? err['code'])?.toString() ?? '',
+        message: err['message']?.toString() ??
+            _translateError('socialInboxCouldNotSend', locale: null),
+      );
+    }
+  }
+
+  /// DELETE /integrations/inbox/conversations/$conversationId/
+  Future<void> deleteSocialConversation(int conversationId) async {
+    final response = await _makeRequest(
+      'DELETE',
+      '/integrations/inbox/conversations/$conversationId/',
+    );
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      throw Exception(_translateError('socialInboxCouldNotUpdate', locale: null));
+    }
+  }
+
+  /// GET /integrations/whatsapp/calls/?conversation=
+  Future<List<Map<String, dynamic>>> getWhatsAppCallsForConversation(
+    int conversationId,
+  ) async {
+    final response = await _makeRequest(
+      'GET',
+      '/integrations/whatsapp/calls/?conversation=$conversationId&ordering=started_at&limit=50',
+    );
+    if (response.statusCode != 200) return const [];
+    final decoded = _unwrapResponseDynamic(response);
+    final map = decoded is Map ? Map<String, dynamic>.from(decoded) : <String, dynamic>{};
+    final rows = map['results'] as List<dynamic>? ?? const [];
+    return rows
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+  }
+
   /// GET /integrations/inbox/unread-count/
   Future<int> getSocialInboxUnreadCount() async {
     try {
