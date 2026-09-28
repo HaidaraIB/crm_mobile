@@ -45,6 +45,10 @@ class WhatsAppChatUnreadPoller {
     'chat': 'whatsapp:conversations',
     'tenant_chat': 'tenant_chat:messages',
     'inbox': 'social:conversations',
+    'user': 'notifications:list',
+    'arrivals': 'crm:arrivals',
+    'access': 'session:user',
+    'account': 'session:user',
   };
 
   void start() {

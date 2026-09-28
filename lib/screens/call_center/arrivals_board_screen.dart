@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 // intl exports its own TextDirection, which would shadow dart:ui's on the phone row.
 import 'package:intl/intl.dart' hide TextDirection;
@@ -6,6 +8,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/app_locales.dart';
 import '../../models/lead_arrival_model.dart';
 import '../../services/api_service.dart';
+import '../../services/sync_invalidation.dart';
 import '../../widgets/app_switch.dart';
 
 class _GroupedArrival {
@@ -43,6 +46,7 @@ class _ArrivalsBoardScreenState extends State<ArrivalsBoardScreen> {
   /// submit-gated: typing never re-filters the board under the user's finger.
   final TextEditingController _searchController = TextEditingController();
   String _search = '';
+  StreamSubscription<Map<String, String>>? _invalidationSub;
 
   bool get _hasSheetFilters => _date != null || _mineOnly;
 
@@ -53,11 +57,17 @@ class _ArrivalsBoardScreenState extends State<ArrivalsBoardScreen> {
   @override
   void initState() {
     super.initState();
+    _invalidationSub = SyncInvalidation.instance.stream.listen((event) {
+      if (event['invalidate'] == 'crm:arrivals') {
+        unawaited(_load(showSpinner: false));
+      }
+    });
     _load();
   }
 
   @override
   void dispose() {
+    _invalidationSub?.cancel();
     _searchController.dispose();
     super.dispose();
   }

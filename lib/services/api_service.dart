@@ -848,6 +848,9 @@ class ApiService {
     }
   }
 
+  /// Refresh the access token using the stored refresh token (single-flight).
+  Future<bool> refreshToken() => _refreshToken();
+
   Future<bool> _refreshToken() {
     final completer = Completer<bool>();
     _refreshTokenChain = _refreshTokenChain.then((_) async {

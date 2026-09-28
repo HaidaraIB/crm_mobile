@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,6 +13,7 @@ import '../../models/notification_model.dart';
 import '../../services/api_service.dart';
 import '../../services/notification_display.dart';
 import '../../services/notifications_unread_holder.dart';
+import '../../services/sync_invalidation.dart';
 import '../../services/notification_router.dart';
 import '../../widgets/pull_to_refresh_body.dart';
 
@@ -29,11 +32,23 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   int _unreadCount = 0;
   String _filter =
       'all'; // 'all', 'unread', 'read' — default until saved value loads
+  StreamSubscription<Map<String, String>>? _invalidationSub;
 
   @override
   void initState() {
     super.initState();
+    _invalidationSub = SyncInvalidation.instance.stream.listen((event) {
+      if (event['invalidate'] == 'notifications:list') {
+        unawaited(_refreshNotifications());
+      }
+    });
     _loadSavedFilter();
+  }
+
+  @override
+  void dispose() {
+    _invalidationSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadSavedFilter() async {

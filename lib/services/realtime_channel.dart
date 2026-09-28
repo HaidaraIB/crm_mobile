@@ -8,6 +8,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import '../core/constants/app_constants.dart';
 import '../core/storage/auth_token_storage.dart';
 import 'sync_invalidation.dart';
+import 'api_service.dart';
 import 'whatsapp_chat_unread_poller.dart';
 
 /// WebSocket delivery for the sync digest, matching the web client.
@@ -176,7 +177,7 @@ class RealtimeChannel {
         _onFrame,
         onError: (Object error) {
           debugPrint('Realtime: socket error ($error)');
-          _onDisconnected();
+          unawaited(_onDisconnected());
         },
         onDone: () {
           // 4401 is the server's "token rejected" code; anything else is an
@@ -187,7 +188,7 @@ class RealtimeChannel {
                 ? 'Realtime: token rejected (4401)'
                 : 'Realtime: socket closed (code $code)',
           );
-          _onDisconnected();
+          unawaited(_onDisconnected(closeCode: code));
         },
         cancelOnError: true,
       );
@@ -264,6 +265,11 @@ class RealtimeChannel {
       return;
     }
 
+    if (scope == 'support_conversation') {
+      SyncInvalidation.instance.emit({'invalidate': 'support_chat:messages'});
+      return;
+    }
+
     if (scope == 'conversation') {
       // One chat thread moved — a message, or one participant's read cursor.
       //
@@ -282,7 +288,7 @@ class RealtimeChannel {
     unawaited(WhatsAppChatUnreadPoller.instance.refresh());
   }
 
-  void _onDisconnected() {
+  Future<void> _onDisconnected({int? closeCode}) async {
     _connected = false;
     WhatsAppChatUnreadPoller.instance.onRealtimeConnectionChanged();
     _statusController.add(false);
@@ -291,6 +297,12 @@ class RealtimeChannel {
     _subscription?.cancel();
     _subscription = null;
     _channel = null;
+    if (closeCode == 4401) {
+      final refreshed = await ApiService().refreshToken();
+      if (refreshed) {
+        _attempt = 0;
+      }
+    }
     _scheduleReconnect();
   }
 

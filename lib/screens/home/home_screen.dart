@@ -12,6 +12,7 @@ import '../../services/realtime_channel.dart';
 import '../../services/team_chat_away_service.dart';
 import '../../services/team_chat_unread_holder.dart';
 import '../../services/whatsapp_chat_unread_holder.dart';
+import '../../services/sync_invalidation.dart';
 import '../../services/whatsapp_chat_unread_poller.dart';
 import '../../widgets/navigation_drawer.dart';
 import '../../widgets/bottom_navigation.dart';
@@ -57,6 +58,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// known fires dashboard/calendar requests that restricted roles (call center,
   /// data entry, reception) are forbidden from making.
   bool _sessionResolved = false;
+  StreamSubscription<Map<String, String>>? _sessionInvalidationSub;
 
   bool get _isDataEntry => _sessionUser?.isDataEntry ?? false;
 
@@ -90,10 +92,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _sendFCMTokenIfLoggedIn();
     // على iOS قد يتأخر استلام FCM token؛ إعادة المحاولة بعد 3 و 8 ثوانٍ لضمان حفظ التوكن في الخادم
     _scheduleFCMTokenRetries();
+    _sessionInvalidationSub = SyncInvalidation.instance.stream.listen((event) {
+      if (event['invalidate'] == 'session:user') {
+        unawaited(_loadSessionUser());
+      }
+    });
   }
 
   @override
   void dispose() {
+    _sessionInvalidationSub?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     WhatsAppChatUnreadPoller.instance.stop();
     super.dispose();

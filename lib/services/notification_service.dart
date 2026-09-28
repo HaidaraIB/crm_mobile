@@ -800,6 +800,7 @@ class NotificationService {
       debugPrint('Message data: ${message.data}');
 
       final payload = NotificationPayload.fromRemoteMessage(message);
+      _publishInvalidationFromPayload(payload);
       _notificationStreamController?.add(payload);
     });
   }

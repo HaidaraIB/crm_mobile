@@ -183,7 +183,9 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
         _apiService.getClientEvents(leadId),
         _apiService.getLeadSmsMessages(leadId),
         _apiService.getLeadWhatsAppMessages(leadId),
-        _apiService.getLeadSocialMessages(leadId),
+        canAccessSocialInbox(_currentUser)
+            ? _apiService.getLeadSocialMessages(leadId)
+            : Future.value(<LeadSocialMessageModel>[]),
       ]);
 
       if (!mounted) return;
