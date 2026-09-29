@@ -8,8 +8,7 @@ import '../core/utils/device_location.dart';
 import '../core/utils/lead_location.dart';
 import 'location_issue_dialog.dart';
 
-const _cartoTileUrl =
-    'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+const _osmTileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 
 class LeadLocationMapPicker extends StatefulWidget {
   final double? latitude;
@@ -180,10 +179,9 @@ class _LeadLocationMapPickerState extends State<LeadLocationMapPicker> {
               ),
               children: [
                 TileLayer(
-                  urlTemplate: _cartoTileUrl,
-                  subdomains: const ['a', 'b', 'c', 'd'],
+                  urlTemplate: _osmTileUrl,
                   userAgentPackageName: 'com.loopcrm.mobile',
-                  maxZoom: 20,
+                  maxZoom: 19,
                   retinaMode: RetinaMode.isHighDensity(context),
                 ),
                 if (_hasMarker)

@@ -356,6 +356,15 @@ String inferValueHintFromEditNotes(String? notes) {
   );
 }
 
+String? extractStorefrontImageUrl(String? notes) {
+  if (notes == null || notes.isEmpty) return null;
+  final match = RegExp(r'storefront_image_url:\s*(\S+)', caseSensitive: false)
+      .firstMatch(notes);
+  final url = match?.group(1)?.trim();
+  if (url == null || url.isEmpty) return null;
+  return url;
+}
+
 String localizeTimelineEventNotes(
   String? notes,
   String eventType,

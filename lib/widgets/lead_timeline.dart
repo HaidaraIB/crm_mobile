@@ -509,8 +509,7 @@ class _TimelineRow extends StatelessWidget {
                 ],
                 if (entry.type == TimelineEntryType.call)
                   _TimelineCallRecording(entry: entry, loc: loc),
-                if (entry.type == TimelineEntryType.fieldVisit &&
-                    entry.locationPhotoUrl != null &&
+                if (entry.locationPhotoUrl != null &&
                     entry.locationPhotoUrl!.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Builder(

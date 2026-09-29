@@ -425,6 +425,7 @@ List<TimelineEntry> buildLeadTimeline(TimelineBuilderInput input) {
               : pair.newFormatted,
       reason: (ce.reason?.trim().isNotEmpty ?? false) ? ce.reason!.trim() : null,
       color: eventColor,
+      locationPhotoUrl: extractStorefrontImageUrl(ce.notes),
     );
   });
 
