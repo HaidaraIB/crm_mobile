@@ -8,6 +8,7 @@ import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../services/api_service.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 /// In-app email verification (owner pre-login), matching web `/verify-email` flow.
 class PreLoginVerifyEmailScreen extends StatefulWidget {
@@ -261,7 +262,7 @@ class _PreLoginVerifyEmailScreenState extends State<PreLoginVerifyEmailScreen> {
               ),
               const SizedBox(height: 12),
               if (_showChange) ...[
-                TextField(
+                AutoDirTextField(
                   controller: _newEmailCtrl,
                   keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
@@ -288,7 +289,7 @@ class _PreLoginVerifyEmailScreenState extends State<PreLoginVerifyEmailScreen> {
                 textAlign: isRTL ? TextAlign.right : TextAlign.left,
               ),
               const SizedBox(height: 24),
-              TextField(
+              AutoDirTextField(
                 controller: _codeCtrl,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(

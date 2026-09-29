@@ -5,6 +5,7 @@ import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
 import '../../utils/build_update_diff.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class EditDeveloperModal extends StatefulWidget {
   final Developer developer;
@@ -145,7 +146,7 @@ class _EditDeveloperModalState extends State<EditDeveloperModal> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // Name
-                    TextFormField(
+                    AutoDirTextFormField(
                       controller: _nameController,
                       decoration: InputDecoration(
                         labelText: '${localizations?.translate('name') ?? 'Name'} *',

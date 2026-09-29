@@ -5,6 +5,7 @@ import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/phone_input.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class AddSupplierModal extends StatefulWidget {
   final Function(Supplier)? onSupplierCreated;
@@ -140,7 +141,7 @@ class _AddSupplierModalState extends State<AddSupplierModal> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // Name
-                      TextFormField(
+                      AutoDirTextFormField(
                         controller: _nameController,
                         decoration: InputDecoration(
                           labelText: '${localizations?.translate('name') ?? 'Name'} *',
@@ -168,7 +169,7 @@ class _AddSupplierModalState extends State<AddSupplierModal> {
                       ),
                       const SizedBox(height: 16),
                       // Email
-                      TextFormField(
+                      AutoDirTextFormField(
                         controller: _emailController,
                         decoration: InputDecoration(
                           labelText: localizations?.translate('email') ?? 'Email',
@@ -180,7 +181,7 @@ class _AddSupplierModalState extends State<AddSupplierModal> {
                       ),
                       const SizedBox(height: 16),
                       // Address
-                      TextFormField(
+                      AutoDirTextFormField(
                         controller: _addressController,
                         decoration: InputDecoration(
                           labelText: localizations?.translate('address') ?? 'Address',
@@ -192,7 +193,7 @@ class _AddSupplierModalState extends State<AddSupplierModal> {
                       ),
                       const SizedBox(height: 16),
                       // Contact Person
-                      TextFormField(
+                      AutoDirTextFormField(
                         controller: _contactPersonController,
                         decoration: InputDecoration(
                           labelText: localizations?.translate('contactPerson') ?? 'Contact Person',
@@ -203,7 +204,7 @@ class _AddSupplierModalState extends State<AddSupplierModal> {
                       ),
                       const SizedBox(height: 16),
                       // Specialization
-                      TextFormField(
+                      AutoDirTextFormField(
                         controller: _specializationController,
                         decoration: InputDecoration(
                           labelText: localizations?.translate('specialization') ?? 'Specialization',

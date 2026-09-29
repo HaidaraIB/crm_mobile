@@ -17,6 +17,7 @@ import '../../services/notification_service.dart';
 import '../home/home_screen.dart';
 import '../login/login_screen.dart';
 import '../../widgets/login_verification_gate_card.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class TwoFactorAuthScreen extends StatefulWidget {
   final String username;
@@ -501,7 +502,7 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
                                 left: index == 0 ? 0 : spacing / 2,
                                 right: index == 5 ? 0 : spacing / 2,
                               ),
-                              child: TextField(
+                              child: AutoDirTextField(
                                 controller: _codeControllers[index],
                                 focusNode: _focusNodes[index],
                                 textAlign: TextAlign.center,

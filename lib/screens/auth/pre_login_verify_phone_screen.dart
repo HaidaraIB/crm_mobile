@@ -8,6 +8,7 @@ import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../services/api_service.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 /// In-app phone OTP verification (owner pre-login), matching web `/verify-phone` flow.
 class PreLoginVerifyPhoneScreen extends StatefulWidget {
@@ -250,7 +251,7 @@ class _PreLoginVerifyPhoneScreenState extends State<PreLoginVerifyPhoneScreen> {
                 ),
               ],
               const SizedBox(height: 16),
-              TextField(
+              AutoDirTextField(
                 controller: _codeCtrl,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
@@ -308,7 +309,7 @@ class _PreLoginVerifyPhoneScreenState extends State<PreLoginVerifyPhoneScreen> {
                 ),
               ),
               if (_showChange) ...[
-                TextField(
+                AutoDirTextField(
                   controller: _newPhoneCtrl,
                   keyboardType: TextInputType.phone,
                   decoration: InputDecoration(

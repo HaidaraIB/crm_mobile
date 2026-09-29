@@ -209,7 +209,7 @@ class TeamChatThreadAppBarTitle extends StatelessWidget {
                 ),
               ),
               if (subtitle != null && subtitle!.isNotEmpty)
-                Text(
+                TeamChatIsolatedText(
                   subtitle!,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -283,7 +283,7 @@ class TeamChatGroupThreadAppBarTitle extends StatelessWidget {
                 ),
               ),
               if (subtitle != null && subtitle!.isNotEmpty)
-                Text(
+                TeamChatIsolatedText(
                   subtitle!,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,

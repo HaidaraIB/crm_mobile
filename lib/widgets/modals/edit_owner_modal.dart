@@ -6,6 +6,7 @@ import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
 import '../../utils/build_update_diff.dart';
 import '../../widgets/phone_input.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class EditOwnerModal extends StatefulWidget {
   final Owner owner;
@@ -159,7 +160,7 @@ class _EditOwnerModalState extends State<EditOwnerModal> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // Name
-                      TextFormField(
+                      AutoDirTextFormField(
                         controller: _nameController,
                         decoration: InputDecoration(
                           labelText: '${localizations?.translate('name') ?? 'Name'} *',
@@ -190,7 +191,7 @@ class _EditOwnerModalState extends State<EditOwnerModal> {
                       Row(
                         children: [
                           Expanded(
-                            child: TextFormField(
+                            child: AutoDirTextFormField(
                               controller: _cityController,
                               decoration: InputDecoration(
                                 labelText: localizations?.translate('city') ?? 'City',
@@ -202,7 +203,7 @@ class _EditOwnerModalState extends State<EditOwnerModal> {
                           ),
                           const SizedBox(width: 16),
                           Expanded(
-                            child: TextFormField(
+                            child: AutoDirTextFormField(
                               controller: _districtController,
                               decoration: InputDecoration(
                                 labelText: localizations?.translate('district') ?? 'District',

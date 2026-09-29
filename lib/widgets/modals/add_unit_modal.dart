@@ -5,6 +5,7 @@ import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
 import '../app_switch.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class AddUnitModal extends StatefulWidget {
   final Function(Unit)? onUnitCreated;
@@ -215,7 +216,7 @@ class _AddUnitModalState extends State<AddUnitModal> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               // Name
-                              TextFormField(
+                              AutoDirTextFormField(
                                 controller: _nameController,
                                 decoration: InputDecoration(
                                   labelText:
@@ -235,7 +236,7 @@ class _AddUnitModalState extends State<AddUnitModal> {
                                 },
                               ),
                               const SizedBox(height: 16),
-                              TextFormField(
+                              AutoDirTextFormField(
                                 controller: _codeController,
                                 decoration: InputDecoration(
                                   labelText:
@@ -285,7 +286,7 @@ class _AddUnitModalState extends State<AddUnitModal> {
                               Row(
                                 children: [
                                   Expanded(
-                                    child: TextFormField(
+                                    child: AutoDirTextFormField(
                                       controller: _bedroomsController,
                                       decoration: InputDecoration(
                                         labelText:
@@ -327,7 +328,7 @@ class _AddUnitModalState extends State<AddUnitModal> {
                                   ),
                                   const SizedBox(width: 16),
                                   Expanded(
-                                    child: TextFormField(
+                                    child: AutoDirTextFormField(
                                       controller: _bathroomsController,
                                       decoration: InputDecoration(
                                         labelText:
@@ -371,7 +372,7 @@ class _AddUnitModalState extends State<AddUnitModal> {
                               ),
                               const SizedBox(height: 16),
                               // Price
-                              TextFormField(
+                              AutoDirTextFormField(
                                 controller: _priceController,
                                 decoration: InputDecoration(
                                   labelText:
@@ -410,7 +411,7 @@ class _AddUnitModalState extends State<AddUnitModal> {
                               Row(
                                 children: [
                                   Expanded(
-                                    child: TextFormField(
+                                    child: AutoDirTextFormField(
                                       controller: _loungeController,
                                       decoration: InputDecoration(
                                         labelText:
@@ -434,7 +435,7 @@ class _AddUnitModalState extends State<AddUnitModal> {
                               Row(
                                 children: [
                                   Expanded(
-                                    child: TextFormField(
+                                    child: AutoDirTextFormField(
                                       controller: _areaController,
                                       decoration: InputDecoration(
                                         labelText:
@@ -609,7 +610,7 @@ class _AddUnitModalState extends State<AddUnitModal> {
                               Row(
                                 children: [
                                   Expanded(
-                                    child: TextFormField(
+                                    child: AutoDirTextFormField(
                                       controller: _cityController,
                                       decoration: InputDecoration(
                                         labelText:
@@ -625,7 +626,7 @@ class _AddUnitModalState extends State<AddUnitModal> {
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
-                                    child: TextFormField(
+                                    child: AutoDirTextFormField(
                                       controller: _districtController,
                                       decoration: InputDecoration(
                                         labelText:
@@ -643,7 +644,7 @@ class _AddUnitModalState extends State<AddUnitModal> {
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
-                                    child: TextFormField(
+                                    child: AutoDirTextFormField(
                                       controller: _zoneController,
                                       decoration: InputDecoration(
                                         labelText:

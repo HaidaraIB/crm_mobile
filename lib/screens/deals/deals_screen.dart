@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/api_error_helper.dart';
@@ -14,6 +14,9 @@ import '../../core/utils/specialization_helper.dart';
 import '../../core/utils/snackbar_helper.dart';
 import 'view_deal_screen.dart';
 import 'deal_form_screen.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
+import '../../core/utils/input_text_direction.dart';
+import '../../widgets/scrolling_single_line_text.dart';
 
 class DealsScreen extends StatefulWidget {
   const DealsScreen({super.key});
@@ -356,7 +359,7 @@ class _DealsScreenState extends State<DealsScreen> {
           // Search bar
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: TextField(
+            child: AutoDirTextField(
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: localizations?.translate('typeToSearch') ?? 'Type to search...',
@@ -450,148 +453,242 @@ class _DealsScreenState extends State<DealsScreen> {
       itemCount: _filteredDeals.length,
       itemBuilder: (context, index) {
           final deal = _filteredDeals[index];
-          return InventoryCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header with ID, client name, and status badges
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                '#${deal.id}',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            deal.clientName,
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        StatusBadge(
-                          text: _formatStage(deal.stage, localizations),
-                          color: _getStageColor(deal.stage),
-                          icon: _getStageIcon(deal.stage),
-                        ),
-                        const SizedBox(height: 8),
-                        StatusBadge(
-                          text: _formatStatus(deal.status, localizations),
-                          color: _getStatusColor(deal.status),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                // Deal details
-                if (isRealEstate) ...[
-                  if (deal.projectName != null || (deal.project is String && (deal.project as String).isNotEmpty))
-                    InfoRow(
-                      icon: Icons.business,
-                      label: localizations?.translate('project') ?? 'Project',
-                      value: deal.projectName ?? (deal.project as String? ?? '-'),
-                    ),
-                  if (deal.unitCode != null || (deal.unit is String && (deal.unit as String).isNotEmpty))
-                    InfoRow(
-                      icon: Icons.home,
-                      label: localizations?.translate('unit') ?? 'Unit',
-                      value: deal.unitCode ?? (deal.unit as String? ?? '-'),
-                    ),
-                ],
-                InfoRow(
-                  icon: Icons.payment,
-                  label: localizations?.translate('paymentMethod') ?? 'Payment Method',
-                  value: _formatPaymentMethod(deal.paymentMethod, localizations),
-                ),
-                if (deal.startDate != null)
-                  InfoRow(
-                    icon: Icons.calendar_today,
-                    label: localizations?.translate('startDate') ?? 'Start Date',
-                    value: _formatDate(deal.startDate),
-                  ),
-                if (deal.closedDate != null)
-                  InfoRow(
-                    icon: Icons.event,
-                    label: localizations?.translate('closedDate') ?? 'Closed Date',
-                    value: _formatDate(deal.closedDate),
-                  ),
-                const SizedBox(height: 12),
-                // Price display
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: PriceDisplay(price: deal.value),
-                ),
-                const SizedBox(height: 12),
-                // Action buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.visibility),
-                      onPressed: () async {
-                        final result = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ViewDealScreen(deal: deal),
-                          ),
-                        );
-                        // Refresh deals if deal was updated
-                        if (result == true) {
-                          _loadDeals();
-                        }
-                      },
-                      tooltip: localizations?.translate('view') ?? 'View',
-                      color: Colors.green,
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.edit),
-                      onPressed: () async {
-                        final result = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => DealFormScreen(deal: deal),
-                          ),
-                        );
-                        // Reload deals after editing
-                        if (result == true) {
-                          _loadDeals();
-                        }
-                      },
-                      tooltip: localizations?.translate('edit') ?? 'Edit',
-                      color: Colors.blue,
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.delete),
-                      onPressed: () => _showDeleteConfirmation(deal, localizations),
-                      tooltip: localizations?.translate('delete') ?? 'Delete',
-                      color: Colors.red,
-                    ),
-                  ],
-                ),
-              ],
-            ),
+          return _buildDealCard(
+            deal: deal,
+            localizations: localizations,
+            theme: theme,
+            isRealEstate: isRealEstate,
           );
         },
+    );
+  }
+
+  TextDirection _directionForUserContent(String text) {
+    final t = text.trim();
+    if (t.isEmpty) return Directionality.of(context);
+    if (RegExp(r'^[\d\s\-./]+$').hasMatch(t)) return TextDirection.ltr;
+    return resolveBubbleTextDirection(t);
+  }
+
+  Future<void> _openDealView(DealModel deal) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => ViewDealScreen(deal: deal)),
+    );
+    if (result == true && mounted) {
+      _loadDeals();
+    }
+  }
+
+  Widget _buildDealMetaChip({
+    required IconData icon,
+    required String label,
+    required Color color,
+    TextDirection? valueDirection,
+  }) {
+    final maxChipWidth = MediaQuery.sizeOf(context).width - 64;
+    final textWidget = Flexible(
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: color,
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxChipWidth),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Theme.of(context)
+              .colorScheme
+              .surfaceContainerHighest
+              .withValues(alpha: 0.55),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 6),
+            if (valueDirection != null)
+              Flexible(
+                child: Directionality(
+                  textDirection: valueDirection,
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: color,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              )
+            else
+              textWidget,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDealCard({
+    required DealModel deal,
+    required AppLocalizations? localizations,
+    required ThemeData theme,
+    required bool isRealEstate,
+  }) {
+    final clientName =
+        deal.clientName.trim().isNotEmpty ? deal.clientName.trim() : '-';
+    final nameStyle = TextStyle(
+      fontSize: 18,
+      fontWeight: FontWeight.w700,
+      letterSpacing: -0.2,
+      color: theme.colorScheme.onSurface,
+    );
+
+    final metaChips = <Widget>[
+      _buildDealMetaChip(
+        icon: Icons.payment_outlined,
+        label: _formatPaymentMethod(deal.paymentMethod, localizations),
+        color: theme.colorScheme.onSurfaceVariant,
+      ),
+      if (deal.startDate != null)
+        _buildDealMetaChip(
+          icon: Icons.calendar_today_outlined,
+          label: _formatDate(deal.startDate),
+          color: theme.colorScheme.onSurfaceVariant,
+          valueDirection: TextDirection.ltr,
+        ),
+      if (deal.closedDate != null)
+        _buildDealMetaChip(
+          icon: Icons.event_outlined,
+          label: _formatDate(deal.closedDate),
+          color: theme.colorScheme.onSurfaceVariant,
+          valueDirection: TextDirection.ltr,
+        ),
+    ];
+
+    if (isRealEstate) {
+      final project =
+          deal.projectName ?? (deal.project is String ? deal.project as String : null);
+      if (project != null && project.trim().isNotEmpty) {
+        metaChips.add(
+          _buildDealMetaChip(
+            icon: Icons.business_outlined,
+            label: project.trim(),
+            color: theme.colorScheme.onSurfaceVariant,
+            valueDirection: _directionForUserContent(project),
+          ),
+        );
+      }
+      final unit =
+          deal.unitCode ?? (deal.unit is String ? deal.unit as String : null);
+      if (unit != null && unit.trim().isNotEmpty) {
+        metaChips.add(
+          _buildDealMetaChip(
+            icon: Icons.home_outlined,
+            label: unit.trim(),
+            color: theme.colorScheme.onSurfaceVariant,
+            valueDirection: _directionForUserContent(unit),
+          ),
+        );
+      }
+    }
+
+    return InventoryCard(
+      onTap: () => _openDealView(deal),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Directionality(
+            textDirection: TextDirection.ltr,
+            child: Text(
+              '#${deal.id}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Directionality(
+            textDirection: resolveBubbleTextDirection(clientName),
+            child: ScrollingSingleLineText(
+              text: clientName,
+              style: nameStyle,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              StatusBadge(
+                text: _formatStage(deal.stage, localizations),
+                color: _getStageColor(deal.stage),
+                icon: _getStageIcon(deal.stage),
+              ),
+              StatusBadge(
+                text: _formatStatus(deal.status, localizations),
+                color: _getStatusColor(deal.status),
+              ),
+            ],
+          ),
+          if (metaChips.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: metaChips,
+            ),
+          ],
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Directionality(
+                    textDirection: TextDirection.ltr,
+                    child: PriceDisplay(price: deal.value),
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.edit_outlined),
+                onPressed: () async {
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => DealFormScreen(deal: deal),
+                    ),
+                  );
+                  if (result == true && mounted) {
+                    _loadDeals();
+                  }
+                },
+                tooltip: localizations?.translate('edit') ?? 'Edit',
+                color: theme.colorScheme.primary,
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline),
+                onPressed: () =>
+                    _showDeleteConfirmation(deal, localizations),
+                tooltip: localizations?.translate('delete') ?? 'Delete',
+                color: theme.colorScheme.error,
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -860,7 +957,7 @@ class _DealsScreenState extends State<DealsScreen> {
                   Row(
                     children: [
                       Expanded(
-                        child: TextField(
+                        child: AutoDirTextField(
                           controller: TextEditingController(text: _valueMin)
                             ..selection = TextSelection.collapsed(offset: _valueMin.length),
                           keyboardType: TextInputType.number,
@@ -880,7 +977,7 @@ class _DealsScreenState extends State<DealsScreen> {
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: TextField(
+                        child: AutoDirTextField(
                           controller: TextEditingController(text: _valueMax)
                             ..selection = TextSelection.collapsed(offset: _valueMax.length),
                           keyboardType: TextInputType.number,

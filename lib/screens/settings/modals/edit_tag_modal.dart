@@ -7,6 +7,7 @@ import '../../../models/settings_model.dart';
 import '../../../services/api_service.dart';
 import '../../../services/error_logger.dart';
 import 'add_tag_modal.dart' show TagColorPickerRow;
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class EditTagModal extends StatefulWidget {
   final TagModel tag;
@@ -140,7 +141,7 @@ class _EditTagModalState extends State<EditTagModal> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        TextFormField(
+                        AutoDirTextFormField(
                           controller: _nameController,
                           decoration: InputDecoration(
                             labelText: '${localizations?.translate('name') ?? 'Name'} *',
@@ -157,7 +158,7 @@ class _EditTagModalState extends State<EditTagModal> {
                           },
                         ),
                         const SizedBox(height: 16),
-                        TextFormField(
+                        AutoDirTextFormField(
                           controller: _descriptionController,
                           decoration: InputDecoration(
                             labelText:

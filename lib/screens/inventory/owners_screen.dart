@@ -10,6 +10,7 @@ import '../../widgets/inventory_card.dart';
 import '../../widgets/modals/add_owner_modal.dart';
 import '../../widgets/modals/edit_owner_modal.dart';
 import '../../widgets/pull_to_refresh_body.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class OwnersScreen extends StatefulWidget {
   const OwnersScreen({super.key});
@@ -123,7 +124,7 @@ class _OwnersScreenState extends State<OwnersScreen> {
           // Search bar
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: TextField(
+            child: AutoDirTextField(
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: localizations?.translate('typeToSearch') ?? 'Type to search...',

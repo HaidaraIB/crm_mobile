@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/snackbar_helper.dart';
 import '../../../services/api_service.dart';
 import '../../../services/error_logger.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 const List<String> kTagColorSwatches = [
   '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF',
@@ -141,7 +142,7 @@ class _AddTagModalState extends State<AddTagModal> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        TextFormField(
+                        AutoDirTextFormField(
                           controller: _nameController,
                           decoration: InputDecoration(
                             labelText: '${localizations?.translate('name') ?? 'Name'} *',
@@ -158,7 +159,7 @@ class _AddTagModalState extends State<AddTagModal> {
                           },
                         ),
                         const SizedBox(height: 16),
-                        TextFormField(
+                        AutoDirTextFormField(
                           controller: _descriptionController,
                           decoration: InputDecoration(
                             labelText:

@@ -6,6 +6,7 @@ import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
 import '../../utils/build_update_diff.dart';
 import '../../widgets/phone_input.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class EditServiceProviderModal extends StatefulWidget {
   final ServiceProvider provider;
@@ -159,7 +160,7 @@ class _EditServiceProviderModalState extends State<EditServiceProviderModal> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // Name
-                      TextFormField(
+                      AutoDirTextFormField(
                         controller: _nameController,
                         decoration: InputDecoration(
                           labelText: '${localizations?.translate('name') ?? 'Name'} *',
@@ -187,7 +188,7 @@ class _EditServiceProviderModalState extends State<EditServiceProviderModal> {
                       ),
                       const SizedBox(height: 16),
                       // Email
-                      TextFormField(
+                      AutoDirTextFormField(
                         controller: _emailController,
                         decoration: InputDecoration(
                           labelText: localizations?.translate('email') ?? 'Email',
@@ -199,7 +200,7 @@ class _EditServiceProviderModalState extends State<EditServiceProviderModal> {
                       ),
                       const SizedBox(height: 16),
                       // Specialization
-                      TextFormField(
+                      AutoDirTextFormField(
                         controller: _specializationController,
                         decoration: InputDecoration(
                           labelText: localizations?.translate('specialization') ?? 'Specialization',

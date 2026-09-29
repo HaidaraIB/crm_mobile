@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class AddProjectModal extends StatefulWidget {
   final Function(Project)? onProjectCreated;
@@ -177,7 +178,7 @@ class _AddProjectModalState extends State<AddProjectModal> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             // Name
-                            TextFormField(
+                            AutoDirTextFormField(
                               controller: _nameController,
                               decoration: InputDecoration(
                                 labelText: '${localizations?.translate('name') ?? 'Name'} *',
@@ -225,7 +226,7 @@ class _AddProjectModalState extends State<AddProjectModal> {
                             Row(
                               children: [
                                 Expanded(
-                                  child: TextFormField(
+                                  child: AutoDirTextFormField(
                                     controller: _typeController,
                                     decoration: InputDecoration(
                                       labelText: localizations?.translate('type') ?? 'Type',
@@ -237,7 +238,7 @@ class _AddProjectModalState extends State<AddProjectModal> {
                                 ),
                                 const SizedBox(width: 16),
                                 Expanded(
-                                  child: TextFormField(
+                                  child: AutoDirTextFormField(
                                     controller: _cityController,
                                     decoration: InputDecoration(
                                       labelText: localizations?.translate('city') ?? 'City',
@@ -251,7 +252,7 @@ class _AddProjectModalState extends State<AddProjectModal> {
                             ),
                             const SizedBox(height: 16),
                             // Payment Method
-                            TextFormField(
+                            AutoDirTextFormField(
                               controller: _paymentMethodController,
                               decoration: InputDecoration(
                                 labelText: localizations?.translate('paymentMethod') ?? 'Payment Method',

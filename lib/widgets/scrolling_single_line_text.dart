@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../core/utils/input_text_direction.dart';
+
 /// Gap between repeated copies (seamless loop).
 const double _kMarqueeGap = 28.0;
 
@@ -20,11 +22,12 @@ class ScrollingSingleLineText extends StatelessWidget {
     final effectiveStyle = style ?? DefaultTextStyle.of(context).style;
     final textScaler = MediaQuery.textScalerOf(context);
     final textDir = Directionality.of(context);
+    final shown = bidiIsolate(text);
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final tp = TextPainter(
-          text: TextSpan(text: text, style: effectiveStyle),
+          text: TextSpan(text: shown, style: effectiveStyle),
           textDirection: textDir,
           maxLines: 1,
           textScaler: textScaler,
@@ -34,7 +37,7 @@ class ScrollingSingleLineText extends StatelessWidget {
 
         if (fits) {
           return Text(
-            text,
+            shown,
             maxLines: 1,
             overflow: TextOverflow.clip,
             style: effectiveStyle,
@@ -43,7 +46,7 @@ class ScrollingSingleLineText extends StatelessWidget {
 
         return _HorizontalMarquee(
           key: ValueKey<String>('${text}_${constraints.maxWidth.floor()}'),
-          text: text,
+          text: shown,
           style: effectiveStyle,
           textWidth: textWidth,
           viewportWidth: constraints.maxWidth,

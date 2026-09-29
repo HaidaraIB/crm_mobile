@@ -8,6 +8,7 @@ import '../../../services/api_service.dart';
 import '../../../services/error_logger.dart';
 import '../../../utils/build_update_diff.dart';
 import '../../../widgets/app_switch.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 class EditVisitTypeModal extends StatefulWidget {
   final VisitTypeModel visitType;
   final VoidCallback? onVisitTypeUpdated;
@@ -175,7 +176,7 @@ class _EditVisitTypeModalState extends State<EditVisitTypeModal> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        TextFormField(
+                        AutoDirTextFormField(
                           controller: _nameController,
                           decoration: InputDecoration(
                             labelText:
@@ -192,7 +193,7 @@ class _EditVisitTypeModalState extends State<EditVisitTypeModal> {
                           },
                         ),
                         const SizedBox(height: 16),
-                        TextFormField(
+                        AutoDirTextFormField(
                           controller: _descriptionController,
                           decoration: InputDecoration(
                             labelText: localizations?.translate('description') ?? 'Description',

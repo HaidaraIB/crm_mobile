@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/localization/app_localizations.dart';
 import '../core/theme/app_theme.dart';
 import '../models/settings_model.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 /// Collects the mandatory justification for moving a lead into a status that was
 /// flagged `requires_change_reason` in settings.
@@ -61,7 +62,7 @@ class _StatusChangeReasonDialogState extends State<StatusChangeReasonDialog> {
             ),
             const SizedBox(height: 12),
           ],
-          TextField(
+          AutoDirTextField(
             controller: _controller,
             autofocus: true,
             maxLines: 3,

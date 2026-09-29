@@ -29,6 +29,7 @@ import '../../utils/social_inbox_access.dart';
 import '../../utils/whatsapp_access.dart';
 import '../social_inbox/social_inbox_list_screen.dart';
 import '../../utils/whatsapp_launch.dart';
+import '../../widgets/bidi_text.dart';
 import '../../widgets/status_change_reason_dialog.dart';
 import '../../widgets/modals/assign_lead_modal.dart';
 import '../../widgets/modals/add_action_modal.dart';
@@ -2610,7 +2611,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
+                ContentDirText(
                   value,
                   style: TextStyle(
                     fontSize: 15,

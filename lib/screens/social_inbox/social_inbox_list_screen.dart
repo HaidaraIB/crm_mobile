@@ -12,9 +12,11 @@ import '../../models/social_conversation_model.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
 import '../../utils/social_inbox_access.dart';
-import '../../utils/social_message_body_localize.dart';
+import '../../utils/whatsapp_message_body_localize.dart';
+import '../../widgets/bidi_text.dart';
 import '../../widgets/chat/chat_conversation_status_menu.dart';
 import 'social_inbox_thread_screen.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 /// Omni-Channel Inbox — Instagram DM + Messenger conversation list.
 ///
@@ -210,7 +212,7 @@ class _Filters extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          TextField(
+          AutoDirTextField(
             onChanged: onSearch,
             decoration: InputDecoration(
               hintText: t('search'),
@@ -292,7 +294,7 @@ class _ConversationTile extends StatelessWidget {
     final unread = conversation.unreadCount;
     final rawPreview = conversation.lastMessagePreview.trim();
     final preview = rawPreview.isNotEmpty
-        ? localizeSocialMessageBody(rawPreview, null, false, t)
+        ? localizeWhatsAppListPreview(rawPreview, t)
         : t(
             conversation.isWhatsapp
                 ? 'whatsapp'
@@ -349,7 +351,7 @@ class _ConversationTile extends StatelessWidget {
                     Row(
                       children: [
                         Expanded(
-                          child: Text(
+                          child: IsolatedText(
                             label,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -380,7 +382,7 @@ class _ConversationTile extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Expanded(
-                          child: Text(
+                          child: IsolatedText(
                             preview,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,

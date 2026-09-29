@@ -13,6 +13,7 @@ import '../../core/utils/snackbar_helper.dart';
 import '../../services/api_service.dart';
 import '../../utils/compress_image_for_chat.dart';
 import '../media/open_app_media_viewer.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 const _maxPhotoBytes = 5 * 1024 * 1024;
 const _allowedExtensions = {'.jpg', '.jpeg', '.png', '.gif', '.webp'};
@@ -396,7 +397,7 @@ class _AddFieldVisitModalState extends State<AddFieldVisitModal> {
                       style: theme.textTheme.titleMedium,
                     ),
                     const SizedBox(height: 8),
-                    TextField(
+                    AutoDirTextField(
                       controller: _summaryController,
                       maxLines: 4,
                       enabled: !busy,

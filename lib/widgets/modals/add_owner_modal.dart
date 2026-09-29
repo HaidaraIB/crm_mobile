@@ -5,6 +5,7 @@ import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/phone_input.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class AddOwnerModal extends StatefulWidget {
   final Function(Owner)? onOwnerCreated;
@@ -134,7 +135,7 @@ class _AddOwnerModalState extends State<AddOwnerModal> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // Name
-                      TextFormField(
+                      AutoDirTextFormField(
                         controller: _nameController,
                         decoration: InputDecoration(
                           labelText: '${localizations?.translate('name') ?? 'Name'} *',
@@ -165,7 +166,7 @@ class _AddOwnerModalState extends State<AddOwnerModal> {
                       Row(
                         children: [
                           Expanded(
-                            child: TextFormField(
+                            child: AutoDirTextFormField(
                               controller: _cityController,
                               decoration: InputDecoration(
                                 labelText: localizations?.translate('city') ?? 'City',
@@ -177,7 +178,7 @@ class _AddOwnerModalState extends State<AddOwnerModal> {
                           ),
                           const SizedBox(width: 16),
                           Expanded(
-                            child: TextFormField(
+                            child: AutoDirTextFormField(
                               controller: _districtController,
                               decoration: InputDecoration(
                                 labelText: localizations?.translate('district') ?? 'District',

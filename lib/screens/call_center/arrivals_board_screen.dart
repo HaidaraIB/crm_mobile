@@ -10,6 +10,7 @@ import '../../models/lead_arrival_model.dart';
 import '../../services/api_service.dart';
 import '../../services/sync_invalidation.dart';
 import '../../widgets/app_switch.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class _GroupedArrival {
   final LeadArrivalModel latest;
@@ -236,7 +237,7 @@ class _ArrivalsBoardScreenState extends State<ArrivalsBoardScreen> {
           return Row(
             children: [
               Expanded(
-                child: TextField(
+                child: AutoDirTextField(
                   controller: _searchController,
                   textInputAction: TextInputAction.search,
                   onSubmitted: (_) => _submitSearch(),

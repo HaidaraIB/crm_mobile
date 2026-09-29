@@ -8,6 +8,7 @@ import '../../../services/api_service.dart';
 import '../../../services/error_logger.dart';
 import '../../../utils/build_update_diff.dart';
 import '../../../widgets/app_switch.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 class EditChannelModal extends StatefulWidget {
   final ChannelModel channel;
   final VoidCallback? onChannelUpdated;
@@ -278,7 +279,7 @@ class _EditChannelModalState extends State<EditChannelModal> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         // Name
-                        TextFormField(
+                        AutoDirTextFormField(
                           controller: _nameController,
                           decoration: InputDecoration(
                             labelText: '${localizations?.translate('name') ?? 'Name'} *',

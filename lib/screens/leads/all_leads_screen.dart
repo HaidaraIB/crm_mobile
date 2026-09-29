@@ -13,6 +13,7 @@ import '../../models/lead_model.dart';
 import '../../models/settings_model.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
+import '../../widgets/bidi_text.dart';
 import '../../widgets/status_change_reason_dialog.dart';
 import '../../widgets/modals/add_action_modal.dart';
 import '../../widgets/modals/add_call_modal.dart';
@@ -33,6 +34,7 @@ import 'import_leads_screen.dart';
 import 'lead_profile_screen.dart';
 import '../../services/leads_excel_service.dart';
 import '../../utils/whatsapp_launch.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 /// Label/checkmark color on selected filter chips (readable on tinted fills).
 Color _filterChipOnBase(Color baseColor) {
@@ -1013,7 +1015,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                     child: Row(
                       children: [
                         Expanded(
-                          child: TextField(
+                          child: AutoDirTextField(
                             controller: _searchController,
                             textInputAction: TextInputAction.search,
                             onSubmitted: (_) => _submitSearch(),
@@ -1524,7 +1526,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                               if (lead.leadCompanyName != null &&
                                   lead.leadCompanyName!.trim().isNotEmpty) ...[
                                 const SizedBox(height: 4),
-                                Text(
+                                IsolatedText(
                                   lead.leadCompanyName!,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -1537,7 +1539,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                               if (lead.profession != null &&
                                   lead.profession!.trim().isNotEmpty) ...[
                                 const SizedBox(height: 4),
-                                Text(
+                                IsolatedText(
                                   lead.profession!,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,

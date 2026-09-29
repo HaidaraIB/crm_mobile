@@ -12,6 +12,7 @@ import '../../core/utils/specialization_helper.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../core/utils/lead_assignee_users.dart';
 import '../../utils/build_update_diff.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class DealFormScreen extends StatefulWidget {
   final DealModel? deal;
@@ -724,7 +725,7 @@ class _DealFormScreenState extends State<DealFormScreen> {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    TextFormField(
+                    AutoDirTextFormField(
                       controller: _startDateController,
                       decoration: InputDecoration(
                         labelText: localizations?.translate('startDate') ?? 'Start Date',
@@ -753,7 +754,7 @@ class _DealFormScreenState extends State<DealFormScreen> {
                       },
                     ),
                     const SizedBox(height: 16),
-                    TextFormField(
+                    AutoDirTextFormField(
                       controller: _closedDateController,
                       decoration: InputDecoration(
                         labelText: localizations?.translate('closedDate') ?? 'Closed Date',
@@ -782,7 +783,7 @@ class _DealFormScreenState extends State<DealFormScreen> {
                       },
                     ),
                     const SizedBox(height: 16),
-                    TextFormField(
+                    AutoDirTextFormField(
                       controller: _reminderDateController,
                       decoration: InputDecoration(
                         labelText: localizations?.translate('reminder') ?? 'Reminder',
@@ -841,7 +842,7 @@ class _DealFormScreenState extends State<DealFormScreen> {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    TextFormField(
+                    AutoDirTextFormField(
                       initialValue: _formState['value'],
                       decoration: InputDecoration(
                         labelText: '${localizations?.translate('value') ?? 'Value'} *',
@@ -872,7 +873,7 @@ class _DealFormScreenState extends State<DealFormScreen> {
                       },
                     ),
                     const SizedBox(height: 16),
-                    TextFormField(
+                    AutoDirTextFormField(
                       initialValue: _formState['discountPercentage'],
                       decoration: InputDecoration(
                         labelText: localizations?.translate('discountPercentage') ?? 'Discount Percentage',
@@ -890,7 +891,7 @@ class _DealFormScreenState extends State<DealFormScreen> {
                       },
                     ),
                     const SizedBox(height: 16),
-                    TextFormField(
+                    AutoDirTextFormField(
                       controller: _discountAmountController,
                       decoration: InputDecoration(
                         labelText: localizations?.translate('discountAmount') ?? 'Discount Amount',
@@ -903,7 +904,7 @@ class _DealFormScreenState extends State<DealFormScreen> {
                       enabled: false,
                     ),
                     const SizedBox(height: 16),
-                    TextFormField(
+                    AutoDirTextFormField(
                       controller: _totalValueController,
                       decoration: InputDecoration(
                         labelText: localizations?.translate('totalValue') ?? 'Total Value',
@@ -921,7 +922,7 @@ class _DealFormScreenState extends State<DealFormScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    TextFormField(
+                    AutoDirTextFormField(
                       initialValue: _formState['salesCommissionPercentage'],
                       decoration: InputDecoration(
                         labelText: localizations?.translate('salesCommissionPercentage') ?? 'Sales Commission Percentage',
@@ -939,7 +940,7 @@ class _DealFormScreenState extends State<DealFormScreen> {
                       },
                     ),
                     const SizedBox(height: 16),
-                    TextFormField(
+                    AutoDirTextFormField(
                       controller: _salesCommissionAmountController,
                       decoration: InputDecoration(
                         labelText: localizations?.translate('salesCommissionAmount') ?? 'Sales Commission Amount',
@@ -1039,7 +1040,7 @@ class _DealFormScreenState extends State<DealFormScreen> {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    TextFormField(
+                    AutoDirTextFormField(
                       initialValue: _formState['description'],
                       decoration: InputDecoration(
                         labelText: localizations?.translate('description') ?? 'Description',

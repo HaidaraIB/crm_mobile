@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../../../models/tenant_chat_models.dart';
 import '../team_chat_common.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class TeamChatForwardSheet extends StatelessWidget {
   const TeamChatForwardSheet({
@@ -34,7 +35,7 @@ class TeamChatForwardSheet extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: TextField(
+            child: AutoDirTextField(
               controller: captionController,
               decoration: InputDecoration(
                 labelText: t('teamChatForwardCaption'),

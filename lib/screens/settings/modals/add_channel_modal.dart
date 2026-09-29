@@ -6,6 +6,7 @@ import '../../../core/utils/snackbar_helper.dart';
 import '../../../services/api_service.dart';
 import '../../../services/error_logger.dart';
 import '../../../widgets/app_switch.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class AddChannelModal extends StatefulWidget {
   final VoidCallback? onChannelCreated;
@@ -210,7 +211,7 @@ class _AddChannelModalState extends State<AddChannelModal> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         // Name
-                        TextFormField(
+                        AutoDirTextFormField(
                           controller: _nameController,
                           decoration: InputDecoration(
                             labelText: '${localizations?.translate('name') ?? 'Name'} *',

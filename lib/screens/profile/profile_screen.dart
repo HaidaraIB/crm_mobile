@@ -13,6 +13,7 @@ import '../../widgets/media/open_app_media_viewer.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/phone_input.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -427,7 +428,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
 
               // First Name Field
-              TextFormField(
+              AutoDirTextFormField(
                 controller: _firstNameController,
                 decoration: InputDecoration(
                   labelText: localizations?.translate('firstName') ?? 'First Name',
@@ -447,7 +448,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 16),
 
               // Last Name Field
-              TextFormField(
+              AutoDirTextFormField(
                 controller: _lastNameController,
                 decoration: InputDecoration(
                   labelText: localizations?.translate('lastName') ?? 'Last Name',
@@ -467,7 +468,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 16),
 
               // Email Field (Read-only)
-              TextFormField(
+              AutoDirTextFormField(
                 controller: _emailController,
                 decoration: InputDecoration(
                   labelText: localizations?.translate('email') ?? 'Email',

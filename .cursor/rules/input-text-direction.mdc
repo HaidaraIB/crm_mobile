@@ -1,0 +1,28 @@
+---
+description: Text fields follow first strong letter; structured keyboards stay LTR
+alwaysApply: true
+---
+
+# Input text direction (first letter)
+
+Free-text fields use the **first strong letter** for `textDirection` (Arabic/Hebrew → RTL, Latin → LTR). Digits/punctuation are skipped. **Empty** text follows the UI locale (Arabic UI → RTL).
+
+## Required pattern
+
+Use [`AutoDirTextField`](lib/widgets/auto_dir_text_field.dart) / [`AutoDirTextFormField`](lib/widgets/auto_dir_text_field.dart) instead of raw `TextField` / `TextFormField` for user-entered text.
+
+Logic lives in [`lib/core/utils/input_text_direction.dart`](lib/core/utils/input_text_direction.dart) (`composerTextDirection`, `resolveInputTextDirection`). Chat code re-exports via [`lib/widgets/chat/chat_text_direction.dart`](lib/widgets/chat/chat_text_direction.dart).
+
+- Caller passes **`textDirection`** → wrapper does not override (phones, pinned LTR numbers).
+- **`keyboardType`** phone, email, URL, number, datetime → forced LTR.
+- [`chat_composer_shell.dart`](lib/widgets/chat/chat_composer_shell.dart) may keep explicit `TextField` + `composerTextDirection` (same semantics).
+
+## Anti-patterns
+
+- Do **not** set `textDirection` from UI locale alone on name/search/note fields.
+- Do **not** use `getTextDirection`-style “any RTL char in string” for inputs (web row helper only).
+
+## Related
+
+- Phone display/input: LTR (`PhoneInput`, `textDirection: TextDirection.ltr`).
+- Bubble text: `resolveBubbleTextDirection` (first strong char; empty → LTR).

@@ -78,3 +78,45 @@ String localizeWhatsAppMessageBody(String? body, String Function(String key) t) 
   }
   return raw;
 }
+
+/// English snippets the API puts on conversation rows (`Photo`, `Video: caption`).
+/// List-only: a real message body that is the word "Video" stays as written in the thread.
+/// Parity with web `localizeWhatsAppListPreview`.
+String localizeWhatsAppListPreview(String? preview, String Function(String key) t) {
+  final trimmed = (preview ?? '').trim();
+  if (trimmed.isEmpty) return '';
+
+  final asStub = localizeWhatsAppMessageBody(trimmed, t);
+  if (asStub != trimmed) return asStub;
+
+  const labels = <String, String>{
+    'photo': 'teamChatMediaPhoto',
+    'video': 'whatsappMediaVideo',
+    'voice message': 'teamChatMediaAudio',
+    'document': 'whatsappMediaDocument',
+    'file': 'whatsappMediaDocument',
+    'image': 'whatsappMediaImage',
+    'audio': 'whatsappMediaAudio',
+    'sticker': 'whatsappMediaSticker',
+    'location': 'whatsappMediaLocation',
+    'shared post': 'sharedPost',
+    'story mention': 'storyMention',
+    'reel': 'sharedReel',
+  };
+
+  final exact = labels[trimmed.toLowerCase()];
+  if (exact != null) return t(exact);
+
+  final splitAt = trimmed.indexOf(': ');
+  if (splitAt > 0) {
+    final headKey = labels[trimmed.substring(0, splitAt).toLowerCase()];
+    if (headKey != null) {
+      final rest = trimmed.substring(splitAt + 2).trim();
+      if (rest.isEmpty) return t(headKey);
+      final restLocalized = localizeWhatsAppMessageBody(rest, t);
+      if (restLocalized != rest) return t(headKey);
+      return '${t(headKey)}: $restLocalized';
+    }
+  }
+  return trimmed;
+}

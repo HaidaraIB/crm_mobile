@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/settings_model.dart';
 import '../../services/api_service.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class AddActionModal extends StatefulWidget {
   final int leadId;
@@ -284,7 +285,7 @@ class _AddActionModalState extends State<AddActionModal> {
                       style: theme.textTheme.titleMedium,
                     ),
                     const SizedBox(height: 8),
-                    TextField(
+                    AutoDirTextField(
                       controller: _notesController,
                       maxLines: 5,
                       decoration: InputDecoration(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class LeadDetailsScreen extends StatefulWidget {
   final int leadId;
@@ -33,7 +34,7 @@ class _LeadDetailsScreenState extends State<LeadDetailsScreen> {
           // Search/Notes Input
           Padding(
             padding: const EdgeInsets.all(16),
-            child: TextField(
+            child: AutoDirTextField(
               decoration: InputDecoration(
                 hintText: localizations?.translate('notes') ?? 'Notes',
                 border: OutlineInputBorder(

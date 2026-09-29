@@ -8,6 +8,7 @@ import '../../../services/api_service.dart';
 import '../../../services/error_logger.dart';
 import '../../../utils/build_update_diff.dart';
 import '../../../widgets/app_switch.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 class EditStageModal extends StatefulWidget {
   final StageModel stage;
   final VoidCallback? onStageUpdated;
@@ -190,7 +191,7 @@ class _EditStageModalState extends State<EditStageModal> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         // Name
-                        TextFormField(
+                        AutoDirTextFormField(
                           controller: _nameController,
                           decoration: InputDecoration(
                             labelText: '${localizations?.translate('stageName') ?? 'Stage Name'} *',
@@ -207,7 +208,7 @@ class _EditStageModalState extends State<EditStageModal> {
                         ),
                         const SizedBox(height: 16),
                         // Description
-                        TextFormField(
+                        AutoDirTextFormField(
                           controller: _descriptionController,
                           decoration: InputDecoration(
                             labelText: localizations?.translate('description') ?? 'Description',

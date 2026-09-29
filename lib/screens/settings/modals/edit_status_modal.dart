@@ -9,6 +9,7 @@ import '../../../services/api_service.dart';
 import '../../../services/error_logger.dart';
 import '../../../utils/build_update_diff.dart';
 import '../../../widgets/app_switch.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 class EditStatusModal extends StatefulWidget {
   final StatusModel status;
   final VoidCallback? onStatusUpdated;
@@ -274,7 +275,7 @@ class _EditStatusModalState extends State<EditStatusModal> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         // Name
-                        TextFormField(
+                        AutoDirTextFormField(
                           controller: _nameController,
                           decoration: InputDecoration(
                             labelText: '${localizations?.translate('name') ?? 'Name'} *',
@@ -291,7 +292,7 @@ class _EditStatusModalState extends State<EditStatusModal> {
                         ),
                         const SizedBox(height: 16),
                         // Description
-                        TextFormField(
+                        AutoDirTextFormField(
                           controller: _descriptionController,
                           decoration: InputDecoration(
                             labelText: localizations?.translate('description') ?? 'Description',
@@ -309,7 +310,7 @@ class _EditStatusModalState extends State<EditStatusModal> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        TextFormField(
+                        AutoDirTextFormField(
                           controller: _autoDeleteHoursController,
                           decoration: InputDecoration(
                             labelText: localizations?.translate('hoursInStatusLabel') ??

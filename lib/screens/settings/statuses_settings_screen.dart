@@ -7,6 +7,7 @@ import '../../core/utils/snackbar_helper.dart';
 import '../../models/settings_model.dart';
 import '../../services/api_service.dart';
 import '../../services/error_logger.dart';
+import '../../widgets/bidi_text.dart';
 import '../../widgets/pull_to_refresh_body.dart';
 import 'modals/add_status_modal.dart';
 import 'modals/edit_status_modal.dart';
@@ -279,7 +280,7 @@ class _StatusesSettingsScreenState extends State<StatusesSettingsScreen> {
                                         ),
                                         if (status.description != null && status.description!.isNotEmpty) ...[
                                           const SizedBox(height: 6),
-                                          Text(
+                                          ContentDirText(
                                             status.description!,
                                             style: theme.textTheme.bodySmall?.copyWith(
                                               color: theme.colorScheme.onSurfaceVariant,

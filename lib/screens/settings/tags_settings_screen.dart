@@ -7,6 +7,7 @@ import '../../core/utils/snackbar_helper.dart';
 import '../../models/settings_model.dart';
 import '../../services/api_service.dart';
 import '../../services/error_logger.dart';
+import '../../widgets/bidi_text.dart';
 import '../../widgets/pull_to_refresh_body.dart';
 import 'modals/add_tag_modal.dart';
 import 'modals/edit_tag_modal.dart';
@@ -219,7 +220,7 @@ class _TagsSettingsScreenState extends State<TagsSettingsScreen> {
                                       if (tag.description != null &&
                                           tag.description!.isNotEmpty) ...[
                                         const SizedBox(height: 6),
-                                        Text(
+                                        ContentDirText(
                                           tag.description!,
                                           style: theme.textTheme.bodySmall?.copyWith(
                                             color: theme.colorScheme.onSurfaceVariant,

@@ -5,6 +5,7 @@ import '../../core/utils/api_error_helper.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
+import '../../widgets/bidi_text.dart';
 import '../../widgets/inventory_card.dart';
 import '../../widgets/modals/add_service_modal.dart';
 import '../../widgets/modals/edit_service_modal.dart';
@@ -13,6 +14,7 @@ import '../../widgets/modals/edit_service_package_modal.dart';
 import '../../widgets/modals/add_service_provider_modal.dart';
 import '../../widgets/modals/edit_service_provider_modal.dart';
 import '../../widgets/pull_to_refresh_body.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class ServicesInventoryScreen extends StatefulWidget {
   const ServicesInventoryScreen({super.key});
@@ -205,7 +207,7 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
           // Search bar
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: TextField(
+            child: AutoDirTextField(
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: localizations?.translate('typeToSearch') ?? 'Type to search...',
@@ -357,7 +359,7 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
                 ),
               if (service.description != null && service.description!.isNotEmpty) ...[
                 const SizedBox(height: 4),
-                Text(
+                ContentDirText(
                   service.description!,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
@@ -487,7 +489,7 @@ class _ServicesInventoryScreenState extends State<ServicesInventoryScreen> with 
               const SizedBox(height: 20),
               // Details
               if (pkg.description != null && pkg.description!.isNotEmpty) ...[
-                Text(
+                ContentDirText(
                   pkg.description!,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.8),

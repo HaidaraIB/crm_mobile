@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class AddDeveloperModal extends StatefulWidget {
   final Function(Developer)? onDeveloperCreated;
@@ -123,7 +124,7 @@ class _AddDeveloperModalState extends State<AddDeveloperModal> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // Name
-                    TextFormField(
+                    AutoDirTextFormField(
                       controller: _nameController,
                       decoration: InputDecoration(
                         labelText: '${localizations?.translate('name') ?? 'Name'} *',

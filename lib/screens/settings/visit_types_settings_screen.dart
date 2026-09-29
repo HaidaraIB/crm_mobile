@@ -6,6 +6,7 @@ import '../../core/utils/snackbar_helper.dart';
 import '../../models/settings_model.dart';
 import '../../services/api_service.dart';
 import '../../services/error_logger.dart';
+import '../../widgets/bidi_text.dart';
 import '../../widgets/pull_to_refresh_body.dart';
 import 'modals/add_visit_type_modal.dart';
 import 'modals/edit_visit_type_modal.dart';
@@ -276,7 +277,7 @@ class _VisitTypesSettingsScreenState extends State<VisitTypesSettingsScreen> {
                                         ),
                                         if (vt.description != null && vt.description!.isNotEmpty) ...[
                                           const SizedBox(height: 6),
-                                          Text(
+                                          ContentDirText(
                                             vt.description!,
                                             style: theme.textTheme.bodySmall?.copyWith(
                                               color: theme.colorScheme.onSurfaceVariant,

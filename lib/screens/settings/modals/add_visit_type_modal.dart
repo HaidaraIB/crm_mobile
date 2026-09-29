@@ -6,6 +6,7 @@ import '../../../core/utils/snackbar_helper.dart';
 import '../../../services/api_service.dart';
 import '../../../services/error_logger.dart';
 import '../../../widgets/app_switch.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class AddVisitTypeModal extends StatefulWidget {
   final VoidCallback? onVisitTypeCreated;
@@ -132,7 +133,7 @@ class _AddVisitTypeModalState extends State<AddVisitTypeModal> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        TextFormField(
+                        AutoDirTextFormField(
                           controller: _nameController,
                           decoration: InputDecoration(
                             labelText:
@@ -149,7 +150,7 @@ class _AddVisitTypeModalState extends State<AddVisitTypeModal> {
                           },
                         ),
                         const SizedBox(height: 16),
-                        TextFormField(
+                        AutoDirTextFormField(
                           controller: _descriptionController,
                           decoration: InputDecoration(
                             labelText: localizations?.translate('description') ?? 'Description',

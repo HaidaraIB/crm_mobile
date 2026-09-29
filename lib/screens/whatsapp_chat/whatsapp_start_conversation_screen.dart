@@ -8,6 +8,7 @@ import '../../models/lead_model.dart';
 import '../../services/api_service.dart';
 import '../../utils/whatsapp_manual_chats_storage.dart';
 import '../../widgets/whatsapp_chat/whatsapp_phone_text.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class WhatsAppStartConversationResult {
   const WhatsAppStartConversationResult({
@@ -182,7 +183,7 @@ class _WhatsAppStartConversationScreenState
         children: [
           Text(t('enterPhoneNumber'), style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 8),
-          TextField(
+          AutoDirTextField(
             controller: _phoneCtrl,
             keyboardType: TextInputType.phone,
             textDirection: TextDirection.ltr,
@@ -206,7 +207,7 @@ class _WhatsAppStartConversationScreenState
           const SizedBox(height: 24),
           Text(t('chooseClientFromDb'), style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 8),
-          TextField(
+          AutoDirTextField(
             controller: _searchCtrl,
             onChanged: _onSearchChanged,
             decoration: InputDecoration(

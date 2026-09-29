@@ -6,6 +6,7 @@ import '../../core/localization/app_localizations.dart';
 import '../../models/company_library_file_model.dart';
 import '../../services/api_service.dart';
 import 'whatsapp_chat_theme.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 /// Result of picking a Company Library file: the downloaded local path plus the
 /// attachment kind the WhatsApp composer expects.
@@ -163,7 +164,7 @@ class _CompanyLibraryPickerSheetState extends State<CompanyLibraryPickerSheet> {
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: TextField(
+              child: AutoDirTextField(
                 controller: _searchCtrl,
                 onChanged: _onSearchChanged,
                 decoration: InputDecoration(

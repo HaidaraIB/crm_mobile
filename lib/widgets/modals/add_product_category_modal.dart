@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class AddProductCategoryModal extends StatefulWidget {
   final Function(ProductCategory)? onCategoryCreated;
@@ -158,7 +159,7 @@ class _AddProductCategoryModalState extends State<AddProductCategoryModal> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             // Name
-                            TextFormField(
+                            AutoDirTextFormField(
                               controller: _nameController,
                               decoration: InputDecoration(
                                 labelText: '${localizations?.translate('name') ?? 'Name'} *',
@@ -175,7 +176,7 @@ class _AddProductCategoryModalState extends State<AddProductCategoryModal> {
                             ),
                             const SizedBox(height: 16),
                             // Description
-                            TextFormField(
+                            AutoDirTextFormField(
                               controller: _descriptionController,
                               decoration: InputDecoration(
                                 labelText: localizations?.translate('description') ?? 'Description',

@@ -13,6 +13,7 @@ import '../../widgets/modals/edit_project_modal.dart';
 import '../../widgets/modals/add_unit_modal.dart';
 import '../../widgets/modals/edit_unit_modal.dart';
 import '../../widgets/pull_to_refresh_body.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class PropertiesInventoryScreen extends StatefulWidget {
   const PropertiesInventoryScreen({super.key});
@@ -211,7 +212,7 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
           // Search bar
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: TextField(
+            child: AutoDirTextField(
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: localizations?.translate('typeToSearch') ?? 'Type to search...',

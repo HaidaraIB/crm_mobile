@@ -4,6 +4,7 @@ import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../services/api_service.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class SendSMSModal extends StatefulWidget {
   final int leadId;
@@ -292,7 +293,7 @@ class _SendSMSModalState extends State<SendSMSModal> {
                 ),
               ),
               const SizedBox(height: 16),
-              TextField(
+              AutoDirTextField(
                 controller: _messageController,
                 maxLines: 4,
                 decoration: InputDecoration(

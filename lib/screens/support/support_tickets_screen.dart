@@ -10,6 +10,7 @@ import '../../models/support_ticket_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/media/open_app_media_viewer.dart';
 import '../../widgets/pull_to_refresh_body.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class SupportTicketsScreen extends StatefulWidget {
   const SupportTicketsScreen({super.key});
@@ -195,7 +196,7 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
                                 ?.copyWith(fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 12),
-                          TextFormField(
+                          AutoDirTextFormField(
                             controller: _titleController,
                             decoration: InputDecoration(
                               labelText:
@@ -218,7 +219,7 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
                             },
                           ),
                           const SizedBox(height: 12),
-                          TextFormField(
+                          AutoDirTextFormField(
                             controller: _descriptionController,
                             decoration: InputDecoration(
                               labelText:

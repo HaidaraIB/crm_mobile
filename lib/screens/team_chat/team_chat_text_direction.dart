@@ -1,17 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../../core/utils/input_text_direction.dart' show bidiIsolate;
 import '../../widgets/whatsapp_chat/whatsapp_phone_text.dart';
 
+export '../../core/utils/input_text_direction.dart' show bidiIsolate;
 export '../../widgets/whatsapp_chat/whatsapp_phone_text.dart'
     show composerTextDirection, resolveBubbleTextDirection, withLatinDigits;
-
-/// First-strong-isolate / pop-directional-isolate: zero-width marks that stop a
-/// run's direction from leaking into the paragraph around it, the Unicode
-/// equivalent of CSS `unicode-bidi: isolate` with `dir="auto"`.
-const String _fsi = '\u2068';
-const String _pdi = '\u2069';
-
-String bidiIsolate(String text) => '$_fsi$text$_pdi';
 
 /// Row label (conversation names, previews, headers): alignment stays with the
 /// **UI** direction so the text hugs the avatar edge — same as the web list,

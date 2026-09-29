@@ -18,6 +18,7 @@ import '../../widgets/lead_location_map_picker.dart';
 import '../../widgets/lead_urgent_switch.dart';
 import '../../widgets/lead_interest_inventory_fields.dart';
 import '../../widgets/tag_multi_select_field.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class EditLeadScreen extends StatefulWidget {
   final LeadModel lead;
@@ -561,7 +562,7 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
                               const SizedBox(height: 16),
 
                               // Name
-                              _buildTextField(
+                              _buildAutoDirTextField(
                                 label:
                                     '${localizations?.translate('clientName') ?? 'Client Name'} *',
                                 controller: _nameController,
@@ -576,7 +577,7 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
                               const SizedBox(height: 16),
 
                               // Company name
-                              _buildTextField(
+                              _buildAutoDirTextField(
                                 label:
                                     localizations?.translate('leadCompanyName') ?? 'Company name',
                                 controller: _companyNameController,
@@ -586,7 +587,7 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
                               ),
                               const SizedBox(height: 16),
 
-                              _buildTextField(
+                              _buildAutoDirTextField(
                                 label: localizations?.translate('profession') ?? 'Profession',
                                 controller: _professionController,
                                 hint: localizations?.translate('enterProfession') ?? 'Enter profession',
@@ -611,7 +612,7 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
                                 const SizedBox(height: 16),
                               ],
                               if (_isMedical) ...[
-                                _buildTextField(
+                                _buildAutoDirTextField(
                                   label: localizations?.translate('residence') ?? 'Residence',
                                   controller: _residenceController,
                                   hint: localizations?.translate('enterResidence') ??
@@ -635,7 +636,7 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
                                 ),
                                 const SizedBox(height: 16),
                               ],
-                              _buildTextField(
+                              _buildAutoDirTextField(
                                 label: localizations?.translate('notes') ?? 'Notes',
                                 controller: _notesController,
                                 hint: localizations?.translate('enterNotes') ?? 'Enter notes...',
@@ -657,7 +658,7 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
                               const SizedBox(height: 16),
 
                               // Budget
-                              _buildTextField(
+                              _buildAutoDirTextField(
                                 label:
                                     localizations?.translate('budget') ??
                                     'Budget',
@@ -670,7 +671,7 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
                                 onChanged: () => _clearError('budget'),
                               ),
                               const SizedBox(height: 16),
-                              _buildTextField(
+                              _buildAutoDirTextField(
                                 label:
                                     localizations?.translate('budgetMaxOptional') ??
                                     'Budget max (optional)',
@@ -901,7 +902,7 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
     );
   }
 
-  Widget _buildTextField({
+  Widget _buildAutoDirTextField({
     required String label,
     required TextEditingController controller,
     String? hint,
@@ -916,7 +917,7 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
       children: [
         Text(label, style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
-        TextFormField(
+        AutoDirTextFormField(
           controller: controller,
           decoration: InputDecoration(
             hintText: hint,

@@ -47,6 +47,7 @@ import '../../widgets/whatsapp_chat/whatsapp_media_album_screen.dart';
 import '../../widgets/whatsapp_chat/whatsapp_message_bubble.dart';
 import '../../widgets/whatsapp_chat/whatsapp_phone_text.dart';
 import '../../widgets/whatsapp_chat/whatsapp_status_widgets.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class WhatsAppChatThreadScreen extends StatelessWidget {
   const WhatsAppChatThreadScreen({
@@ -1379,14 +1380,14 @@ class _ShareLocationSheetState extends State<_ShareLocationSheet> {
             padding: const EdgeInsets.all(12),
             child: Column(
               children: [
-                TextField(
+                AutoDirTextField(
                   controller: _nameCtrl,
                   decoration: InputDecoration(
                     labelText: loc?.translate('whatsappLocationName') ?? 'Name (optional)',
                   ),
                 ),
                 const SizedBox(height: 8),
-                TextField(
+                AutoDirTextField(
                   controller: _addressCtrl,
                   decoration: InputDecoration(
                     labelText: loc?.translate('whatsappLocationAddress') ?? 'Address (optional)',

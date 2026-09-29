@@ -5,6 +5,7 @@ import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
 import '../../utils/build_update_diff.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class EditProjectModal extends StatefulWidget {
   final Project project;
@@ -244,7 +245,7 @@ class _EditProjectModalState extends State<EditProjectModal> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             // Name
-                            TextFormField(
+                            AutoDirTextFormField(
                               controller: _nameController,
                               decoration: InputDecoration(
                                 labelText: '${localizations?.translate('name') ?? 'Name'} *',
@@ -295,7 +296,7 @@ class _EditProjectModalState extends State<EditProjectModal> {
                             Row(
                               children: [
                                 Expanded(
-                                  child: TextFormField(
+                                  child: AutoDirTextFormField(
                                     controller: _typeController,
                                     decoration: InputDecoration(
                                       labelText: localizations?.translate('type') ?? 'Type',
@@ -307,7 +308,7 @@ class _EditProjectModalState extends State<EditProjectModal> {
                                 ),
                                 const SizedBox(width: 16),
                                 Expanded(
-                                  child: TextFormField(
+                                  child: AutoDirTextFormField(
                                     controller: _cityController,
                                     decoration: InputDecoration(
                                       labelText: localizations?.translate('city') ?? 'City',
@@ -321,7 +322,7 @@ class _EditProjectModalState extends State<EditProjectModal> {
                             ),
                             const SizedBox(height: 16),
                             // Payment Method
-                            TextFormField(
+                            AutoDirTextFormField(
                               controller: _paymentMethodController,
                               decoration: InputDecoration(
                                 labelText: localizations?.translate('paymentMethod') ?? 'Payment Method',

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../models/social_conversation_model.dart';
 import '../../widgets/app_switch.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 /// Convert an inbox conversation into a CRM lead.
 ///
@@ -107,7 +108,7 @@ class _ConvertConversationSheetState extends State<ConvertConversationSheet> {
               style: TextStyle(fontSize: 12, color: Theme.of(context).hintColor),
             ),
             const SizedBox(height: 16),
-            TextField(
+            AutoDirTextField(
               controller: _nameController,
               decoration: InputDecoration(
                 labelText: t('leadName'),
@@ -116,7 +117,7 @@ class _ConvertConversationSheetState extends State<ConvertConversationSheet> {
               ),
             ),
             const SizedBox(height: 12),
-            TextField(
+            AutoDirTextField(
               controller: _phoneController,
               keyboardType: TextInputType.phone,
               textDirection: TextDirection.ltr,
@@ -135,7 +136,7 @@ class _ConvertConversationSheetState extends State<ConvertConversationSheet> {
               onChanged: (value) => setState(() => _autoAssign = value),
               title: Text(t('autoAssign')),
             ),
-            TextField(
+            AutoDirTextField(
               controller: _notesController,
               maxLines: 3,
               decoration: InputDecoration(

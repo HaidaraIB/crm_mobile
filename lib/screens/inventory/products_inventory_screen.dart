@@ -6,6 +6,7 @@ import '../../core/utils/snackbar_helper.dart';
 import '../../core/utils/number_formatter.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
+import '../../widgets/bidi_text.dart';
 import '../../widgets/inventory_card.dart';
 import '../../widgets/modals/add_product_modal.dart';
 import '../../widgets/modals/edit_product_modal.dart';
@@ -14,6 +15,7 @@ import '../../widgets/modals/edit_product_category_modal.dart';
 import '../../widgets/modals/add_supplier_modal.dart';
 import '../../widgets/modals/edit_supplier_modal.dart';
 import '../../widgets/pull_to_refresh_body.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class ProductsInventoryScreen extends StatefulWidget {
   const ProductsInventoryScreen({super.key});
@@ -211,7 +213,7 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
           // Search bar
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: TextField(
+            child: AutoDirTextField(
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: localizations?.translate('typeToSearch') ?? 'Type to search...',
@@ -630,7 +632,7 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> with 
                     ),
                     if (category.description != null && category.description!.isNotEmpty) ...[
                       const SizedBox(height: 8),
-                      Text(
+                      ContentDirText(
                         category.description!,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurface.withValues(alpha: 0.7),

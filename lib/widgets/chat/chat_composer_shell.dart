@@ -56,6 +56,7 @@ class ChatComposerShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final arabicUi = Directionality.of(context) == TextDirection.rtl;
     final fill = inputFill ??
         scheme.surfaceContainerHighest.withValues(alpha: 0.88);
     final bg = composerBg ?? scheme.surface;
@@ -140,17 +141,20 @@ class ChatComposerShell extends StatelessWidget {
                           Expanded(
                             child: ValueListenableBuilder<TextEditingValue>(
                               valueListenable: draft,
-                              builder: (context, value, _) => TextField(
+                              builder: (context, value, _) {
+                                final dir = composerTextDirection(
+                                  value.text,
+                                  arabicUi: arabicUi,
+                                );
+                                return TextField(
                                 controller: draft,
                                 enabled: enabled && !sending,
                                 minLines: minLines,
                                 maxLines: maxLines,
-                                textDirection: composerTextDirection(
-                                  value.text,
-                                  arabicUi: Directionality.of(context) ==
-                                      TextDirection.rtl,
-                                ),
-                                textAlign: TextAlign.start,
+                                textDirection: dir,
+                                textAlign: dir == TextDirection.rtl
+                                    ? TextAlign.right
+                                    : TextAlign.left,
                                 textAlignVertical: TextAlignVertical.center,
                                 textInputAction: TextInputAction.newline,
                                 decoration: InputDecoration(
@@ -182,7 +186,8 @@ class ChatComposerShell extends StatelessWidget {
                                     borderSide: BorderSide.none,
                                   ),
                                 ),
-                              ),
+                              );
+                              },
                             ),
                           ),
                           SizedBox(

@@ -15,12 +15,14 @@ import '../../models/whatsapp_conversation_model.dart';
 import '../../services/api_service.dart';
 import '../../utils/whatsapp_access.dart';
 import '../../utils/whatsapp_message_body_localize.dart';
+import '../../widgets/bidi_text.dart';
 import '../../widgets/chat/chat_conversation_status_menu.dart';
 import '../../widgets/whatsapp_chat/whatsapp_access_guard.dart';
 import '../../widgets/whatsapp_chat/whatsapp_chat_theme.dart';
 import '../../widgets/whatsapp_chat/whatsapp_phone_text.dart';
 import 'whatsapp_chat_thread_screen.dart';
 import 'whatsapp_start_conversation_screen.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class WhatsAppConversationListScreen extends StatefulWidget {
   const WhatsAppConversationListScreen({super.key});
@@ -438,7 +440,7 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
               child: Row(
                 children: [
                   Expanded(
-                    child: TextField(
+                    child: AutoDirTextField(
                       controller: _searchCtrl,
                       onChanged: (v) => context
                           .read<WhatsAppConversationListCubit>()
@@ -543,7 +545,7 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
                               widget.openedClientId == c.id;
                           final unread = c.unreadCount > 0 && !selected;
                           final title = c.name.isNotEmpty ? c.name : c.phoneNumber;
-                          final preview = localizeWhatsAppMessageBody(
+                          final preview = localizeWhatsAppListPreview(
                             c.lastMessagePreview,
                             widget.t,
                           );
@@ -577,13 +579,15 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
                                                 : FontWeight.w500,
                                           ),
                                         )
-                                      : Text(
+                                      : IsolatedText(
                                           title,
                                           style: TextStyle(
                                             fontWeight: unread
                                                 ? FontWeight.w700
                                                 : FontWeight.w500,
                                           ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                 ),
                                 if (c.status == 'snoozed')
@@ -602,7 +606,7 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
                             subtitle: Row(
                               children: [
                                 Expanded(
-                                  child: Text(
+                                  child: IsolatedText(
                                     preview,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,

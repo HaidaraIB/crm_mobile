@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/localization/app_localizations.dart';
 import '../models/settings_model.dart';
+import 'bidi_text.dart';
 import 'lead_tag_chips.dart';
 
 /// Tag picker built as a chip field rather than a select box: selected tags read
@@ -206,7 +207,7 @@ class TagMultiSelectField extends StatelessWidget {
                           ),
                           subtitle: (tag.description ?? '').isEmpty
                               ? null
-                              : Text(
+                              : ContentDirText(
                                   tag.description!,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,

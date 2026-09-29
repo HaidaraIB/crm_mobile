@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/localization/app_localizations.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class Country {
   final String code;
@@ -199,7 +200,6 @@ class _PhoneInputState extends State<PhoneInput> {
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
-    final isRTL = localizations?.isRTL ?? false;
     final theme = Theme.of(context);
     final showError = widget.error ||
         (widget.errorText != null && widget.errorText!.trim().isNotEmpty);
@@ -229,7 +229,7 @@ class _PhoneInputState extends State<PhoneInput> {
                 ),
                 // Phone Number Input
                 Expanded(
-                  child: TextField(
+                  child: AutoDirTextField(
                     controller: _phoneController,
                     keyboardType: TextInputType.phone,
                     decoration: InputDecoration(
@@ -243,7 +243,7 @@ class _PhoneInputState extends State<PhoneInput> {
                       ),
                     ),
                     onChanged: _onPhoneChanged,
-                    textDirection: isRTL ? TextDirection.rtl : TextDirection.ltr,
+                    textDirection: TextDirection.ltr,
                   ),
                 ),
               ],

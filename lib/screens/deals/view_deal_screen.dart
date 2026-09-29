@@ -6,6 +6,7 @@ import '../../models/user_model.dart';
 import '../../models/lead_model.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
+import '../../widgets/bidi_text.dart';
 import '../../widgets/inventory_card.dart';
 import '../../core/utils/app_locales.dart';
 import '../../core/utils/specialization_helper.dart';
@@ -704,7 +705,7 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
                     const SizedBox(height: 20),
                     SizedBox(
                       width: double.infinity,
-                      child: Text(
+                      child: ContentDirText(
                         deal.description!,
                         style: theme.textTheme.bodyMedium,
                       ),

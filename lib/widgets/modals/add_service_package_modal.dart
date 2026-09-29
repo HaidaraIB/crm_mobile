@@ -5,6 +5,7 @@ import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
 import '../app_switch.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class AddServicePackageModal extends StatefulWidget {
   final Function(ServicePackage)? onPackageCreated;
@@ -163,7 +164,7 @@ class _AddServicePackageModalState extends State<AddServicePackageModal> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             // Name
-                            TextFormField(
+                            AutoDirTextFormField(
                               controller: _nameController,
                               decoration: InputDecoration(
                                 labelText: '${localizations?.translate('name') ?? 'Name'} *',
@@ -180,7 +181,7 @@ class _AddServicePackageModalState extends State<AddServicePackageModal> {
                             ),
                             const SizedBox(height: 16),
                             // Description
-                            TextFormField(
+                            AutoDirTextFormField(
                               controller: _descriptionController,
                               decoration: InputDecoration(
                                 labelText: localizations?.translate('description') ?? 'Description',
@@ -231,7 +232,7 @@ class _AddServicePackageModalState extends State<AddServicePackageModal> {
                             Row(
                               children: [
                                 Expanded(
-                                  child: TextFormField(
+                                  child: AutoDirTextFormField(
                                     controller: _priceController,
                                     decoration: InputDecoration(
                                       labelText: '${localizations?.translate('price') ?? 'Price'} *',
@@ -253,7 +254,7 @@ class _AddServicePackageModalState extends State<AddServicePackageModal> {
                                 ),
                                 const SizedBox(width: 16),
                                 Expanded(
-                                  child: TextFormField(
+                                  child: AutoDirTextFormField(
                                     controller: _durationController,
                                     decoration: InputDecoration(
                                       labelText: localizations?.translate('duration') ?? 'Duration',

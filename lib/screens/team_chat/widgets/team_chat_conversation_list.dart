@@ -10,6 +10,7 @@ import '../../../models/tenant_chat_models.dart';
 import '../team_chat_common.dart';
 import '../team_chat_conversation_tile.dart';
 import '../../../widgets/pull_to_refresh_body.dart';
+import '../../../utils/whatsapp_message_body_localize.dart';
 
 DateTime _startOfLocalDay(DateTime d) =>
     DateTime(d.year, d.month, d.day);
@@ -114,7 +115,7 @@ class TeamChatConversationList extends StatelessWidget {
                               selected: active,
                               previewText: preview.isEmpty
                                   ? t('teamChatNoMessagesYet')
-                                  : preview,
+                                  : localizeWhatsAppListPreview(preview, t),
                               timeLabel: _conversationRowTime(c, lang),
                               titleText: tenantChatConversationTitle(
                                 c,

@@ -15,6 +15,7 @@ import '../leads/create_lead_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../social_inbox/social_inbox_list_screen.dart';
 import '../team_chat/team_chat_screen.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 /// Front-desk lead search for the CALL_CENTER role: search all company leads by
 /// name/phone, announce a walk-in's arrival, or jump to Create Lead when nobody
@@ -306,7 +307,7 @@ class _CallCenterHomeScreenState extends State<CallCenterHomeScreen>
                 return Row(
                   children: [
                     Expanded(
-                      child: TextField(
+                      child: AutoDirTextField(
                         controller: _searchController,
                         autofocus: true,
                         textInputAction: TextInputAction.search,

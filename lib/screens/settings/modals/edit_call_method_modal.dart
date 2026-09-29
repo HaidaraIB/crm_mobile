@@ -8,6 +8,7 @@ import '../../../services/api_service.dart';
 import '../../../services/error_logger.dart';
 import '../../../utils/build_update_diff.dart';
 import '../../../widgets/app_switch.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 class EditCallMethodModal extends StatefulWidget {
   final CallMethodModel callMethod;
   final VoidCallback? onCallMethodUpdated;
@@ -180,7 +181,7 @@ class _EditCallMethodModalState extends State<EditCallMethodModal> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        TextFormField(
+                        AutoDirTextFormField(
                           controller: _nameController,
                           decoration: InputDecoration(
                             labelText: '${localizations?.translate('callMethodName') ?? 'Call Method Name'} *',
@@ -196,7 +197,7 @@ class _EditCallMethodModalState extends State<EditCallMethodModal> {
                           },
                         ),
                         const SizedBox(height: 16),
-                        TextFormField(
+                        AutoDirTextFormField(
                           controller: _descriptionController,
                           decoration: InputDecoration(
                             labelText: localizations?.translate('description') ?? 'Description',

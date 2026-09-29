@@ -13,6 +13,7 @@ import '../core/utils/lead_location.dart';
 import '../core/utils/media_url_utils.dart';
 import '../models/timeline_entry.dart';
 import '../services/api_service.dart';
+import 'bidi_text.dart';
 import 'lead_tag_chips.dart' show parseTagHexColor;
 import 'media/open_app_media_viewer.dart';
 
@@ -435,7 +436,7 @@ class _TimelineRow extends StatelessWidget {
                 const SizedBox(height: 8),
                 if (entry.type != TimelineEntryType.whatsappThread &&
                     entry.type != TimelineEntryType.socialThread)
-                  Text(
+                  IsolatedText(
                     entry.user,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.w600,
@@ -447,7 +448,7 @@ class _TimelineRow extends StatelessWidget {
                 if (entry.fieldLabel != null &&
                     entry.fieldLabel!.isNotEmpty) ...[
                   const SizedBox(height: 6),
-                  Text(
+                  IsolatedText(
                     entry.fieldLabel!,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.w600,
@@ -457,7 +458,7 @@ class _TimelineRow extends StatelessWidget {
                 ],
                 if (showSubtitle) ...[
                   const SizedBox(height: 4),
-                  Text(
+                  IsolatedText(
                     entry.action,
                     style: theme.textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w500,

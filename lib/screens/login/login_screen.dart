@@ -17,6 +17,7 @@ import '../../widgets/login_verification_gate_card.dart';
 import '../../models/user_model.dart';
 import '../home/home_screen.dart';
 import '../two_factor_auth/two_factor_auth_screen.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class LoginScreen extends StatefulWidget {
   /// When set (e.g. after auto-logout), a message is shown to the user.
@@ -376,7 +377,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 32),
 
                   // Username Field
-                  TextFormField(
+                  AutoDirTextFormField(
                     controller: _usernameController,
                     decoration: InputDecoration(
                       labelText: isRTL
@@ -409,7 +410,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 16),
 
                   // Password Field
-                  TextFormField(
+                  AutoDirTextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
                     decoration: InputDecoration(

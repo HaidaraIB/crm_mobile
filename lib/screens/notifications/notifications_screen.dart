@@ -15,6 +15,7 @@ import '../../services/notification_display.dart';
 import '../../services/notifications_unread_holder.dart';
 import '../../services/sync_invalidation.dart';
 import '../../services/notification_router.dart';
+import '../../widgets/bidi_text.dart';
 import '../../widgets/pull_to_refresh_body.dart';
 
 class NotificationsScreen extends StatefulWidget {
@@ -534,8 +535,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                 : AppTheme.primaryColor,
                           ),
                         ),
-                        title: Text(
+                        title: IsolatedText(
                           title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontWeight: isRead
                                 ? FontWeight.normal
@@ -546,7 +549,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const SizedBox(height: 4),
-                            Text(body),
+                            IsolatedText(
+                              body,
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                             if (sentDate != null) ...[
                               const SizedBox(height: 4),
                               Text(

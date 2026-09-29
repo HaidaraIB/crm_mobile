@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/utils/number_formatter.dart';
+import 'bidi_text.dart';
 
 class InventoryCard extends StatelessWidget {
   final Widget child;
@@ -84,7 +85,7 @@ class InfoRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
+                ContentDirText(
                   value,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: isPrimary ? FontWeight.w600 : FontWeight.normal,

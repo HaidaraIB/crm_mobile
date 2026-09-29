@@ -6,6 +6,7 @@ import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
 import '../../utils/build_update_diff.dart';
 import '../app_switch.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class EditProductModal extends StatefulWidget {
   final Product product;
@@ -226,7 +227,7 @@ class _EditProductModalState extends State<EditProductModal> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             // Name
-                            TextFormField(
+                            AutoDirTextFormField(
                               controller: _nameController,
                               decoration: InputDecoration(
                                 labelText: '${localizations?.translate('name') ?? 'Name'} *',
@@ -243,7 +244,7 @@ class _EditProductModalState extends State<EditProductModal> {
                             ),
                             const SizedBox(height: 16),
                             // Description
-                            TextFormField(
+                            AutoDirTextFormField(
                               controller: _descriptionController,
                               decoration: InputDecoration(
                                 labelText: localizations?.translate('description') ?? 'Description',
@@ -308,7 +309,7 @@ class _EditProductModalState extends State<EditProductModal> {
                             Row(
                               children: [
                                 Expanded(
-                                  child: TextFormField(
+                                  child: AutoDirTextFormField(
                                     controller: _priceController,
                                     decoration: InputDecoration(
                                       labelText: '${localizations?.translate('price') ?? 'Price'} *',
@@ -335,7 +336,7 @@ class _EditProductModalState extends State<EditProductModal> {
                                 ),
                                 const SizedBox(width: 16),
                                 Expanded(
-                                  child: TextFormField(
+                                  child: AutoDirTextFormField(
                                     controller: _costController,
                                     decoration: InputDecoration(
                                       labelText: '${localizations?.translate('cost') ?? 'Cost'} *',
@@ -367,7 +368,7 @@ class _EditProductModalState extends State<EditProductModal> {
                             Row(
                               children: [
                                 Expanded(
-                                  child: TextFormField(
+                                  child: AutoDirTextFormField(
                                     controller: _stockController,
                                     decoration: InputDecoration(
                                       labelText: '${localizations?.translate('stock') ?? 'Stock'} *',
@@ -394,7 +395,7 @@ class _EditProductModalState extends State<EditProductModal> {
                                 ),
                                 const SizedBox(width: 16),
                                 Expanded(
-                                  child: TextFormField(
+                                  child: AutoDirTextFormField(
                                     controller: _skuController,
                                     decoration: InputDecoration(
                                       labelText: localizations?.translate('sku') ?? 'SKU',

@@ -5,6 +5,7 @@ import '../../../core/localization/app_localizations.dart';
 import '../../../features/team_chat/cubit/team_chat_new_peer_cubit.dart';
 import '../../../models/tenant_chat_models.dart';
 import '../team_chat_common.dart';
+import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
 class TeamChatNewPeerSheet extends StatefulWidget {
   const TeamChatNewPeerSheet({
@@ -78,7 +79,7 @@ class _TeamChatNewPeerSheetState extends State<TeamChatNewPeerSheet> {
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                child: TextField(
+                child: AutoDirTextField(
                   controller: _search,
                   textInputAction: TextInputAction.search,
                   decoration: InputDecoration(
