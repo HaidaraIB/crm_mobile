@@ -155,6 +155,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     // عند استئناف التطبيق من الخلفية، إعادة إرسال FCM token إن وُجد (لمستخدمي iOS الذين تأخر توكنهم)
     if (state == AppLifecycleState.resumed) {
       TeamChatAwayService.instance.setAppForeground(true);
+      unawaited(ApiService().ensureAccessTokenFresh());
       NotificationService().sendTokenToServerIfLoggedIn();
       ApiService().sendPresenceHeartbeat(source: 'mobile');
       _startPresenceHeartbeat();

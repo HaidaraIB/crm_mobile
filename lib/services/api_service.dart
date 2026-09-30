@@ -525,6 +525,32 @@ class ApiService {
     return Uri.tryParse('$cleanBaseUrl/$nextUrl');
   }
 
+  static const int _accessTokenRefreshLeadSeconds = 60;
+
+  int? _jwtExpSeconds(String token) {
+    final parts = token.split('.');
+    if (parts.length < 2) return null;
+    try {
+      final normalized = base64Url.normalize(parts[1]);
+      final payload = jsonDecode(utf8.decode(base64Url.decode(normalized)));
+      if (payload is Map && payload['exp'] is num) {
+        return (payload['exp'] as num).toInt();
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Refresh the access token when it expires within [_accessTokenRefreshLeadSeconds].
+  Future<void> ensureAccessTokenFresh() async {
+    final token = await _getAccessToken();
+    if (token == null || token.isEmpty) return;
+    final exp = _jwtExpSeconds(token);
+    if (exp == null) return;
+    final nowSec = DateTime.now().millisecondsSinceEpoch / 1000;
+    if (exp > nowSec + _accessTokenRefreshLeadSeconds) return;
+    await _refreshToken();
+  }
+
   Future<http.Response> _makeRequest(
     String method,
     String endpoint, {
@@ -534,6 +560,9 @@ class ApiService {
     bool includeAuth = true,
     Map<String, String>? extraHeaders,
   }) async {
+    if (includeAuth && retryOn401) {
+      await ensureAccessTokenFresh();
+    }
     // Ensure endpoint starts with / and baseUrl doesn't end with /
     var cleanEndpoint = endpoint.startsWith('/') ? endpoint : '/$endpoint';
     final cleanBaseUrl = baseUrl.endsWith('/')

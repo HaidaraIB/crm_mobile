@@ -55,6 +55,8 @@ class AppLocalizations {
           "We sent a verification code to your WhatsApp. Enter it below.",
       "verifyPhoneSmsHint":
           "We sent a verification code by SMS. Enter it below.",
+      "verifyPhoneOtpiqHint":
+          "We sent a verification code by SMS. Enter it below.",
       "verificationCode": "Verification code",
       "companyName": "Company Name",
       "companyNameRequired": "Company name is required",
@@ -1699,6 +1701,8 @@ class AppLocalizations {
       "verifyPhoneWhatsAppHint": "أرسلنا رمز التحقق إلى واتساب. أدخله أدناه.",
       "verifyPhoneSmsHint":
           "أرسلنا رمز التحقق عبر الرسائل النصية. أدخله أدناه.",
+      "verifyPhoneOtpiqHint":
+          "أرسلنا رمز التحقق عبر رسالة نصية. أدخله أدناه.",
       "verificationCode": "رمز التحقق",
       "companyName": "اسم الشركة",
       "companyNameRequired": "اسم الشركة مطلوب",

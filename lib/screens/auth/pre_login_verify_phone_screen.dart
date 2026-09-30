@@ -103,6 +103,9 @@ class _PreLoginVerifyPhoneScreenState extends State<PreLoginVerifyPhoneScreen> {
     if (_channel == 'whatsapp') {
       return loc?.translate('verifyPhoneWhatsAppHint') ?? '';
     }
+    if (_channel == 'otpiq') {
+      return loc?.translate('verifyPhoneOtpiqHint') ?? '';
+    }
     return loc?.translate('preLoginVerifyPhoneHint') ?? '';
   }
 
