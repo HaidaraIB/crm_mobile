@@ -289,7 +289,8 @@ class _CallCenterHomeScreenState extends State<CallCenterHomeScreen>
         title: Text(localizations?.translate('callCenter') ?? 'Call Center'),
         actions: [
           // Inbox + Team Chat + notifications — messaging entries left the drawer.
-          if (widget.isRoot) _socialInboxAppBarAction(localizations),
+          if (widget.isRoot)
+            SocialInboxEntryGate(child: _socialInboxAppBarAction(localizations)),
           if (widget.isRoot) _teamChatAppBarAction(localizations),
           if (widget.isRoot) _notificationsAppBarAction(localizations),
         ],

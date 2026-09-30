@@ -485,7 +485,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     child: _whatsAppChatAppBarAction(localizations),
                   ),
                   if (canAccessSocialInbox(_sessionUser))
-                    _socialInboxAppBarAction(localizations),
+                    SocialInboxEntryGate(child: _socialInboxAppBarAction(localizations)),
                   _teamChatAppBarAction(localizations),
                   Stack(
                     children: [

@@ -11,12 +11,32 @@ import '../../features/social_inbox/social_inbox_repository.dart';
 import '../../models/social_conversation_model.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
+import '../../services/social_inbox_availability.dart';
 import '../../utils/social_inbox_access.dart';
 import '../../utils/whatsapp_message_body_localize.dart';
 import '../../widgets/bidi_text.dart';
 import '../../widgets/chat/chat_conversation_status_menu.dart';
 import 'social_inbox_thread_screen.dart';
 import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
+
+/// Hides the Inbox entry when plan or admin policy has the integration off.
+/// Role checks stay at the call site; this only covers the digest gate.
+class SocialInboxEntryGate extends StatelessWidget {
+  const SocialInboxEntryGate({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool?>(
+      valueListenable: SocialInboxAvailability.available,
+      builder: (context, available, _) {
+        if (available == false) return const SizedBox.shrink();
+        return child;
+      },
+    );
+  }
+}
 
 /// Omni-Channel Inbox — Instagram DM + Messenger conversation list.
 ///
@@ -27,10 +47,34 @@ class SocialInboxListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) =>
-          SocialInboxListCubit(repository: ApiSocialInboxRepository())..bootstrap(),
-      child: const _SocialInboxListView(),
+    return ValueListenableBuilder<bool?>(
+      valueListenable: SocialInboxAvailability.available,
+      builder: (context, available, _) {
+        if (available == false) return const _SocialInboxUnavailable();
+        return BlocProvider(
+          create: (_) =>
+              SocialInboxListCubit(repository: ApiSocialInboxRepository())..bootstrap(),
+          child: const _SocialInboxListView(),
+        );
+      },
+    );
+  }
+}
+
+class _SocialInboxUnavailable extends StatelessWidget {
+  const _SocialInboxUnavailable();
+
+  @override
+  Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+    String t(String key) =>
+        (localizations ?? AppLocalizations(const Locale('en'))).translate(key);
+    return Scaffold(
+      appBar: AppBar(title: Text(t('omniChannelInbox'))),
+      body: _CenteredMessage(
+        icon: Icons.lock_outline,
+        title: t('socialInboxUnavailable'),
+      ),
     );
   }
 }

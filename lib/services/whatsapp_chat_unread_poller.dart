@@ -7,6 +7,7 @@ import 'notifications_unread_holder.dart';
 import 'realtime_channel.dart';
 import 'sync_invalidation.dart';
 import 'team_chat_unread_holder.dart';
+import 'social_inbox_availability.dart';
 import 'whatsapp_chat_unread_holder.dart';
 
 /// Polls `GET /sync/digest/` so home badges work without opening chat lists.
@@ -101,6 +102,7 @@ class WhatsAppChatUnreadPoller {
     // emit a meaningless invalidation on the next poll.
     _lastVersions = const {};
     WhatsAppChatUnreadHolder.reset();
+    SocialInboxAvailability.reset();
   }
 
   void setForeground(bool value) {
@@ -157,6 +159,12 @@ class WhatsAppChatUnreadPoller {
       NotificationsUnreadHolder.setTotal(
         (data['notifications_unread'] as num?)?.toInt() ?? 0,
       );
+      // Before the WhatsApp early return: a disabled WhatsApp policy must not
+      // skip the inbox gate. Null means plan/policy blocked the inbox.
+      if (data.containsKey('social_inbox_unread')) {
+        final inbox = data['social_inbox_unread'];
+        SocialInboxAvailability.setAvailable(inbox != null);
+      }
       final wa = data['whatsapp_unread'];
       if (!data.containsKey('whatsapp_unread')) {
         return;
