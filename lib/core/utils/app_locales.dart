@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
+import 'package:intl/number_symbols.dart';
+import 'package:intl/number_symbols_data.dart';
 
 /// Arabic (Egypt): Gregorian calendar for dates; aligns with CRM web `ar-EG` / `ARABIC_DATE_LOCALE`.
 abstract final class AppLocales {
@@ -17,6 +20,40 @@ abstract final class AppLocales {
   static Locale fromLanguageCode(String? code) {
     if (code == 'ar') return arabic;
     return english;
+  }
+}
+
+/// Arabic month names stay; every formatter emits 0–9.
+/// Call once from `main` before `runApp`.
+Future<void> installLatinDigits() async {
+  await initializeDateFormatting();
+  for (final locale in DateFormat.allLocalesWithSymbols()) {
+    DateFormat.useNativeDigitsByDefaultFor(locale, false);
+  }
+  // intl ignores `u-nu-latn` unless this flag is set for that exact tag.
+  DateFormat.useNativeDigitsByDefaultFor('ar_EG_u_nu_latn', false);
+
+  for (final entry in numberFormatSymbols.entries.toList()) {
+    final s = entry.value;
+    if (s.ZERO_DIGIT == '0') continue;
+    numberFormatSymbols[entry.key] = NumberSymbols(
+      NAME: s.NAME,
+      DECIMAL_SEP: s.DECIMAL_SEP,
+      GROUP_SEP: s.GROUP_SEP,
+      PERCENT: s.PERCENT,
+      ZERO_DIGIT: '0',
+      PLUS_SIGN: s.PLUS_SIGN,
+      MINUS_SIGN: s.MINUS_SIGN,
+      EXP_SYMBOL: s.EXP_SYMBOL,
+      PERMILL: s.PERMILL,
+      INFINITY: s.INFINITY,
+      NAN: s.NAN,
+      DECIMAL_PATTERN: s.DECIMAL_PATTERN,
+      SCIENTIFIC_PATTERN: s.SCIENTIFIC_PATTERN,
+      PERCENT_PATTERN: s.PERCENT_PATTERN,
+      CURRENCY_PATTERN: s.CURRENCY_PATTERN,
+      DEF_CURRENCY_CODE: s.DEF_CURRENCY_CODE,
+    );
   }
 }
 

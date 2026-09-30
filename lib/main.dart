@@ -54,6 +54,7 @@ void main() async {
     debugPrint = (String? message, {int? wrapWidth}) {};
   }
   WidgetsFlutterBinding.ensureInitialized();
+  await installLatinDigits();
 
   // Edge-to-edge on pre-Android 15 (API 35+ already enforces it).
   // Do not set statusBarColor / navigationBarColor here — those Window APIs

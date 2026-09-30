@@ -2930,7 +2930,7 @@ class AppLocalizations {
       'autoAssign': 'إسناد تلقائي',
       'replyWindowClosed': 'انتهت مهلة الرد',
       'replyWindowClosedHint':
-          'لم يراسلك هذا الشخص منذ أكثر من ٢٤ ساعة. تسمح ميتا بالرد فقط بعد أن يراسلك مجدداً.',
+          'لم يراسلك هذا الشخص منذ أكثر من 24 ساعة. تسمح ميتا بالرد فقط بعد أن يراسلك مجدداً.',
       'replyWindowHumanAgentShort': 'الرد ضمن قاعدة الوكيل البشري.',
       'socialOutsideWindow': 'انتهت مهلة الرد على هذه المحادثة.',
       'socialUserUnavailable': 'لا يمكن لهذا الشخص استقبال الرسائل حالياً.',
