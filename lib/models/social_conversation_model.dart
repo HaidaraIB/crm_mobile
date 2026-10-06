@@ -28,12 +28,30 @@ class SocialContactModel {
       name: json['name'] as String? ?? '',
       username: json['username'] as String? ?? '',
       displayName: json['display_name'] as String? ?? '',
-      profilePicUrl: json['profile_pic_url'] as String? ?? '',
+      profilePicUrl: (json['avatar_url'] as String?)?.trim().isNotEmpty == true
+          ? json['avatar_url'] as String
+          : (json['profile_pic_url'] as String? ?? ''),
     );
   }
 
   String get label =>
       displayName.isNotEmpty ? displayName : (name.isNotEmpty ? name : username);
+
+  SocialContactModel copyWith({
+    String? name,
+    String? username,
+    String? displayName,
+    String? profilePicUrl,
+  }) {
+    return SocialContactModel(
+      id: id,
+      externalId: externalId,
+      name: name ?? this.name,
+      username: username ?? this.username,
+      displayName: displayName ?? this.displayName,
+      profilePicUrl: profilePicUrl ?? this.profilePicUrl,
+    );
+  }
 }
 
 class SocialConversationModel {
@@ -130,10 +148,11 @@ class SocialConversationModel {
     DateTime? lastInboundAt,
     int? clientId,
     String? clientName,
+    SocialContactModel? contact,
   }) {
     return SocialConversationModel(
       id: id,
-      contact: contact,
+      contact: contact ?? this.contact,
       channel: channel,
       status: status ?? this.status,
       isStarred: isStarred ?? this.isStarred,

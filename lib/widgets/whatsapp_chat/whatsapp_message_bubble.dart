@@ -24,6 +24,9 @@ class WhatsAppMessageBubble extends StatelessWidget {
     this.onDelete,
     this.onOpenAlbum,
     this.showDelete = true,
+    this.reaction,
+    this.isEcho = false,
+    this.placeholderLabel,
   });
 
   final LeadWhatsAppMessageModel message;
@@ -36,11 +39,14 @@ class WhatsAppMessageBubble extends StatelessWidget {
   /// widgets fall back to their single-item viewer.
   final VoidCallback? onOpenAlbum;
 
+  final String? reaction;
+  final bool isEcho;
+  final String? placeholderLabel;
+
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
     String t(String k) => loc?.translate(k) ?? k;
-    // Same bubble chrome as Team Chat (shape + colors).
     final palette = TeamChatPalette.of(context);
     final colors = WhatsAppChatColors.of(context);
     final isInbound = message.isInbound;
@@ -73,6 +79,17 @@ class WhatsAppMessageBubble extends StatelessWidget {
             style: TextStyle(fontSize: 11, color: fg.withValues(alpha: 0.72)),
           ),
           const SizedBox(width: 6),
+        ],
+        if (reaction != null && reaction!.isNotEmpty) ...[
+          Text(reaction!, style: const TextStyle(fontSize: 11)),
+          const SizedBox(width: 4),
+        ],
+        if (isEcho) ...[
+          Text(
+            '· ${t('facebookMessenger')}',
+            style: TextStyle(fontSize: 11, color: fg.withValues(alpha: 0.72)),
+          ),
+          const SizedBox(width: 4),
         ],
         Text(
           time,
@@ -130,6 +147,18 @@ class WhatsAppMessageBubble extends StatelessWidget {
             mediaOrSpecial,
             const SizedBox(height: 4),
           ],
+          if (placeholderLabel != null && placeholderLabel!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                placeholderLabel!,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontStyle: FontStyle.italic,
+                  color: fg.withValues(alpha: 0.85),
+                ),
+              ),
+            ),
           ChatBubbleTextAndMeta(
             body: bodyWidget,
             meta: meta,

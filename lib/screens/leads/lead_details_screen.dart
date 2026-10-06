@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../core/storage/tab_index_storage.dart';
 import '../../core/theme/app_theme.dart';
 import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
@@ -14,7 +15,20 @@ class LeadDetailsScreen extends StatefulWidget {
 
 class _LeadDetailsScreenState extends State<LeadDetailsScreen> {
   int _selectedTab = 0; // 0 = History, 1 = Deals
-  
+  static const _tabKey = 'lead_details';
+
+  @override
+  void initState() {
+    super.initState();
+    loadTabIndex(_tabKey, maxIndex: 1).then((index) {
+      if (mounted) setState(() => _selectedTab = index);
+    });
+  }
+
+  void _selectTab(int index) {
+    setState(() => _selectedTab = index);
+    saveTabIndex(_tabKey, index);
+  } 
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
@@ -49,7 +63,7 @@ class _LeadDetailsScreenState extends State<LeadDetailsScreen> {
             children: [
               Expanded(
                 child: GestureDetector(
-                  onTap: () => setState(() => _selectedTab = 0),
+                  onTap: () => _selectTab(0),
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
@@ -78,7 +92,7 @@ class _LeadDetailsScreenState extends State<LeadDetailsScreen> {
               ),
               Expanded(
                 child: GestureDetector(
-                  onTap: () => setState(() => _selectedTab = 1),
+                  onTap: () => _selectTab(1),
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(

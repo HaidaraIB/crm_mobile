@@ -5,7 +5,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
@@ -21,24 +20,41 @@ import '../../features/social_inbox/social_inbox_coordinator_factory.dart';
 import '../../features/social_inbox/social_inbox_repository.dart';
 import '../../features/social_inbox/social_message_adapter.dart';
 import '../../models/social_conversation_model.dart';
+import '../../models/whatsapp_template_model.dart';
 import '../../models/social_message_model.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
 import '../../utils/compress_image_for_chat.dart';
 import '../../utils/social_inbox_access.dart';
-import '../../utils/social_message_body_localize.dart';
+import '../../utils/whatsapp_thread_items.dart';
+import '../../widgets/app_avatar.dart';
 import '../../widgets/chat/chat_attach_sheet.dart';
-import '../../widgets/chat/chat_bubble_shell.dart';
 import '../../widgets/chat/chat_composer_shell.dart';
 import '../../widgets/chat/chat_conversation_status_menu.dart';
-import '../../widgets/chat/chat_media.dart';
 import '../../widgets/chat/chat_palette.dart';
 import '../../widgets/chat/chat_pending_attachment_chip.dart';
 import '../../widgets/chat/chat_separators.dart';
 import '../../widgets/chat/chat_text_direction.dart';
+import '../../widgets/chat/chat_thread_opening.dart';
 import '../../widgets/chat/chat_voice_recording_bar.dart';
 import '../../widgets/chat_thread_empty.dart';
+import '../../widgets/whatsapp_chat/whatsapp_message_bubble.dart';
+import '../../widgets/whatsapp_chat/whatsapp_status_widgets.dart';
 import 'convert_conversation_sheet.dart';
+
+String? _socialAttachmentPlaceholder(SocialMessageModel message, String Function(String) t) {
+  if (message.hasAttachment) return null;
+  switch (message.attachmentKind) {
+    case 'story_mention':
+      return t('storyMention');
+    case 'share':
+      return t('sharedPost');
+    case 'reel':
+      return t('sharedReel');
+    default:
+      return null;
+  }
+}
 
 /// One Instagram/Messenger thread.
 ///
@@ -299,6 +315,57 @@ class _SocialInboxThreadViewState extends State<_SocialInboxThreadView>
     await cubit.sendMessage(text);
   }
 
+  Future<void> _pickTemplate(SocialInboxThreadCubit cubit) async {
+    final templates = await ApiService().getWhatsAppApprovedTemplates();
+    if (!mounted) return;
+    final id = await showModalBottomSheet<int>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final WhatsAppTemplateModel tpl in templates)
+              ListTile(
+                title: Text(tpl.name),
+                subtitle: Text(tpl.content, maxLines: 2, overflow: TextOverflow.ellipsis),
+                onTap: () => Navigator.pop(ctx, tpl.id),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (id != null) await cubit.sendTemplate(id);
+  }
+
+  Future<void> _pickQuickReply() async {
+    final rows = await ApiService().getQuickReplies();
+    if (!mounted || rows.isEmpty) return;
+    final body = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final row in rows)
+              ListTile(
+                title: Text(row['title']?.toString() ?? ''),
+                subtitle: Text(
+                  row['body']?.toString() ?? '',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                onTap: () => Navigator.pop(ctx, row['body']?.toString() ?? ''),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (body == null || body.isEmpty) return;
+    _controller.text = body;
+    _controller.selection = TextSelection.collapsed(offset: body.length);
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
@@ -345,11 +412,73 @@ class _SocialInboxThreadViewState extends State<_SocialInboxThreadView>
             title: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  conversation.contact.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 16),
+                Row(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsetsDirectional.only(end: 8),
+                      child: AppAvatar(
+                        radius: 14,
+                        onPrimaryBackground: true,
+                        imageUrl: conversation.contact.profilePicUrl,
+                        initials: appAvatarInitials(
+                          conversation.contact.label,
+                          maxLetters: 1,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () async {
+                          final controller = TextEditingController(
+                            text: conversation.contact.name.isNotEmpty
+                                ? conversation.contact.name
+                                : conversation.contact.label,
+                          );
+                          final next = await showDialog<String>(
+                            context: context,
+                            builder: (ctx) {
+                              return AlertDialog(
+                                title: Text(t('name')),
+                                content: TextField(
+                                  controller: controller,
+                                  autofocus: true,
+                                  textDirection: resolveInputTextDirection(
+                                    ctx,
+                                    text: controller.text,
+                                  ),
+                                  decoration: InputDecoration(
+                                    hintText: t('name'),
+                                  ),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx),
+                                    child: Text(t('cancel')),
+                                  ),
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(ctx, controller.text),
+                                    child: Text(t('save')),
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                          controller.dispose();
+                          if (next == null || !context.mounted) return;
+                          await context
+                              .read<SocialInboxThreadCubit>()
+                              .renameContact(next);
+                        },
+                        child: Text(
+                          conversation.contact.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 Text(
                   conversation.isWhatsapp
@@ -404,124 +533,248 @@ class _SocialInboxThreadViewState extends State<_SocialInboxThreadView>
                   tooltip: t('convertToLead'),
                   onPressed: () => _openConvertSheet(context, cubit),
                 ),
+              if (canDeleteSocialHistory(_currentUser))
+                IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  tooltip: t('delete'),
+                  onPressed: () async {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        content: Text(t('deleteConversationConfirm')),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: Text(t('cancel')),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: Text(t('delete')),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirmed != true || !context.mounted) return;
+                    final ok = await cubit.deleteConversation();
+                    if (!context.mounted) return;
+                    if (ok) {
+                      Navigator.of(context).pop();
+                    } else {
+                      final err = context.read<SocialInboxThreadCubit>().state.errorMessage;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(err ?? t('socialInboxCouldNotUpdate'))),
+                      );
+                    }
+                  },
+                ),
             ],
           ),
-          body: Column(
-            children: [
-              if (requiresTemplate)
-                Material(
-                  color: Colors.amber.withValues(alpha: 0.15),
-                  child: Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          t('replyWindowClosed'),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
+          body: !state.composerReady
+              ? (state.status == SocialThreadStatus.error
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              state.errorMessage ?? t('somethingWentWrong'),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 12),
+                            ElevatedButton(
+                              onPressed: () => cubit.load(),
+                              child: Text(t('retry')),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : ChatThreadOpening(label: t('loading')))
+              : Column(
+                  children: [
+                    if (requiresTemplate)
+                      Material(
+                        color: Colors.amber.withValues(alpha: 0.15),
+                        child: Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                t('replyWindowClosed'),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              Text(
+                                t('inboxTemplateRequiredHint'),
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                              const SizedBox(height: 4),
+                            ],
                           ),
                         ),
-                        Text(
-                          t('inboxTemplateRequiredHint'),
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          t('inboxTemplateWebOnlyHint'),
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Theme.of(context).hintColor,
+                      ),
+                    if (blocked)
+                      Material(
+                        color: Colors.amber.withValues(alpha: 0.15),
+                        child: Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                t('replyWindowClosed'),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              Text(
+                                t('replyWindowClosedHint'),
+                                style: const TextStyle(fontSize: 11),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              if (blocked)
-                Material(
-                  color: Colors.amber.withValues(alpha: 0.15),
-                  child: Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          t('replyWindowClosed'),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
-                          ),
-                        ),
-                        Text(
-                          t('replyWindowClosedHint'),
-                          style: const TextStyle(fontSize: 11),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              else if (state.window.mode == 'human_agent')
-                Material(
-                  color: Colors.amber.withValues(alpha: 0.12),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: Text(
-                      t('replyWindowHumanAgentShort'),
-                      style: const TextStyle(fontSize: 11),
-                    ),
-                  ),
-                ),
-              Expanded(
-                child: _buildThreadBody(state, cubit, t, language, palette),
-              ),
-              ChatComposerShell(
-                draft: _controller,
-                hintText: blocked ? t('replyWindowClosed') : t('typeAMessage'),
-                sending: state.isSending || _sendingAttachment,
-                enabled: !blocked,
-                onSend: () => unawaited(_send(cubit)),
-                paletteSendBg: AppTheme.primaryColor,
-                paletteSendFg: Colors.white,
-                composerBg: palette.composerBg,
-                inputFill: palette.inputFill,
-                maxLines: 4,
-                pendingAttachment: (_pendingPath != null || _compressing)
-                    ? ChatPendingAttachmentChip(
-                        label: _pendingPath
-                                ?.split('/')
-                                .last
-                                .split('\\')
-                                .last ??
-                            '',
-                        compressing: _compressing,
-                        compressLabel: t('teamChatCompressing'),
-                        onClear: () => setState(() => _pendingPath = null),
-                      )
-                    : null,
-                recordingBar: _recording
-                    ? Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: ChatVoiceRecordingBar(
-                          elapsed: _recordElapsed,
-                          paused: _recordingPaused,
-                          onPause: () => unawaited(_pauseVoiceRecording()),
-                          onResume: () => unawaited(_resumeVoiceRecording()),
-                          onStop: () => unawaited(_stopVoiceRecording()),
-                          onCancel: () => unawaited(_cancelVoiceRecording()),
-                          metaColor: palette.metaIn,
                         ),
                       )
-                    : null,
-                onAttach: blocked || _sendingAttachment
-                    ? null
-                    : () => unawaited(_openAttach()),
-                showMic: !hasDraft && !blocked,
-                onMic: () => unawaited(_startVoiceRecording()),
-              ),
-            ],
-          ),
+                    else if (state.window.mode == 'human_agent')
+                      Material(
+                        color: Colors.amber.withValues(alpha: 0.12),
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Text(
+                            t('replyWindowHumanAgentShort'),
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                        ),
+                      ),
+                    Expanded(
+                      child: _buildThreadBody(state, cubit, t, language, palette),
+                    ),
+                    if (requiresTemplate && !blocked)
+                      ColoredBox(
+                        color: palette.composerBg,
+                        child: SafeArea(
+                          top: false,
+                          child: Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: FilledButton.tonalIcon(
+                                onPressed: state.isSending
+                                    ? null
+                                    : () => unawaited(_pickTemplate(cubit)),
+                                icon: state.isSending
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.description_outlined),
+                                label: Text(t('whatsappChooseTemplate')),
+                                style: FilledButton.styleFrom(
+                                  foregroundColor: palette.bubbleInFg,
+                                  backgroundColor: palette.bubbleIn,
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 14),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      ChatComposerShell(
+                        draft: _controller,
+                        hintText:
+                            blocked ? t('replyWindowClosed') : t('typeAMessage'),
+                        sending: state.isSending || _sendingAttachment,
+                        enabled: !blocked,
+                        onSend: () => unawaited(_send(cubit)),
+                        paletteSendBg: AppTheme.primaryColor,
+                        paletteSendFg: Colors.white,
+                        composerBg: palette.composerBg,
+                        inputFill: palette.inputFill,
+                        maxLines: 4,
+                        banner: blocked
+                            ? null
+                            : Align(
+                                alignment: Alignment.centerLeft,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.quickreply_outlined,
+                                        color: palette.metaIn,
+                                      ),
+                                      tooltip: t('quickReplies'),
+                                      onPressed: () =>
+                                          unawaited(_pickQuickReply()),
+                                    ),
+                                    if (conversation.isWhatsapp)
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.description_outlined,
+                                          color: palette.metaIn,
+                                        ),
+                                        tooltip: t('template'),
+                                        onPressed: state.isSending
+                                            ? null
+                                            : () => unawaited(
+                                                  _pickTemplate(cubit),
+                                                ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                        pendingAttachment:
+                            (_pendingPath != null || _compressing)
+                                ? ChatPendingAttachmentChip(
+                                    label: _pendingPath
+                                            ?.split('/')
+                                            .last
+                                            .split('\\')
+                                            .last ??
+                                        '',
+                                    compressing: _compressing,
+                                    compressLabel: t('teamChatCompressing'),
+                                    onClear: () =>
+                                        setState(() => _pendingPath = null),
+                                  )
+                                : null,
+                        recordingBar: _recording
+                            ? Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 4),
+                                child: ChatVoiceRecordingBar(
+                                  elapsed: _recordElapsed,
+                                  paused: _recordingPaused,
+                                  onPause: () =>
+                                      unawaited(_pauseVoiceRecording()),
+                                  onResume: () =>
+                                      unawaited(_resumeVoiceRecording()),
+                                  onStop: () =>
+                                      unawaited(_stopVoiceRecording()),
+                                  onCancel: () =>
+                                      unawaited(_cancelVoiceRecording()),
+                                  metaColor: palette.metaIn,
+                                ),
+                              )
+                            : null,
+                        onAttach: blocked || _sendingAttachment
+                            ? null
+                            : () => unawaited(_openAttach()),
+                        showMic: !hasDraft && !blocked,
+                        onMic: () => unawaited(_startVoiceRecording()),
+                      ),
+                  ],
+                ),
         );
       },
     );
@@ -567,6 +820,20 @@ class _SocialInboxThreadViewState extends State<_SocialInboxThreadView>
       );
     }
 
+    Widget? startedHeader;
+    final first = state.messages.first;
+    final startedLabel = t('whatsappConversationStartedOn').replaceAll(
+      '{date}',
+      chatDayChipLabel(first.timestamp.toLocal(), language: language, t: t),
+    );
+    startedHeader = WhatsAppStatusSeparator(
+      item: WhatsAppThreadStatusItem(
+        id: 'status-started',
+        variant: WhatsAppThreadStatusVariant.started,
+        label: startedLabel,
+      ),
+    );
+
     return BlocProvider<ChatThreadCubit<SocialEngineMessage>>.value(
       value: eng.threadCubit,
       child: BlocBuilder<ChatThreadCubit<SocialEngineMessage>, ChatThreadState>(
@@ -576,37 +843,46 @@ class _SocialInboxThreadViewState extends State<_SocialInboxThreadView>
             textDirection: resolveBubbleTextDirection('A'),
             child: Stack(
               children: [
-                ChatMessageListView(
-                  rows: threadState.rows,
-                  itemScrollController: eng.itemScrollController,
-                  itemPositionsListener: eng.itemPositionsListener,
-                  highlightedMessageId:
-                      eng.highlightController.highlightedMessageId.value,
-                  onScrollNotification: (n) =>
-                      eng.scrollService.handleScrollNotification(
-                    n,
-                    threadState.rows.length,
-                  ),
-                  messageBuilder: (ctx, row, index) {
-                    final msg = (row.message as SocialEngineMessage).raw;
-                    return _SocialMessageBubble(
-                      message: msg,
-                      attachmentUrl: cubit.attachmentUrl,
-                      t: t,
-                    );
-                  },
-                  daySeparatorBuilder: (ctx, row) => ChatDaySeparatorChip(
-                    label: chatDayChipLabel(
-                      row.dayStart,
-                      language: language,
-                      t: t,
+                Column(
+                  children: [
+                    if (startedHeader != null) startedHeader,
+                    Expanded(
+                      child: ChatMessageListView(
+                        rows: threadState.rows,
+                        itemScrollController: eng.itemScrollController,
+                        itemPositionsListener: eng.itemPositionsListener,
+                        highlightedMessageId:
+                            eng.highlightController.highlightedMessageId.value,
+                        onScrollNotification: (n) =>
+                            eng.scrollService.handleScrollNotification(
+                          n,
+                          threadState.rows.length,
+                        ),
+                        messageBuilder: (ctx, row, index) {
+                          final msg = (row.message as SocialEngineMessage).raw;
+                          return WhatsAppMessageBubble(
+                            message: msg.toBubbleModel(cubit.attachmentUrl),
+                            reaction:
+                                msg.reaction.isNotEmpty ? msg.reaction : null,
+                            isEcho: msg.isEcho,
+                            placeholderLabel: _socialAttachmentPlaceholder(msg, t),
+                          );
+                        },
+                        daySeparatorBuilder: (ctx, row) => ChatDaySeparatorChip(
+                          label: chatDayChipLabel(
+                            row.dayStart,
+                            language: language,
+                            t: t,
+                          ),
+                          palette: palette,
+                        ),
+                        unreadBuilder: (ctx) => ChatUnreadSeparatorChip(
+                          label: t('unread'),
+                          palette: palette,
+                        ),
+                      ),
                     ),
-                    palette: palette,
-                  ),
-                  unreadBuilder: (ctx) => ChatUnreadSeparatorChip(
-                    label: t('unread'),
-                    palette: palette,
-                  ),
+                  ],
                 ),
                 ValueListenableBuilder(
                   valueListenable: eng.itemPositionsListener.itemPositions,
@@ -649,179 +925,6 @@ class _SocialInboxThreadViewState extends State<_SocialInboxThreadView>
       builder: (_) => ConvertConversationSheet(
         conversation: conversation,
         onConvert: cubit.convertToLead,
-      ),
-    );
-  }
-}
-
-class _SocialMessageBubble extends StatelessWidget {
-  const _SocialMessageBubble({
-    required this.message,
-    required this.attachmentUrl,
-    required this.t,
-  });
-
-  final SocialMessageModel message;
-  final String Function(int) attachmentUrl;
-  final String Function(String) t;
-
-  @override
-  Widget build(BuildContext context) {
-    // Force Team bubble chrome even if a WA-style palette is passed in.
-    final teamPalette = TeamChatPalette.of(context);
-    final outbound = message.isOutbound;
-    final fg = outbound
-        ? (message.isFailed
-            ? teamPalette.bubbleOutFailedFg
-            : teamPalette.bubbleOutFg)
-        : teamPalette.bubbleInFg;
-    final bodyText = localizeSocialMessageBody(
-      message.body,
-      message.attachmentKind,
-      message.isVoiceNote,
-      t,
-    );
-    final hasMedia = message.attachmentKind != null;
-    final time = withLatinDigits(
-      DateFormat.Hm().format(message.timestamp.toLocal()),
-    );
-
-    final meta = Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        if (message.reaction.isNotEmpty) ...[
-          Text(message.reaction, style: const TextStyle(fontSize: 11)),
-          const SizedBox(width: 4),
-        ],
-        if (message.isPending)
-          Icon(Icons.schedule, size: 14, color: fg.withValues(alpha: 0.72)),
-        if (message.isFailed)
-          Icon(Icons.error_outline, size: 14, color: fg.withValues(alpha: 0.9)),
-        if (message.isPending || message.isFailed) const SizedBox(width: 4),
-        Text(
-          time,
-          style: TextStyle(fontSize: 11, color: fg.withValues(alpha: 0.72)),
-        ),
-      ],
-    );
-
-    return ChatBubbleShell(
-      isInbound: !outbound,
-      palette: teamPalette,
-      failed: message.isFailed,
-      sending: message.isPending && !message.isFailed,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (hasMedia) ...[
-            _Attachment(
-              message: message,
-              attachmentUrl: attachmentUrl,
-              t: t,
-            ),
-            const SizedBox(height: 4),
-          ],
-          ChatBubbleTextAndMeta(
-            body: bodyText.isNotEmpty
-                ? Directionality(
-                    textDirection: resolveBubbleTextDirection(bodyText),
-                    child: Text(
-                      bodyText,
-                      style: TextStyle(color: fg, height: 1.35),
-                    ),
-                  )
-                : null,
-            meta: meta,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Attachment extends StatelessWidget {
-  const _Attachment({
-    required this.message,
-    required this.attachmentUrl,
-    required this.t,
-  });
-
-  final SocialMessageModel message;
-  final String Function(int) attachmentUrl;
-  final String Function(String) t;
-
-  @override
-  Widget build(BuildContext context) {
-    if (!message.hasAttachment) {
-      final label = switch (message.attachmentKind) {
-        'story_mention' => t('storyMention'),
-        'share' => t('sharedPost'),
-        'reel' => t('sharedReel'),
-        'location' => message.locationName.isNotEmpty
-            ? message.locationName
-            : t('locationLabel'),
-        _ => null,
-      };
-      if (label == null) return const SizedBox.shrink();
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 4),
-        child: Text(
-          label,
-          style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
-        ),
-      );
-    }
-
-    final url = attachmentUrl(message.id);
-    final kind = message.attachmentKind;
-    if (kind == 'image') {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 4),
-        child: TenantChatMemoryImage(
-          url: url,
-          suggestedFilename: message.originalFilename,
-        ),
-      );
-    }
-    if (kind == 'video') {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 4),
-        child: TenantChatMemoryVideo(
-          url: url,
-          suggestedFilename: message.originalFilename,
-        ),
-      );
-    }
-    if (kind == 'audio' || message.isVoiceNote) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 4),
-        child: TenantChatInlineAudio(
-          url: url,
-          originalFilename: message.originalFilename,
-          mine: message.isOutbound,
-        ),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.attach_file, size: 14),
-          const SizedBox(width: 4),
-          Flexible(
-            child: Text(
-              message.originalFilename.isNotEmpty
-                  ? message.originalFilename
-                  : t('file'),
-              style: const TextStyle(fontSize: 11),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
       ),
     );
   }

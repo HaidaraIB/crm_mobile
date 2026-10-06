@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart' hide TextDirection;
@@ -14,6 +16,7 @@ import '../../services/api_service.dart';
 import '../../services/social_inbox_availability.dart';
 import '../../utils/social_inbox_access.dart';
 import '../../utils/whatsapp_message_body_localize.dart';
+import '../../widgets/app_avatar.dart';
 import '../../widgets/bidi_text.dart';
 import '../../widgets/chat/chat_conversation_status_menu.dart';
 import 'social_inbox_thread_screen.dart';
@@ -79,9 +82,14 @@ class _SocialInboxUnavailable extends StatelessWidget {
   }
 }
 
-class _SocialInboxListView extends StatelessWidget {
+class _SocialInboxListView extends StatefulWidget {
   const _SocialInboxListView();
 
+  @override
+  State<_SocialInboxListView> createState() => _SocialInboxListViewState();
+}
+
+class _SocialInboxListViewState extends State<_SocialInboxListView> {
   static const _statusFilters = [
     'all',
     'open',
@@ -91,6 +99,16 @@ class _SocialInboxListView extends StatelessWidget {
     'spam',
     'invalid',
   ];
+
+  UserModel? _user;
+
+  @override
+  void initState() {
+    super.initState();
+    ApiService().getCurrentUser().then((user) {
+      if (mounted) setState(() => _user = user);
+    }).catchError((_) => null);
+  }
 
   String _timeLabel(BuildContext context, DateTime? dt) {
     if (dt == null) return '';
@@ -111,6 +129,7 @@ class _SocialInboxListView extends StatelessWidget {
     final localizations = AppLocalizations.of(context);
     String t(String key) =>
         (localizations ?? AppLocalizations(const Locale('en'))).translate(key);
+    final canDelete = canDeleteSocialHistory(_user);
 
     return Scaffold(
       appBar: AppBar(title: Text(t('omniChannelInbox'))),
@@ -126,34 +145,41 @@ class _SocialInboxListView extends StatelessWidget {
             );
           }
 
+          // Do not paint filter chips / empty counts until the first list
+          // response is verified — same rule as WhatsApp chats.
+          final awaitingFirstList = state.conversations.isEmpty &&
+              (state.status == SocialInboxListStatus.initial ||
+                  state.status == SocialInboxListStatus.loading);
+          if (awaitingFirstList) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (state.status == SocialInboxListStatus.error &&
+              state.conversations.isEmpty) {
+            return _CenteredMessage(
+              icon: Icons.error_outline,
+              title: t('socialInboxCouldNotLoad'),
+              action: TextButton(
+                onPressed: () => cubit.refresh(),
+                child: Text(t('retry')),
+              ),
+            );
+          }
+
           return Column(
             children: [
               _Filters(
                 t: t,
                 channel: state.channelFilter,
                 status: state.statusFilter,
+                assignment: state.assignmentFilter,
                 statusCounts: state.statusCounts,
                 statusFilters: _statusFilters,
                 onChannel: cubit.setChannel,
                 onStatus: cubit.setStatus,
+                onAssignment: cubit.setAssignment,
                 onSearch: cubit.setSearch,
               ),
-              if (state.status == SocialInboxListStatus.loading &&
-                  state.conversations.isEmpty)
-                const Expanded(child: Center(child: CircularProgressIndicator()))
-              else if (state.status == SocialInboxListStatus.error &&
-                  state.conversations.isEmpty)
-                Expanded(
-                  child: _CenteredMessage(
-                    icon: Icons.error_outline,
-                    title: t('socialInboxCouldNotLoad'),
-                    action: TextButton(
-                      onPressed: () => cubit.refresh(),
-                      child: Text(t('retry')),
-                    ),
-                  ),
-                )
-              else if (state.conversations.isEmpty)
+              if (state.conversations.isEmpty)
                 Expanded(
                   child: _EmptyInboxMessage(t: t),
                 )
@@ -172,7 +198,7 @@ class _SocialInboxListView extends StatelessWidget {
                       ),
                       itemBuilder: (context, index) {
                         final conversation = state.conversations[index];
-                        return _ConversationTile(
+                        final tile = _ConversationTile(
                           conversation: conversation,
                           t: t,
                           timeLabel: _timeLabel(context, conversation.lastMessageAt),
@@ -193,6 +219,40 @@ class _SocialInboxListView extends StatelessWidget {
                             conversation: conversation,
                             t: t,
                           ),
+                        );
+                        if (!canDelete) return tile;
+                        return Dismissible(
+                          key: ValueKey('social-conv-${conversation.id}'),
+                          direction: DismissDirection.endToStart,
+                          confirmDismiss: (_) async {
+                            return await showDialog<bool>(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    content: Text(t('deleteConversationConfirm')),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(ctx, false),
+                                        child: Text(t('cancel')),
+                                      ),
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(ctx, true),
+                                        child: Text(t('delete')),
+                                      ),
+                                    ],
+                                  ),
+                                ) ??
+                                false;
+                          },
+                          onDismissed: (_) {
+                            unawaited(cubit.deleteConversation(conversation.id));
+                          },
+                          background: Container(
+                            color: Colors.red,
+                            alignment: AlignmentDirectional.centerEnd,
+                            padding: const EdgeInsetsDirectional.only(end: 16),
+                            child: const Icon(Icons.delete, color: Colors.white),
+                          ),
+                          child: tile,
                         );
                       },
                     ),
@@ -233,20 +293,24 @@ class _Filters extends StatelessWidget {
     required this.t,
     required this.channel,
     required this.status,
+    required this.assignment,
     required this.statusCounts,
     required this.statusFilters,
     required this.onChannel,
     required this.onStatus,
+    required this.onAssignment,
     required this.onSearch,
   });
 
   final String Function(String) t;
   final String channel;
   final String status;
+  final String assignment;
   final Map<String, int> statusCounts;
   final List<String> statusFilters;
   final void Function(String) onChannel;
   final void Function(String) onStatus;
+  final void Function(String) onAssignment;
   final void Function(String) onSearch;
 
   @override
@@ -266,6 +330,11 @@ class _Filters extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
+          _AssignmentChips(
+            t: t,
+            assignment: assignment,
+            onAssignment: onAssignment,
+          ),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -370,9 +439,12 @@ class _ConversationTile extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.all(3),
                       decoration: BoxDecoration(
-                        color: scheme.surface,
+                        color: scheme.surfaceContainerHighest,
                         shape: BoxShape.circle,
-                        border: Border.all(color: scheme.surface, width: 1),
+                        border: Border.all(
+                          color: AppTheme.primaryAccent(scheme.brightness),
+                          width: 1.25,
+                        ),
                       ),
                       child: Icon(
                         conversation.isInstagram
@@ -381,7 +453,7 @@ class _ConversationTile extends StatelessWidget {
                                 ? Icons.phone_android_outlined
                                 : Icons.chat_bubble_outline,
                         size: 12,
-                        color: scheme.onSurfaceVariant,
+                        color: AppTheme.primaryAccent(scheme.brightness),
                       ),
                     ),
                   ),
@@ -407,6 +479,18 @@ class _ConversationTile extends StatelessWidget {
                             ),
                           ),
                         ),
+                        if (conversation.assignedToName.trim().isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          Text(
+                            conversation.assignedToName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppTheme.primaryAccent(scheme.brightness),
+                            ),
+                          ),
+                        ],
                         if (timeLabel.isNotEmpty) ...[
                           const SizedBox(width: 8),
                           Text(
@@ -414,7 +498,7 @@ class _ConversationTile extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 12,
                               color: unread > 0
-                                  ? scheme.primary
+                                  ? AppTheme.primaryAccent(scheme.brightness)
                                   : scheme.onSurfaceVariant,
                             ),
                           ),
@@ -498,6 +582,61 @@ class _ConversationTile extends StatelessWidget {
   }
 }
 
+class _AssignmentChips extends StatefulWidget {
+  const _AssignmentChips({
+    required this.t,
+    required this.assignment,
+    required this.onAssignment,
+  });
+
+  final String Function(String) t;
+  final String assignment;
+  final void Function(String) onAssignment;
+
+  @override
+  State<_AssignmentChips> createState() => _AssignmentChipsState();
+}
+
+class _AssignmentChipsState extends State<_AssignmentChips> {
+  UserModel? _user;
+
+  @override
+  void initState() {
+    super.initState();
+    ApiService().getCurrentUser().then((user) {
+      if (mounted) setState(() => _user = user);
+    }).catchError((_) {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!userSeesAllSocialConversations(_user)) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            for (final entry in const [
+              ['all', 'all'],
+              ['mine', 'chatFilterAssignedToMe'],
+              ['unassigned', 'chatFilterUnassigned'],
+            ])
+              Padding(
+                padding: const EdgeInsetsDirectional.only(end: 6),
+                child: ChoiceChip(
+                  label: Text(widget.t(entry[1])),
+                  selected: widget.assignment == entry[0],
+                  onSelected: (_) => widget.onAssignment(entry[0]),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _EmptyInboxMessage extends StatefulWidget {
   const _EmptyInboxMessage({required this.t});
 
@@ -573,7 +712,7 @@ class _CenteredMessage extends StatelessWidget {
   }
 }
 
-class _SocialContactAvatar extends StatefulWidget {
+class _SocialContactAvatar extends StatelessWidget {
   const _SocialContactAvatar({
     required this.displayName,
     required this.profilePicUrl,
@@ -583,43 +722,11 @@ class _SocialContactAvatar extends StatefulWidget {
   final String profilePicUrl;
 
   @override
-  State<_SocialContactAvatar> createState() => _SocialContactAvatarState();
-}
-
-class _SocialContactAvatarState extends State<_SocialContactAvatar> {
-  bool _imageFailed = false;
-
-  String _initials() {
-    final parts = widget.displayName.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
-    if (parts.isEmpty) return '?';
-    return parts.take(2).map((p) => p[0].toUpperCase()).join();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final url = widget.profilePicUrl.trim();
-    if (url.isNotEmpty && !_imageFailed) {
-      return CircleAvatar(
-        radius: 26,
-        backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.12),
-        backgroundImage: NetworkImage(url),
-        onBackgroundImageError: (_, __) {
-          if (mounted) setState(() => _imageFailed = true);
-        },
-      );
-    }
-    return CircleAvatar(
+    return AppAvatar(
       radius: 26,
-      backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.12),
-      child: Text(
-        _initials(),
-        style: TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.w600,
-          color: scheme.primary,
-        ),
-      ),
+      imageUrl: profilePicUrl,
+      initials: appAvatarInitials(displayName),
     );
   }
 }

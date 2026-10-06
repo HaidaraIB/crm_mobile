@@ -10,6 +10,7 @@ import '../../services/realtime_channel.dart';
 import '../../services/team_chat_away_service.dart';
 import '../../services/team_chat_unread_holder.dart';
 import '../../services/whatsapp_chat_unread_poller.dart';
+import '../../widgets/app_avatar.dart';
 import '../../widgets/navigation_drawer.dart';
 import '../leads/create_lead_screen.dart';
 import '../notifications/notifications_screen.dart';
@@ -38,6 +39,7 @@ class _CallCenterHomeScreenState extends State<CallCenterHomeScreen>
   final ApiService _apiService = ApiService();
 
   bool _loading = false;
+  bool _ready = true;
   bool _searched = false;
   List<LeadModel> _results = const [];
   final Set<int> _announcingIds = {};
@@ -57,6 +59,27 @@ class _CallCenterHomeScreenState extends State<CallCenterHomeScreen>
       // home screen. Nothing below is removed — the socket only delivers the
       // same change signal sooner.
       unawaited(RealtimeChannel.instance.start());
+    }
+    unawaited(_loadReady());
+  }
+
+  Future<void> _loadReady() async {
+    try {
+      final status = await _apiService.getWhatsAppAgentStatus();
+      if (!mounted) return;
+      setState(() => _ready = status['status'] != 'away');
+    } catch (_) {}
+  }
+
+  Future<void> _setReady(bool ready) async {
+    setState(() => _ready = ready);
+    try {
+      await _apiService.setWhatsAppAgentStatus(
+        status: ready ? 'ready' : 'away',
+        durationMinutes: ready ? null : 60,
+      );
+    } catch (_) {
+      if (mounted) setState(() => _ready = !ready);
     }
   }
 
@@ -299,6 +322,17 @@ class _CallCenterHomeScreenState extends State<CallCenterHomeScreen>
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                localizations?.translate(
+                      _ready ? 'whatsappCallStatusReady' : 'whatsappCallStatusAway',
+                    ) ??
+                    (_ready ? 'Ready' : 'Away'),
+              ),
+              value: _ready,
+              onChanged: (value) => unawaited(_setReady(value)),
+            ),
             // Rebuilds on every keystroke so the clear/submit affordances track the
             // field, without a keystroke ever triggering a request.
             ValueListenableBuilder<TextEditingValue>(
@@ -467,19 +501,9 @@ class _CallCenterHomeScreenState extends State<CallCenterHomeScreen>
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(
+                AppAvatar(
                   radius: 20,
-                  // Solid brand purple with a white glyph — the 15%-alpha tint on
-                  // top of a dark card left the initial barely legible.
-                  backgroundColor: AppTheme.primaryColor,
-                  child: Text(
-                    _initial(lead.name),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
+                  initials: appAvatarInitials(lead.name, maxLetters: 1),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -607,8 +631,4 @@ class _CallCenterHomeScreenState extends State<CallCenterHomeScreen>
     );
   }
 
-  String _initial(String name) {
-    final trimmed = name.trim();
-    return trimmed.isEmpty ? '?' : trimmed.characters.first.toUpperCase();
-  }
 }

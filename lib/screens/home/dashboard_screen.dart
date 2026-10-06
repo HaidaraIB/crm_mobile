@@ -11,6 +11,7 @@ import '../../services/api_service.dart';
 import '../deals/deals_screen.dart';
 import '../leads/all_leads_screen.dart';
 import '../leads/create_lead_screen.dart';
+import '../../widgets/app_avatar.dart';
 import '../../widgets/pull_to_refresh_body.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -208,33 +209,14 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
   
   Widget _buildProfileAvatar() {
     final profilePhotoUrl = _currentUser?.profilePhoto ?? _currentUser?.avatar;
-    final hasImage = profilePhotoUrl != null && profilePhotoUrl.isNotEmpty;
-    final imageUrl = profilePhotoUrl;
-    
-    return CircleAvatar(
+    return AppAvatar(
       radius: 40,
-      backgroundColor: Colors.white,
-      backgroundImage: hasImage && imageUrl != null
-          ? NetworkImage(imageUrl)
-          : null,
-      onBackgroundImageError: hasImage && imageUrl != null
-          ? (exception, stackTrace) {
-              // Handle image loading errors silently
-              debugPrint('Error loading profile image: $exception');
-            }
-          : null,
-      child: hasImage
-          ? null
-          : Text(
-              _currentUser?.displayName.isNotEmpty == true
-                  ? (_currentUser?.displayName ?? 'U')[0].toUpperCase()
-                  : 'U',
-              style: TextStyle(
-                fontSize: 32,
-                color: AppTheme.primaryColor,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+      onPrimaryBackground: true,
+      imageUrl: profilePhotoUrl,
+      initials: appAvatarInitials(
+        _currentUser?.displayName ?? 'U',
+        maxLetters: 1,
+      ),
     );
   }
   

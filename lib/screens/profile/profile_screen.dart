@@ -12,6 +12,7 @@ import '../../core/utils/media_url_utils.dart';
 import '../../widgets/media/open_app_media_viewer.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
+import '../../widgets/app_avatar.dart';
 import '../../widgets/phone_input.dart';
 import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
@@ -362,25 +363,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               );
                             }
                           },
-                          child: CircleAvatar(
+                          child: AppAvatar(
                             radius: 60,
-                            backgroundColor:
-                                theme.colorScheme.primary.withValues(alpha: 0.1),
-                            backgroundImage: _selectedImage != null
+                            imageProvider: _selectedImage != null
                                 ? FileImage(_selectedImage!)
-                                : (_profilePhotoUrl != null &&
-                                        _profilePhotoUrl!.isNotEmpty)
-                                    ? NetworkImage(_profilePhotoUrl!)
-                                    : null,
-                            child: _selectedImage == null &&
-                                    (_profilePhotoUrl == null ||
-                                        _profilePhotoUrl!.isEmpty)
-                                ? Icon(
-                                    Icons.person,
-                                    size: 60,
-                                    color: theme.colorScheme.primary,
-                                  )
                                 : null,
+                            imageUrl: _selectedImage == null
+                                ? _profilePhotoUrl
+                                : null,
+                            icon: Icons.person,
+                            initials: appAvatarInitials(
+                              '${_firstNameController.text} ${_lastNameController.text}',
+                              maxLetters: 1,
+                            ),
                           ),
                         ),
                         Positioned(

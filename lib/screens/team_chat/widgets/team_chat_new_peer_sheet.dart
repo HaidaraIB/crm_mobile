@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../../../features/team_chat/cubit/team_chat_new_peer_cubit.dart';
 import '../../../models/tenant_chat_models.dart';
+import '../../../widgets/app_avatar.dart';
 import '../team_chat_common.dart';
 import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
@@ -161,21 +162,11 @@ class _TeamChatNewPeerSheetState extends State<TeamChatNewPeerSheet> {
                                         Stack(
                                           clipBehavior: Clip.none,
                                           children: [
-                                            CircleAvatar(
+                                            AppAvatar(
                                               radius: 26,
-                                              backgroundColor: scheme.primary
-                                                  .withValues(alpha: 0.12),
-                                              backgroundImage: avatarImg,
-                                              child: avatarImg == null
-                                                  ? Text(
-                                                      tenantChatPeerInitials(p),
-                                                      style: TextStyle(
-                                                        fontSize: 15,
-                                                        fontWeight: FontWeight.w600,
-                                                        color: scheme.primary,
-                                                      ),
-                                                    )
-                                                  : null,
+                                              imageProvider: avatarImg,
+                                              initials:
+                                                  tenantChatPeerInitials(p),
                                             ),
                                             if (p.isOnline == true)
                                               Positioned(

@@ -68,6 +68,11 @@ abstract class SocialInboxRepository {
 
   Future<void> deleteConversation(int conversationId);
 
+  Future<SocialContactModel> updateContact({
+    required int contactId,
+    required String name,
+  });
+
   Future<List<Map<String, dynamic>>> getCalls(int conversationId);
 
   String attachmentUrl(int messageId);
@@ -201,6 +206,13 @@ class ApiSocialInboxRepository implements SocialInboxRepository {
   @override
   Future<void> deleteConversation(int conversationId) =>
       _api.deleteSocialConversation(conversationId);
+
+  @override
+  Future<SocialContactModel> updateContact({
+    required int contactId,
+    required String name,
+  }) =>
+      _api.updateSocialContact(contactId: contactId, name: name);
 
   @override
   Future<List<Map<String, dynamic>>> getCalls(int conversationId) =>

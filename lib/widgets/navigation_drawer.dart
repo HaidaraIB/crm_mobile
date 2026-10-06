@@ -21,6 +21,7 @@ import '../utils/inventory_access.dart' as inventory_access;
 import '../models/user_model.dart';
 import '../services/api_service.dart';
 import '../services/work_session_service.dart';
+import 'app_avatar.dart';
 import 'permission_guard.dart';
 import 'working_hours_today_card.dart';
 
@@ -668,36 +669,28 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
 
   Widget _buildProfileAvatar() {
     final profilePhotoUrl = _currentUser?.profilePhoto ?? _currentUser?.avatar;
-    final hasImage = profilePhotoUrl != null && profilePhotoUrl.isNotEmpty;
-    final shouldShowImage = !_isLoadingUser && hasImage;
-    final String? imageUrl = shouldShowImage ? profilePhotoUrl : null;
-
-    return CircleAvatar(
+    if (_isLoadingUser) {
+      return CircleAvatar(
+        radius: 40,
+        backgroundColor: AppAvatarColors.backgroundOnPrimary(),
+        child: const SizedBox(
+          width: 28,
+          height: 28,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+          ),
+        ),
+      );
+    }
+    return AppAvatar(
       radius: 40,
-      backgroundColor: Colors.white,
-      backgroundImage: imageUrl != null ? NetworkImage(imageUrl) : null,
-      onBackgroundImageError: imageUrl != null
-          ? (exception, stackTrace) {
-              debugPrint('Error loading profile image in drawer: $exception');
-            }
-          : null,
-      child: _isLoadingUser
-          ? const CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
-            )
-          : !hasImage
-          ? Text(
-              _currentUser?.displayName.isNotEmpty == true
-                  ? (_currentUser?.displayName ?? 'U')[0].toUpperCase()
-                  : 'U',
-              style: TextStyle(
-                fontSize: 32,
-                color: AppTheme.primaryColor,
-                fontWeight: FontWeight.bold,
-              ),
-            )
-          : null,
+      onPrimaryBackground: true,
+      imageUrl: profilePhotoUrl,
+      initials: appAvatarInitials(
+        _currentUser?.displayName ?? 'U',
+        maxLetters: 1,
+      ),
     );
   }
 }

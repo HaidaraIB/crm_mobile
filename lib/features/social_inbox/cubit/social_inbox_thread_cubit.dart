@@ -74,11 +74,14 @@ class SocialInboxThreadCubit extends Cubit<SocialInboxThreadState> {
         status: SocialThreadStatus.loaded,
         messages: [...messages, ...pending],
         window: window,
+        composerReady: true,
         clearError: true,
       ));
     } catch (e) {
       if (isClosed) return;
       if (silent) return;
+      // Keep composerReady false until a successful load — the default
+      // [SocialSendWindow] is closed and must not paint as verified.
       emit(state.copyWith(
         status: SocialThreadStatus.error,
         errorMessage: e.toString(),
@@ -151,6 +154,29 @@ class SocialInboxThreadCubit extends Cubit<SocialInboxThreadState> {
     }
   }
 
+  Future<void> sendTemplate(int templateId) async {
+    if (isClosed) return;
+    emit(state.copyWith(isSending: true, clearError: true));
+    try {
+      await _repository.sendTemplate(
+        conversationId: _conversationId,
+        templateId: templateId,
+      );
+      if (isClosed) return;
+      emit(state.copyWith(isSending: false));
+      unawaited(load(silent: true));
+    } on SocialSendException catch (e) {
+      if (isClosed) return;
+      emit(state.copyWith(
+        isSending: false,
+        sendErrorKey: socialSendErrorMessageKey(e.code),
+      ));
+    } catch (e) {
+      if (isClosed) return;
+      emit(state.copyWith(isSending: false, errorMessage: e.toString()));
+    }
+  }
+
   Future<void> sendMedia(String filePath, {String? caption}) async {
     if (isClosed) return;
     emit(state.copyWith(isSending: true, clearError: true));
@@ -208,6 +234,40 @@ class SocialInboxThreadCubit extends Cubit<SocialInboxThreadState> {
 
   Future<void> setStatus(String status) =>
       updateConversationState(status: status);
+
+  Future<void> renameContact(String name) async {
+    if (isClosed) return;
+    final previous = state.conversation;
+    if (previous == null) return;
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return;
+    try {
+      final updated = await _repository.updateContact(
+        contactId: previous.contact.id,
+        name: trimmed,
+      );
+      if (isClosed) return;
+      emit(state.copyWith(
+        conversation: previous.copyWith(contact: updated),
+      ));
+    } catch (e) {
+      if (isClosed) return;
+      emit(state.copyWith(errorMessage: e.toString()));
+    }
+  }
+
+  /// Permanently delete this conversation (owner only; API enforces).
+  Future<bool> deleteConversation() async {
+    if (isClosed) return false;
+    try {
+      await _repository.deleteConversation(_conversationId);
+      return true;
+    } catch (e) {
+      if (isClosed) return false;
+      emit(state.copyWith(errorMessage: e.toString()));
+      return false;
+    }
+  }
 
   /// Returns the new lead id, or null when the conversion failed.
   Future<int?> convertToLead({

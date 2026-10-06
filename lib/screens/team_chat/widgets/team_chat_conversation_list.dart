@@ -78,7 +78,9 @@ class TeamChatConversationList extends StatelessWidget {
                 ),
               ),
             Expanded(
-              child: state.loadingConv
+              // Full-page spinner only before the first verified list — never
+              // flash empty/loading over already-loaded conversations.
+              child: state.loadingConv && state.conversations.isEmpty
                   ? const PullToRefreshBody.loading()
                   : state.conversations.isEmpty
                       ? PullToRefreshBody(

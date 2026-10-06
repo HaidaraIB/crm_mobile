@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../core/storage/tab_index_storage.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/api_error_helper.dart';
 import '../../core/utils/snackbar_helper.dart';
@@ -26,6 +27,7 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
   final ApiService _apiService = ApiService();
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
+  static const _tabKey = 'properties_inventory';
   
   // User
   bool _isAdmin = false;
@@ -52,9 +54,22 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(_persistTab);
+    _restoreTab();
     _loadUser();
     _loadData();
     _searchController.addListener(_filterData);
+  }
+
+  Future<void> _restoreTab() async {
+    final index = await loadTabIndex(_tabKey, maxIndex: 2);
+    if (!mounted || index == _tabController.index) return;
+    _tabController.index = index;
+  }
+
+  void _persistTab() {
+    if (_tabController.indexIsChanging) return;
+    saveTabIndex(_tabKey, _tabController.index);
   }
   
   Future<void> _loadUser() async {
@@ -70,6 +85,7 @@ class _PropertiesInventoryScreenState extends State<PropertiesInventoryScreen> w
 
   @override
   void dispose() {
+    _tabController.removeListener(_persistTab);
     _tabController.dispose();
     _searchController.dispose();
     super.dispose();

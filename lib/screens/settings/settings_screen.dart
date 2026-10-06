@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../core/storage/tab_index_storage.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
@@ -22,6 +23,7 @@ class _SettingsScreenState extends State<SettingsScreen> with TickerProviderStat
   TabController? _tabController;
   UserModel? _currentUser;
   final ApiService _apiService = ApiService();
+  static const _tabKey = 'settings';
 
   @override
   void initState() {
@@ -31,6 +33,7 @@ class _SettingsScreenState extends State<SettingsScreen> with TickerProviderStat
 
   @override
   void dispose() {
+    _tabController?.removeListener(_persistTab);
     _tabController?.dispose();
     super.dispose();
   }
@@ -43,31 +46,41 @@ class _SettingsScreenState extends State<SettingsScreen> with TickerProviderStat
     );
   }
 
+  void _persistTab() {
+    final c = _tabController;
+    if (c == null || c.indexIsChanging) return;
+    saveTabIndex(_tabKey, c.index);
+  }
+
+  Future<void> _initTabs(int tabCount) async {
+    final index = await loadTabIndex(_tabKey, maxIndex: tabCount - 1);
+    if (!mounted) return;
+    _tabController?.removeListener(_persistTab);
+    _tabController?.dispose();
+    _tabController = TabController(length: tabCount, vsync: this, initialIndex: index);
+    _tabController!.addListener(_persistTab);
+    setState(() {});
+  }
+
   Future<void> _loadUser({bool forceRefresh = false}) async {
     try {
       final user = await _apiService.getCurrentUser(forceRefresh: forceRefresh);
       if (mounted) {
-        setState(() {
-          _currentUser = user;
-          // Initialize TabController after we know if user is admin
-          final isAdmin = user.isAdmin;
-          final hasSettingsPerm = user.hasSupervisorPermission('can_manage_settings');
-          final spec = user.company?.specialization ?? '';
-          final showVisitTypesTab = (isAdmin || hasSettingsPerm) &&
-              (spec == 'real_estate' || spec == 'services' || spec == 'medical');
-          final tabCount = (isAdmin || hasSettingsPerm)
-              ? (6 + (showVisitTypesTab ? 1 : 0))
-              : 1;
-          _tabController?.dispose();
-          _tabController = TabController(length: tabCount, vsync: this);
-        });
+        _currentUser = user;
+        // Initialize TabController after we know if user is admin
+        final isAdmin = user.isAdmin;
+        final hasSettingsPerm = user.hasSupervisorPermission('can_manage_settings');
+        final spec = user.company?.specialization ?? '';
+        final showVisitTypesTab = (isAdmin || hasSettingsPerm) &&
+            (spec == 'real_estate' || spec == 'services' || spec == 'medical');
+        final tabCount = (isAdmin || hasSettingsPerm)
+            ? (6 + (showVisitTypesTab ? 1 : 0))
+            : 1;
+        await _initTabs(tabCount);
       }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          // Default to just General tab if we can't load user
-          _tabController = TabController(length: 1, vsync: this);
-        });
+        await _initTabs(1);
       }
     }
   }

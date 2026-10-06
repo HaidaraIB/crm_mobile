@@ -15,6 +15,7 @@ import '../../models/whatsapp_conversation_model.dart';
 import '../../services/api_service.dart';
 import '../../utils/whatsapp_access.dart';
 import '../../utils/whatsapp_message_body_localize.dart';
+import '../../widgets/app_avatar.dart';
 import '../../widgets/bidi_text.dart';
 import '../../widgets/chat/chat_conversation_status_menu.dart';
 import '../../widgets/whatsapp_chat/whatsapp_access_guard.dart';
@@ -555,12 +556,9 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
                             onLongPress: c.id > 0
                                 ? () => _showActions(context, c)
                                 : null,
-                            leading: CircleAvatar(
-                              backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.15),
-                              child: Text(
-                                title.isNotEmpty ? title[0].toUpperCase() : '?',
-                                style: const TextStyle(color: AppTheme.primaryColor),
-                              ),
+                            leading: AppAvatar(
+                              radius: 20,
+                              initials: appAvatarInitials(title, maxLetters: 1),
                             ),
                             title: Row(
                               children: [

@@ -2833,6 +2833,28 @@ class ApiService {
     }
   }
 
+  /// PATCH `/integrations/inbox/contacts/<id>/` — agent rename (name_manually_set).
+  Future<SocialContactModel> updateSocialContact({
+    required int contactId,
+    required String name,
+  }) async {
+    final response = await _makeRequest(
+      'PATCH',
+      '/integrations/inbox/contacts/$contactId/',
+      body: {'name': name.trim()},
+    );
+    if (response.statusCode != 200) {
+      throw Exception(_translateError('socialInboxCouldNotUpdate', locale: null));
+    }
+    final decoded = jsonDecode(response.body);
+    final data = decoded is Map ? (decoded['data'] ?? decoded) : decoded;
+    final contactJson = data is Map ? data['contact'] : null;
+    if (contactJson is! Map<String, dynamic>) {
+      throw Exception(_translateError('socialInboxCouldNotUpdate', locale: null));
+    }
+    return SocialContactModel.fromJson(contactJson);
+  }
+
   /// POST `/integrations/inbox/conversations/<id>/convert/` - create a CRM lead.
   ///
   /// Phone is optional and must stay so: Instagram/Messenger carry no phone
@@ -3115,6 +3137,35 @@ class ApiService {
       } catch (_) {}
       throw Exception(msg);
     }
+  }
+
+  /// GET /integrations/quick-replies/
+  Future<List<Map<String, dynamic>>> getQuickReplies() async {
+    final response = await _makeRequest('GET', '/integrations/quick-replies/');
+    if (response.statusCode != 200) return const [];
+    final decoded = _unwrapResponseDynamic(response);
+    if (decoded is! List) return const [];
+    return decoded.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  /// GET/POST /integrations/whatsapp/calls/agent-status/
+  Future<Map<String, dynamic>> getWhatsAppAgentStatus() async {
+    final response = await _makeRequest('GET', '/integrations/whatsapp/calls/agent-status/');
+    if (response.statusCode != 200) return {'status': 'ready'};
+    final decoded = _unwrapResponseDynamic(response);
+    if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    return {'status': 'ready'};
+  }
+
+  Future<void> setWhatsAppAgentStatus({String status = 'ready', int? durationMinutes}) async {
+    await _makeRequest(
+      'POST',
+      '/integrations/whatsapp/calls/agent-status/',
+      body: {
+        'status': status,
+        if (durationMinutes != null) 'duration_minutes': durationMinutes,
+      },
+    );
   }
 
   /// GET /integrations/templates/ — filter client-side for approved WhatsApp.

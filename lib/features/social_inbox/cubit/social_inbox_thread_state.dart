@@ -17,6 +17,13 @@ class SocialInboxThreadState extends Equatable {
   final String? sendErrorKey;
   final SocialConversationModel? conversation;
 
+  /// First bootstrap has resolved messages + send window together.
+  ///
+  /// Until true, the thread must not paint composer chrome — [SocialSendWindow]
+  /// defaults to closed, which would flash the Meta reply-lock banner and a
+  /// disabled composer before the API answers.
+  final bool composerReady;
+
   const SocialInboxThreadState({
     this.status = SocialThreadStatus.initial,
     this.messages = const [],
@@ -25,6 +32,7 @@ class SocialInboxThreadState extends Equatable {
     this.errorMessage,
     this.sendErrorKey,
     this.conversation,
+    this.composerReady = false,
   });
 
   const SocialInboxThreadState.initial() : this();
@@ -41,6 +49,7 @@ class SocialInboxThreadState extends Equatable {
     String? errorMessage,
     String? sendErrorKey,
     SocialConversationModel? conversation,
+    bool? composerReady,
     bool clearError = false,
   }) {
     return SocialInboxThreadState(
@@ -51,6 +60,7 @@ class SocialInboxThreadState extends Equatable {
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       sendErrorKey: clearError ? null : (sendErrorKey ?? this.sendErrorKey),
       conversation: conversation ?? this.conversation,
+      composerReady: composerReady ?? this.composerReady,
     );
   }
 
@@ -65,6 +75,7 @@ class SocialInboxThreadState extends Equatable {
         isSending,
         errorMessage,
         sendErrorKey,
+        composerReady,
         conversation?.id,
         conversation?.clientId,
         conversation?.status,

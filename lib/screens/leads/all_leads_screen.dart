@@ -13,6 +13,7 @@ import '../../models/lead_model.dart';
 import '../../models/settings_model.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
+import '../../widgets/app_avatar.dart';
 import '../../widgets/bidi_text.dart';
 import '../../widgets/status_change_reason_dialog.dart';
 import '../../widgets/modals/add_action_modal.dart';
@@ -2480,33 +2481,9 @@ class _LeadAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final bg = isDark
-        ? AppTheme.primaryColor.withValues(alpha: 0.35)
-        : AppTheme.primaryColor;
-    const fg = Colors.white;
-    final borderColor = isDark
-        ? AppTheme.primaryColor.withValues(alpha: 0.85)
-        : Color.lerp(AppTheme.primaryColor, Colors.black, 0.2)!;
-    return Container(
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: borderColor, width: 1.5),
-      ),
-      child: CircleAvatar(
-        radius: 28,
-        backgroundColor: bg,
-        foregroundColor: fg,
-        child: Text(
-          lead.name.isNotEmpty ? lead.name[0].toUpperCase() : "?",
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: fg,
-          ),
-        ),
-      ),
+    return AppAvatar(
+      radius: 28,
+      initials: appAvatarInitials(lead.name, maxLetters: 1),
     );
   }
 }

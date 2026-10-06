@@ -39,6 +39,7 @@ import '../../widgets/chat/chat_conversation_status_menu.dart';
 import '../../widgets/chat/chat_palette.dart';
 import '../../widgets/chat/chat_pending_attachment_chip.dart';
 import '../../widgets/chat/chat_separators.dart';
+import '../../widgets/chat/chat_thread_opening.dart';
 import '../../widgets/chat/chat_voice_recording_bar.dart';
 import '../../widgets/chat_thread_empty.dart';
 import '../../widgets/whatsapp_chat/company_library_picker_sheet.dart';
@@ -362,6 +363,35 @@ class _WhatsAppChatThreadViewState extends State<_WhatsAppChatThreadView>
     } else {
       unawaited(_shareLocation());
     }
+  }
+
+  Future<void> _pickQuickReply() async {
+    final rows = await ApiService().getQuickReplies();
+    if (!mounted || rows.isEmpty) return;
+    final body = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final row in rows)
+              ListTile(
+                title: Text(row['title']?.toString() ?? ''),
+                subtitle: Text(
+                  row['body']?.toString() ?? '',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                onTap: () => Navigator.pop(ctx, row['body']?.toString() ?? ''),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (body == null || body.isEmpty) return;
+    _controller.text = body;
+    _controller.selection = TextSelection.collapsed(offset: body.length);
+    setState(() {});
   }
 
   Future<void> _openTemplatesSheet({required bool blockFreeText}) async {
@@ -931,11 +961,7 @@ class _WhatsAppChatThreadViewState extends State<_WhatsAppChatThreadView>
           _syncEngine(state.messages);
 
           if (!state.composerReady) {
-            return Column(
-              children: [
-                Expanded(child: _WhatsAppThreadOpening(label: t('loading'))),
-              ],
-            );
+            return ChatThreadOpening(label: t('loading'));
           }
 
           final session = state.sessionWindow;
@@ -1007,7 +1033,7 @@ class _WhatsAppChatThreadViewState extends State<_WhatsAppChatThreadView>
               else
                 ChatComposerShell(
                   draft: _controller,
-                  hintText: t('typeMessageWhatsApp'),
+                  hintText: t('typeAMessage'),
                   sending: state.sending || _sendingAttachment,
                   enabled: !sendBlocked,
                   onSend: () => unawaited(_sendText()),
@@ -1056,14 +1082,27 @@ class _WhatsAppChatThreadViewState extends State<_WhatsAppChatThreadView>
                       ? null
                       : Align(
                           alignment: Alignment.centerLeft,
-                          child: IconButton(
-                            icon: Icon(
-                              Icons.description_outlined,
-                              color: colors.metaIn,
-                            ),
-                            onPressed: () =>
-                                _openTemplatesSheet(blockFreeText: false),
-                            tooltip: t('template'),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: Icon(
+                                  Icons.quickreply_outlined,
+                                  color: colors.metaIn,
+                                ),
+                                tooltip: t('quickReplies'),
+                                onPressed: () => unawaited(_pickQuickReply()),
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  Icons.description_outlined,
+                                  color: colors.metaIn,
+                                ),
+                                onPressed: () =>
+                                    _openTemplatesSheet(blockFreeText: false),
+                                tooltip: t('template'),
+                              ),
+                            ],
                           ),
                         ),
                 ),
@@ -1110,8 +1149,8 @@ class _WhatsAppChatThreadViewState extends State<_WhatsAppChatThreadView>
     if (eng == null || state.messages.isEmpty) {
       return ChatThreadEmpty(
         icon: Icons.chat_bubble_outline_rounded,
-        title: t('whatsappThreadEmpty'),
-        subtitle: t('whatsappThreadEmptyHint'),
+        title: t('chatThreadEmpty'),
+        subtitle: t('chatThreadEmptyHint'),
       );
     }
 
@@ -1218,43 +1257,6 @@ class _WhatsAppChatThreadViewState extends State<_WhatsAppChatThreadView>
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-/// Full-body placeholder while session + account status are still resolving.
-/// A tiny spinner above a live composer reads as three different screens.
-class _WhatsAppThreadOpening extends StatelessWidget {
-  const _WhatsAppThreadOpening({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: 44,
-            height: 44,
-            child: CircularProgressIndicator(
-              strokeWidth: 3.5,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                AppTheme.primaryAccent(theme.brightness),
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            label,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.textTheme.bodySmall?.color,
-            ),
-          ),
-        ],
       ),
     );
   }

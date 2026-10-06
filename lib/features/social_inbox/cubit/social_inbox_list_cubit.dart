@@ -52,6 +52,7 @@ class SocialInboxListCubit extends Cubit<SocialInboxListState> {
       final page = await _repository.getConversations(
         channel: state.channelFilter,
         status: state.statusFilter,
+        assignment: state.assignmentFilter,
         search: state.search.isEmpty ? null : state.search,
         limit: 100,
       );
@@ -91,6 +92,12 @@ class SocialInboxListCubit extends Cubit<SocialInboxListState> {
     unawaited(refresh());
   }
 
+  void setAssignment(String assignment) {
+    if (state.assignmentFilter == assignment) return;
+    emit(state.copyWith(assignmentFilter: assignment));
+    unawaited(refresh());
+  }
+
   void setSearch(String value) {
     emit(state.copyWith(search: value));
     _searchDebounce?.cancel();
@@ -107,6 +114,21 @@ class SocialInboxListCubit extends Cubit<SocialInboxListState> {
           .map((c) => c.id == conversationId ? c.copyWith(unreadCount: 0) : c)
           .toList(),
     ));
+  }
+
+  Future<void> deleteConversation(int conversationId) async {
+    if (isClosed) return;
+    final previous = state.conversations;
+    emit(state.copyWith(
+      conversations: previous.where((c) => c.id != conversationId).toList(),
+    ));
+    try {
+      await _repository.deleteConversation(conversationId);
+    } catch (_) {
+      if (isClosed) return;
+      emit(state.copyWith(conversations: previous));
+      rethrow;
+    }
   }
 
   Future<void> updateConversationState({

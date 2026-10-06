@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/tenant_chat_models.dart';
+import '../../widgets/app_avatar.dart';
 import 'team_chat_common.dart';
 import 'team_chat_text_direction.dart';
 
@@ -43,21 +44,12 @@ class TeamChatConversationRow extends StatelessWidget {
               Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  CircleAvatar(
+                  AppAvatar(
                     radius: 26,
-                    backgroundColor: conversation.isCompanyGroup
-                        ? scheme.tertiary.withValues(alpha: 0.22)
-                        : scheme.primary.withValues(alpha: 0.12),
-                    child: conversation.isCompanyGroup
-                        ? Icon(Icons.groups_rounded, color: scheme.tertiary, size: 26)
-                        : Text(
-                            avatarLetters,
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: scheme.primary,
-                            ),
-                          ),
+                    initials: conversation.isCompanyGroup ? null : avatarLetters,
+                    icon: conversation.isCompanyGroup
+                        ? Icons.groups_rounded
+                        : null,
                   ),
                   if (showOnlineDot)
                     Positioned(
@@ -173,24 +165,12 @@ class TeamChatThreadAppBarTitle extends StatelessWidget {
     final subColor = onPrimaryBackground
         ? Colors.white.withValues(alpha: 0.88)
         : scheme.onSurfaceVariant;
-    final avatarBg = onPrimaryBackground
-        ? Colors.white.withValues(alpha: 0.22)
-        : scheme.primary.withValues(alpha: 0.12);
-    final avatarFg = onPrimaryBackground ? Colors.white : scheme.primary;
-
     return Row(
       children: [
-        CircleAvatar(
+        AppAvatar(
           radius: 18,
-          backgroundColor: avatarBg,
-          child: Text(
-            tenantChatPeerInitials(peer),
-            style: TextStyle(
-              color: avatarFg,
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
-            ),
-          ),
+          onPrimaryBackground: onPrimaryBackground,
+          initials: tenantChatPeerInitials(peer),
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -247,24 +227,12 @@ class TeamChatGroupThreadAppBarTitle extends StatelessWidget {
     final subColor = onPrimaryBackground
         ? Colors.white.withValues(alpha: 0.88)
         : scheme.onSurfaceVariant;
-    final avatarBg = onPrimaryBackground
-        ? Colors.white.withValues(alpha: 0.22)
-        : scheme.tertiary.withValues(alpha: 0.2);
-    final avatarFg = onPrimaryBackground ? Colors.white : scheme.tertiary;
-
     return Row(
       children: [
-        CircleAvatar(
+        AppAvatar(
           radius: 18,
-          backgroundColor: avatarBg,
-          child: Text(
-            avatarLetters,
-            style: TextStyle(
-              color: avatarFg,
-              fontWeight: FontWeight.w700,
-              fontSize: 12,
-            ),
-          ),
+          onPrimaryBackground: onPrimaryBackground,
+          initials: avatarLetters,
         ),
         const SizedBox(width: 10),
         Expanded(

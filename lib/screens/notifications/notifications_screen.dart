@@ -15,6 +15,7 @@ import '../../services/notification_display.dart';
 import '../../services/notifications_unread_holder.dart';
 import '../../services/sync_invalidation.dart';
 import '../../services/notification_router.dart';
+import '../../widgets/app_avatar.dart';
 import '../../widgets/bidi_text.dart';
 import '../../widgets/pull_to_refresh_body.dart';
 
@@ -524,17 +525,19 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               alpha: 0.1,
                             ),
                       child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: isRead
-                              ? theme.colorScheme.surfaceContainerHighest
-                              : AppTheme.primaryColor.withValues(alpha: 0.2),
-                          child: Icon(
-                            NotificationRouter.getIconForType(type),
-                            color: isRead
-                                ? theme.colorScheme.onSurfaceVariant
-                                : AppTheme.primaryColor,
-                          ),
-                        ),
+                        leading: isRead
+                            ? CircleAvatar(
+                                backgroundColor:
+                                    theme.colorScheme.surfaceContainerHighest,
+                                child: Icon(
+                                  NotificationRouter.getIconForType(type),
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              )
+                            : AppAvatar(
+                                radius: 20,
+                                icon: NotificationRouter.getIconForType(type),
+                              ),
                         title: IsolatedText(
                           title,
                           maxLines: 2,

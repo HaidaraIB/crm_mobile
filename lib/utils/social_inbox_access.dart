@@ -49,6 +49,10 @@ bool canConvertSocialConversation(UserModel? user) {
   return false;
 }
 
+/// Delete inbox history (Instagram / Messenger / inbox WhatsApp) — company owner only.
+/// Mirrors `user_can_delete_social_history` on the API; not admins or call center.
+bool canDeleteSocialHistory(UserModel? user) => user?.isCompanyOwner == true;
+
 /// Empty-list copy: triage roles see every DM; staff only see assigned converted leads.
 String socialInboxEmptyHintKey(UserModel? user) {
   if (isSocialInboxStaffScoped(user)) {

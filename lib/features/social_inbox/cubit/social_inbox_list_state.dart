@@ -10,6 +10,7 @@ class SocialInboxListState extends Equatable {
   final Map<String, int> statusCounts;
   final String channelFilter;
   final String statusFilter;
+  final String assignmentFilter;
   final String search;
   final String? errorMessage;
 
@@ -22,6 +23,7 @@ class SocialInboxListState extends Equatable {
     this.statusCounts = const {},
     this.channelFilter = 'all',
     this.statusFilter = 'all',
+    this.assignmentFilter = 'all',
     this.search = '',
     this.errorMessage,
     this.deniedMessageKey,
@@ -38,6 +40,7 @@ class SocialInboxListState extends Equatable {
     Map<String, int>? statusCounts,
     String? channelFilter,
     String? statusFilter,
+    String? assignmentFilter,
     String? search,
     String? errorMessage,
     String? deniedMessageKey,
@@ -49,6 +52,7 @@ class SocialInboxListState extends Equatable {
       statusCounts: statusCounts ?? this.statusCounts,
       channelFilter: channelFilter ?? this.channelFilter,
       statusFilter: statusFilter ?? this.statusFilter,
+      assignmentFilter: assignmentFilter ?? this.assignmentFilter,
       search: search ?? this.search,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       deniedMessageKey: clearError ? null : (deniedMessageKey ?? this.deniedMessageKey),
@@ -62,6 +66,7 @@ class SocialInboxListState extends Equatable {
         statusCounts,
         channelFilter,
         statusFilter,
+        assignmentFilter,
         search,
         errorMessage,
         deniedMessageKey,

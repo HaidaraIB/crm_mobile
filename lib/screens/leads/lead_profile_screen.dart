@@ -29,6 +29,7 @@ import '../../utils/social_inbox_access.dart';
 import '../../utils/whatsapp_access.dart';
 import '../social_inbox/social_inbox_list_screen.dart';
 import '../../utils/whatsapp_launch.dart';
+import '../../widgets/app_avatar.dart';
 import '../../widgets/bidi_text.dart';
 import '../../widgets/status_change_reason_dialog.dart';
 import '../../widgets/modals/assign_lead_modal.dart';
@@ -1214,35 +1215,12 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
   }
   
   Widget _buildProfileAvatar(ThemeData theme) {
-    final isDark = theme.brightness == Brightness.dark;
-    final bg = isDark
-        ? AppTheme.primaryColor.withValues(alpha: 0.35)
-        : AppTheme.primaryColor;
-    const fg = Colors.white;
-    final borderColor = isDark
-        ? AppTheme.primaryColor.withValues(alpha: 0.85)
-        : Color.lerp(AppTheme.primaryColor, Colors.black, 0.2)!;
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: borderColor, width: 1.5),
-          ),
-          child: CircleAvatar(
-            radius: 28,
-            backgroundColor: bg,
-            foregroundColor: fg,
-            child: Text(
-              _lead!.name.isNotEmpty ? _lead!.name[0].toUpperCase() : '?',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: fg,
-              ),
-            ),
-          ),
+        AppAvatar(
+          radius: 28,
+          initials: appAvatarInitials(_lead!.name, maxLetters: 1),
         ),
         if (_lead!.communicationWay != null)
           Positioned(
