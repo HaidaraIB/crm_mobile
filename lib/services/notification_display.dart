@@ -262,30 +262,6 @@ const Map<String, Map<String, _Tpl>> _templates = {
       bodyWithCampaign: null,
     ),
   },
-  'pbx_incoming_call': {
-    'ar': (
-      title: 'مكالمة واردة',
-      body: 'مكالمة واردة من {phone}',
-      bodyWithCampaign: null,
-    ),
-    'en': (
-      title: 'Incoming Call',
-      body: 'Incoming call from {phone}',
-      bodyWithCampaign: null,
-    ),
-  },
-  'pbx_call_missed': {
-    'ar': (
-      title: 'مكالمة فائتة',
-      body: 'مكالمة فائتة من {phone}',
-      bodyWithCampaign: null,
-    ),
-    'en': (
-      title: 'Missed Call',
-      body: 'Missed call from {phone}',
-      bodyWithCampaign: null,
-    ),
-  },
   'visit_reminder': {
     'ar': (
       title: 'تذكير زيارة',
@@ -658,20 +634,6 @@ NotificationDisplay getNotificationDisplay({
   }
   final body = _format(bodyTpl, flat);
 
-  if (type == 'pbx_incoming_call' || type == 'pbx_call_missed') {
-    final phone = _s(flat['phone']).trim();
-    final clientName =
-        _s(flat['client_name'] ?? flat['lead_name']).trim();
-    final title =
-        clientName.isNotEmpty ? clientName : (phone.isNotEmpty ? phone : tpl.title);
-    final localizedBody =
-        phone.isNotEmpty ? _format(tpl.body, {...flat, 'phone': phone}) : tpl.title;
-    return NotificationDisplay(
-      title: title,
-      body: localizedBody,
-      typeLabel: tpl.title,
-    );
-  }
 
   return NotificationDisplay(
     title: tpl.title,

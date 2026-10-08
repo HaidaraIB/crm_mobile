@@ -18,6 +18,7 @@ import '../../utils/social_inbox_access.dart';
 import '../../utils/whatsapp_message_body_localize.dart';
 import '../../widgets/app_avatar.dart';
 import '../../widgets/bidi_text.dart';
+import '../../widgets/brand_icons.dart';
 import '../../widgets/chat/chat_conversation_status_menu.dart';
 import 'social_inbox_thread_screen.dart';
 import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
@@ -348,6 +349,10 @@ class _Filters extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsetsDirectional.only(end: 6),
                     child: ChoiceChip(
+                      showCheckmark: false,
+                      avatar: entry[0] == 'all'
+                          ? null
+                          : socialChannelBrandIcon(entry[0], size: 16),
                       label: Text(t(entry[1])),
                       selected: channel == entry[0],
                       onSelected: (_) => onChannel(entry[0]),
@@ -437,23 +442,18 @@ class _ConversationTile extends StatelessWidget {
                     right: -2,
                     bottom: -2,
                     child: Container(
-                      padding: const EdgeInsets.all(3),
+                      padding: const EdgeInsets.all(2),
                       decoration: BoxDecoration(
-                        color: scheme.surfaceContainerHighest,
+                        color: scheme.surface,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: AppTheme.primaryAccent(scheme.brightness),
+                          color: scheme.outlineVariant,
                           width: 1.25,
                         ),
                       ),
-                      child: Icon(
-                        conversation.isInstagram
-                            ? Icons.camera_alt_outlined
-                            : conversation.isWhatsapp
-                                ? Icons.phone_android_outlined
-                                : Icons.chat_bubble_outline,
+                      child: socialChannelBrandIcon(
+                        conversation.channel,
                         size: 12,
-                        color: AppTheme.primaryAccent(scheme.brightness),
                       ),
                     ),
                   ),

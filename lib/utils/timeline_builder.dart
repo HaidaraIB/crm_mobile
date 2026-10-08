@@ -86,39 +86,6 @@ String? _userName(List<UserModel> users, int createdBy, String? username) {
   return null;
 }
 
-String _formatPbxCallSummary(ClientCallModel cc, TimelineTranslate t) {
-  final parts = <String>[];
-  switch (cc.pbxDirection) {
-    case 'inbound':
-      parts.add(_tr(t, 'inbound'));
-      break;
-    case 'outbound':
-      parts.add(_tr(t, 'outbound'));
-      break;
-    case 'internal':
-      parts.add(_tr(t, 'internal'));
-      break;
-  }
-  switch (cc.pbxDisposition) {
-    case 'answered':
-      parts.add(_tr(t, 'answered'));
-      break;
-    case 'no_answer':
-      parts.add(_tr(t, 'missed'));
-      break;
-    case 'busy':
-      parts.add(_tr(t, 'busy'));
-      break;
-    case 'failed':
-      parts.add(_tr(t, 'callFailed'));
-      break;
-  }
-  if (cc.pbxDurationSec != null && cc.pbxDurationSec! > 0) {
-    parts.add('${cc.pbxDurationSec}s');
-  }
-  return parts.isNotEmpty ? parts.join(' · ') : cc.notes;
-}
-
 String _formatWhatsAppCallSummary(ClientCallModel cc, TimelineTranslate t) {
   final parts = <String>[_tr(t, 'whatsappCallMade')];
   switch (cc.whatsappDirection) {
@@ -197,19 +164,13 @@ List<TimelineEntry> buildLeadTimeline(TimelineBuilderInput input) {
     final callMethodName =
         callMethod?.name ?? cc.callMethodName ?? _tr(t, 'call');
     final callDate = cc.callDatetime ?? cc.createdAt;
-    final isPbx = cc.isPbx;
     final isWhatsApp = cc.isWhatsApp;
 
     String action;
     String details;
     String stage;
     String? color;
-    if (isPbx) {
-      action = _formatPbxCallSummary(cc, t);
-      details = '';
-      stage = _tr(t, 'pbxCallSource');
-      color = '#4f46e5';
-    } else if (isWhatsApp) {
+    if (isWhatsApp) {
       action = _formatWhatsAppCallSummary(cc, t);
       final notes = cc.notes;
       details = notes.contains('\n')

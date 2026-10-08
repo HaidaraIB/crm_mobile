@@ -310,10 +310,12 @@ class LeadsExcelService {
     await file.writeAsBytes(Uint8List.fromList(encoded));
     // iPad/iOS requires a non-zero sharePositionOrigin; use fallback when not provided (e.g. export from parent app bar).
     final origin = sharePositionOrigin ?? const Rect.fromLTWH(0, 0, 1, 1);
-    await Share.shareXFiles(
-      [XFile(path)],
-      text: 'Leads export',
-      sharePositionOrigin: origin,
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(path)],
+        text: 'Leads export',
+        sharePositionOrigin: origin,
+      ),
     );
   }
 }

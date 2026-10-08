@@ -77,7 +77,7 @@ class TimelineEntry {
   final String? callDatetime;
   final String? followUpDate;
   final String? locationPhotoUrl;
-  /// Optional: PBX / WhatsApp call recording playback URL.
+  /// Optional: WhatsApp call recording playback URL.
   final String? recordingUrl;
   final String? recordingStatus;
   /// Direction for individual WhatsApp / social rows (before thread collapse).

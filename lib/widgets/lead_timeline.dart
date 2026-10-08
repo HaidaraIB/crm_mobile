@@ -14,6 +14,7 @@ import '../core/utils/media_url_utils.dart';
 import '../models/timeline_entry.dart';
 import '../services/api_service.dart';
 import 'bidi_text.dart';
+import 'brand_icons.dart';
 import 'lead_tag_chips.dart' show parseTagHexColor;
 import 'media/open_app_media_viewer.dart';
 
@@ -1102,6 +1103,10 @@ class _Chip extends StatelessWidget {
               errorBuilder: (_, __, ___) =>
                   Icon(icon, size: 12, color: foreground),
             )
+          else if (icon == Icons.camera_alt_outlined)
+            const InstagramBrandIcon(size: 12)
+          else if (icon == Icons.forum)
+            const MessengerBrandIcon(size: 12)
           else
             Icon(icon, size: 12, color: foreground),
           const SizedBox(width: 4),

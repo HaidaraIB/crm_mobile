@@ -8,7 +8,6 @@ import '../../core/utils/snackbar_helper.dart';
 import '../../core/utils/budget_range_utils.dart';
 import '../../core/utils/field_visit_access.dart';
 import '../../core/utils/lead_phone_utils.dart';
-import '../../core/utils/pbx_dial_availability.dart';
 import '../../models/lead_model.dart';
 import '../../models/settings_model.dart';
 import '../../models/user_model.dart';
@@ -88,7 +87,6 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
   final Map<int, UserModel> _userCache =
       {}; // Cache for users fetched individually
   UserModel? _currentUser;
-  PbxDialAvailability _dialAvailability = PbxDialAvailability.unavailable;
 
   // Filter state
   String? _selectedType; // 'fresh', 'cold', or null for all
@@ -123,21 +121,6 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     _loadUsers();
   }
 
-  Future<void> _loadPbxSettings() async {
-    if (_currentUser == null) return;
-    try {
-      final settings = await _apiService.getPbxSettings();
-      final extensions = await _apiService.getPbxExtensions();
-      if (!mounted) return;
-      setState(() {
-        _dialAvailability = PbxDialAvailability.fromSettings(
-          settings: settings,
-          extensions: extensions,
-          currentUser: _currentUser,
-        );
-      });
-    } catch (_) {}
-  }
 
   @override
   void didChangeDependencies() {
@@ -160,7 +143,6 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
       setState(() {
         _currentUser = user;
       });
-      await _loadPbxSettings();
     } catch (e) {
       debugPrint('Failed to load current user: $e');
     }
@@ -662,26 +644,6 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     );
   }
 
-  Future<void> _pbxDial(int clientId, String phoneNumber) async {
-    try {
-      await _apiService.pbxDial(clientId: clientId, phoneNumber: phoneNumber);
-      if (mounted) {
-        final localizations = AppLocalizations.of(context);
-        SnackbarHelper.showSuccess(
-          context,
-          localizations?.translate('pbxDialQueued') ??
-              'Call queued — your desk phone should ring shortly.',
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        SnackbarHelper.showError(
-          context,
-          ApiErrorHelper.toUserMessage(context, e),
-        );
-      }
-    }
-  }
 
   Future<void> _makeCall(String phoneNumber) async {
     try {
@@ -1558,10 +1520,8 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                         if (_currentUser?.isDataEntry != true)
                           _LeadQuickActions(
                             lead: lead,
-                            dialAvailability: _dialAvailability,
                             onWhatsapp: () => _openWhatsApp(lead),
                             onCall: () => _makeCall(resolvePrimaryPhone(lead)),
-                            onPbxDial: () => _pbxDial(lead.id, resolvePrimaryPhone(lead)),
                             onSms: () => _showSendSMSModal(lead),
                           ),
 
@@ -2490,18 +2450,14 @@ class _LeadAvatar extends StatelessWidget {
 
 class _LeadQuickActions extends StatelessWidget {
   final LeadModel lead;
-  final PbxDialAvailability dialAvailability;
   final VoidCallback onWhatsapp;
   final VoidCallback onCall;
-  final VoidCallback onPbxDial;
   final VoidCallback onSms;
 
   const _LeadQuickActions({
     required this.lead,
-    required this.dialAvailability,
     required this.onWhatsapp,
     required this.onCall,
-    required this.onPbxDial,
     required this.onSms,
   });
 
@@ -2526,15 +2482,6 @@ class _LeadQuickActions extends StatelessWidget {
           icon: Icons.phone_outlined,
           onPressed: onCall,
         ),
-        if (dialAvailability.showPbxButton) ...[
-          const SizedBox(width: 8),
-          LeadContactActionButton(
-            accentColor: Colors.indigo,
-            icon: Icons.phone_in_talk_outlined,
-            onPressed: onPbxDial,
-            tooltip: loc?.translate('dialViaPbx') ?? 'Dial via PBX',
-          ),
-        ],
         const SizedBox(width: 8),
         LeadContactActionButton(
           accentColor: AppTheme.smsButtonColor,

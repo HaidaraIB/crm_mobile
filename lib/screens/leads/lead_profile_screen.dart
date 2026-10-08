@@ -9,7 +9,6 @@ import '../../core/utils/budget_range_utils.dart';
 import '../../core/utils/field_visit_access.dart';
 import '../../core/utils/lead_assignee_users.dart';
 import '../../core/utils/lead_phone_utils.dart';
-import '../../core/utils/pbx_dial_availability.dart';
 import '../../models/lead_model.dart';
 import '../../models/client_call_model.dart';
 import '../../models/client_event_model.dart';
@@ -80,7 +79,6 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
   List<CallMethodModel> _callMethods = [];
   List<VisitTypeModel> _visitTypes = [];
   final Map<String, bool> _updatingPrimaryMap = {}; // Track which phone numbers are being set as primary
-  PbxDialAvailability _dialAvailability = PbxDialAvailability.unavailable;
   
   @override
   void initState() {
@@ -92,21 +90,6 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
     _loadUsers();
   }
 
-  Future<void> _loadPbxSettings() async {
-    if (_currentUser == null) return;
-    try {
-      final settings = await _apiService.getPbxSettings();
-      final extensions = await _apiService.getPbxExtensions();
-      if (!mounted) return;
-      setState(() {
-        _dialAvailability = PbxDialAvailability.fromSettings(
-          settings: settings,
-          extensions: extensions,
-          currentUser: _currentUser,
-        );
-      });
-    } catch (_) {}
-  }
   
   Future<void> _loadCurrentUser() async {
     try {
@@ -114,7 +97,6 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
       setState(() {
         _currentUser = user;
       });
-      await _loadPbxSettings();
       await _loadTimeline();
     } catch (e) {
       debugPrint('Failed to load current user: $e');
@@ -572,23 +554,6 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
     }
   }
 
-  Future<void> _pbxDial(String phoneNumber) async {
-    if (_lead == null) return;
-    try {
-      await _apiService.pbxDial(clientId: _lead!.id, phoneNumber: phoneNumber);
-      if (mounted) {
-        SnackbarHelper.showSuccess(
-          context,
-          AppLocalizations.of(context)?.translate('pbxDialQueued') ??
-              'Call queued — your desk phone should ring shortly.',
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        SnackbarHelper.showError(context, ApiErrorHelper.toUserMessage(context, e));
-      }
-    }
-  }
   
   bool _canAccessWhatsAppChats() => canAccessWhatsAppChats(_currentUser);
 
@@ -1287,15 +1252,6 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
           icon: Icons.phone_outlined,
           onPressed: () => _makeCall(primaryPhone),
         ),
-        if (_dialAvailability.showPbxButton) ...[
-          const SizedBox(width: 8),
-          LeadContactActionButton(
-            accentColor: Colors.indigo,
-            icon: Icons.phone_in_talk_outlined,
-            onPressed: () => _pbxDial(primaryPhone),
-            tooltip: localizations?.translate('dialViaPbx') ?? 'Dial via PBX',
-          ),
-        ],
         const SizedBox(width: 8),
         LeadContactActionButton(
           accentColor: AppTheme.smsButtonColor,
@@ -2073,15 +2029,6 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
             icon: Icons.phone_outlined,
             onPressed: () => _makeCall(phone.phoneNumber),
           ),
-          if (_dialAvailability.showPbxButton) ...[
-            const SizedBox(width: 8),
-            LeadContactActionButton(
-              accentColor: Colors.indigo,
-              icon: Icons.phone_in_talk_outlined,
-              onPressed: () => _pbxDial(phone.phoneNumber),
-              tooltip: localizations?.translate('dialViaPbx') ?? 'Dial via PBX',
-            ),
-          ],
           const SizedBox(width: 8),
           // SMS Button
           LeadContactActionButton(

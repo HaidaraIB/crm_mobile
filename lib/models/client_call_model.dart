@@ -8,11 +8,6 @@ class ClientCallModel {
   final DateTime? followUpDate;
   final DateTime? followUpCompletedAt;
   final String? source;
-  final String? pbxDirection;
-  final String? pbxDisposition;
-  final int? pbxDurationSec;
-  final String? pbxRecordingUrl;
-  final String? pbxRecordingStatus;
   final String? whatsappDirection;
   final String? whatsappCallStatus;
   final int? whatsappDurationSec;
@@ -32,11 +27,6 @@ class ClientCallModel {
     this.followUpDate,
     this.followUpCompletedAt,
     this.source,
-    this.pbxDirection,
-    this.pbxDisposition,
-    this.pbxDurationSec,
-    this.pbxRecordingUrl,
-    this.pbxRecordingStatus,
     this.whatsappDirection,
     this.whatsappCallStatus,
     this.whatsappDurationSec,
@@ -50,19 +40,15 @@ class ClientCallModel {
   bool get isFollowUpOpen =>
       followUpDate != null && followUpCompletedAt == null;
 
-  bool get isPbx => source == 'pbx';
-
   bool get isWhatsApp => source == 'whatsapp';
 
   String? get timelineRecordingUrl {
     if (isWhatsApp) return whatsappRecordingUrl;
-    if (isPbx) return pbxRecordingUrl;
     return null;
   }
 
   String? get timelineRecordingStatus {
     if (isWhatsApp) return whatsappRecordingStatus;
-    if (isPbx) return pbxRecordingStatus;
     return null;
   }
 
@@ -87,11 +73,6 @@ class ClientCallModel {
           ? DateTime.parse(json['follow_up_completed_at'] as String)
           : null,
       source: json['source'] as String?,
-      pbxDirection: json['pbx_direction'] as String?,
-      pbxDisposition: json['pbx_disposition'] as String?,
-      pbxDurationSec: json['pbx_duration_sec'] as int?,
-      pbxRecordingUrl: json['pbx_recording_url'] as String?,
-      pbxRecordingStatus: json['pbx_recording_status'] as String?,
       whatsappDirection: json['whatsapp_direction'] as String?,
       whatsappCallStatus: json['whatsapp_call_status'] as String?,
       whatsappDurationSec: json['whatsapp_duration_sec'] as int?,
@@ -118,11 +99,6 @@ class ClientCallModel {
       'follow_up_date': followUpDate?.toIso8601String(),
       'follow_up_completed_at': followUpCompletedAt?.toIso8601String(),
       'source': source,
-      'pbx_direction': pbxDirection,
-      'pbx_disposition': pbxDisposition,
-      'pbx_duration_sec': pbxDurationSec,
-      'pbx_recording_url': pbxRecordingUrl,
-      'pbx_recording_status': pbxRecordingStatus,
       'whatsapp_direction': whatsappDirection,
       'whatsapp_call_status': whatsappCallStatus,
       'whatsapp_duration_sec': whatsappDurationSec,
