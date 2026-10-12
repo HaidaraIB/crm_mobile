@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart' hide TextDirection;
+import '../../core/forms/catalog_form_binding.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/app_locales.dart';
@@ -21,8 +22,11 @@ class SupportTicketsScreen extends StatefulWidget {
 
 class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
   final ApiService _apiService = ApiService();
+  final _catalog = CatalogFormBinding('support_ticket.create');
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _titleFocus = FocusNode();
+  final _descriptionFocus = FocusNode();
   final _formKey = GlobalKey<FormState>();
 
   List<SupportTicket> _tickets = [];
@@ -33,11 +37,26 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
   @override
   void initState() {
     super.initState();
+    _catalog.load();
+    _catalog.watch(_titleFocus, 'subject', () => _blurTicket('subject'));
+    _catalog.watch(_descriptionFocus, 'message', () => _blurTicket('message'));
     _loadTickets();
+  }
+
+  Map<String, dynamic> _ticketValues() => {
+        'subject': _titleController.text,
+        'message': _descriptionController.text,
+      };
+
+  Future<void> _blurTicket(String key) async {
+    await _catalog.validate(context, _ticketValues(), only: key);
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    _titleFocus.dispose();
+    _descriptionFocus.dispose();
     _titleController.dispose();
     _descriptionController.dispose();
     super.dispose();
@@ -87,10 +106,13 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
 
   Future<void> _submitTicket() async {
     if (_isSubmitting) return;
-    if (!_formKey.currentState!.validate()) return;
+    final valid = await _catalog.validate(context, _ticketValues());
+    if (!valid) {
+      if (mounted) setState(() {});
+      return;
+    }
     final title = _titleController.text.trim();
     final description = _descriptionController.text.trim();
-    if (title.isEmpty || description.isEmpty) return;
     _isSubmitting = true;
     setState(() {});
     try {
@@ -113,13 +135,18 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
       _loadTickets();
     } catch (e) {
       if (mounted) {
-        SnackbarHelper.showError(
-          context,
-          AppLocalizations.of(
-                context,
-              )?.translate('failedToCreateSupportTicket') ??
-              'Failed to submit ticket. Please try again.',
-        );
+        if (e is ApiFieldException &&
+            _catalog.applyApiError(AppLocalizations.of(context), e) &&
+            _catalog.errors.keys.any((key) => key != '_general')) {
+          setState(() {});
+        } else {
+          SnackbarHelper.showError(
+            context,
+            _catalog.errors['_general'] ??
+                (AppLocalizations.of(context)?.translate('failedToCreateSupportTicket') ??
+                    'Failed to submit ticket. Please try again.'),
+          );
+        }
       }
     } finally {
       if (mounted) {
@@ -198,50 +225,38 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
                           const SizedBox(height: 12),
                           AutoDirTextFormField(
                             controller: _titleController,
+                            focusNode: _titleFocus,
+                            onEditingComplete: () => _blurTicket('subject'),
                             decoration: InputDecoration(
                               labelText:
                                   localizations?.translate(
                                     'supportTicketTitle',
                                   ) ??
                                   'Subject',
+                              errorText: _catalog.errors['subject'],
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
                             ),
-                            validator: (v) {
-                              if (v == null || v.trim().isEmpty) {
-                                return localizations?.translate(
-                                      'subjectRequired',
-                                    ) ??
-                                    'Subject is required';
-                              }
-                              return null;
-                            },
                           ),
                           const SizedBox(height: 12),
                           AutoDirTextFormField(
                             controller: _descriptionController,
+                            focusNode: _descriptionFocus,
+                            onEditingComplete: () => _blurTicket('message'),
                             decoration: InputDecoration(
                               labelText:
                                   localizations?.translate(
                                     'supportTicketDescription',
                                   ) ??
                                   'Description',
+                              errorText: _catalog.errors['message'],
                               alignLabelWithHint: true,
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
                             ),
                             maxLines: 4,
-                            validator: (v) {
-                              if (v == null || v.trim().isEmpty) {
-                                return localizations?.translate(
-                                      'descriptionRequired',
-                                    ) ??
-                                    'Description is required';
-                              }
-                              return null;
-                            },
                           ),
                           const SizedBox(height: 12),
                           Text(

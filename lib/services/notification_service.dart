@@ -22,6 +22,12 @@ const int _kTenantChatMergedNotifIdBase = 1900000000;
 const int _kTenantChatMergeMaxLines = 5;
 const String _kTenantChatMergePrefsPrefix = 'tenant_chat_push_merge_v1_';
 
+/// Android renders the small icon from its alpha channel only, so it must be a
+/// white silhouette on transparent — a full-colour launcher icon turns into a
+/// solid square. Keep in sync with `default_notification_icon` in the manifest.
+const String _kAndroidNotificationIcon = 'ic_stat_notification';
+const Color _kAndroidNotificationColor = Color(0xFF3F13A5);
+
 /// Bump this when Android channels must be deleted and recreated (e.g. custom
 /// sounds not applied because channels existed with default sound first).
 const String _kAndroidChannelSoundMigrationPrefsKey =
@@ -78,7 +84,8 @@ AndroidNotificationDetails _buildArrivalAndroidDetails() =>
       category: AndroidNotificationCategory.call,
       audioAttributesUsage: AudioAttributesUsage.notificationRingtone,
       additionalFlags: _kInsistentNotificationFlags,
-      icon: '@mipmap/ic_launcher',
+      icon: _kAndroidNotificationIcon,
+      color: _kAndroidNotificationColor,
     );
 
 /// Announced walk-in arrivals (`kind: lead_arrival`) ring; the after-the-fact
@@ -227,7 +234,7 @@ bool _fcmBackgroundLocalNotificationsInitialized = false;
 Future<void> _ensureFcmBackgroundLocalNotificationsInitialized() async {
   if (_fcmBackgroundLocalNotificationsInitialized) return;
 
-  const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const androidSettings = AndroidInitializationSettings(_kAndroidNotificationIcon);
   const iosSettings = DarwinInitializationSettings(
     requestAlertPermission: false,
     requestBadgePermission: false,
@@ -316,7 +323,8 @@ Future<void> _showTenantChatMergedFromBackground(NotificationPayload payload) as
         playSound: true,
         sound: _androidSoundForChannelId('tenant_chat'),
         enableVibration: true,
-        icon: '@mipmap/ic_launcher',
+        icon: _kAndroidNotificationIcon,
+        color: _kAndroidNotificationColor,
         styleInformation: androidStyle,
       ),
       iOS: DarwinNotificationDetails(
@@ -507,7 +515,7 @@ class NotificationService {
   /// تهيئة الإشعارات المحلية
   Future<void> _initializeLocalNotifications() async {
     // إعدادات Android
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings(_kAndroidNotificationIcon);
 
     // إعدادات iOS: لا نطلب الإذن هنا لتجنب ظهور نافذة الإذن مرتين.
     // طلب الإذن يتم مرة واحدة فقط عبر Firebase في requestPermissions().
@@ -1264,7 +1272,8 @@ class NotificationService {
                 playSound: true,
                 sound: androidSound,
                 enableVibration: true,
-                icon: '@mipmap/ic_launcher',
+                icon: _kAndroidNotificationIcon,
+                color: _kAndroidNotificationColor,
                 styleInformation: androidStyle,
               ),
         iOS: DarwinNotificationDetails(
@@ -1489,6 +1498,8 @@ class NotificationService {
           playSound: true,
           sound: _androidSoundForChannelId(notificationChannel),
           enableVibration: true,
+          icon: _kAndroidNotificationIcon,
+          color: _kAndroidNotificationColor,
         ),
         iOS: DarwinNotificationDetails(
           presentAlert: true,

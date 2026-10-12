@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/forms/catalog_form_binding.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/snackbar_helper.dart';
@@ -22,8 +23,11 @@ class AddCallModal extends StatefulWidget {
 
 class _AddCallModalState extends State<AddCallModal> {
   final ApiService _apiService = ApiService();
+  final _catalog = CatalogFormBinding('lead_call.create');
+  final _notesFocus = FocusNode();
   int? _selectedCallMethodId;
   final TextEditingController _notesController = TextEditingController();
+  final Map<String, String> _errors = {};
   DateTime? _callDatetime;
   DateTime? _followUpDate;
   List<CallMethodModel> _callMethods = [];
@@ -34,7 +38,27 @@ class _AddCallModalState extends State<AddCallModal> {
   @override
   void initState() {
     super.initState();
+    _catalog.load();
+    _catalog.watch(_notesFocus, 'result', () async {
+      await _catalog.validate(context, _callValues(), only: 'result');
+      if (mounted) setState(() => _syncCallErrors());
+    });
     _loadCallMethods();
+  }
+
+  Map<String, dynamic> _callValues() => {
+        'callMethod': _selectedCallMethodId,
+        'notes': _notesController.text,
+        'result': _notesController.text,
+      };
+
+  void _syncCallErrors() {
+    _errors
+      ..clear()
+      ..addAll(_catalog.errors);
+    if (_errors['result'] != null) {
+      _errors['notes'] = _errors['result']!;
+    }
   }
   
   Future<void> _loadCallMethods() async {
@@ -60,6 +84,7 @@ class _AddCallModalState extends State<AddCallModal> {
   
   @override
   void dispose() {
+    _notesFocus.dispose();
     _notesController.dispose();
     super.dispose();
   }
@@ -138,19 +163,9 @@ class _AddCallModalState extends State<AddCallModal> {
   
   Future<void> _save() async {
     final localizations = AppLocalizations.of(context);
-    if (_selectedCallMethodId == null) {
-      SnackbarHelper.showError(
-        context,
-        localizations?.translate('pleaseSelectCallMethod') ?? 'Please select a call method',
-      );
-      return;
-    }
-    
-    if (_notesController.text.trim().isEmpty) {
-      SnackbarHelper.showError(
-        context,
-        localizations?.translate('pleaseEnterNotes') ?? 'Please enter notes',
-      );
+    final valid = await _catalog.validate(context, _callValues());
+    if (!valid) {
+      if (mounted) setState(_syncCallErrors);
       return;
     }
     
@@ -191,6 +206,10 @@ class _AddCallModalState extends State<AddCallModal> {
         _isSaving = false;
       });
       
+      if (e is ApiFieldException && _catalog.applyApiError(localizations, e)) {
+        setState(_syncCallErrors);
+        return;
+      }
       SnackbarHelper.showError(
         context,
         '${localizations?.translate('failedToAddCall') ?? 'Failed to add call'}: ${e.toString()}',
@@ -282,6 +301,7 @@ class _AddCallModalState extends State<AddCallModal> {
                                     initialValue: _selectedCallMethodId,
                                     decoration: InputDecoration(
                                       hintText: localizations?.translate('selectItem') ?? 'Select item',
+                                      errorText: _errors['callMethod'],
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),
@@ -309,9 +329,11 @@ class _AddCallModalState extends State<AddCallModal> {
                     const SizedBox(height: 8),
                     AutoDirTextField(
                       controller: _notesController,
+                      focusNode: _notesFocus,
                       maxLines: 5,
                       decoration: InputDecoration(
                         hintText: localizations?.translate('notes') ?? 'Notes',
+                        errorText: _errors['notes'] ?? _errors['result'],
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),

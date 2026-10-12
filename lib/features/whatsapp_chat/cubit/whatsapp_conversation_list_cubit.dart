@@ -26,7 +26,7 @@ class WhatsAppConversationListCubit extends Cubit<WhatsAppConversationListState>
   final bool Function() _isForeground;
   /// Owners/admins may persist manual phone threads locally.
   final bool includeManualChats;
-  Timer? _timer;
+  SyncFallbackTimer? _fallback;
   Timer? _awaySoundTimer;
   Timer? _searchDebounce;
   StreamSubscription<Map<String, String>>? _invalidateSub;
@@ -36,13 +36,14 @@ class WhatsAppConversationListCubit extends Cubit<WhatsAppConversationListState>
   Future<void> bootstrap() async {
     await refresh();
     if (isClosed) return;
-    _timer?.cancel();
+    _fallback?.stop();
     // Fallback only — the digest's `chat` slice and FCM both arrive sooner.
-    _timer = Timer.periodic(kSyncFallbackPollInterval, (_) {
+    // Re-armed when the socket connects or drops.
+    _fallback = SyncFallbackTimer(() {
       if (!isClosed && _isForeground()) {
         unawaited(refresh(silent: true));
       }
-    });
+    })..start();
     _awaySoundTimer?.cancel();
     _awaySoundTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (!isClosed && _isForeground()) unawaited(_checkAwaySound());
@@ -346,7 +347,7 @@ class WhatsAppConversationListCubit extends Cubit<WhatsAppConversationListState>
 
   @override
   Future<void> close() {
-    _timer?.cancel();
+    _fallback?.stop();
     _awaySoundTimer?.cancel();
     _searchDebounce?.cancel();
     _invalidateSub?.cancel();

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../core/forms/catalog_form_binding.dart';
 import '../../core/storage/auth_token_storage.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
@@ -25,10 +26,14 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _catalog = CatalogFormBinding('profile.update');
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
+  final _firstNameFocus = FocusNode();
+  final _lastNameFocus = FocusNode();
+  final _phoneFocus = FocusNode();
   
   UserModel? _currentUser;
   bool _isLoading = false;
@@ -42,7 +47,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
+    _catalog.load();
+    _catalog.watch(_firstNameFocus, 'firstName', () => _blurProfile('firstName'));
+    _catalog.watch(_lastNameFocus, 'lastName', () => _blurProfile('lastName'));
+    _catalog.watch(_phoneFocus, 'phone', () => _blurProfile('phone'));
     _loadUserData();
+  }
+
+  Map<String, dynamic> _profileValues() => {
+        'first_name': _firstNameController.text,
+        'last_name': _lastNameController.text,
+        'email': _emailController.text,
+        'phone': _phoneController.text,
+      };
+
+  Future<void> _blurProfile(String key) async {
+    await _catalog.validate(context, _profileValues(), only: key);
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadUserData() async {
@@ -227,7 +248,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _saveProfile() async {
-    if (!_formKey.currentState!.validate()) return;
+    final valid = await _catalog.validate(context, _profileValues());
+    if (!valid) {
+      if (mounted) setState(() {});
+      return;
+    }
     if (_currentUser == null) return;
 
     setState(() {
@@ -265,8 +290,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Navigator.pop(context, true);
       }
     } catch (e) {
+      if (!mounted) return;
+      if (e is ApiFieldException &&
+          _catalog.applyApiError(AppLocalizations.of(context), e) &&
+          _catalog.errors.keys.any((key) => key != '_general')) {
+        setState(() => _isSaving = false);
+        return;
+      }
       setState(() {
-        _errorMessage = ApiErrorHelper.toUserMessage(context, e);
+        _errorMessage = _catalog.errors['_general'] ?? ApiErrorHelper.toUserMessage(context, e);
         _isSaving = false;
       });
     }
@@ -274,6 +306,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   void dispose() {
+    _firstNameFocus.dispose();
+    _lastNameFocus.dispose();
+    _phoneFocus.dispose();
     _firstNameController.dispose();
     _lastNameController.dispose();
     _phoneController.dispose();
@@ -425,40 +460,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
               // First Name Field
               AutoDirTextFormField(
                 controller: _firstNameController,
+                focusNode: _firstNameFocus,
                 decoration: InputDecoration(
                   labelText: localizations?.translate('firstName') ?? 'First Name',
+                  errorText: _catalog.errors['firstName'],
                   prefixIcon: const Icon(Icons.person_outline),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                textDirection: isRTL ? TextDirection.rtl : TextDirection.ltr,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return localizations?.translate('firstNameRequired') ?? 'First name is required';
-                  }
-                  return null;
-                },
+                onEditingComplete: () => _blurProfile('firstName'),
               ),
               const SizedBox(height: 16),
 
               // Last Name Field
               AutoDirTextFormField(
                 controller: _lastNameController,
+                focusNode: _lastNameFocus,
                 decoration: InputDecoration(
                   labelText: localizations?.translate('lastName') ?? 'Last Name',
+                  errorText: _catalog.errors['lastName'],
                   prefixIcon: const Icon(Icons.person_outline),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                textDirection: isRTL ? TextDirection.rtl : TextDirection.ltr,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return localizations?.translate('lastNameRequired') ?? 'Last name is required';
-                  }
-                  return null;
-                },
+                onEditingComplete: () => _blurProfile('lastName'),
               ),
               const SizedBox(height: 16),
 
@@ -482,12 +509,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               // Phone Field
               PhoneInput(
                 value: _phoneController.text,
+                focusNode: _phoneFocus,
+                onEditingComplete: () => _blurProfile('phone'),
                 onChanged: (value) {
                   setState(() {
                     _phoneController.text = value;
                   });
                 },
                 hintText: localizations?.translate('phone') ?? 'Phone',
+                errorText: _catalog.errors['phone'],
               ),
               const SizedBox(height: 16),
 

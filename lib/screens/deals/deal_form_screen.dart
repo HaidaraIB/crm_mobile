@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import '../../core/forms/catalog_form_binding.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/deal_model.dart';
+import '../../models/deal_pipeline_model.dart';
 import '../../models/user_model.dart';
 import '../../models/lead_model.dart';
 import '../../models/inventory_model.dart';
@@ -26,16 +28,68 @@ class DealFormScreen extends StatefulWidget {
 class _DealFormScreenState extends State<DealFormScreen> {
   final ApiService _apiService = ApiService();
   final _formKey = GlobalKey<FormState>();
+  final _catalog = CatalogFormBinding('deal.upsert');
+  final _valueFocus = FocusNode();
+  final _discountFocus = FocusNode();
+  final _descriptionFocus = FocusNode();
   
   // Data lists
   List<LeadModel> _leads = [];
   List<UserModel> _users = [];
   List<Project> _projects = [];
   List<Unit> _units = [];
+  // Empty when the company has none or the user may not read them (403);
+  // the form then falls back to the legacy stage enum dropdown.
+  List<DealPipelineModel> _pipelines = [];
+  List<DealLostReasonModel> _lostReasons = [];
   UserModel? _currentUser;
   bool _isLoading = true;
   bool _isSaving = false;
-  
+
+  DealPipelineModel? _defaultPipeline() {
+    final usable = _pipelines.where((p) => p.activeStages.isNotEmpty).toList();
+    if (usable.isEmpty) return null;
+    return usable.firstWhere((p) => p.isDefault, orElse: () => usable.first);
+  }
+
+  DealPipelineModel? get _activePipeline {
+    final id = int.tryParse(_formState['pipeline'] ?? '');
+    if (id != null) {
+      for (final p in _pipelines) {
+        if (p.id == id) return p;
+      }
+    }
+    return _defaultPipeline();
+  }
+
+  /// Active stages of the chosen pipeline, plus the deal's current stage when
+  /// it has since been deactivated (so the dropdown can still show it).
+  List<DealStageModel> get _stageOptions {
+    final pipeline = _activePipeline;
+    if (pipeline == null) return const [];
+    final options = [...pipeline.activeStages];
+    final currentId = int.tryParse(_formState['pipelineStage'] ?? '');
+    if (currentId != null && !options.any((s) => s.id == currentId)) {
+      for (final s in pipeline.stages) {
+        if (s.id == currentId) options.add(s);
+      }
+    }
+    return options;
+  }
+
+  bool get _usesPipelines => _stageOptions.isNotEmpty;
+
+  DealStageModel? get _selectedStage {
+    final id = int.tryParse(_formState['pipelineStage'] ?? '');
+    if (id == null) return null;
+    for (final s in _stageOptions) {
+      if (s.id == id) return s;
+    }
+    return null;
+  }
+
+  bool get _selectedStageIsLost => _selectedStage?.isLost ?? false;
+
   // Filtered units based on selected project
   List<Unit> get _filteredUnits {
     if (!_isRealEstate || _formState['project'] == null || _formState['project'] == '') {
@@ -81,6 +135,10 @@ class _DealFormScreenState extends State<DealFormScreen> {
   @override
   void initState() {
     super.initState();
+    _catalog.load();
+    _catalog.watch(_valueFocus, 'value', () => _blurDeal('value'));
+    _catalog.watch(_discountFocus, 'discount_percentage', () => _blurDeal('discount_percentage'));
+    _catalog.watch(_descriptionFocus, 'description', () => _blurDeal('description'));
     // Initialize controllers
     _discountAmountController = TextEditingController();
     _totalValueController = TextEditingController();
@@ -93,6 +151,9 @@ class _DealFormScreenState extends State<DealFormScreen> {
   
   @override
   void dispose() {
+    _valueFocus.dispose();
+    _discountFocus.dispose();
+    _descriptionFocus.dispose();
     _discountAmountController.dispose();
     _totalValueController.dispose();
     _salesCommissionAmountController.dispose();
@@ -149,12 +210,27 @@ class _DealFormScreenState extends State<DealFormScreen> {
         units = await _apiService.getUnits();
       }
       
+      // Pipelines are optional: a 403 (supervisor without manage_deals) or an
+      // older API must not block the form, it just keeps the legacy dropdown.
+      List<DealPipelineModel> pipelines = [];
+      List<DealLostReasonModel> lostReasons = [];
+      try {
+        pipelines = await _apiService.getDealPipelines();
+        lostReasons = await _apiService.getDealLostReasons();
+      } catch (e) {
+        debugPrint('Deal pipelines unavailable, using legacy stages: $e');
+        pipelines = [];
+        lostReasons = [];
+      }
+
       final pickable = usersForLeadAssigneePicker(users);
       setState(() {
         _leads = leads;
         _users = pickable;
         _projects = projects;
         _units = units;
+        _pipelines = pipelines;
+        _lostReasons = lostReasons;
       });
 
       // Initialize form state from deal or defaults
@@ -212,6 +288,12 @@ class _DealFormScreenState extends State<DealFormScreen> {
       _formState['paymentMethod'] = 'Cash';
       _formState['status'] = 'Reservation';
       _formState['stage'] = 'in_progress';
+      final defaultPipeline = _defaultPipeline();
+      _formState['pipeline'] = defaultPipeline?.id.toString() ?? '';
+      _formState['pipelineStage'] =
+          defaultPipeline?.initialStage?.id.toString() ?? '';
+      _formState['lostReason'] = '';
+      _formState['lostNote'] = '';
       _formState['startDate'] = today;
       _formState['closedDate'] = '';
       _formState['value'] = '';
@@ -229,9 +311,35 @@ class _DealFormScreenState extends State<DealFormScreen> {
     _updateCalculatedFields();
   }
 
+  DealPipelineModel? _pipelineForDeal(DealModel deal) {
+    final id = deal.pipeline;
+    if (id != null) {
+      for (final p in _pipelines) {
+        if (p.id == id && p.activeStages.isNotEmpty) return p;
+      }
+    }
+    return _defaultPipeline();
+  }
+
+  /// The deal's current stage; for deals the API never mapped onto a pipeline
+  /// stage, the pipeline stage whose system key matches the legacy value.
+  DealStageModel? _stageForDeal(DealModel deal, DealPipelineModel? pipeline) {
+    if (pipeline == null) return null;
+    final id = deal.pipelineStage;
+    if (id != null) {
+      for (final s in pipeline.stages) {
+        if (s.id == id) return s;
+      }
+    }
+    for (final s in pipeline.activeStages) {
+      if (s.systemKey != null && s.systemKey == deal.stage) return s;
+    }
+    return pipeline.initialStage;
+  }
+
   void _initializeFormState() {
     final deal = widget.deal!;
-    
+
     // Handle project
     String projectValue = '';
     if (deal.projectName != null) {
@@ -307,6 +415,12 @@ class _DealFormScreenState extends State<DealFormScreen> {
           ? deal.status[0].toUpperCase() + deal.status.substring(1).toLowerCase()
           : 'Reservation';
       _formState['stage'] = deal.stage.isNotEmpty ? deal.stage : 'in_progress';
+      final dealPipeline = _pipelineForDeal(deal);
+      _formState['pipeline'] = dealPipeline?.id.toString() ?? '';
+      _formState['pipelineStage'] =
+          _stageForDeal(deal, dealPipeline)?.id.toString() ?? '';
+      _formState['lostReason'] = deal.lostReason?.toString() ?? '';
+      _formState['lostNote'] = deal.lostNote ?? '';
       _formState['startDate'] = formatDate(deal.startDate);
       _formState['closedDate'] = formatDate(deal.closedDate);
       _formState['value'] = originalValue > 0 ? originalValue.toString() : '';
@@ -332,33 +446,62 @@ class _DealFormScreenState extends State<DealFormScreen> {
     }
   }
 
-  bool _validateForm() {
+  Map<String, dynamic> _dealValues() {
+    final leadId = int.tryParse(_formState['leadId'] ?? '');
+    LeadModel? lead;
+    if (leadId != null) {
+      for (final item in _leads) {
+        if (item.id == leadId) lead = item;
+      }
+    }
+    return {
+      'client': (leadId == null || leadId == 0) ? '' : leadId,
+      'title': lead?.name ?? _formState['description'] ?? '',
+      'value': _formState['value'] ?? '',
+      'discount_percentage': _formState['discountPercentage'] ?? '',
+      'start_date': _formState['startDate'] ?? '',
+      'closed_date': _formState['closedDate'] ?? '',
+      'description': _formState['description'] ?? '',
+    };
+  }
+
+  Future<void> _blurDeal(String key) async {
+    await _catalog.validate(context, _dealValues(), only: key);
+    if (!mounted) return;
+    setState(() {
+      final ui = key == 'client' ? 'leadId' : key;
+      _errors.remove(ui);
+      final message = _catalog.errors[key];
+      if (message != null) _errors[ui] = message;
+    });
+  }
+
+  Future<bool> _validateForm() async {
     final localizations = AppLocalizations.of(context);
-    final newErrors = <String, String>{};
-    
-    if (_formState['leadId'] == null || _formState['leadId'] == '0') {
-      newErrors['leadId'] = localizations?.translate('leadRequired') ?? 'Lead is required';
+    final ok = await _catalog.validate(context, _dealValues());
+    final newErrors = <String, String>{..._catalog.errors};
+    if (newErrors['client'] != null) {
+      newErrors['leadId'] = newErrors['client']!;
     }
-    
-    if (_formState['value'] == null || _formState['value']!.isEmpty || 
-        (double.tryParse(_formState['value']!) ?? 0) <= 0) {
-      newErrors['value'] = localizations?.translate('valueRequired') ?? 'Deal value is required and must be greater than 0';
-    }
-    
     if (_isRealEstate && (_formState['project'] == null || _formState['project']!.isEmpty)) {
       newErrors['project'] = localizations?.translate('projectRequired') ?? 'Project is required';
     }
-    
     if (_isRealEstate && (_formState['unit'] == null || _formState['unit']!.isEmpty)) {
       newErrors['unit'] = localizations?.translate('unitRequired') ?? 'Unit is required';
     }
-    
+    if (_usesPipelines &&
+        _selectedStageIsLost &&
+        (int.tryParse(_formState['lostReason'] ?? '') == null)) {
+      newErrors['lostReason'] = localizations?.translate('dealLostReasonRequired') ??
+          'A lost reason is required';
+    }
+    if (!mounted) return ok && newErrors.isEmpty;
     setState(() {
-      _errors.clear();
-      _errors.addAll(newErrors);
+      _errors
+        ..clear()
+        ..addAll(newErrors);
     });
-    
-    return newErrors.isEmpty;
+    return _errors.isEmpty;
   }
 
   Map<String, dynamic> _buildDealPayload() {
@@ -370,7 +513,6 @@ class _DealFormScreenState extends State<DealFormScreen> {
       'closed_by': int.tryParse(_formState['closedBy'] ?? '') ?? _currentUser?.id,
       'payment_method': _formState['paymentMethod']?.toLowerCase() ?? 'cash',
       'status': _formState['status']?.toLowerCase() ?? 'reservation',
-      'stage': _formState['stage'] ?? 'in_progress',
       'value': _calculatedTotalValue,
       'start_date': _formState['startDate']?.isNotEmpty == true ? _formState['startDate'] : null,
       'closed_date': _formState['closedDate']?.isNotEmpty == true ? _formState['closedDate'] : null,
@@ -383,6 +525,21 @@ class _DealFormScreenState extends State<DealFormScreen> {
       'sales_commission_amount': _calculatedSalesCommissionAmount,
       'description': _formState['description'] ?? '',
     };
+
+    final stage = _usesPipelines ? _selectedStage : null;
+    if (stage != null) {
+      // `pipeline_stage` wins server-side; the legacy `stage` is sent too so an
+      // API that predates pipelines still receives a valid value.
+      payload['pipeline'] = _activePipeline!.id;
+      payload['pipeline_stage'] = stage.id;
+      payload['stage'] = stage.legacyStage;
+      if (stage.isLost) {
+        payload['lost_reason'] = int.tryParse(_formState['lostReason'] ?? '');
+        payload['lost_note'] = _formState['lostNote'] ?? '';
+      }
+    } else {
+      payload['stage'] = _formState['stage'] ?? 'in_progress';
+    }
 
     if (_isRealEstate) {
       if (_formState['project']?.isNotEmpty == true) {
@@ -397,10 +554,11 @@ class _DealFormScreenState extends State<DealFormScreen> {
   }
 
   Future<void> _saveDeal() async {
-    if (!_validateForm()) {
+    if (!await _validateForm()) {
       return;
     }
-    
+    if (!mounted) return;
+
     final localizations = AppLocalizations.of(context);
     
     setState(() {
@@ -441,6 +599,17 @@ class _DealFormScreenState extends State<DealFormScreen> {
         }
       }
     } catch (e) {
+      if (mounted &&
+          e is ApiFieldException &&
+          _catalog.applyApiError(AppLocalizations.of(context), e)) {
+        setState(() {
+          _errors.addAll(_catalog.errors);
+          if (_catalog.errors['client'] != null) {
+            _errors['leadId'] = _catalog.errors['client']!;
+          }
+        });
+        if (_catalog.errors.keys.any((key) => key != '_general')) return;
+      }
       if (mounted) {
         final apiMessage = e.toString().replaceFirst('Exception: ', '').trim();
         SnackbarHelper.showError(
@@ -468,12 +637,189 @@ class _DealFormScreenState extends State<DealFormScreen> {
     return user.username ?? user.email ?? 'Unknown';
   }
 
+  void _onPipelineChanged(String? value) {
+    final id = int.tryParse(value ?? '');
+    DealPipelineModel? next;
+    for (final p in _pipelines) {
+      if (p.id == id) next = p;
+    }
+    setState(() {
+      _formState['pipeline'] = value ?? '';
+      _formState['pipelineStage'] = next?.initialStage?.id.toString() ?? '';
+      _formState['lostReason'] = '';
+      _formState['lostNote'] = '';
+    });
+  }
+
+  Widget _stageLabel(DealStageModel stage) {
+    final color = dealColorFromHex(stage.color) ?? Colors.grey;
+    return Row(
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            stage.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Stage controls, each followed by a 16px gap. Uses the company's pipeline
+  /// when available, otherwise the legacy five-value stage enum.
+  List<Widget> _buildStageFields(AppLocalizations? localizations) {
+    OutlineInputBorder border() =>
+        OutlineInputBorder(borderRadius: BorderRadius.circular(12));
+    const gap = SizedBox(height: 16);
+
+    if (!_usesPipelines) {
+      return [
+        DropdownButtonFormField<String>(
+          initialValue: _formState['stage'],
+          decoration: InputDecoration(
+            labelText: '${localizations?.translate('stage') ?? 'Stage'} *',
+            border: border(),
+          ),
+          items: [
+            DropdownMenuItem(
+              value: 'in_progress',
+              child: Text(localizations?.translate('inProgress') ?? 'In Progress'),
+            ),
+            DropdownMenuItem(
+              value: 'on_hold',
+              child: Text(localizations?.translate('onHold') ?? 'On Hold'),
+            ),
+            DropdownMenuItem(
+              value: 'won',
+              child: Text(localizations?.translate('won') ?? 'Won'),
+            ),
+            DropdownMenuItem(
+              value: 'lost',
+              child: Text(localizations?.translate('lost') ?? 'Lost'),
+            ),
+            DropdownMenuItem(
+              value: 'cancelled',
+              child: Text(localizations?.translate('cancelled') ?? 'Cancelled'),
+            ),
+          ],
+          onChanged: (value) {
+            setState(() {
+              _formState['stage'] = value ?? 'in_progress';
+            });
+          },
+        ),
+        gap,
+      ];
+    }
+
+    final pipeline = _activePipeline!;
+    final selectablePipelines =
+        _pipelines.where((p) => p.activeStages.isNotEmpty).toList();
+    final stageOptions = _stageOptions;
+    final selectedStage = _selectedStage;
+    final lostReasonId = int.tryParse(_formState['lostReason'] ?? '');
+    final lostReasonValue =
+        _lostReasons.any((r) => r.id == lostReasonId) ? lostReasonId.toString() : null;
+
+    return [
+      if (selectablePipelines.length > 1) ...[
+        DropdownButtonFormField<String>(
+          initialValue: pipeline.id.toString(),
+          isExpanded: true,
+          decoration: InputDecoration(
+            labelText:
+                localizations?.translate('dealSelectPipeline') ?? 'Pipeline',
+            border: border(),
+          ),
+          items: selectablePipelines
+              .map((p) => DropdownMenuItem(
+                    value: p.id.toString(),
+                    child: Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ))
+              .toList(),
+          onChanged: _onPipelineChanged,
+        ),
+        gap,
+      ],
+      DropdownButtonFormField<String>(
+        // Rebuild when the pipeline changes so the reset stage is picked up.
+        key: ValueKey('deal-stage-${pipeline.id}'),
+        initialValue: selectedStage?.id.toString(),
+        isExpanded: true,
+        decoration: InputDecoration(
+          labelText: '${localizations?.translate('stage') ?? 'Stage'} *',
+          border: border(),
+        ),
+        items: stageOptions
+            .map((s) => DropdownMenuItem(
+                  value: s.id.toString(),
+                  child: _stageLabel(s),
+                ))
+            .toList(),
+        onChanged: (value) {
+          setState(() {
+            _formState['pipelineStage'] = value ?? '';
+          });
+          _clearError('lostReason');
+        },
+      ),
+      gap,
+      if (_selectedStageIsLost) ...[
+        DropdownButtonFormField<String>(
+          key: ValueKey('deal-lost-reason-${pipeline.id}'),
+          initialValue: lostReasonValue,
+          isExpanded: true,
+          decoration: InputDecoration(
+            labelText:
+                '${localizations?.translate('dealLostReason') ?? 'Lost reason'} *',
+            hintText: localizations?.translate('dealSelectLostReason') ??
+                'Select a reason',
+            errorText: _errors['lostReason'],
+            border: border(),
+          ),
+          items: _lostReasons
+              .map((r) => DropdownMenuItem(
+                    value: r.id.toString(),
+                    child: Text(r.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ))
+              .toList(),
+          onChanged: (value) {
+            setState(() {
+              _formState['lostReason'] = value ?? '';
+            });
+            _clearError('lostReason');
+          },
+        ),
+        gap,
+        AutoDirTextFormField(
+          initialValue: _formState['lostNote'],
+          decoration: InputDecoration(
+            labelText: localizations?.translate('dealLostNote') ?? 'Note',
+            border: border(),
+          ),
+          maxLines: 3,
+          onChanged: (value) {
+            _formState['lostNote'] = value;
+          },
+        ),
+        gap,
+      ],
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final isRTL = localizations?.isRTL ?? false;
-    
+
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(
@@ -616,46 +962,12 @@ class _DealFormScreenState extends State<DealFormScreen> {
                           _formState['leadId'] = value ?? '';
                         });
                         _clearError('leadId');
+                        _catalog.touched.add('client');
+                        _blurDeal('client');
                       },
                     ),
                     const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      initialValue: _formState['stage'],
-                      decoration: InputDecoration(
-                        labelText: '${localizations?.translate('stage') ?? 'Stage'} *',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      items: [
-                        DropdownMenuItem(
-                          value: 'in_progress',
-                          child: Text(localizations?.translate('inProgress') ?? 'In Progress'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'on_hold',
-                          child: Text(localizations?.translate('onHold') ?? 'On Hold'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'won',
-                          child: Text(localizations?.translate('won') ?? 'Won'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'lost',
-                          child: Text(localizations?.translate('lost') ?? 'Lost'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'cancelled',
-                          child: Text(localizations?.translate('cancelled') ?? 'Cancelled'),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        setState(() {
-                          _formState['stage'] = value ?? 'in_progress';
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 16),
+                    ..._buildStageFields(localizations),
                     DropdownButtonFormField<String>(
                       initialValue: _formState['status'],
                       decoration: InputDecoration(
@@ -844,6 +1156,8 @@ class _DealFormScreenState extends State<DealFormScreen> {
                     const SizedBox(height: 20),
                     AutoDirTextFormField(
                       initialValue: _formState['value'],
+                      focusNode: _valueFocus,
+                      onEditingComplete: () => _blurDeal('value'),
                       decoration: InputDecoration(
                         labelText: '${localizations?.translate('value') ?? 'Value'} *',
                         errorText: _errors['value'],
@@ -854,16 +1168,6 @@ class _DealFormScreenState extends State<DealFormScreen> {
                       ),
                       keyboardType: TextInputType.number,
                       textDirection: TextDirection.ltr,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return localizations?.translate('valueRequired') ?? 'Value is required and must be greater than 0';
-                        }
-                        final numValue = double.tryParse(value.trim());
-                        if (numValue == null || numValue <= 0) {
-                          return localizations?.translate('valueRequired') ?? 'Value is required and must be greater than 0';
-                        }
-                        return null;
-                      },
                       onChanged: (value) {
                         setState(() {
                           _formState['value'] = value;
@@ -875,8 +1179,11 @@ class _DealFormScreenState extends State<DealFormScreen> {
                     const SizedBox(height: 16),
                     AutoDirTextFormField(
                       initialValue: _formState['discountPercentage'],
+                      focusNode: _discountFocus,
+                      onEditingComplete: () => _blurDeal('discount_percentage'),
                       decoration: InputDecoration(
                         labelText: localizations?.translate('discountPercentage') ?? 'Discount Percentage',
+                        errorText: _errors['discount_percentage'],
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -1042,8 +1349,11 @@ class _DealFormScreenState extends State<DealFormScreen> {
                     const SizedBox(height: 20),
                     AutoDirTextFormField(
                       initialValue: _formState['description'],
+                      focusNode: _descriptionFocus,
+                      onEditingComplete: () => _blurDeal('description'),
                       decoration: InputDecoration(
                         labelText: localizations?.translate('description') ?? 'Description',
+                        errorText: _errors['description'],
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),

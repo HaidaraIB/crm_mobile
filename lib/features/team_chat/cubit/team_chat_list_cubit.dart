@@ -21,7 +21,7 @@ class TeamChatListCubit extends Cubit<TeamChatListState> {
 
   final TeamChatRepository _repository;
   final bool Function() _isForeground;
-  Timer? _convTimer;
+  SyncFallbackTimer? _convFallback;
   StreamSubscription<Map<String, String>>? _invalidateSub;
 
   Future<void> bootstrap({int? initialConversationId}) async {
@@ -39,13 +39,13 @@ class TeamChatListCubit extends Cubit<TeamChatListState> {
         }
       }
     }
-    _convTimer?.cancel();
+    _convFallback?.stop();
     // Fallback only — the digest's `tenant_chat` slice and FCM both arrive sooner.
-    _convTimer = Timer.periodic(kSyncFallbackPollInterval, (_) {
+    _convFallback = SyncFallbackTimer(() {
       if (_isForeground()) {
         unawaited(refreshConversations(silent: true));
       }
-    });
+    })..start();
     _invalidateSub?.cancel();
     _invalidateSub = SyncInvalidation.instance.stream.listen((event) {
       if (event['invalidate'] == 'tenant_chat:messages') {
@@ -140,7 +140,7 @@ class TeamChatListCubit extends Cubit<TeamChatListState> {
 
   @override
   Future<void> close() {
-    _convTimer?.cancel();
+    _convFallback?.stop();
     _invalidateSub?.cancel();
     TeamChatAwayService.instance.setActiveConversationId(null);
     return super.close();

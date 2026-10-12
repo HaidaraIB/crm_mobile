@@ -1,0 +1,1649 @@
+{
+  "vectors": [
+    {
+      "form": "task.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "deal": [
+          "validation.required"
+        ],
+        "notes": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "task.upsert",
+      "data": {
+        "deal": 1,
+        "notes": "Follow up",
+        "reminder_date": "2026-10-09"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "campaign.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "campaign.upsert",
+      "data": {
+        "name": "Sample",
+        "description": "Details"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "lead_action.create",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "stage": [
+          "validation.required"
+        ],
+        "notes": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "lead_action.create",
+      "data": {
+        "stage": 1,
+        "notes": "Called the lead"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "lead_call.create",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "call_method": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "lead_call.create",
+      "data": {
+        "call_method": 1,
+        "notes": "Spoke with the lead",
+        "result": "Interested"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "lead_visit.create",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "visit_type": [
+          "validation.required"
+        ],
+        "visit_date": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "lead_visit.create",
+      "data": {
+        "visit_type": 1,
+        "notes": "Site visit",
+        "visit_date": "2026-10-09"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "field_visit.create",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "notes": [
+          "validation.required"
+        ],
+        "scheduled_at": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "field_visit.create",
+      "data": {
+        "visit_type": 1,
+        "notes": "On site",
+        "scheduled_at": "2026-10-09"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "auth.login",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "username": [
+          "validation.required"
+        ],
+        "password": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "auth.login",
+      "data": {
+        "username": "admin@example.com",
+        "password": "Validpass1"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "auth.register",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "company": [
+          "validation.required"
+        ],
+        "owner": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "auth.register",
+      "data": {
+        "company": {
+          "name": "Sample",
+          "domain": "acme.example.com",
+          "specialization": "real_estate"
+        },
+        "owner": {
+          "first_name": "Sample",
+          "last_name": "Sample",
+          "email": "user@example.com",
+          "username": "user_name",
+          "password": "Validpass1",
+          "phone": "+15551234567"
+        }
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "auth.forgot_password",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "email": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "auth.forgot_password",
+      "data": {
+        "email": "user@example.com"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "auth.reset_password",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "email": [
+          "validation.required"
+        ],
+        "new_password": [
+          "validation.required"
+        ],
+        "confirm_password": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "auth.reset_password",
+      "data": {
+        "email": "user@example.com",
+        "new_password": "Validpass1",
+        "confirm_password": "Validpass1"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "auth.change_password",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "current_password": [
+          "validation.required"
+        ],
+        "new_password": [
+          "validation.required"
+        ],
+        "confirm_password": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "auth.change_password",
+      "data": {
+        "current_password": "Validpass1",
+        "new_password": "Validpass1",
+        "confirm_password": "Validpass1"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "auth.two_factor",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "code": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "auth.two_factor",
+      "data": {
+        "code": "123456"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "auth.email_code",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "code": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "auth.email_code",
+      "data": {
+        "code": "123456"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "auth.phone_otp",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "phone": [
+          "validation.required"
+        ],
+        "code": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "auth.phone_otp",
+      "data": {
+        "phone": "+15551234567",
+        "code": "123456"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "user.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "first_name": [
+          "validation.required"
+        ],
+        "email": [
+          "validation.required"
+        ],
+        "username": [
+          "validation.required"
+        ],
+        "phone": [
+          "validation.required"
+        ],
+        "role": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "user.upsert",
+      "data": {
+        "first_name": "Sample",
+        "last_name": "User",
+        "email": "user@example.com",
+        "username": "user_name",
+        "phone": "1234567890",
+        "password": "Validpass1",
+        "role": "employee"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "limited_admin.create",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "username": [
+          "validation.required"
+        ],
+        "email": [
+          "validation.required"
+        ],
+        "password": [
+          "validation.required"
+        ],
+        "first_name": [
+          "validation.required"
+        ],
+        "last_name": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "limited_admin.create",
+      "data": {
+        "username": "user_name",
+        "email": "user@example.com",
+        "password": "Validpass1",
+        "first_name": "Sample",
+        "last_name": "Sample"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "supervisor.create",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "username": [
+          "validation.required"
+        ],
+        "email": [
+          "validation.required"
+        ],
+        "password": [
+          "validation.required"
+        ],
+        "first_name": [
+          "validation.required"
+        ],
+        "last_name": [
+          "validation.required"
+        ],
+        "phone": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "supervisor.create",
+      "data": {
+        "username": "user_name",
+        "email": "user@example.com",
+        "password": "Validpass1",
+        "first_name": "Sample",
+        "last_name": "Sample",
+        "phone": "+15551234567"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "profile.update",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "first_name": [
+          "validation.required"
+        ],
+        "last_name": [
+          "validation.required"
+        ],
+        "email": [
+          "validation.required"
+        ],
+        "phone": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "profile.update",
+      "data": {
+        "first_name": "Sample",
+        "last_name": "Sample",
+        "email": "user@example.com",
+        "phone": "+15551234567"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "admin_user.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ],
+        "email": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "admin_user.upsert",
+      "data": {
+        "name": "Sample",
+        "email": "user@example.com"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "guide_category.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name_en": [
+          "validation.required"
+        ],
+        "name_ar": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "guide_category.upsert",
+      "data": {
+        "name_en": "Guides",
+        "name_ar": "أدلة"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "guide_article.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "title_en": [
+          "validation.required"
+        ],
+        "title_ar": [
+          "validation.required"
+        ],
+        "body_en": [
+          "validation.required"
+        ],
+        "body_ar": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "guide_article.upsert",
+      "data": {
+        "title_en": "Guide",
+        "title_ar": "دليل",
+        "body_en": "Article body",
+        "body_ar": "نص المقال",
+        "youtube_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "news_post.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "title_en": [
+          "validation.required"
+        ],
+        "title_ar": [
+          "validation.required"
+        ],
+        "body_en": [
+          "validation.required"
+        ],
+        "body_ar": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "news_post.upsert",
+      "data": {
+        "title_en": "News",
+        "title_ar": "خبر",
+        "body_en": "Post body",
+        "body_ar": "نص الخبر"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "page_help_video.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "page_key": [
+          "validation.required"
+        ],
+        "youtube_url": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "page_help_video.upsert",
+      "data": {
+        "page_key": "leads",
+        "youtube_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "title_en": "Help"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "deal.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "client": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "deal.upsert",
+      "data": {
+        "client": 1,
+        "title": "Deal",
+        "value": 100,
+        "probability": 50,
+        "discount_percentage": 0,
+        "expected_close_date": "2026-10-09",
+        "start_date": "2026-10-09",
+        "closed_date": "2026-10-09",
+        "description": "Details",
+        "currency": "USD"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "deal.close",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "status": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "deal.close",
+      "data": {
+        "status": "won",
+        "lost_reason": 1,
+        "lost_note": "Note"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "twilio_settings.update",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "account_sid": [
+          "validation.required"
+        ],
+        "auth_token": [
+          "validation.required"
+        ],
+        "twilio_number": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "twilio_settings.update",
+      "data": {
+        "account_sid": "AC11111111111111111111111111111111",
+        "auth_token": "token-value",
+        "twilio_number": "+15551234567"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "sms.send",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "to": [
+          "validation.required"
+        ],
+        "body": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "sms.send",
+      "data": {
+        "to": "+15551234567",
+        "body": "Hello"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "whatsapp_template.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ],
+        "content": [
+          "validation.required"
+        ],
+        "language": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "whatsapp_template.upsert",
+      "data": {
+        "name": "welcome_message",
+        "content": "Hello, thanks for contacting us today.",
+        "language": "en"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "whatsapp_chat.start_conversation",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "phone": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "whatsapp_chat.start_conversation",
+      "data": {
+        "phone": "+15551234567"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "openai_settings.update",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "api_key": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "openai_settings.update",
+      "data": {
+        "api_key": "sk-test-key",
+        "model": "gpt-4o-mini"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "product_category.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "product_category.upsert",
+      "data": {
+        "name": "Sample",
+        "description": "Details"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "product.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "product.upsert",
+      "data": {
+        "name": "Sample",
+        "sku": "SKU-1",
+        "price": 10,
+        "description": "Details"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "supplier.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ],
+        "email": [
+          "validation.required"
+        ],
+        "phone": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "supplier.upsert",
+      "data": {
+        "name": "Sample",
+        "email": "user@example.com",
+        "phone": "+15551234567",
+        "description": "Details"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "service.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "service.upsert",
+      "data": {
+        "name": "Sample",
+        "description": "Details"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "service_package.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "service_package.upsert",
+      "data": {
+        "name": "Sample",
+        "price": 10,
+        "description": "Details"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "service_provider.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ],
+        "email": [
+          "validation.required"
+        ],
+        "phone": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "service_provider.upsert",
+      "data": {
+        "name": "Sample",
+        "email": "user@example.com",
+        "phone": "+15551234567"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "developer.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "developer.upsert",
+      "data": {
+        "name": "Sample",
+        "description": "Details"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "project.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "project.upsert",
+      "data": {
+        "name": "Sample",
+        "description": "Details"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "unit.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "unit.upsert",
+      "data": {
+        "name": "Sample",
+        "price": 1000,
+        "description": "Details"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "owner.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ],
+        "phone": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "owner.upsert",
+      "data": {
+        "name": "Sample",
+        "email": "owner@example.com",
+        "phone": "+15551234567"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "lead.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ],
+        "phone_number": [
+          "validation.required"
+        ],
+        "communication_way": [
+          "validation.required"
+        ],
+        "status": [
+          "validation.required"
+        ],
+        "priority": [
+          "validation.required"
+        ],
+        "type": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "lead.upsert",
+      "data": {
+        "name": "Sample",
+        "phone_number": "+15551234567",
+        "phone_numbers": [
+          {
+            "phone_number": "+15551234567"
+          }
+        ],
+        "communication_way": 1,
+        "status": 1,
+        "priority": "medium",
+        "type": "fresh",
+        "company": 1,
+        "email": "user@example.com",
+        "lead_company_name": "Acme",
+        "notes": "Note"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "channel.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "channel.upsert",
+      "data": {
+        "name": "Sample",
+        "description": "Details"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "stage.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "stage.upsert",
+      "data": {
+        "name": "Sample",
+        "description": "Details",
+        "color": "#336699"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "status.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "status.upsert",
+      "data": {
+        "name": "Sample",
+        "description": "Details",
+        "color": "#336699"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "call_method.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "call_method.upsert",
+      "data": {
+        "name": "Sample",
+        "description": "Details",
+        "color": "#336699"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "visit_type.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "visit_type.upsert",
+      "data": {
+        "name": "Sample",
+        "description": "Details",
+        "color": "#336699"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "tag.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "tag.upsert",
+      "data": {
+        "name": "Sample",
+        "description": "Details",
+        "color": "#336699"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "deal_pipeline.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "deal_pipeline.upsert",
+      "data": {
+        "name": "Sample",
+        "description": "Details",
+        "color": "#336699"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "deal_lost_reason.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "deal_lost_reason.upsert",
+      "data": {
+        "name": "Sample",
+        "description": "Details",
+        "color": "#336699"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "deal_stage.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "deal_stage.upsert",
+      "data": {
+        "name": "Sample",
+        "description": "Details",
+        "color": "#336699",
+        "stage_type": "open",
+        "probability": 50
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "company_assignment_settings.update",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "company_assignment_settings.update",
+      "data": {
+        "re_assign_hours": 24,
+        "no_follow_up_hours": 10,
+        "no_follow_up_digest_hour": 9
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "system_settings.update",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "system_settings.update",
+      "data": {
+        "login_max_failed_attempts": 5,
+        "login_lockout_duration_minutes": 15
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "work_hours.update",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "idle_timeout_minutes": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "work_hours.update",
+      "data": {
+        "idle_timeout_minutes": 15
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "billing_settings.update",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "issuer_name": [
+          "validation.required"
+        ],
+        "issuer_email": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "billing_settings.update",
+      "data": {
+        "issuer_name": "Sample",
+        "issuer_email": "billing@example.com",
+        "logo": ""
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "plan.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ],
+        "name_ar": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "plan.upsert",
+      "data": {
+        "name": "Sample",
+        "name_ar": "Sample",
+        "description": "Plan details",
+        "description_ar": "تفاصيل",
+        "monthly_price": 10,
+        "yearly_price": 100,
+        "trial_days": 14
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "payment_gateway.create",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "payment_gateway.create",
+      "data": {
+        "name": "Stripe"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "trial_code.create",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "trial_days": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "trial_code.create",
+      "data": {
+        "code": "TRIAL2026",
+        "trial_days": 14
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "trial_code.batch",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "label": [
+          "validation.required"
+        ],
+        "quantity": [
+          "validation.required"
+        ],
+        "trial_days": [
+          "validation.required"
+        ],
+        "plan": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "trial_code.batch",
+      "data": {
+        "label": "Sample",
+        "quantity": 10,
+        "trial_days": 14,
+        "plan": 1
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "trial_code.redeem",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "code": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "trial_code.redeem",
+      "data": {
+        "code": "TRIAL2026"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "broadcast.create",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "subject": [
+          "validation.required"
+        ],
+        "content": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "broadcast.create",
+      "data": {
+        "subject": "Announcement",
+        "content": "Hello"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "support_ticket.create",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "title": [
+          "validation.required"
+        ],
+        "description": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "support_ticket.create",
+      "data": {
+        "title": "Need help",
+        "description": "Details of the issue",
+        "priority": "medium"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "support_message.send",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "body": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "support_message.send",
+      "data": {
+        "body": "Hello"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "tenant.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ],
+        "domain": [
+          "validation.required"
+        ],
+        "specialization": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "tenant.upsert",
+      "data": {
+        "name": "Sample",
+        "domain": "acme",
+        "specialization": "real_estate"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "tenant.create",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "company": [
+          "validation.required"
+        ],
+        "owner": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "tenant.create",
+      "data": {
+        "company": {
+          "name": "Sample",
+          "domain": "acme",
+          "specialization": "real_estate"
+        },
+        "owner": {
+          "first_name": "Sample",
+          "last_name": "Sample",
+          "email": "user@example.com",
+          "username": "user_name",
+          "password": "Validpass1",
+          "phone": "+15551234567"
+        }
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "demo_booking.create",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ],
+        "email": [
+          "validation.required"
+        ],
+        "phone": [
+          "validation.required"
+        ],
+        "starts_at": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "demo_booking.create",
+      "data": {
+        "name": "Sample",
+        "email": "user@example.com",
+        "phone": "+15551234567",
+        "company_name": "Acme",
+        "starts_at": "2026-10-09T10:00:00Z"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    }
+  ]
+}

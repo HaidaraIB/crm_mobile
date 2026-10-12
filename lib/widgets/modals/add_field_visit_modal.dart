@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../core/forms/catalog_form_binding.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/api_error_helper.dart';
@@ -36,6 +37,8 @@ class AddFieldVisitModal extends StatefulWidget {
 
 class _AddFieldVisitModalState extends State<AddFieldVisitModal> {
   final ApiService _apiService = ApiService();
+  final _catalog = CatalogFormBinding('field_visit.create');
+  final _summaryFocus = FocusNode();
   final TextEditingController _summaryController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
 
@@ -50,11 +53,16 @@ class _AddFieldVisitModalState extends State<AddFieldVisitModal> {
   @override
   void initState() {
     super.initState();
+    _catalog.load();
+    _catalog.watch(_summaryFocus, 'notes', () async {
+      await _validateForm(only: 'notes');
+    });
     _visitDatetime = DateTime.now();
   }
 
   @override
   void dispose() {
+    _summaryFocus.dispose();
     _summaryController.dispose();
     super.dispose();
   }
@@ -237,27 +245,41 @@ class _AddFieldVisitModalState extends State<AddFieldVisitModal> {
     }
   }
 
-  bool _validateForm() {
-    final newErrors = <String, String>{};
-    if (_summaryController.text.trim().isEmpty) {
-      newErrors['summary'] =
-          _t('visitSummaryRequired', 'Summary is required');
-    }
-    if (_visitDatetime == null) {
-      newErrors['visitDatetime'] =
-          _t('visitDatetimeRequired', 'Visit date and time is required');
-    }
+  Map<String, dynamic> _fieldVisitValues() => {
+        'notes': _summaryController.text,
+        'scheduledAt': _visitDatetime?.toIso8601String() ?? '',
+      };
+
+  Future<bool> _validateForm({String? only}) async {
+    final ok = await _catalog.validate(
+      context,
+      _fieldVisitValues(),
+      only: only == 'notes' ? 'notes' : (only == 'scheduledAt' ? 'scheduledAt' : null),
+      keys: only == null ? {'notes', 'scheduledAt'} : null,
+    );
+    if (!mounted) return ok;
     setState(() {
-      _errors
-        ..clear()
-        ..addAll(newErrors);
-      _generalError = null;
+      if (only == null) {
+        _errors.remove('summary');
+        _errors.remove('visitDatetime');
+      }
+      if (_catalog.errors['notes'] != null) {
+        _errors['summary'] = _catalog.errors['notes']!;
+      } else if (only == null || only == 'notes') {
+        _errors.remove('summary');
+      }
+      if (_catalog.errors['scheduledAt'] != null) {
+        _errors['visitDatetime'] = _catalog.errors['scheduledAt']!;
+      } else if (only == null || only == 'scheduledAt') {
+        _errors.remove('visitDatetime');
+      }
+      if (only == null) _generalError = null;
     });
-    return newErrors.isEmpty;
+    return ok;
   }
 
   Future<void> _save() async {
-    if (!_validateForm()) return;
+    if (!await _validateForm()) return;
 
     setState(() {
       _isSaving = true;
@@ -302,7 +324,17 @@ class _AddFieldVisitModalState extends State<AddFieldVisitModal> {
       widget.onSave?.call();
     } catch (e) {
       if (!mounted) return;
-      if (e is FieldVisitCreateException) {
+      if (e is ApiFieldException &&
+          _catalog.applyApiError(AppLocalizations.of(context), e)) {
+        setState(() {
+          if (_catalog.errors['notes'] != null) {
+            _errors['summary'] = _catalog.errors['notes']!;
+          }
+          if (_catalog.errors['scheduledAt'] != null) {
+            _errors['visitDatetime'] = _catalog.errors['scheduledAt']!;
+          }
+        });
+      } else if (e is FieldVisitCreateException) {
         _applyFieldVisitError(e);
       } else {
         setState(() {
@@ -399,6 +431,7 @@ class _AddFieldVisitModalState extends State<AddFieldVisitModal> {
                     const SizedBox(height: 8),
                     AutoDirTextField(
                       controller: _summaryController,
+                      focusNode: _summaryFocus,
                       maxLines: 4,
                       enabled: !busy,
                       onChanged: (_) => _clearError('summary'),

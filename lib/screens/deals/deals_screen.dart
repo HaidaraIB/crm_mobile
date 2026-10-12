@@ -1,12 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/api_error_helper.dart';
 import '../../models/deal_model.dart';
+import '../../models/deal_pipeline_model.dart';
 import '../../models/user_model.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
+import '../../services/sync_invalidation.dart';
 import '../../widgets/inventory_card.dart';
 import '../../widgets/pull_to_refresh_body.dart';
 import '../../core/utils/app_locales.dart';
@@ -36,26 +40,61 @@ class _DealsScreenState extends State<DealsScreen> {
   
   // For real estate filtering
   List<Project> _projects = [];
-  
+
+  // Company deal pipelines; empty when unavailable (legacy stage filter then).
+  List<DealPipelineModel> _pipelines = [];
+
   // Filter state
   String _selectedStatus = 'All';
   String _selectedPaymentMethod = 'All';
+  // 'All', a pipeline stage id (when [_pipelines] is loaded) or a legacy stage.
   String _selectedStage = 'All';
   String _selectedProject = 'All';
   String _selectedUnit = 'All';
   String _valueMin = '';
   String _valueMax = '';
+  StreamSubscription<Map<String, String>>? _invalidationSub;
 
   @override
   void initState() {
     super.initState();
+    _invalidationSub = SyncInvalidation.instance.stream.listen((event) {
+      if (event['invalidate'] == 'crm:deals') {
+        unawaited(_loadDeals());
+      }
+    });
     _loadCurrentUser();
+    _loadPipelines();
     _loadDeals();
     _searchController.addListener(_filterDeals);
   }
 
+  Future<void> _loadPipelines() async {
+    try {
+      final pipelines = await _apiService.getDealPipelines();
+      if (!mounted) return;
+      setState(() => _pipelines = pipelines);
+    } catch (e) {
+      // 403 for supervisors without manage_deals, or an API without pipelines.
+      debugPrint('Deal pipelines unavailable, using legacy stages: $e');
+    }
+  }
+
+  /// Every active stage across pipelines, de-duplicated by id.
+  List<DealStageModel> get _allStages {
+    final seen = <int>{};
+    final stages = <DealStageModel>[];
+    for (final p in _pipelines) {
+      for (final s in p.activeStages) {
+        if (seen.add(s.id)) stages.add(s);
+      }
+    }
+    return stages;
+  }
+
   @override
   void dispose() {
+    _invalidationSub?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -142,7 +181,10 @@ class _DealsScreenState extends State<DealsScreen> {
         
         // Stage filter
         if (_selectedStage != 'All') {
-          if (deal.stage != _selectedStage) {
+          final matches = _pipelines.isNotEmpty
+              ? deal.pipelineStage?.toString() == _selectedStage
+              : deal.stage == _selectedStage;
+          if (!matches) {
             return false;
           }
         }
@@ -229,6 +271,31 @@ class _DealsScreenState extends State<DealsScreen> {
         return localizations?.translate('cancelled') ?? 'Cancelled';
       default:
         return stage;
+    }
+  }
+
+  /// Company-configured stage name when the API provides one, otherwise the
+  /// localized legacy stage.
+  String _stageLabel(DealModel deal, AppLocalizations? localizations) {
+    final name = deal.pipelineStageName;
+    if (name != null && name.isNotEmpty) return name;
+    return _formatStage(deal.stage, localizations);
+  }
+
+  Color _stageColorFor(DealModel deal) =>
+      dealColorFromHex(deal.pipelineStageColor) ?? _getStageColor(deal.stage);
+
+  /// Pipeline stages have free-form names, so the icon follows the stage type.
+  IconData _stageIconFor(DealModel deal) {
+    switch (deal.stageType) {
+      case DealStageType.won:
+        return Icons.check_circle;
+      case DealStageType.lost:
+        return Icons.cancel;
+      case DealStageType.open:
+        return Icons.trending_up;
+      default:
+        return _getStageIcon(deal.stage);
     }
   }
 
@@ -632,9 +699,9 @@ class _DealsScreenState extends State<DealsScreen> {
             runSpacing: 8,
             children: [
               StatusBadge(
-                text: _formatStage(deal.stage, localizations),
-                color: _getStageColor(deal.stage),
-                icon: _getStageIcon(deal.stage),
+                text: _stageLabel(deal, localizations),
+                color: _stageColorFor(deal),
+                icon: _stageIconFor(deal),
               ),
               StatusBadge(
                 text: _formatStatus(deal.status, localizations),
@@ -708,6 +775,49 @@ class _DealsScreenState extends State<DealsScreen> {
       default:
         return Icons.help_outline;
     }
+  }
+
+  List<DropdownMenuItem<String>> _stageFilterItems(
+    AppLocalizations? localizations,
+  ) {
+    final items = <DropdownMenuItem<String>>[
+      DropdownMenuItem(
+        value: 'All',
+        child: Text(localizations?.translate('all') ?? 'All'),
+      ),
+    ];
+
+    if (_pipelines.isEmpty) {
+      const legacy = [
+        ('in_progress', 'inProgress', 'In Progress'),
+        ('on_hold', 'onHold', 'On Hold'),
+        ('won', 'won', 'Won'),
+        ('lost', 'lost', 'Lost'),
+        ('cancelled', 'cancelled', 'Cancelled'),
+      ];
+      for (final (value, key, fallback) in legacy) {
+        items.add(DropdownMenuItem(
+          value: value,
+          child: Text(localizations?.translate(key) ?? fallback),
+        ));
+      }
+      return items;
+    }
+
+    final pipelineNames = {for (final p in _pipelines) p.id: p.name};
+    for (final stage in _allStages) {
+      // Disambiguate same-named stages when the company runs several pipelines.
+      final prefix = _pipelines.length > 1 ? pipelineNames[stage.pipeline] : null;
+      items.add(DropdownMenuItem(
+        value: stage.id.toString(),
+        child: Text(
+          prefix != null ? '$prefix · ${stage.name}' : stage.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ));
+    }
+    return items;
   }
 
   void _showFilterBottomSheet(
@@ -800,37 +910,13 @@ class _DealsScreenState extends State<DealsScreen> {
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     initialValue: _selectedStage,
+                    isExpanded: true,
                     decoration: InputDecoration(
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    items: [
-                      DropdownMenuItem(
-                        value: 'All',
-                        child: Text(localizations?.translate('all') ?? 'All'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'in_progress',
-                        child: Text(localizations?.translate('inProgress') ?? 'In Progress'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'on_hold',
-                        child: Text(localizations?.translate('onHold') ?? 'On Hold'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'won',
-                        child: Text(localizations?.translate('won') ?? 'Won'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'lost',
-                        child: Text(localizations?.translate('lost') ?? 'Lost'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'cancelled',
-                        child: Text(localizations?.translate('cancelled') ?? 'Cancelled'),
-                      ),
-                    ],
+                    items: _stageFilterItems(localizations),
                     onChanged: (value) {
                       setModalState(() {
                         _selectedStage = value ?? 'All';

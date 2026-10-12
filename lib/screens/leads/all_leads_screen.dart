@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/localization/app_localizations.dart';
@@ -12,6 +14,7 @@ import '../../models/lead_model.dart';
 import '../../models/settings_model.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
+import '../../services/sync_invalidation.dart';
 import '../../widgets/app_avatar.dart';
 import '../../widgets/bidi_text.dart';
 import '../../widgets/status_change_reason_dialog.dart';
@@ -107,6 +110,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
   final Set<int> _excludedIds = {};
   int _totalMatchingCount = 0;
   bool _isBulkDeleting = false;
+  StreamSubscription<Map<String, String>>? _invalidationSub;
 
   @override
   void initState() {
@@ -114,6 +118,11 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
     // Initialize filters from widget parameters
     _selectedType = widget.type;
     _selectedStatus = widget.status;
+    _invalidationSub = SyncInvalidation.instance.stream.listen((event) {
+      if (event['invalidate'] == 'crm:leads') {
+        unawaited(_loadLeads(forceRefresh: true));
+      }
+    });
     _loadCurrentUser();
     _loadLeads();
     _loadStatuses();
@@ -551,6 +560,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
 
   @override
   void dispose() {
+    _invalidationSub?.cancel();
     _searchController.dispose();
     super.dispose();
   }

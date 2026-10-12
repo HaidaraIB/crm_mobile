@@ -11,6 +11,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/bloc/theme/theme_bloc.dart';
 import '../../core/bloc/language/language_bloc.dart';
 import '../../core/utils/app_locales.dart';
+import '../../core/forms/catalog_form_binding.dart';
 import '../../core/utils/api_error_helper.dart';
 import '../../services/api_service.dart';
 import '../../services/notification_service.dart';
@@ -38,6 +39,7 @@ class TwoFactorAuthScreen extends StatefulWidget {
 class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
   final List<TextEditingController> _codeControllers = List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
+  final _catalog = CatalogFormBinding('auth.two_factor');
   bool _isLoading = false;
   bool _isRequesting = false;
   bool _trustDevice = true;
@@ -51,6 +53,7 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
   @override
   void initState() {
     super.initState();
+    _catalog.load();
     // Load cooldown from SharedPreferences
     _loadCountdown();
     // When any code field gains focus, place cursor at start (left) for both RTL and LTR
@@ -58,8 +61,14 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
       final idx = i;
       _focusNodes[i].addListener(() {
         if (_focusNodes[idx].hasFocus) {
+          _catalog.touched.add('code');
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _codeControllers[idx].selection = TextSelection.collapsed(offset: 0);
+          });
+        } else if (_catalog.touched.contains('code')) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted || _focusNodes.any((node) => node.hasFocus)) return;
+            _blurCode();
           });
         }
       });
@@ -198,16 +207,25 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
     }
   }
 
+  String get _enteredCode => _codeControllers.map((c) => c.text).join();
+
+  Future<void> _blurCode() async {
+    await _catalog.validate(context, {'code': _enteredCode}, only: 'code');
+    if (!mounted) return;
+    setState(() => _errorMessage = _catalog.errors['code']);
+  }
+
   Future<void> _verifyCode() async {
-    final code = _codeControllers.map((c) => c.text).join();
-    
-    if (code.length != 6) {
+    final code = _enteredCode;
+    final valid = await _catalog.validate(context, {'code': code});
+    if (!valid) {
+      if (!mounted) return;
       setState(() {
-        _errorMessage = AppLocalizations.of(context)?.translate('pleaseEnter2FACode') ?? 
-            'Please enter the 6-digit two-factor authentication code';
+        _errorMessage = _catalog.errors['code'] ?? _catalog.errors['_general'];
       });
       return;
     }
+    if (!mounted) return;
 
     setState(() {
       _isLoading = true;
@@ -287,6 +305,16 @@ class _TwoFactorAuthScreenState extends State<TwoFactorAuthScreen> {
       }
     } catch (e) {
       if (!mounted) return;
+      if (e is ApiFieldException &&
+          _catalog.applyApiError(AppLocalizations.of(context), e)) {
+        setState(() {
+          _errorMessage = _catalog.errors['code'] ?? _catalog.errors['_general'];
+          _isLoading = false;
+        });
+        if (_catalog.errors.containsKey('code') || _catalog.errors.containsKey('_general')) {
+          return;
+        }
+      }
       if (e is LoginVerificationRequiredException) {
         setState(() {
           _verificationGate = e;

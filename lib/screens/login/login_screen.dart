@@ -9,6 +9,7 @@ import '../../core/bloc/theme/theme_bloc.dart';
 import '../../core/bloc/language/language_bloc.dart';
 import '../../core/storage/auth_token_storage.dart';
 import '../../core/utils/app_locales.dart';
+import '../../core/forms/catalog_form_binding.dart';
 import '../../core/utils/api_error_helper.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../core/api/api_envelope.dart';
@@ -31,8 +32,11 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _catalog = CatalogFormBinding('auth.login');
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _usernameFocus = FocusNode();
+  final _passwordFocus = FocusNode();
   bool _isLoading = false;
   bool _obscurePassword = true;
   String? _errorMessage;
@@ -41,9 +45,27 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
+    _catalog.watch(_usernameFocus, 'username', _blurUsername);
+    _catalog.watch(_passwordFocus, 'password', _blurPassword);
+    _catalog.load();
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _showLogoutReasonIfAny(),
     );
+  }
+
+  Map<String, dynamic> _loginValues() => {
+        'username': _usernameController.text,
+        'password': _passwordController.text,
+      };
+
+  void _blurUsername() {
+    _catalog.validate(context, _loginValues(), only: 'username');
+    if (mounted) setState(() {});
+  }
+
+  void _blurPassword() {
+    _catalog.validate(context, _loginValues(), only: 'password');
+    if (mounted) setState(() {});
   }
 
   void _showLogoutReasonIfAny() {
@@ -79,7 +101,12 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
-    if (!_formKey.currentState!.validate()) return;
+    final valid = await _catalog.validate(context, _loginValues());
+    if (!valid) {
+      if (mounted) setState(() {});
+      return;
+    }
+    if (!mounted) return;
 
     setState(() {
       _isLoading = true;
@@ -133,6 +160,15 @@ class _LoginScreenState extends State<LoginScreen> {
       ).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
     } catch (e) {
       if (!mounted) return;
+
+      if (e is ApiFieldException &&
+          _catalog.applyApiError(AppLocalizations.of(context), e)) {
+        setState(() {
+          _errorMessage = _catalog.errors['_general'];
+          _isLoading = false;
+        });
+        if (_catalog.errors.keys.any((key) => key != '_general')) return;
+      }
 
       if (e is LoginVerificationRequiredException) {
         setState(() {
@@ -295,6 +331,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
+    _usernameFocus.dispose();
+    _passwordFocus.dispose();
     _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -379,11 +417,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   // Username Field
                   AutoDirTextFormField(
                     controller: _usernameController,
+                    focusNode: _usernameFocus,
                     decoration: InputDecoration(
                       labelText: isRTL
                           ? 'اسم المستخدم أو البريد الإلكتروني'
                           : 'Username or Email',
                       prefixIcon: const Icon(Icons.person),
+                      errorText: _catalog.errors['username'],
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -391,15 +431,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     textDirection: isRTL
                         ? TextDirection.rtl
                         : TextDirection.ltr,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return localizations?.translate(
-                              'pleaseEnterUsername',
-                            ) ??
-                            'Please enter username';
-                      }
-                      return null;
-                    },
+                    onEditingComplete: _blurUsername,
                     onChanged: (_) {
                       setState(() {
                         _verificationGate = null;
@@ -412,10 +444,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   // Password Field
                   AutoDirTextFormField(
                     controller: _passwordController,
+                    focusNode: _passwordFocus,
                     obscureText: _obscurePassword,
                     decoration: InputDecoration(
                       labelText:
                           localizations?.translate('password') ?? 'Password',
+                      errorText: _catalog.errors['password'],
                       prefixIcon: const Icon(Icons.lock),
                       suffixIcon: IconButton(
                         icon: Icon(
@@ -436,15 +470,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     textDirection: isRTL
                         ? TextDirection.rtl
                         : TextDirection.ltr,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return localizations?.translate(
-                              'pleaseEnterPassword',
-                            ) ??
-                            'Please enter password';
-                      }
-                      return null;
-                    },
+                    onEditingComplete: _blurPassword,
                     onChanged: (_) {
                       setState(() {
                         _verificationGate = null;

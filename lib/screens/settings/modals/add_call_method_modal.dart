@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/forms/catalog_form_binding.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../../../core/utils/api_error_helper.dart';
 import '../../../core/theme/app_theme.dart';
@@ -23,6 +24,10 @@ class AddCallMethodModal extends StatefulWidget {
 class _AddCallMethodModalState extends State<AddCallMethodModal> {
   final ApiService _apiService = ApiService();
   final _formKey = GlobalKey<FormState>();
+  final _catalog = CatalogFormBinding('call_method.upsert');
+  final _nameFocus = FocusNode();
+  final _descriptionFocus = FocusNode();
+
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
 
@@ -31,8 +36,29 @@ class _AddCallMethodModalState extends State<AddCallMethodModal> {
   bool _isLoading = false;
   String? _errorMessage;
 
+  Map<String, dynamic> _namedValues() => {
+        'name': _nameController.text,
+        'description': _descriptionController.text,
+        'color': _selectedColor,
+      };
+
+  Future<void> _blurNamed(String key) async {
+    await _catalog.validate(context, _namedValues(), only: key);
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _catalog.load();
+    _catalog.watch(_nameFocus, 'name', () => _blurNamed('name'));
+    _catalog.watch(_descriptionFocus, 'description', () => _blurNamed('description'));
+  }
+
   @override
   void dispose() {
+    _nameFocus.dispose();
+    _descriptionFocus.dispose();
     _nameController.dispose();
     _descriptionController.dispose();
     super.dispose();
@@ -47,7 +73,11 @@ class _AddCallMethodModalState extends State<AddCallMethodModal> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    final valid = await _catalog.validate(context, _namedValues());
+    if (!valid) {
+      if (mounted) setState(() {});
+      return;
+    }
 
     setState(() {
       _isLoading = true;
@@ -79,6 +109,10 @@ class _AddCallMethodModalState extends State<AddCallMethodModal> {
         method: 'POST',
       );
       if (mounted) {
+        if (e is ApiFieldException && _catalog.applyApiError(AppLocalizations.of(context), e)) {
+          setState(() => _isLoading = false);
+          return;
+        }
         setState(() {
           _errorMessage = ApiErrorHelper.toUserMessage(context, e);
           _isLoading = false;
@@ -144,23 +178,23 @@ class _AddCallMethodModalState extends State<AddCallMethodModal> {
                       children: [
                         AutoDirTextFormField(
                           controller: _nameController,
+                          focusNode: _nameFocus,
+                          onEditingComplete: () => _blurNamed('name'),
                           decoration: InputDecoration(
+                            errorText: _catalog.errors['name'],
                             labelText: '${localizations?.translate('callMethodName') ?? 'Call Method Name'} *',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return localizations?.translate('nameRequired') ?? 'Name is required';
-                            }
-                            return null;
-                          },
                         ),
                         const SizedBox(height: 16),
                         AutoDirTextFormField(
                           controller: _descriptionController,
+                          focusNode: _descriptionFocus,
+                          onEditingComplete: () => _blurNamed('description'),
                           decoration: InputDecoration(
+                            errorText: _catalog.errors['description'],
                             labelText: localizations?.translate('description') ?? 'Description',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),

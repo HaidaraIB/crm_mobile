@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/forms/catalog_form_binding.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/snackbar_helper.dart';
@@ -22,8 +23,11 @@ class AddActionModal extends StatefulWidget {
 
 class _AddActionModalState extends State<AddActionModal> {
   final ApiService _apiService = ApiService();
+  final _catalog = CatalogFormBinding('lead_action.create');
+  final _notesFocus = FocusNode();
   int? _selectedStageId;
   final TextEditingController _notesController = TextEditingController();
+  final Map<String, String> _errors = {};
   DateTime? _reminderDate;
   List<StageModel> _stages = [];
   bool _isLoadingStages = true;
@@ -33,8 +37,18 @@ class _AddActionModalState extends State<AddActionModal> {
   @override
   void initState() {
     super.initState();
+    _catalog.load();
+    _catalog.watch(_notesFocus, 'notes', () async {
+      await _catalog.validate(context, _actionValues(), only: 'notes');
+      if (mounted) setState(() => _errors..clear()..addAll(_catalog.errors));
+    });
     _loadStages();
   }
+
+  Map<String, dynamic> _actionValues() => {
+        'stageId': _selectedStageId,
+        'notes': _notesController.text,
+      };
   
   Future<void> _loadStages() async {
     try {
@@ -79,6 +93,7 @@ class _AddActionModalState extends State<AddActionModal> {
   
   @override
   void dispose() {
+    _notesFocus.dispose();
     _notesController.dispose();
     super.dispose();
   }
@@ -117,19 +132,15 @@ class _AddActionModalState extends State<AddActionModal> {
   
   Future<void> _save() async {
     final localizations = AppLocalizations.of(context);
-    if (_selectedStageId == null) {
-      SnackbarHelper.showError(
-        context,
-        localizations?.translate('pleaseSelectActionType') ?? 'Please select an action type',
-      );
-      return;
-    }
-    
-    if (_notesController.text.trim().isEmpty) {
-      SnackbarHelper.showError(
-        context,
-        localizations?.translate('pleaseEnterNotes') ?? 'Please enter notes',
-      );
+    final valid = await _catalog.validate(context, _actionValues());
+    if (!valid) {
+      if (mounted) {
+        setState(() {
+          _errors
+            ..clear()
+            ..addAll(_catalog.errors);
+        });
+      }
       return;
     }
     
@@ -169,6 +180,15 @@ class _AddActionModalState extends State<AddActionModal> {
         _isSaving = false;
       });
       
+      if (e is ApiFieldException &&
+          _catalog.applyApiError(localizations, e)) {
+        setState(() {
+          _errors
+            ..clear()
+            ..addAll(_catalog.errors);
+        });
+        return;
+      }
       SnackbarHelper.showError(
         context,
         '${localizations?.translate('failedToAddAction') ?? 'Failed to add action'}: ${e.toString()}',
@@ -260,6 +280,7 @@ class _AddActionModalState extends State<AddActionModal> {
                                     initialValue: _selectedStageId,
                                     decoration: InputDecoration(
                                       hintText: localizations?.translate('selectItem') ?? 'Select item',
+                                      errorText: _errors['stageId'],
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),
@@ -275,6 +296,19 @@ class _AddActionModalState extends State<AddActionModal> {
                                       setState(() {
                                         _selectedStageId = value;
                                       });
+                                      _catalog.touched.add('stageId');
+                                      _catalog.validate(context, {
+                                        'stageId': value,
+                                        'notes': _notesController.text,
+                                      }, only: 'stageId').then((_) {
+                                        if (mounted) {
+                                          setState(() {
+                                            _errors
+                                              ..clear()
+                                              ..addAll(_catalog.errors);
+                                          });
+                                        }
+                                      });
                                     },
                                   ),
                     const SizedBox(height: 24),
@@ -287,9 +321,11 @@ class _AddActionModalState extends State<AddActionModal> {
                     const SizedBox(height: 8),
                     AutoDirTextField(
                       controller: _notesController,
+                      focusNode: _notesFocus,
                       maxLines: 5,
                       decoration: InputDecoration(
                         hintText: localizations?.translate('notes') ?? 'Notes',
+                        errorText: _errors['notes'],
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),

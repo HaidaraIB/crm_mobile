@@ -26,6 +26,19 @@ class DealModel {
   final String? createdAt;
   final String? updatedAt;
 
+  // Configurable pipeline (read-only denormalized names come from the API).
+  // All null for deals the API has not mapped onto a pipeline stage; screens
+  // then fall back to the legacy [stage] enum.
+  final int? pipeline;
+  final String? pipelineName;
+  final int? pipelineStage;
+  final String? pipelineStageName;
+  final String? pipelineStageColor; // '#RRGGBB'
+  final String? stageType; // 'open' | 'won' | 'lost'
+  final int? lostReason;
+  final String? lostReasonName;
+  final String? lostNote;
+
   DealModel({
     required this.id,
     required this.clientName,
@@ -53,7 +66,20 @@ class DealModel {
     this.projectName,
     this.createdAt,
     this.updatedAt,
+    this.pipeline,
+    this.pipelineName,
+    this.pipelineStage,
+    this.pipelineStageName,
+    this.pipelineStageColor,
+    this.stageType,
+    this.lostReason,
+    this.lostReasonName,
+    this.lostNote,
   });
+
+  /// True when the deal sits in a configurable "lost" stage, or (legacy deals
+  /// with no pipeline stage) has the legacy `lost` stage value.
+  bool get isLost => stageType != null ? stageType == 'lost' : stage == 'lost';
 
   factory DealModel.fromJson(Map<String, dynamic> json) {
     // Helper function to safely parse doubles from various types
@@ -139,6 +165,15 @@ class DealModel {
       projectName: json['project_name'] as String?,
       createdAt: json['created_at'] as String? ?? json['createdAt'] as String?,
       updatedAt: json['updated_at'] as String? ?? json['updatedAt'] as String?,
+      pipeline: json['pipeline'] as int?,
+      pipelineName: json['pipeline_name'] as String?,
+      pipelineStage: json['pipeline_stage'] as int?,
+      pipelineStageName: json['pipeline_stage_name'] as String?,
+      pipelineStageColor: json['pipeline_stage_color'] as String?,
+      stageType: json['stage_type'] as String?,
+      lostReason: json['lost_reason'] as int?,
+      lostReasonName: json['lost_reason_name'] as String?,
+      lostNote: json['lost_note'] as String?,
     );
   }
 
@@ -170,6 +205,15 @@ class DealModel {
       'project_name': projectName,
       'created_at': createdAt,
       'updated_at': updatedAt,
+      'pipeline': pipeline,
+      'pipeline_name': pipelineName,
+      'pipeline_stage': pipelineStage,
+      'pipeline_stage_name': pipelineStageName,
+      'pipeline_stage_color': pipelineStageColor,
+      'stage_type': stageType,
+      'lost_reason': lostReason,
+      'lost_reason_name': lostReasonName,
+      'lost_note': lostNote,
     };
   }
 }

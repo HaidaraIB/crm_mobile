@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/localization/app_localizations.dart';
@@ -22,6 +24,7 @@ import '../../models/settings_model.dart';
 import '../../models/timeline_entry.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
+import '../../services/sync_invalidation.dart';
 import '../../utils/timeline_builder.dart';
 import '../../utils/timeline_events.dart';
 import '../../utils/social_inbox_access.dart';
@@ -79,10 +82,15 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
   List<CallMethodModel> _callMethods = [];
   List<VisitTypeModel> _visitTypes = [];
   final Map<String, bool> _updatingPrimaryMap = {}; // Track which phone numbers are being set as primary
-  
+  StreamSubscription<Map<String, String>>? _invalidationSub;
+
   @override
   void initState() {
     super.initState();
+    _invalidationSub = SyncInvalidation.instance.stream.listen((event) {
+      if (!mounted || event['invalidate'] != 'crm:leads') return;
+      unawaited(_loadLead());
+    });
     _loadCurrentUser();
     _loadLead();
     _loadStatuses();
@@ -90,7 +98,12 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
     _loadUsers();
   }
 
-  
+  @override
+  void dispose() {
+    _invalidationSub?.cancel();
+    super.dispose();
+  }
+
   Future<void> _loadCurrentUser() async {
     try {
       final user = await _apiService.getCurrentUser();

@@ -65,6 +65,20 @@ class AppTheme {
   static TextStyle? _withFont(TextStyle? style, String family) =>
       style?.copyWith(fontFamily: family);
 
+  /// Button labels stay on one line. The original label stays in the tree.
+  static Widget _singleLineLabel(BuildContext _, Set<WidgetState> _, Widget? child) {
+    return DefaultTextStyle.merge(
+      softWrap: false,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      child: child ?? const SizedBox.shrink(),
+    );
+  }
+
+  static const ButtonStyle _singleLineButton = ButtonStyle(
+    foregroundBuilder: _singleLineLabel,
+  );
+
   static TextTheme _textTheme(TextTheme base, Color color) {
     TextStyle? applyColor(TextStyle? s) =>
         _withFont(s?.copyWith(color: color), fontFamilySans);
@@ -126,6 +140,10 @@ class AppTheme {
         ),
       ),
       textTheme: textTheme,
+      elevatedButtonTheme: const ElevatedButtonThemeData(style: _singleLineButton),
+      filledButtonTheme: const FilledButtonThemeData(style: _singleLineButton),
+      outlinedButtonTheme: const OutlinedButtonThemeData(style: _singleLineButton),
+      textButtonTheme: const TextButtonThemeData(style: _singleLineButton),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         elevation: 0,
@@ -189,6 +207,10 @@ class AppTheme {
         color: Color(0xFFD1D5DB), // gray-300
       ),
       textTheme: textTheme,
+      elevatedButtonTheme: const ElevatedButtonThemeData(style: _singleLineButton),
+      filledButtonTheme: const FilledButtonThemeData(style: _singleLineButton),
+      outlinedButtonTheme: const OutlinedButtonThemeData(style: _singleLineButton),
+      textButtonTheme: const TextButtonThemeData(style: _singleLineButton),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: const Color(0xFF1F2937), // gray-800

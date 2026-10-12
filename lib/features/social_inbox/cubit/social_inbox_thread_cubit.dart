@@ -22,7 +22,7 @@ class SocialInboxThreadCubit extends Cubit<SocialInboxThreadState> {
   final SocialInboxRepository _repository;
   final bool Function() _isForeground;
 
-  Timer? _timer;
+  SyncFallbackTimer? _fallback;
   StreamSubscription<Map<String, String>>? _invalidateSub;
   int _tempCounter = 0;
 
@@ -35,12 +35,12 @@ class SocialInboxThreadCubit extends Cubit<SocialInboxThreadState> {
     // Opening the thread clears its unread badge.
     unawaited(_markRead());
 
-    _timer?.cancel();
-    _timer = Timer.periodic(kSyncFallbackPollInterval, (_) {
+    _fallback?.stop();
+    _fallback = SyncFallbackTimer(() {
       if (!isClosed && _isForeground()) {
         unawaited(load(silent: true));
       }
-    });
+    })..start();
 
     _invalidateSub?.cancel();
     _invalidateSub = SyncInvalidation.instance.stream.listen((event) {
@@ -317,7 +317,7 @@ class SocialInboxThreadCubit extends Cubit<SocialInboxThreadState> {
 
   @override
   Future<void> close() {
-    _timer?.cancel();
+    _fallback?.stop();
     _invalidateSub?.cancel();
     return super.close();
   }

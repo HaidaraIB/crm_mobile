@@ -1,0 +1,3700 @@
+{
+  "version": "95c90c50730ddb96",
+  "forms": {
+    "task.upsert": {
+      "public": false,
+      "fields": {
+        "deal": {
+          "type": "integer",
+          "label_key": "deal",
+          "rules": [
+            {
+              "type": "required"
+            }
+          ]
+        },
+        "notes": {
+          "type": "string",
+          "label_key": "notes",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 5000
+              }
+            }
+          ]
+        },
+        "reminder_date": {
+          "type": "date",
+          "label_key": "reminderDate",
+          "rules": []
+        }
+      },
+      "aliases": {
+        "reminderDate": "reminder_date"
+      }
+    },
+    "campaign.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "name",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "description": {
+          "type": "string",
+          "label_key": "description",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 5000
+              }
+            }
+          ]
+        }
+      }
+    },
+    "lead_action.create": {
+      "public": false,
+      "fields": {
+        "stage": {
+          "type": "integer",
+          "label_key": "actionType",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            }
+          ],
+          "ui_key": "stageId"
+        },
+        "notes": {
+          "type": "string",
+          "label_key": "notes",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 5000
+              }
+            }
+          ]
+        }
+      },
+      "aliases": {
+        "stageId": "stage"
+      }
+    },
+    "lead_call.create": {
+      "public": false,
+      "fields": {
+        "call_method": {
+          "type": "integer",
+          "label_key": "callMethod",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            }
+          ],
+          "ui_key": "callMethod"
+        },
+        "notes": {
+          "type": "string",
+          "label_key": "notes",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 5000
+              }
+            }
+          ]
+        },
+        "result": {
+          "type": "string",
+          "label_key": "result",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        }
+      },
+      "aliases": {
+        "callMethod": "call_method"
+      }
+    },
+    "lead_visit.create": {
+      "public": false,
+      "fields": {
+        "visit_type": {
+          "type": "integer",
+          "label_key": "visitType",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            }
+          ],
+          "ui_key": "visitType"
+        },
+        "notes": {
+          "type": "string",
+          "label_key": "notes",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 5000
+              }
+            }
+          ]
+        },
+        "visit_date": {
+          "type": "date",
+          "label_key": "visitDate",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            }
+          ]
+        }
+      },
+      "aliases": {
+        "visitType": "visit_type",
+        "visitDate": "visit_date"
+      }
+    },
+    "field_visit.create": {
+      "public": false,
+      "fields": {
+        "visit_type": {
+          "type": "integer",
+          "label_key": "visitType",
+          "rules": [],
+          "ui_key": "visitType"
+        },
+        "notes": {
+          "type": "string",
+          "label_key": "notes",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 5000
+              }
+            }
+          ]
+        },
+        "scheduled_at": {
+          "type": "date",
+          "label_key": "scheduledAt",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            }
+          ]
+        }
+      },
+      "aliases": {
+        "visitType": "visit_type",
+        "scheduledAt": "scheduled_at"
+      }
+    },
+    "auth.login": {
+      "public": true,
+      "fields": {
+        "username": {
+          "type": "string",
+          "label_key": "username",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 254
+              }
+            }
+          ]
+        },
+        "password": {
+          "type": "string",
+          "label_key": "password",
+          "rules": [
+            {
+              "type": "required"
+            }
+          ]
+        }
+      }
+    },
+    "auth.register": {
+      "public": true,
+      "fields": {
+        "company": {
+          "type": "object",
+          "label_key": "company",
+          "rules": [
+            {
+              "type": "required"
+            }
+          ],
+          "fields": {
+            "name": {
+              "type": "string",
+              "label_key": "name",
+              "rules": [
+                {
+                  "type": "required"
+                },
+                {
+                  "type": "max_length",
+                  "params": {
+                    "max": 64
+                  }
+                }
+              ]
+            },
+            "domain": {
+              "type": "string",
+              "label_key": "companyDomain",
+              "rules": [
+                {
+                  "type": "required"
+                },
+                {
+                  "type": "max_length",
+                  "params": {
+                    "max": 256
+                  }
+                }
+              ]
+            },
+            "specialization": {
+              "type": "string",
+              "label_key": "specialization",
+              "rules": [
+                {
+                  "type": "required"
+                },
+                {
+                  "type": "one_of",
+                  "params": {
+                    "values": [
+                      "real_estate",
+                      "services",
+                      "products",
+                      "medical"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "owner": {
+          "type": "object",
+          "label_key": "owner",
+          "rules": [
+            {
+              "type": "required"
+            }
+          ],
+          "fields": {
+            "first_name": {
+              "type": "string",
+              "label_key": "firstName",
+              "rules": [
+                {
+                  "type": "required"
+                },
+                {
+                  "type": "max_length",
+                  "params": {
+                    "max": 255
+                  }
+                }
+              ]
+            },
+            "last_name": {
+              "type": "string",
+              "label_key": "lastName",
+              "rules": [
+                {
+                  "type": "required"
+                },
+                {
+                  "type": "max_length",
+                  "params": {
+                    "max": 255
+                  }
+                }
+              ]
+            },
+            "email": {
+              "type": "string",
+              "label_key": "email",
+              "rules": [
+                {
+                  "type": "required"
+                },
+                {
+                  "type": "email"
+                },
+                {
+                  "type": "max_length",
+                  "params": {
+                    "max": 254
+                  }
+                }
+              ]
+            },
+            "username": {
+              "type": "string",
+              "label_key": "username",
+              "rules": [
+                {
+                  "type": "required"
+                },
+                {
+                  "type": "username",
+                  "client_only": true
+                }
+              ]
+            },
+            "password": {
+              "type": "string",
+              "label_key": "password",
+              "rules": [
+                {
+                  "type": "required"
+                },
+                {
+                  "type": "password_policy",
+                  "params": {
+                    "min_length": 8,
+                    "reject_numeric": true,
+                    "reject_common": true,
+                    "reject_similar": true,
+                    "common_sample": [
+                      "password",
+                      "12345678",
+                      "123456789",
+                      "qwerty123",
+                      "11111111",
+                      "abc12345",
+                      "password1",
+                      "iloveyou"
+                    ]
+                  }
+                }
+              ]
+            },
+            "phone": {
+              "type": "string",
+              "label_key": "phone",
+              "rules": [
+                {
+                  "type": "required"
+                },
+                {
+                  "type": "phone_e164",
+                  "client_only": true
+                }
+              ]
+            }
+          }
+        }
+      },
+      "aliases": {
+        "confirmPassword": "owner.password"
+      }
+    },
+    "auth.forgot_password": {
+      "public": true,
+      "fields": {
+        "email": {
+          "type": "string",
+          "label_key": "email",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "email"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 254
+              }
+            }
+          ]
+        }
+      }
+    },
+    "auth.reset_password": {
+      "public": true,
+      "fields": {
+        "email": {
+          "type": "string",
+          "label_key": "email",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "email"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 254
+              }
+            }
+          ]
+        },
+        "new_password": {
+          "type": "string",
+          "label_key": "newPassword",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "password_policy",
+              "params": {
+                "min_length": 8,
+                "reject_numeric": true,
+                "reject_common": true,
+                "reject_similar": true,
+                "common_sample": [
+                  "password",
+                  "12345678",
+                  "123456789",
+                  "qwerty123",
+                  "11111111",
+                  "abc12345",
+                  "password1",
+                  "iloveyou"
+                ]
+              }
+            }
+          ]
+        },
+        "confirm_password": {
+          "type": "string",
+          "label_key": "confirmPassword",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "matches_field",
+              "params": {
+                "field": "new_password"
+              }
+            }
+          ]
+        }
+      },
+      "aliases": {
+        "password": "new_password",
+        "confirmPassword": "confirm_password"
+      }
+    },
+    "auth.change_password": {
+      "public": false,
+      "fields": {
+        "current_password": {
+          "type": "string",
+          "label_key": "currentPassword",
+          "rules": [
+            {
+              "type": "required"
+            }
+          ]
+        },
+        "new_password": {
+          "type": "string",
+          "label_key": "newPassword",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "password_policy",
+              "params": {
+                "min_length": 8,
+                "reject_numeric": true,
+                "reject_common": true,
+                "reject_similar": true,
+                "common_sample": [
+                  "password",
+                  "12345678",
+                  "123456789",
+                  "qwerty123",
+                  "11111111",
+                  "abc12345",
+                  "password1",
+                  "iloveyou"
+                ]
+              }
+            }
+          ]
+        },
+        "confirm_password": {
+          "type": "string",
+          "label_key": "confirmPassword",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "matches_field",
+              "params": {
+                "field": "new_password"
+              }
+            }
+          ]
+        }
+      },
+      "aliases": {
+        "currentPassword": "current_password",
+        "newPassword": "new_password",
+        "confirmPassword": "confirm_password"
+      }
+    },
+    "auth.two_factor": {
+      "public": true,
+      "fields": {
+        "code": {
+          "type": "string",
+          "label_key": "verificationCode",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "pattern",
+              "params": {
+                "regex": "\\d{4,8}"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "auth.email_code": {
+      "public": true,
+      "fields": {
+        "code": {
+          "type": "string",
+          "label_key": "verificationCode",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "pattern",
+              "params": {
+                "regex": "\\d{4,8}"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "auth.phone_otp": {
+      "public": true,
+      "fields": {
+        "phone": {
+          "type": "string",
+          "label_key": "phone",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "phone_e164",
+              "client_only": true
+            }
+          ]
+        },
+        "code": {
+          "type": "string",
+          "label_key": "verificationCode",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "pattern",
+              "params": {
+                "regex": "\\d{4,8}"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "user.upsert": {
+      "public": false,
+      "fields": {
+        "first_name": {
+          "type": "string",
+          "label_key": "firstName",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "last_name": {
+          "type": "string",
+          "label_key": "lastName",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 150
+              }
+            }
+          ]
+        },
+        "email": {
+          "type": "string",
+          "label_key": "email",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "email"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 254
+              }
+            }
+          ]
+        },
+        "username": {
+          "type": "string",
+          "label_key": "username",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "username",
+              "client_only": true
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 150
+              }
+            }
+          ]
+        },
+        "phone": {
+          "type": "string",
+          "label_key": "phone",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            }
+          ]
+        },
+        "password": {
+          "type": "string",
+          "label_key": "password",
+          "rules": [
+            {
+              "type": "password_policy",
+              "params": {
+                "min_length": 8,
+                "reject_numeric": true,
+                "reject_common": true,
+                "reject_similar": true,
+                "common_sample": [
+                  "password",
+                  "12345678",
+                  "123456789",
+                  "qwerty123",
+                  "11111111",
+                  "abc12345",
+                  "password1",
+                  "iloveyou"
+                ]
+              },
+              "client_only": true
+            }
+          ]
+        },
+        "role": {
+          "type": "string",
+          "label_key": "role",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "one_of",
+              "params": {
+                "values": [
+                  "super_admin",
+                  "admin",
+                  "company_admin",
+                  "supervisor",
+                  "employee",
+                  "data_entry",
+                  "reception",
+                  "doctor",
+                  "call_center"
+                ]
+              },
+              "client_only": true
+            }
+          ]
+        }
+      },
+      "aliases": {
+        "firstName": "first_name",
+        "lastName": "last_name"
+      }
+    },
+    "limited_admin.create": {
+      "public": false,
+      "fields": {
+        "username": {
+          "type": "string",
+          "label_key": "username",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "username",
+              "client_only": true
+            }
+          ]
+        },
+        "email": {
+          "type": "string",
+          "label_key": "email",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "email"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 254
+              }
+            }
+          ]
+        },
+        "password": {
+          "type": "string",
+          "label_key": "password",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "password_policy",
+              "params": {
+                "min_length": 8,
+                "reject_numeric": true,
+                "reject_common": true,
+                "reject_similar": true,
+                "common_sample": [
+                  "password",
+                  "12345678",
+                  "123456789",
+                  "qwerty123",
+                  "11111111",
+                  "abc12345",
+                  "password1",
+                  "iloveyou"
+                ]
+              }
+            }
+          ]
+        },
+        "first_name": {
+          "type": "string",
+          "label_key": "firstName",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "last_name": {
+          "type": "string",
+          "label_key": "lastName",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        }
+      },
+      "aliases": {
+        "firstName": "first_name",
+        "lastName": "last_name"
+      }
+    },
+    "supervisor.create": {
+      "public": false,
+      "fields": {
+        "username": {
+          "type": "string",
+          "label_key": "username",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "username",
+              "client_only": true
+            }
+          ]
+        },
+        "email": {
+          "type": "string",
+          "label_key": "email",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "email"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 254
+              }
+            }
+          ]
+        },
+        "password": {
+          "type": "string",
+          "label_key": "password",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "password_policy",
+              "params": {
+                "min_length": 8,
+                "reject_numeric": true,
+                "reject_common": true,
+                "reject_similar": true,
+                "common_sample": [
+                  "password",
+                  "12345678",
+                  "123456789",
+                  "qwerty123",
+                  "11111111",
+                  "abc12345",
+                  "password1",
+                  "iloveyou"
+                ]
+              }
+            }
+          ]
+        },
+        "first_name": {
+          "type": "string",
+          "label_key": "firstName",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "last_name": {
+          "type": "string",
+          "label_key": "lastName",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "phone": {
+          "type": "string",
+          "label_key": "phone",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "phone_e164",
+              "client_only": true
+            }
+          ]
+        }
+      },
+      "aliases": {
+        "firstName": "first_name",
+        "lastName": "last_name"
+      }
+    },
+    "profile.update": {
+      "public": false,
+      "fields": {
+        "first_name": {
+          "type": "string",
+          "label_key": "firstName",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "last_name": {
+          "type": "string",
+          "label_key": "lastName",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "email": {
+          "type": "string",
+          "label_key": "email",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "email"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 254
+              }
+            }
+          ]
+        },
+        "phone": {
+          "type": "string",
+          "label_key": "phone",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "phone_e164",
+              "client_only": true
+            }
+          ]
+        }
+      },
+      "aliases": {
+        "firstName": "first_name",
+        "lastName": "last_name"
+      }
+    },
+    "admin_user.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "name",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "email": {
+          "type": "string",
+          "label_key": "email",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "email"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 254
+              }
+            }
+          ]
+        }
+      }
+    },
+    "guide_category.upsert": {
+      "public": false,
+      "fields": {
+        "name_en": {
+          "type": "string",
+          "label_key": "name",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 120
+              }
+            }
+          ],
+          "ui_key": "name"
+        },
+        "name_ar": {
+          "type": "string",
+          "label_key": "nameAr",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 120
+              }
+            }
+          ],
+          "ui_key": "nameAr"
+        }
+      },
+      "aliases": {
+        "name": "name_en",
+        "nameAr": "name_ar"
+      }
+    },
+    "guide_article.upsert": {
+      "public": false,
+      "fields": {
+        "title_en": {
+          "type": "string",
+          "label_key": "title",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ],
+          "ui_key": "title"
+        },
+        "title_ar": {
+          "type": "string",
+          "label_key": "titleAr",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ],
+          "ui_key": "titleAr"
+        },
+        "body_en": {
+          "type": "string",
+          "label_key": "body",
+          "rules": [
+            {
+              "type": "required"
+            }
+          ],
+          "ui_key": "body"
+        },
+        "body_ar": {
+          "type": "string",
+          "label_key": "bodyAr",
+          "rules": [
+            {
+              "type": "required"
+            }
+          ],
+          "ui_key": "bodyAr"
+        },
+        "youtube_url": {
+          "type": "string",
+          "label_key": "youtubeUrl",
+          "rules": [
+            {
+              "type": "url",
+              "client_only": true
+            }
+          ]
+        }
+      },
+      "aliases": {
+        "title": "title_en",
+        "titleAr": "title_ar",
+        "body": "body_en",
+        "bodyAr": "body_ar",
+        "youtubeUrl": "youtube_url"
+      }
+    },
+    "news_post.upsert": {
+      "public": false,
+      "fields": {
+        "title_en": {
+          "type": "string",
+          "label_key": "title",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ],
+          "ui_key": "title"
+        },
+        "title_ar": {
+          "type": "string",
+          "label_key": "titleAr",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ],
+          "ui_key": "titleAr"
+        },
+        "body_en": {
+          "type": "string",
+          "label_key": "body",
+          "rules": [
+            {
+              "type": "required"
+            }
+          ],
+          "ui_key": "body"
+        },
+        "body_ar": {
+          "type": "string",
+          "label_key": "bodyAr",
+          "rules": [
+            {
+              "type": "required"
+            }
+          ],
+          "ui_key": "bodyAr"
+        }
+      },
+      "aliases": {
+        "title": "title_en",
+        "titleAr": "title_ar",
+        "body": "body_en",
+        "bodyAr": "body_ar"
+      }
+    },
+    "page_help_video.upsert": {
+      "public": false,
+      "fields": {
+        "page_key": {
+          "type": "string",
+          "label_key": "page",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 128
+              }
+            }
+          ]
+        },
+        "youtube_url": {
+          "type": "string",
+          "label_key": "youtubeUrl",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "url"
+            }
+          ],
+          "ui_key": "youtubeUrl"
+        },
+        "title_en": {
+          "type": "string",
+          "label_key": "title",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ],
+          "ui_key": "title"
+        }
+      },
+      "aliases": {
+        "pageKey": "page_key",
+        "youtubeUrl": "youtube_url",
+        "title": "title_en"
+      }
+    },
+    "deal.upsert": {
+      "public": false,
+      "fields": {
+        "client": {
+          "type": "integer",
+          "label_key": "client",
+          "rules": [
+            {
+              "type": "required"
+            }
+          ]
+        },
+        "title": {
+          "type": "string",
+          "label_key": "title",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "value": {
+          "type": "number",
+          "label_key": "value",
+          "rules": [
+            {
+              "type": "number_range",
+              "params": {
+                "min": 0
+              },
+              "client_only": true
+            },
+            {
+              "type": "decimal_places",
+              "params": {
+                "max": 2
+              },
+              "client_only": true
+            }
+          ]
+        },
+        "probability": {
+          "type": "integer",
+          "label_key": "probability",
+          "rules": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number_range",
+              "params": {
+                "min": 0,
+                "max": 100
+              }
+            }
+          ]
+        },
+        "discount_percentage": {
+          "type": "number",
+          "label_key": "discount",
+          "rules": [
+            {
+              "type": "number_range",
+              "params": {
+                "min": 0,
+                "max": 100
+              }
+            }
+          ]
+        },
+        "expected_close_date": {
+          "type": "date",
+          "label_key": "expectedCloseDate",
+          "rules": []
+        },
+        "start_date": {
+          "type": "date",
+          "label_key": "startDate",
+          "rules": []
+        },
+        "closed_date": {
+          "type": "date",
+          "label_key": "closedDate",
+          "rules": [
+            {
+              "type": "date_range",
+              "params": {
+                "gte_field": "start_date"
+              },
+              "client_only": true
+            }
+          ]
+        },
+        "description": {
+          "type": "string",
+          "label_key": "description",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 5000
+              }
+            }
+          ]
+        },
+        "currency": {
+          "type": "string",
+          "label_key": "currency",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 10
+              }
+            }
+          ]
+        }
+      },
+      "aliases": {
+        "expectedCloseDate": "expected_close_date",
+        "startDate": "start_date",
+        "closedDate": "closed_date"
+      }
+    },
+    "deal.close": {
+      "public": false,
+      "fields": {
+        "status": {
+          "type": "string",
+          "label_key": "status",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "one_of",
+              "params": {
+                "values": [
+                  "won",
+                  "lost"
+                ]
+              },
+              "client_only": true
+            }
+          ]
+        },
+        "lost_reason": {
+          "type": "integer",
+          "label_key": "lostReason",
+          "rules": [
+            {
+              "type": "required_if",
+              "params": {
+                "field": "status",
+                "equals": "lost"
+              },
+              "client_only": true
+            }
+          ],
+          "ui_key": "lostReason"
+        },
+        "lost_note": {
+          "type": "string",
+          "label_key": "lostNote",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 2000
+              }
+            }
+          ],
+          "ui_key": "lostNote"
+        }
+      },
+      "aliases": {
+        "lostReason": "lost_reason",
+        "lostNote": "lost_note"
+      }
+    },
+    "twilio_settings.update": {
+      "public": false,
+      "fields": {
+        "account_sid": {
+          "type": "string",
+          "label_key": "accountSid",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 64
+              }
+            }
+          ]
+        },
+        "auth_token": {
+          "type": "string",
+          "label_key": "authToken",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 128
+              }
+            }
+          ]
+        },
+        "twilio_number": {
+          "type": "string",
+          "label_key": "fromNumber",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "phone_e164"
+            }
+          ],
+          "ui_key": "fromNumber"
+        }
+      },
+      "aliases": {
+        "accountSid": "account_sid",
+        "authToken": "auth_token",
+        "fromNumber": "twilio_number"
+      }
+    },
+    "sms.send": {
+      "public": false,
+      "fields": {
+        "to": {
+          "type": "string",
+          "label_key": "phone",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "phone_e164",
+              "client_only": true
+            }
+          ]
+        },
+        "body": {
+          "type": "string",
+          "label_key": "message",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 1000
+              }
+            }
+          ]
+        }
+      }
+    },
+    "whatsapp_template.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "name",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "pattern",
+              "params": {
+                "regex": "[A-Za-z0-9_ \\-]+"
+              },
+              "client_only": true
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "content": {
+          "type": "string",
+          "label_key": "body",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "custom:whatsapp_template_body",
+              "params": {
+                "patterns": [
+                  "\\[\\s*Customer Name\\s*\\]|\\[\\s*اسم_العميل\\s*\\]|\\[\\s*اسم العميل\\s*\\]|\\{\\s*Customer Name\\s*\\}|\\{\\s*اسم العميل\\s*\\}|\\{\\s*اسم_العميل\\s*\\}",
+                  "\\[\\s*Phone\\s*\\]|\\[\\s*رقم_الهاتف\\s*\\]|\\[\\s*رقم الهاتف\\s*\\]|\\[\\s*الهاتف\\s*\\]|\\{\\s*Phone\\s*\\}|\\{\\s*رقم الهاتف\\s*\\}|\\{\\s*رقم_الهاتف\\s*\\}",
+                  "\\[\\s*Employee Name\\s*\\]|\\[\\s*اسم_الموظف\\s*\\]|\\[\\s*اسم الموظف\\s*\\]|\\{\\s*Employee Name\\s*\\}|\\{\\s*اسم الموظف\\s*\\}|\\{\\s*اسم_الموظف\\s*\\}",
+                  "\\[\\s*Company\\s*\\]|\\[\\s*الشركة\\s*\\]|\\[\\s*شركة\\s*\\]|\\[\\s*اسم الشركة\\s*\\]|\\{\\s*Company\\s*\\}|\\{\\s*اسم الشركة\\s*\\}|\\{\\s*الشركة\\s*\\}",
+                  "\\[\\s*Current Date\\s*\\]|\\[\\s*التاريخ الحالي\\s*\\]|\\{\\s*Current Date\\s*\\}|\\{\\s*التاريخ الحالي\\s*\\}",
+                  "\\[\\s*Current Time\\s*\\]|\\[\\s*الوقت الحالي\\s*\\]|\\{\\s*Current Time\\s*\\}|\\{\\s*الوقت الحالي\\s*\\}",
+                  "\\[\\s*Status\\s*\\]|\\[\\s*الحالة\\s*\\]|\\{\\s*Status\\s*\\}|\\{\\s*الحالة\\s*\\}",
+                  "\\[\\s*Stage\\s*\\]|\\[\\s*المرحلة\\s*\\]|\\{\\s*Stage\\s*\\}|\\{\\s*المرحلة\\s*\\}",
+                  "\\[\\s*Channel\\s*\\]|\\[\\s*قناة التواصل\\s*\\]|\\{\\s*Channel\\s*\\}|\\{\\s*قناة التواصل\\s*\\}",
+                  "\\[\\s*Visit Type\\s*\\]|\\[\\s*نوع الزيارة\\s*\\]|\\{\\s*Visit Type\\s*\\}|\\{\\s*نوع الزيارة\\s*\\}",
+                  "\\[\\s*Profession\\s*\\]|\\[\\s*المهنة\\s*\\]|\\{\\s*Profession\\s*\\}|\\{\\s*المهنة\\s*\\}",
+                  "\\[\\s*Amount\\s*\\]|\\[\\s*المبلغ\\s*\\]|\\{\\s*Amount\\s*\\}|\\{\\s*المبلغ\\s*\\}",
+                  "\\[\\s*Invoice Number\\s*\\]|\\[\\s*رقم_الفاتورة\\s*\\]|\\[\\s*رقم الفاتورة\\s*\\]|\\{\\s*Invoice Number\\s*\\}|\\{\\s*رقم الفاتورة\\s*\\}"
+                ],
+                "min_static_words_per_var": 3
+              },
+              "client_only": true
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 5000
+              }
+            }
+          ],
+          "ui_key": "body"
+        },
+        "language": {
+          "type": "string",
+          "label_key": "language",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 16
+              }
+            }
+          ]
+        }
+      }
+    },
+    "whatsapp_chat.start_conversation": {
+      "public": false,
+      "fields": {
+        "phone": {
+          "type": "string",
+          "label_key": "phone",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "phone_e164"
+            }
+          ]
+        }
+      }
+    },
+    "openai_settings.update": {
+      "public": false,
+      "fields": {
+        "api_key": {
+          "type": "string",
+          "label_key": "apiKey",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 256
+              }
+            }
+          ]
+        },
+        "model": {
+          "type": "string",
+          "label_key": "model",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 64
+              }
+            }
+          ]
+        }
+      },
+      "aliases": {
+        "apiKey": "api_key"
+      }
+    },
+    "product_category.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "name",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "description": {
+          "type": "string",
+          "label_key": "description",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 5000
+              }
+            }
+          ]
+        }
+      }
+    },
+    "product.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "name",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "sku": {
+          "type": "string",
+          "label_key": "sku",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 64
+              }
+            }
+          ]
+        },
+        "price": {
+          "type": "number",
+          "label_key": "price",
+          "rules": [
+            {
+              "type": "number_range",
+              "params": {
+                "min": 0
+              },
+              "client_only": true
+            }
+          ]
+        },
+        "description": {
+          "type": "string",
+          "label_key": "description",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 5000
+              }
+            }
+          ]
+        }
+      }
+    },
+    "supplier.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "name",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "email": {
+          "type": "string",
+          "label_key": "email",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "email"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 254
+              }
+            }
+          ]
+        },
+        "phone": {
+          "type": "string",
+          "label_key": "phone",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "phone_e164",
+              "client_only": true
+            }
+          ]
+        },
+        "description": {
+          "type": "string",
+          "label_key": "description",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 5000
+              }
+            }
+          ]
+        }
+      }
+    },
+    "service.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "name",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "description": {
+          "type": "string",
+          "label_key": "description",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 5000
+              }
+            }
+          ]
+        }
+      }
+    },
+    "service_package.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "name",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "price": {
+          "type": "number",
+          "label_key": "price",
+          "rules": [
+            {
+              "type": "number_range",
+              "params": {
+                "min": 0
+              },
+              "client_only": true
+            }
+          ]
+        },
+        "description": {
+          "type": "string",
+          "label_key": "description",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 5000
+              }
+            }
+          ]
+        }
+      }
+    },
+    "service_provider.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "name",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "email": {
+          "type": "string",
+          "label_key": "email",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "email"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 254
+              }
+            }
+          ]
+        },
+        "phone": {
+          "type": "string",
+          "label_key": "phone",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "phone_e164",
+              "client_only": true
+            }
+          ]
+        }
+      }
+    },
+    "developer.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "name",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "description": {
+          "type": "string",
+          "label_key": "description",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 5000
+              }
+            }
+          ]
+        }
+      }
+    },
+    "project.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "name",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "description": {
+          "type": "string",
+          "label_key": "description",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 5000
+              }
+            }
+          ]
+        }
+      }
+    },
+    "unit.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "name",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "price": {
+          "type": "number",
+          "label_key": "price",
+          "rules": [
+            {
+              "type": "number_range",
+              "params": {
+                "min": 0
+              },
+              "client_only": true
+            }
+          ]
+        },
+        "description": {
+          "type": "string",
+          "label_key": "description",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 5000
+              }
+            }
+          ]
+        }
+      }
+    },
+    "owner.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "name",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "email": {
+          "type": "string",
+          "label_key": "email",
+          "rules": [
+            {
+              "type": "email"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 254
+              }
+            }
+          ]
+        },
+        "phone": {
+          "type": "string",
+          "label_key": "phone",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "phone_e164",
+              "client_only": true
+            }
+          ]
+        }
+      }
+    },
+    "lead.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "name",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "phone_number": {
+          "type": "string",
+          "label_key": "phone",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "phone_e164"
+            }
+          ],
+          "ui_key": "phone"
+        },
+        "phone_numbers": {
+          "type": "array",
+          "label_key": "phone",
+          "rules": [
+            {
+              "type": "array",
+              "params": {
+                "min": 1
+              },
+              "client_only": true
+            }
+          ],
+          "ui_key": "phoneNumbers",
+          "item": {
+            "type": "object",
+            "label_key": "phone",
+            "rules": [],
+            "fields": {
+              "phone_number": {
+                "type": "string",
+                "label_key": "phone",
+                "rules": [
+                  {
+                    "type": "required",
+                    "client_only": true
+                  },
+                  {
+                    "type": "phone_e164",
+                    "client_only": true
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "communication_way": {
+          "type": "integer",
+          "label_key": "communicationWay",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            }
+          ],
+          "ui_key": "communicationWay"
+        },
+        "status": {
+          "type": "integer",
+          "label_key": "status",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            }
+          ]
+        },
+        "priority": {
+          "type": "string",
+          "label_key": "priority",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "one_of",
+              "params": {
+                "values": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              },
+              "client_only": true
+            }
+          ]
+        },
+        "type": {
+          "type": "string",
+          "label_key": "type",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "one_of",
+              "params": {
+                "values": [
+                  "fresh",
+                  "hot",
+                  "cold"
+                ]
+              },
+              "client_only": true
+            }
+          ]
+        },
+        "company": {
+          "type": "integer",
+          "label_key": "company",
+          "rules": [
+            {
+              "type": "required",
+              "when": "requireCompany",
+              "client_only": true
+            }
+          ],
+          "ui_key": "companyId"
+        },
+        "email": {
+          "type": "string",
+          "label_key": "email",
+          "rules": [
+            {
+              "type": "email"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 254
+              }
+            }
+          ]
+        },
+        "lead_company_name": {
+          "type": "string",
+          "label_key": "leadCompanyName",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ],
+          "ui_key": "leadCompanyName"
+        },
+        "notes": {
+          "type": "string",
+          "label_key": "notes",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 5000
+              }
+            }
+          ]
+        }
+      },
+      "aliases": {
+        "phone": "phone_number",
+        "phoneNumbers": "phone_numbers",
+        "communicationWay": "communication_way",
+        "companyId": "company",
+        "leadCompanyName": "lead_company_name",
+        "assignedTo": "assigned_to"
+      }
+    },
+    "channel.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "name",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "description": {
+          "type": "string",
+          "label_key": "description",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 2000
+              }
+            }
+          ]
+        }
+      }
+    },
+    "stage.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "name",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "description": {
+          "type": "string",
+          "label_key": "description",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 2000
+              }
+            }
+          ]
+        },
+        "color": {
+          "type": "string",
+          "label_key": "color",
+          "rules": [
+            {
+              "type": "pattern",
+              "params": {
+                "regex": "#[0-9A-Fa-f]{6}"
+              },
+              "client_only": true
+            }
+          ]
+        }
+      }
+    },
+    "status.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "name",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "description": {
+          "type": "string",
+          "label_key": "description",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 2000
+              }
+            }
+          ]
+        },
+        "color": {
+          "type": "string",
+          "label_key": "color",
+          "rules": [
+            {
+              "type": "pattern",
+              "params": {
+                "regex": "#[0-9A-Fa-f]{6}"
+              },
+              "client_only": true
+            }
+          ]
+        }
+      }
+    },
+    "call_method.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "name",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "description": {
+          "type": "string",
+          "label_key": "description",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 2000
+              }
+            }
+          ]
+        },
+        "color": {
+          "type": "string",
+          "label_key": "color",
+          "rules": [
+            {
+              "type": "pattern",
+              "params": {
+                "regex": "#[0-9A-Fa-f]{6}"
+              },
+              "client_only": true
+            }
+          ]
+        }
+      }
+    },
+    "visit_type.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "name",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "description": {
+          "type": "string",
+          "label_key": "description",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 2000
+              }
+            }
+          ]
+        },
+        "color": {
+          "type": "string",
+          "label_key": "color",
+          "rules": [
+            {
+              "type": "pattern",
+              "params": {
+                "regex": "#[0-9A-Fa-f]{6}"
+              },
+              "client_only": true
+            }
+          ]
+        }
+      }
+    },
+    "tag.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "name",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "description": {
+          "type": "string",
+          "label_key": "description",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 2000
+              }
+            }
+          ]
+        },
+        "color": {
+          "type": "string",
+          "label_key": "color",
+          "rules": [
+            {
+              "type": "pattern",
+              "params": {
+                "regex": "#[0-9A-Fa-f]{6}"
+              },
+              "client_only": true
+            }
+          ]
+        }
+      }
+    },
+    "deal_pipeline.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "name",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "description": {
+          "type": "string",
+          "label_key": "description",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 2000
+              }
+            }
+          ]
+        },
+        "color": {
+          "type": "string",
+          "label_key": "color",
+          "rules": [
+            {
+              "type": "pattern",
+              "params": {
+                "regex": "#[0-9A-Fa-f]{6}"
+              },
+              "client_only": true
+            }
+          ]
+        }
+      }
+    },
+    "deal_lost_reason.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "name",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "description": {
+          "type": "string",
+          "label_key": "description",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 2000
+              }
+            }
+          ]
+        },
+        "color": {
+          "type": "string",
+          "label_key": "color",
+          "rules": [
+            {
+              "type": "pattern",
+              "params": {
+                "regex": "#[0-9A-Fa-f]{6}"
+              },
+              "client_only": true
+            }
+          ]
+        }
+      }
+    },
+    "deal_stage.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "name",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "description": {
+          "type": "string",
+          "label_key": "description",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 2000
+              }
+            }
+          ]
+        },
+        "color": {
+          "type": "string",
+          "label_key": "color",
+          "rules": [
+            {
+              "type": "pattern",
+              "params": {
+                "regex": "#[0-9A-Fa-f]{6}"
+              },
+              "client_only": true
+            }
+          ]
+        },
+        "stage_type": {
+          "type": "string",
+          "label_key": "stageType",
+          "rules": [
+            {
+              "type": "one_of",
+              "params": {
+                "values": [
+                  "open",
+                  "won",
+                  "lost"
+                ]
+              }
+            }
+          ]
+        },
+        "probability": {
+          "type": "integer",
+          "label_key": "probability",
+          "rules": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number_range",
+              "params": {
+                "min": 0,
+                "max": 100
+              }
+            }
+          ]
+        }
+      },
+      "aliases": {
+        "stageType": "stage_type"
+      }
+    },
+    "company_assignment_settings.update": {
+      "public": false,
+      "fields": {
+        "re_assign_hours": {
+          "type": "integer",
+          "label_key": "reminderDelayTime",
+          "rules": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number_range",
+              "params": {
+                "min": 1
+              }
+            }
+          ],
+          "ui_key": "reAssignHours"
+        },
+        "no_follow_up_hours": {
+          "type": "integer",
+          "label_key": "noFollowUpHours",
+          "rules": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number_range",
+              "params": {
+                "min": 1,
+                "max": 168
+              }
+            }
+          ],
+          "ui_key": "noFollowUpHours"
+        },
+        "no_follow_up_digest_hour": {
+          "type": "integer",
+          "label_key": "noFollowUpDigestHour",
+          "rules": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number_range",
+              "params": {
+                "min": 0,
+                "max": 23
+              }
+            }
+          ],
+          "ui_key": "noFollowUpDigestHour"
+        }
+      },
+      "aliases": {
+        "reAssignHours": "re_assign_hours",
+        "noFollowUpHours": "no_follow_up_hours",
+        "noFollowUpDigestHour": "no_follow_up_digest_hour"
+      }
+    },
+    "system_settings.update": {
+      "public": false,
+      "fields": {
+        "login_max_failed_attempts": {
+          "type": "integer",
+          "label_key": "loginMaxFailedAttempts",
+          "rules": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number_range",
+              "params": {
+                "min": 1
+              }
+            }
+          ]
+        },
+        "login_lockout_duration_minutes": {
+          "type": "integer",
+          "label_key": "loginLockoutDurationMinutes",
+          "rules": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number_range",
+              "params": {
+                "min": 1
+              }
+            }
+          ]
+        }
+      },
+      "aliases": {
+        "loginMaxFailedAttempts": "login_max_failed_attempts",
+        "loginLockoutDurationMinutes": "login_lockout_duration_minutes"
+      }
+    },
+    "work_hours.update": {
+      "public": false,
+      "fields": {
+        "idle_timeout_minutes": {
+          "type": "integer",
+          "label_key": "idleTimeout",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number_range",
+              "params": {
+                "min": 1,
+                "max": 120
+              }
+            }
+          ]
+        }
+      },
+      "aliases": {
+        "idleTimeoutMinutes": "idle_timeout_minutes"
+      }
+    },
+    "billing_settings.update": {
+      "public": false,
+      "fields": {
+        "issuer_name": {
+          "type": "string",
+          "label_key": "issuerName",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "issuer_email": {
+          "type": "string",
+          "label_key": "issuerEmail",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "email"
+            }
+          ]
+        },
+        "logo": {
+          "type": "string",
+          "label_key": "logo",
+          "rules": [
+            {
+              "type": "file",
+              "params": {
+                "max_bytes": 2000000,
+                "mime": [
+                  "image/png",
+                  "image/jpeg",
+                  "image/webp"
+                ]
+              },
+              "client_only": true
+            }
+          ]
+        }
+      },
+      "aliases": {
+        "issuerName": "issuer_name",
+        "issuerEmail": "issuer_email"
+      }
+    },
+    "plan.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "name",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "name_ar": {
+          "type": "string",
+          "label_key": "nameAr",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "description": {
+          "type": "string",
+          "label_key": "description",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 5000
+              }
+            }
+          ]
+        },
+        "description_ar": {
+          "type": "string",
+          "label_key": "descriptionAr",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 5000
+              }
+            }
+          ]
+        },
+        "monthly_price": {
+          "type": "number",
+          "label_key": "monthlyPrice",
+          "rules": [
+            {
+              "type": "number_range",
+              "params": {
+                "min": 0
+              },
+              "client_only": true
+            }
+          ]
+        },
+        "yearly_price": {
+          "type": "number",
+          "label_key": "yearlyPrice",
+          "rules": [
+            {
+              "type": "number_range",
+              "params": {
+                "min": 0
+              },
+              "client_only": true
+            }
+          ]
+        },
+        "trial_days": {
+          "type": "integer",
+          "label_key": "trialDays",
+          "rules": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number_range",
+              "params": {
+                "min": 0,
+                "max": 365
+              },
+              "client_only": true
+            }
+          ]
+        }
+      },
+      "aliases": {
+        "nameAr": "name_ar",
+        "descriptionAr": "description_ar",
+        "monthlyPrice": "monthly_price",
+        "yearlyPrice": "yearly_price",
+        "trialDays": "trial_days"
+      }
+    },
+    "payment_gateway.create": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "provider",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        }
+      }
+    },
+    "trial_code.create": {
+      "public": false,
+      "fields": {
+        "code": {
+          "type": "string",
+          "label_key": "code",
+          "rules": [
+            {
+              "type": "pattern",
+              "params": {
+                "regex": "^[A-Z0-9_-]{4,32}$"
+              }
+            }
+          ]
+        },
+        "trial_days": {
+          "type": "integer",
+          "label_key": "trialDays",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "number_range",
+              "params": {
+                "min": 1,
+                "max": 365
+              }
+            }
+          ]
+        }
+      },
+      "aliases": {
+        "trialDays": "trial_days"
+      }
+    },
+    "trial_code.batch": {
+      "public": false,
+      "fields": {
+        "label": {
+          "type": "string",
+          "label_key": "name",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "quantity": {
+          "type": "integer",
+          "label_key": "count",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "number_range",
+              "params": {
+                "min": 1,
+                "max": 500
+              }
+            }
+          ]
+        },
+        "trial_days": {
+          "type": "integer",
+          "label_key": "trialDays",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "number_range",
+              "params": {
+                "min": 1,
+                "max": 365
+              }
+            }
+          ]
+        },
+        "plan": {
+          "type": "integer",
+          "label_key": "plan",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            }
+          ]
+        }
+      },
+      "aliases": {
+        "trialDays": "trial_days"
+      }
+    },
+    "trial_code.redeem": {
+      "public": true,
+      "fields": {
+        "code": {
+          "type": "string",
+          "label_key": "code",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 64
+              }
+            }
+          ]
+        }
+      }
+    },
+    "broadcast.create": {
+      "public": false,
+      "fields": {
+        "subject": {
+          "type": "string",
+          "label_key": "title",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ],
+          "ui_key": "title"
+        },
+        "content": {
+          "type": "string",
+          "label_key": "message",
+          "rules": [
+            {
+              "type": "required"
+            }
+          ],
+          "ui_key": "body"
+        }
+      },
+      "aliases": {
+        "title": "subject",
+        "body": "content",
+        "message": "content"
+      }
+    },
+    "support_ticket.create": {
+      "public": false,
+      "fields": {
+        "title": {
+          "type": "string",
+          "label_key": "subject",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ],
+          "ui_key": "subject"
+        },
+        "description": {
+          "type": "string",
+          "label_key": "message",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 8000
+              },
+              "client_only": true
+            }
+          ],
+          "ui_key": "message"
+        },
+        "priority": {
+          "type": "string",
+          "label_key": "priority",
+          "rules": [
+            {
+              "type": "one_of",
+              "params": {
+                "values": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              },
+              "client_only": true
+            }
+          ]
+        }
+      },
+      "aliases": {
+        "subject": "title",
+        "message": "description"
+      }
+    },
+    "support_message.send": {
+      "public": false,
+      "fields": {
+        "body": {
+          "type": "string",
+          "label_key": "message",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 8000
+              }
+            }
+          ]
+        }
+      }
+    },
+    "tenant.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "name",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 64
+              }
+            }
+          ]
+        },
+        "domain": {
+          "type": "string",
+          "label_key": "companyDomain",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 256
+              }
+            }
+          ]
+        },
+        "specialization": {
+          "type": "string",
+          "label_key": "specialization",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "one_of",
+              "params": {
+                "values": [
+                  "real_estate",
+                  "services",
+                  "products",
+                  "medical"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "tenant.create": {
+      "public": false,
+      "fields": {
+        "company": {
+          "type": "object",
+          "label_key": "company",
+          "rules": [
+            {
+              "type": "required"
+            }
+          ],
+          "fields": {
+            "name": {
+              "type": "string",
+              "label_key": "name",
+              "rules": [
+                {
+                  "type": "required"
+                },
+                {
+                  "type": "max_length",
+                  "params": {
+                    "max": 64
+                  }
+                }
+              ]
+            },
+            "domain": {
+              "type": "string",
+              "label_key": "companyDomain",
+              "rules": [
+                {
+                  "type": "required"
+                },
+                {
+                  "type": "max_length",
+                  "params": {
+                    "max": 256
+                  }
+                }
+              ]
+            },
+            "specialization": {
+              "type": "string",
+              "label_key": "specialization",
+              "rules": [
+                {
+                  "type": "required"
+                },
+                {
+                  "type": "one_of",
+                  "params": {
+                    "values": [
+                      "real_estate",
+                      "services",
+                      "products",
+                      "medical"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "owner": {
+          "type": "object",
+          "label_key": "owner",
+          "rules": [
+            {
+              "type": "required"
+            }
+          ],
+          "fields": {
+            "first_name": {
+              "type": "string",
+              "label_key": "firstName",
+              "rules": [
+                {
+                  "type": "required"
+                },
+                {
+                  "type": "max_length",
+                  "params": {
+                    "max": 255
+                  }
+                }
+              ]
+            },
+            "last_name": {
+              "type": "string",
+              "label_key": "lastName",
+              "rules": [
+                {
+                  "type": "required"
+                },
+                {
+                  "type": "max_length",
+                  "params": {
+                    "max": 255
+                  }
+                }
+              ]
+            },
+            "email": {
+              "type": "string",
+              "label_key": "email",
+              "rules": [
+                {
+                  "type": "required"
+                },
+                {
+                  "type": "email"
+                },
+                {
+                  "type": "max_length",
+                  "params": {
+                    "max": 254
+                  }
+                }
+              ]
+            },
+            "username": {
+              "type": "string",
+              "label_key": "username",
+              "rules": [
+                {
+                  "type": "required"
+                },
+                {
+                  "type": "username",
+                  "client_only": true
+                }
+              ]
+            },
+            "password": {
+              "type": "string",
+              "label_key": "password",
+              "rules": [
+                {
+                  "type": "required"
+                },
+                {
+                  "type": "password_policy",
+                  "params": {
+                    "min_length": 8,
+                    "reject_numeric": true,
+                    "reject_common": true,
+                    "reject_similar": true,
+                    "common_sample": [
+                      "password",
+                      "12345678",
+                      "123456789",
+                      "qwerty123",
+                      "11111111",
+                      "abc12345",
+                      "password1",
+                      "iloveyou"
+                    ]
+                  }
+                }
+              ]
+            },
+            "phone": {
+              "type": "string",
+              "label_key": "phone",
+              "rules": [
+                {
+                  "type": "required"
+                },
+                {
+                  "type": "phone_e164",
+                  "client_only": true
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "demo_booking.create": {
+      "public": true,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "name",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "email": {
+          "type": "string",
+          "label_key": "email",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "email"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 254
+              }
+            }
+          ]
+        },
+        "phone": {
+          "type": "string",
+          "label_key": "phone",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "phone_e164",
+              "client_only": true
+            }
+          ]
+        },
+        "company_name": {
+          "type": "string",
+          "label_key": "company",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 255
+              }
+            }
+          ]
+        },
+        "starts_at": {
+          "type": "string",
+          "label_key": "date",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            }
+          ],
+          "ui_key": "scheduledAt"
+        }
+      },
+      "aliases": {
+        "companyName": "company_name",
+        "scheduledAt": "scheduled_at"
+      }
+    }
+  }
+}

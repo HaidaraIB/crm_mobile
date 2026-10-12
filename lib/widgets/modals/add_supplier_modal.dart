@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/forms/catalog_form_binding.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/snackbar_helper.dart';
@@ -21,6 +22,8 @@ class AddSupplierModal extends StatefulWidget {
 
 class _AddSupplierModalState extends State<AddSupplierModal> {
   final _formKey = GlobalKey<FormState>();
+  final _catalog = CatalogFormBinding('supplier.upsert');
+  final _nameFocus = FocusNode();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
@@ -32,7 +35,10 @@ class _AddSupplierModalState extends State<AddSupplierModal> {
   bool _isLoading = false;
   
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) {
+    final catalogOk = await _catalog.validate(context, _catalogValues());
+    final formOk = _formKey.currentState!.validate();
+    if (!catalogOk || !formOk) {
+      if (mounted) setState(() {});
       return;
     }
     
@@ -62,10 +68,21 @@ class _AddSupplierModalState extends State<AddSupplierModal> {
       }
     } catch (e) {
       if (mounted) {
-        SnackbarHelper.showError(
-          context,
-          '${AppLocalizations.of(context)?.translate('error') ?? 'Error'}: ${e.toString()}',
-        );
+        final l10n = AppLocalizations.of(context);
+        final applied = e is ApiFieldException && _catalog.applyApiError(l10n, e);
+        final fieldError = _catalog.errors.keys.any((key) => key != '_general');
+        if (applied && fieldError) {
+          setState(() {});
+          final general = _catalog.errors['_general'];
+          if (general != null && general.isNotEmpty) {
+            SnackbarHelper.showError(context, general);
+          }
+        } else {
+          SnackbarHelper.showError(
+            context,
+            '${l10n?.translate('error') ?? 'Error'}: ${e.toString()}',
+          );
+        }
       }
     } finally {
       if (mounted) {
@@ -76,8 +93,27 @@ class _AddSupplierModalState extends State<AddSupplierModal> {
     }
   }
   
+  Map<String, dynamic> _catalogValues() => {
+        'name': _nameController.text,
+        'email': _emailController.text,
+        'phone': _phoneController.text,
+      };
+
+  Future<void> _blurCatalog(String key) async {
+    await _catalog.validate(context, _catalogValues(), only: key);
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _catalog.load();
+    _catalog.watch(_nameFocus, 'name', () => _blurCatalog('name'));
+  }
+
   @override
   void dispose() {
+    _nameFocus.dispose();
     _nameController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
@@ -143,22 +179,21 @@ class _AddSupplierModalState extends State<AddSupplierModal> {
                       // Name
                       AutoDirTextFormField(
                         controller: _nameController,
+                          focusNode: _nameFocus,
+                          onEditingComplete: () => _blurCatalog('name'),
                         decoration: InputDecoration(
-                          labelText: '${localizations?.translate('name') ?? 'Name'} *',
+                          errorText: _catalog.errors['name'],
+                            labelText: '${localizations?.translate('name') ?? 'Name'} *',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return localizations?.translate('nameRequired') ?? 'Name is required';
-                          }
-                          return null;
-                        },
                       ),
                       const SizedBox(height: 16),
                       // Phone
                       PhoneInput(
+                        errorText: _catalog.errors['phone'],
+                        onEditingComplete: () => _blurCatalog('phone'),
                         value: _phoneController.text,
                         onChanged: (value) {
                           setState(() {
@@ -171,8 +206,10 @@ class _AddSupplierModalState extends State<AddSupplierModal> {
                       // Email
                       AutoDirTextFormField(
                         controller: _emailController,
+                          onEditingComplete: () => _blurCatalog('email'),
                         decoration: InputDecoration(
-                          labelText: localizations?.translate('email') ?? 'Email',
+                          errorText: _catalog.errors['email'],
+                            labelText: localizations?.translate('email') ?? 'Email',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),

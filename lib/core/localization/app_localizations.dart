@@ -3,6 +3,7 @@ import 'deal_terminology_overrides.dart';
 import 'inventory_terminology_overrides.dart';
 import 'medical_lexicon.dart';
 import 'medical_translation_overrides.dart';
+import 'validation_strings.dart';
 
 class AppLocalizations {
   final Locale locale;
@@ -797,6 +798,11 @@ class AppLocalizations {
       // Deals
       'dealId': 'Deal ID',
       'stage': 'Stage',
+      'dealSelectPipeline': 'Pipeline',
+      'dealLostReason': 'Lost reason',
+      'dealSelectLostReason': 'Select a reason',
+      'dealLostReasonRequired': 'A lost reason is required',
+      'dealLostNote': 'Note',
       'value': 'Value',
       'startDate': 'Start Date',
       'closedDate': 'Closed Date',
@@ -2436,6 +2442,11 @@ class AppLocalizations {
       // Deals
       'dealId': 'معرف الصفقة',
       'stage': 'المرحلة',
+      'dealSelectPipeline': 'المسار',
+      'dealLostReason': 'سبب الخسارة',
+      'dealSelectLostReason': 'اختر سبباً',
+      'dealLostReasonRequired': 'سبب الخسارة مطلوب',
+      'dealLostNote': 'ملاحظة',
       'value': 'القيمة',
       'startDate': 'تاريخ البدء',
       'closedDate': 'تاريخ الإغلاق',
@@ -3299,9 +3310,19 @@ class AppLocalizations {
         return over;
       }
     }
-    return _localizedValues[locale.languageCode]?[key] ??
+    return kValidationStrings[locale.languageCode]?[key] ??
+        _localizedValues[locale.languageCode]?[key] ??
+        kValidationStrings['en']?[key] ??
         _localizedValues['en']?[key] ??
         key;
+  }
+
+  String translateParams(String key, Map<String, Object?> params) {
+    var text = translate(key);
+    params.forEach((name, value) {
+      text = text.replaceAll('{$name}', '${value ?? ''}');
+    });
+    return text;
   }
 
   bool get isRTL => locale.languageCode == 'ar';

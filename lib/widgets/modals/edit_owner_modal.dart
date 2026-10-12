@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/forms/catalog_form_binding.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/snackbar_helper.dart';
@@ -24,6 +25,8 @@ class EditOwnerModal extends StatefulWidget {
 
 class _EditOwnerModalState extends State<EditOwnerModal> {
   final _formKey = GlobalKey<FormState>();
+  final _catalog = CatalogFormBinding('owner.upsert');
+  final _nameFocus = FocusNode();
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
   late TextEditingController _cityController;
@@ -36,6 +39,9 @@ class _EditOwnerModalState extends State<EditOwnerModal> {
   @override
   void initState() {
     super.initState();
+    _catalog.load();
+    _catalog.watch(_nameFocus, 'name', () => _blurCatalog('name'));
+
     _nameController = TextEditingController(text: widget.owner.name);
     _phoneController = TextEditingController(text: widget.owner.phone);
     _cityController = TextEditingController(text: widget.owner.city ?? '');
@@ -43,8 +49,19 @@ class _EditOwnerModalState extends State<EditOwnerModal> {
     _initialPayload = _buildPayload();
   }
   
+  Map<String, dynamic> _catalogValues() => {
+        'name': _nameController.text,
+        'phone': _phoneController.text,
+      };
+
+  Future<void> _blurCatalog(String key) async {
+    await _catalog.validate(context, _catalogValues(), only: key);
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    _nameFocus.dispose();
     _nameController.dispose();
     _phoneController.dispose();
     _cityController.dispose();
@@ -62,7 +79,14 @@ class _EditOwnerModalState extends State<EditOwnerModal> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) {
+    final catalogOk = await _catalog.validate(
+      context,
+      _catalogValues(),
+      keys: const {'name', 'phone'},
+    );
+    final formOk = _formKey.currentState!.validate();
+    if (!catalogOk || !formOk) {
+      if (mounted) setState(() {});
       return;
     }
     
@@ -92,10 +116,21 @@ class _EditOwnerModalState extends State<EditOwnerModal> {
       }
     } catch (e) {
       if (mounted) {
-        SnackbarHelper.showError(
-          context,
-          '${AppLocalizations.of(context)?.translate('error') ?? 'Error'}: ${e.toString()}',
-        );
+        final l10n = AppLocalizations.of(context);
+        final applied = e is ApiFieldException && _catalog.applyApiError(l10n, e);
+        final fieldError = _catalog.errors.keys.any((key) => key != '_general');
+        if (applied && fieldError) {
+          setState(() {});
+          final general = _catalog.errors['_general'];
+          if (general != null && general.isNotEmpty) {
+            SnackbarHelper.showError(context, general);
+          }
+        } else {
+          SnackbarHelper.showError(
+            context,
+            '${l10n?.translate('error') ?? 'Error'}: ${e.toString()}',
+          );
+        }
       }
     } finally {
       if (mounted) {
@@ -162,22 +197,21 @@ class _EditOwnerModalState extends State<EditOwnerModal> {
                       // Name
                       AutoDirTextFormField(
                         controller: _nameController,
+                          focusNode: _nameFocus,
+                          onEditingComplete: () => _blurCatalog('name'),
                         decoration: InputDecoration(
-                          labelText: '${localizations?.translate('name') ?? 'Name'} *',
+                          errorText: _catalog.errors['name'],
+                            labelText: '${localizations?.translate('name') ?? 'Name'} *',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return localizations?.translate('nameRequired') ?? 'Name is required';
-                          }
-                          return null;
-                        },
                       ),
                       const SizedBox(height: 16),
                       // Phone
                       PhoneInput(
+                        errorText: _catalog.errors['phone'],
+                        onEditingComplete: () => _blurCatalog('phone'),
                         value: _phoneController.text,
                         onChanged: (value) {
                           setState(() {

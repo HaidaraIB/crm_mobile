@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../models/deal_model.dart';
+import '../../models/deal_pipeline_model.dart';
 import '../../models/user_model.dart';
 import '../../models/lead_model.dart';
 import '../../models/inventory_model.dart';
@@ -266,6 +267,31 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
     }
   }
 
+  /// Company-configured stage name when the API provides one, otherwise the
+  /// localized legacy stage.
+  String _stageLabel(DealModel deal, AppLocalizations? localizations) {
+    final name = deal.pipelineStageName;
+    if (name != null && name.isNotEmpty) return name;
+    return _formatStage(deal.stage, localizations);
+  }
+
+  Color _stageColorFor(DealModel deal) =>
+      dealColorFromHex(deal.pipelineStageColor) ?? _getStageColor(deal.stage);
+
+  /// Pipeline stages have free-form names, so the icon follows the stage type.
+  IconData _stageIconFor(DealModel deal) {
+    switch (deal.stageType) {
+      case DealStageType.won:
+        return Icons.check_circle;
+      case DealStageType.lost:
+        return Icons.cancel;
+      case DealStageType.open:
+        return Icons.trending_up;
+      default:
+        return _getStageIcon(deal.stage);
+    }
+  }
+
   String _formatStatus(String? status, AppLocalizations? localizations) {
     if (status == null) return '-';
     switch (status.toLowerCase()) {
@@ -430,6 +456,14 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
                       label: localizations?.translate('lead') ?? 'Lead',
                       value: _lead!.name,
                     ),
+                  if (deal.pipelineName != null && deal.pipelineName!.isNotEmpty)
+                    InfoRow(
+                      icon: Icons.account_tree,
+                      label:
+                          localizations?.translate('dealSelectPipeline') ??
+                          'Pipeline',
+                      value: deal.pipelineName!,
+                    ),
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: Row(
@@ -438,7 +472,7 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
                         Icon(
                           Icons.trending_up,
                           size: 18,
-                          color: _getStageColor(deal.stage),
+                          color: _stageColorFor(deal),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -456,10 +490,29 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
                               ),
                               const SizedBox(height: 4),
                               StatusBadge(
-                                text: _formatStage(deal.stage, localizations),
-                                color: _getStageColor(deal.stage),
-                                icon: _getStageIcon(deal.stage),
+                                text: _stageLabel(deal, localizations),
+                                color: _stageColorFor(deal),
+                                icon: _stageIconFor(deal),
                               ),
+                              if (deal.isLost &&
+                                  (deal.lostReasonName ?? '').isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                Text(
+                                  '${localizations?.translate('dealLostReason') ?? 'Lost reason'}: ${deal.lostReasonName}',
+                                  style: theme.textTheme.bodyMedium,
+                                ),
+                              ],
+                              if (deal.isLost &&
+                                  (deal.lostNote ?? '').isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                ContentDirText(
+                                  deal.lostNote!,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurface
+                                        .withValues(alpha: 0.7),
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),

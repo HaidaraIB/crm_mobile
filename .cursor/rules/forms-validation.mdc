@@ -1,0 +1,26 @@
+---
+description: Shared catalog form validation
+globs: "**/lib/screens/**/*.dart,**/lib/widgets/**/*.dart,**/lib/core/forms/**"
+alwaysApply: false
+---
+
+# Form validation
+
+Rules live in the Django catalog (`assets/validation/catalog.json`). The Dart engine is `lib/core/forms/form_engine.dart`.
+
+## Required pattern
+
+- All forms — new and existing — use `CatalogFormBinding` (`lib/core/forms/catalog_form_binding.dart`): construct it with the catalog form id, `watch()` each field's `FocusNode` for on-blur validation, and call `validate()` before submit / `applyApiError()` in the error handler. This is the pattern every screen in this app already uses.
+- `catalogFieldErrors` (`lib/core/forms/catalog_field_errors.dart`) is the lower-level function `CatalogFormBinding` calls internally; reach for it directly only outside a `State`/widget context.
+- Show errors on the field (`errorText`). A snackbar is for success and network failures.
+- Copy is `validation.*` in `lib/core/localization/validation_strings.dart` (English and Arabic), via `translateParams`.
+- Phone fields stay LTR. Free text uses `AutoDirTextField`.
+
+## Anti-patterns
+
+- Do not add a private `_validate()` that duplicates required, email, or phone rules.
+- Do not drop `intl` error parsers that still map API codes. Prefer `ApiFieldException.fieldIssues`.
+
+## After a schema change
+
+Re-export the catalog from `CRM-api-1` and run `flutter test test/forms/conformance_test.dart`.

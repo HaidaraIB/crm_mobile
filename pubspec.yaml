@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.13.6+54
+version: 1.14.0+55
 
 environment:
   sdk: ^3.9.0
@@ -67,7 +67,6 @@ dependencies:
   package_info_plus: ^9.0.0
   pub_semver: ^2.1.4
   url_launcher: ^6.2.4
-  intl_phone_field: ^3.2.0
   image_picker: ^1.2.1
   excel: ^4.0.6
   file_picker: ^8.0.0
@@ -120,6 +119,7 @@ flutter:
     - assets/images/payment/
     - assets/splash/
     - assets/sounds/
+    - assets/validation/catalog.json
     - .env
 
   # Thmanyah typeface — Sans (UI), Serif Display (headlines), Serif Text (reading)
@@ -166,6 +166,16 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/icon/icon.png"
+  remove_alpha_ios: true
+  # iOS 18 dark / tinted home-screen styles (logo matches the light icon's scale).
+  image_path_ios_dark_transparent: "assets/icon/icon_ios_dark.png"
+  image_path_ios_tinted_grayscale: "assets/icon/icon_ios_tinted.png"
+  # Android 8+ adaptive icon (full-bleed in any launcher mask) + Android 13 themed icon.
+  # Foreground is pre-sized for the 66dp safe zone, so no extra inset.
+  adaptive_icon_background: "assets/icon/icon_background.png"
+  adaptive_icon_foreground: "assets/icon/icon_foreground.png"
+  adaptive_icon_foreground_inset: 0
+  adaptive_icon_monochrome: "assets/icon/icon_monochrome.png"
 
 # Native splash screen (dark background + centered logo).
 # Run: dart run flutter_native_splash:create

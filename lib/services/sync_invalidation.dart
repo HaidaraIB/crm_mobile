@@ -15,13 +15,44 @@ import 'realtime_channel.dart';
 /// realtime being off or unreachable costs latency and nothing else.
 ///
 /// A getter rather than a const so each screen picks the right value when it
-/// arms its timer. Note `Timer.periodic` captures the duration once: a screen
-/// that mounts before the socket connects keeps 30s until it remounts. That is
-/// the safe direction to be wrong in — more polling, never less — so it is left
-/// alone rather than given re-arm machinery in four separate cubits.
+/// arms its timer. [SyncFallbackTimer] re-arms when the socket connects or
+/// drops; a raw `Timer.periodic` would keep the duration it captured.
 Duration get kSyncFallbackPollInterval => RealtimeChannel.instance.isConnected
     ? const Duration(seconds: 120)
     : const Duration(seconds: 30);
+
+/// Fallback poll that follows the socket.
+///
+/// `Timer.periodic` captures its duration once. Without this, a screen that
+/// mounted before the socket connected would keep polling every 30s for the
+/// rest of its life.
+class SyncFallbackTimer {
+  SyncFallbackTimer(this._tick);
+
+  final void Function() _tick;
+  Timer? _timer;
+  Duration? _armedFor;
+  StreamSubscription<bool>? _sub;
+
+  void start() {
+    _timer?.cancel();
+    _armedFor = kSyncFallbackPollInterval;
+    _timer = Timer.periodic(_armedFor!, (_) => _tick());
+    _sub ??= RealtimeChannel.instance.connectionChanges.listen((_) {
+      if (_timer == null) return;
+      if (_armedFor == kSyncFallbackPollInterval) return;
+      start();
+    });
+  }
+
+  void stop() {
+    _timer?.cancel();
+    _timer = null;
+    _armedFor = null;
+    _sub?.cancel();
+    _sub = null;
+  }
+}
 
 /// Thin FCM `invalidate` keys (e.g. `whatsapp:conversations`).
 class SyncInvalidation {

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/forms/catalog_form_binding.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/snackbar_helper.dart';
@@ -29,7 +30,10 @@ class _PreLoginVerifyPhoneScreenState extends State<PreLoginVerifyPhoneScreen> {
   static const _cooldownKey = 'mobile_prelogin_phone_resend_cd';
   static const int _cooldownSec = 60;
 
+  final _catalog = CatalogFormBinding('auth.phone_otp');
   final _codeCtrl = TextEditingController();
+  final _codeFocus = FocusNode();
+  final _phoneFocus = FocusNode();
   final _newPhoneCtrl = TextEditingController();
   bool _showChange = false;
   bool _busy = false;
@@ -41,6 +45,8 @@ class _PreLoginVerifyPhoneScreenState extends State<PreLoginVerifyPhoneScreen> {
   @override
   void dispose() {
     _tick?.cancel();
+    _codeFocus.dispose();
+    _phoneFocus.dispose();
     _codeCtrl.dispose();
     _newPhoneCtrl.dispose();
     super.dispose();
@@ -49,6 +55,23 @@ class _PreLoginVerifyPhoneScreenState extends State<PreLoginVerifyPhoneScreen> {
   @override
   void initState() {
     super.initState();
+    _catalog.load();
+    _catalog.watch(_codeFocus, 'code', () {
+      _catalog.validate(
+        context,
+        {'code': _codeCtrl.text, 'phone': _newPhoneCtrl.text},
+        only: 'code',
+      );
+      if (mounted) setState(() {});
+    });
+    _catalog.watch(_phoneFocus, 'phone', () {
+      _catalog.validate(
+        context,
+        {'code': _codeCtrl.text, 'phone': _newPhoneCtrl.text},
+        only: 'phone',
+      );
+      if (mounted) setState(() {});
+    });
     unawaited(_syncCooldownFromStorage());
   }
 
@@ -140,12 +163,13 @@ class _PreLoginVerifyPhoneScreenState extends State<PreLoginVerifyPhoneScreen> {
 
   Future<void> _onVerify() async {
     final code = _codeCtrl.text.trim().replaceAll(RegExp(r'\s+'), '');
-    if (code.length < 4) {
-      SnackbarHelper.showError(
-        context,
-        AppLocalizations.of(context)?.translate('pleaseEnter2FACode') ??
-            'Please enter the verification code.',
-      );
+    final valid = await _catalog.validate(
+      context,
+      {'code': code, 'phone': _newPhoneCtrl.text},
+      keys: {'code'},
+    );
+    if (!valid) {
+      if (mounted) setState(() {});
       return;
     }
     setState(() => _busy = true);
@@ -164,7 +188,14 @@ class _PreLoginVerifyPhoneScreenState extends State<PreLoginVerifyPhoneScreen> {
       SnackbarHelper.showSuccess(context, okMsg);
       Navigator.of(context).pop(true);
     } catch (e) {
-      if (mounted) SnackbarHelper.showError(context, e.toString());
+      if (!mounted) return;
+      if (e is ApiFieldException &&
+          _catalog.applyApiError(AppLocalizations.of(context), e) &&
+          (_catalog.errors.containsKey('code') || _catalog.errors.containsKey('phone'))) {
+        setState(() => _busy = false);
+        return;
+      }
+      SnackbarHelper.showError(context, e.toString());
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -172,11 +203,13 @@ class _PreLoginVerifyPhoneScreenState extends State<PreLoginVerifyPhoneScreen> {
 
   Future<void> _onChangePhone() async {
     final raw = _newPhoneCtrl.text.trim();
-    if (raw.length < 8) {
-      SnackbarHelper.showError(
-        context,
-        AppLocalizations.of(context)?.translate('invalidPhone') ?? 'Invalid phone',
-      );
+    final valid = await _catalog.validate(
+      context,
+      {'phone': raw, 'code': _codeCtrl.text},
+      keys: {'phone'},
+    );
+    if (!valid) {
+      if (mounted) setState(() {});
       return;
     }
     setState(() => _busy = true);
@@ -201,7 +234,14 @@ class _PreLoginVerifyPhoneScreenState extends State<PreLoginVerifyPhoneScreen> {
       if (!mounted) return;
       SnackbarHelper.showSuccess(context, updatedMsg);
     } catch (e) {
-      if (mounted) SnackbarHelper.showError(context, e.toString());
+      if (!mounted) return;
+      if (e is ApiFieldException &&
+          _catalog.applyApiError(AppLocalizations.of(context), e) &&
+          _catalog.errors.containsKey('phone')) {
+        setState(() => _busy = false);
+        return;
+      }
+      SnackbarHelper.showError(context, e.toString());
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -256,9 +296,11 @@ class _PreLoginVerifyPhoneScreenState extends State<PreLoginVerifyPhoneScreen> {
               const SizedBox(height: 16),
               AutoDirTextField(
                 controller: _codeCtrl,
+                focusNode: _codeFocus,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   labelText: loc?.translate('verificationCode') ?? 'Verification code',
+                  errorText: _catalog.errors['code'],
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
@@ -314,9 +356,12 @@ class _PreLoginVerifyPhoneScreenState extends State<PreLoginVerifyPhoneScreen> {
               if (_showChange) ...[
                 AutoDirTextField(
                   controller: _newPhoneCtrl,
+                  focusNode: _phoneFocus,
                   keyboardType: TextInputType.phone,
+                  textDirection: TextDirection.ltr,
                   decoration: InputDecoration(
                     labelText: loc?.translate('preLoginNewPhoneLabel') ?? 'New phone number',
+                    errorText: _catalog.errors['phone'],
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),

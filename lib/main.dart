@@ -176,9 +176,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         state == AppLifecycleState.detached) {
       TeamChatAwayService.instance.setAppForeground(false);
       _presenceTimer?.cancel();
-      // Closing deliberately rather than letting the OS freeze it: a suspended
-      // socket looks connected while delivering nothing.
-      unawaited(RealtimeChannel.instance.stop());
+      // `inactive` is the notification shade and incoming-call overlay on iOS,
+      // not a background. Closing the socket there flaps presence and inbox
+      // round-robin. A real background (`paused` / `detached`) still closes it:
+      // a suspended socket looks connected while delivering nothing.
+      if (state != AppLifecycleState.inactive) {
+        unawaited(RealtimeChannel.instance.stop());
+      }
       // Backgrounded means not in use, so stop accruing. Nothing needs flushing:
       // the server credits retroactively, so at most one ping interval is lost.
       WorkSessionService.instance.stop();

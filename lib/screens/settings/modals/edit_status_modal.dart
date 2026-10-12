@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../core/forms/catalog_form_binding.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../../../core/utils/api_error_helper.dart';
 import '../../../core/theme/app_theme.dart';
@@ -26,6 +27,10 @@ class EditStatusModal extends StatefulWidget {
 
 class _EditStatusModalState extends State<EditStatusModal> {
   final _formKey = GlobalKey<FormState>();
+  final _catalog = CatalogFormBinding('status.upsert');
+  final _nameFocus = FocusNode();
+  final _descriptionFocus = FocusNode();
+
   late TextEditingController _nameController;
   late TextEditingController _descriptionController;
   late TextEditingController _autoDeleteHoursController;
@@ -46,6 +51,10 @@ class _EditStatusModalState extends State<EditStatusModal> {
   @override
   void initState() {
     super.initState();
+    _catalog.load();
+    _catalog.watch(_nameFocus, 'name', () => _blurNamed('name'));
+    _catalog.watch(_descriptionFocus, 'description', () => _blurNamed('description'));
+
     _nameController = TextEditingController(text: widget.status.name);
     _descriptionController = TextEditingController(text: widget.status.description ?? '');
     _autoDeleteHoursController = TextEditingController(
@@ -108,8 +117,21 @@ class _EditStatusModalState extends State<EditStatusModal> {
     };
   }
 
+  Map<String, dynamic> _namedValues() => {
+        'name': _nameController.text,
+        'description': _descriptionController.text,
+        'color': _selectedColor,
+      };
+
+  Future<void> _blurNamed(String key) async {
+    await _catalog.validate(context, _namedValues(), only: key);
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    _nameFocus.dispose();
+    _descriptionFocus.dispose();
     _nameController.dispose();
     _descriptionController.dispose();
     _autoDeleteHoursController.dispose();
@@ -117,10 +139,15 @@ class _EditStatusModalState extends State<EditStatusModal> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    final valid = await _catalog.validate(context, _namedValues());
+    if (!valid) {
+      if (mounted) setState(() {});
+      return;
+    }
 
     // Check if setting as default and there's already a different default status
     if (_isDefault && !widget.status.isDefault) {
+      if (!mounted) return;
       final localizations = AppLocalizations.of(context);
       final confirmed = await showDialog<bool>(
         context: context,
@@ -186,6 +213,10 @@ class _EditStatusModalState extends State<EditStatusModal> {
         method: 'PATCH',
       );
       if (mounted) {
+        if (e is ApiFieldException && _catalog.applyApiError(AppLocalizations.of(context), e)) {
+          setState(() => _isLoading = false);
+          return;
+        }
         setState(() {
           _errorMessage = ApiErrorHelper.toUserMessage(context, e);
           _isLoading = false;
@@ -277,24 +308,24 @@ class _EditStatusModalState extends State<EditStatusModal> {
                         // Name
                         AutoDirTextFormField(
                           controller: _nameController,
+                          focusNode: _nameFocus,
+                          onEditingComplete: () => _blurNamed('name'),
                           decoration: InputDecoration(
+                            errorText: _catalog.errors['name'],
                             labelText: '${localizations?.translate('name') ?? 'Name'} *',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return localizations?.translate('nameRequired') ?? 'Name is required';
-                            }
-                            return null;
-                          },
                         ),
                         const SizedBox(height: 16),
                         // Description
                         AutoDirTextFormField(
                           controller: _descriptionController,
+                          focusNode: _descriptionFocus,
+                          onEditingComplete: () => _blurNamed('description'),
                           decoration: InputDecoration(
+                            errorText: _catalog.errors['description'],
                             labelText: localizations?.translate('description') ?? 'Description',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),

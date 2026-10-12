@@ -39,6 +39,7 @@ import '../models/whatsapp_template_model.dart';
 import '../models/task_model.dart';
 import '../models/inventory_model.dart';
 import '../models/deal_model.dart';
+import '../models/deal_pipeline_model.dart';
 import '../models/support_ticket_model.dart';
 import '../models/tenant_chat_models.dart';
 import '../models/mobile_app_version_policy.dart';
@@ -340,8 +341,14 @@ class ApiService {
       if (value == null) return;
       fields[key] = value;
     });
+    Map<String, dynamic>? fieldIssues;
+    final coded = fields.remove('fields');
+    if (coded is Map) fieldIssues = Map<String, dynamic>.from(coded);
+    List<dynamic>? nonField;
+    final nonFieldRaw = fields.remove('non_field');
+    if (nonFieldRaw is List) nonField = nonFieldRaw;
 
-    final hasFieldDetails = fields.isNotEmpty;
+    final hasFieldDetails = fields.isNotEmpty || fieldIssues != null || nonField != null;
     final isValidationCode = code != null &&
         code.isNotEmpty &&
         (code == 'validation_error' ||
@@ -354,7 +361,9 @@ class ApiService {
       throw ApiFieldException(
         message,
         code: code,
-        fields: hasFieldDetails ? fields : null,
+        fields: fields.isNotEmpty ? fields : null,
+        fieldIssues: fieldIssues,
+        nonField: nonField,
       );
     }
 
@@ -4138,6 +4147,67 @@ class ApiService {
       throw Exception(errorMessage);
     }
     _invalidateDealsCache();
+  }
+
+  // ==================== Deal pipelines & lost reasons (read-only) ====================
+  // Readable by employees/doctors/reception; supervisors need manage_deals or
+  // manage_settings. Callers must tolerate a 403 and fall back to the legacy
+  // stage enum.
+
+  Future<List<DealPipelineModel>> getDealPipelines({
+    bool forceRefresh = false,
+    Duration cacheTtl = _defaultCacheTtl,
+  }) async {
+    const cacheKey = 'settings_deal_pipelines';
+    final cached = _cacheGet<List<DealPipelineModel>>(
+      cacheKey,
+      forceRefresh: forceRefresh,
+    );
+    if (cached != null) return cached;
+
+    final response = await _makeRequest('GET', '/settings/deal-pipelines/');
+    if (response.statusCode != 200) {
+      throw Exception(_translateError('failedToLoadDeals', locale: null));
+    }
+    final data = _unwrapResponseDynamic(response);
+    final rows = data is List
+        ? data
+        : (data is Map && data['results'] is List ? data['results'] as List : const []);
+    final pipelines = rows
+        .whereType<Map<String, dynamic>>()
+        .map(DealPipelineModel.fromJson)
+        .where((p) => p.isActive)
+        .toList();
+    _cacheSet<List<DealPipelineModel>>(cacheKey, pipelines, ttl: cacheTtl);
+    return pipelines;
+  }
+
+  Future<List<DealLostReasonModel>> getDealLostReasons({
+    bool forceRefresh = false,
+    Duration cacheTtl = _defaultCacheTtl,
+  }) async {
+    const cacheKey = 'settings_deal_lost_reasons';
+    final cached = _cacheGet<List<DealLostReasonModel>>(
+      cacheKey,
+      forceRefresh: forceRefresh,
+    );
+    if (cached != null) return cached;
+
+    final response = await _makeRequest('GET', '/settings/deal-lost-reasons/');
+    if (response.statusCode != 200) {
+      throw Exception(_translateError('failedToLoadDeals', locale: null));
+    }
+    final data = _unwrapResponseDynamic(response);
+    final rows = data is List
+        ? data
+        : (data is Map && data['results'] is List ? data['results'] as List : const []);
+    final reasons = rows
+        .whereType<Map<String, dynamic>>()
+        .map(DealLostReasonModel.fromJson)
+        .where((r) => r.isActive)
+        .toList();
+    _cacheSet<List<DealLostReasonModel>>(cacheKey, reasons, ttl: cacheTtl);
+    return reasons;
   }
 
   // ==================== Settings APIs (Channels, Stages, Statuses) ====================

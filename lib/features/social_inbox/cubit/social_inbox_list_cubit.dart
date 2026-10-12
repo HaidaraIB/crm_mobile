@@ -19,7 +19,7 @@ class SocialInboxListCubit extends Cubit<SocialInboxListState> {
   final SocialInboxRepository _repository;
   final bool Function() _isForeground;
 
-  Timer? _timer;
+  SyncFallbackTimer? _fallback;
   Timer? _searchDebounce;
   StreamSubscription<Map<String, String>>? _invalidateSub;
 
@@ -27,13 +27,13 @@ class SocialInboxListCubit extends Cubit<SocialInboxListState> {
     await refresh();
     if (isClosed) return;
 
-    _timer?.cancel();
+    _fallback?.stop();
     // Fallback only — the digest's `inbox` slice and FCM both arrive sooner.
-    _timer = Timer.periodic(kSyncFallbackPollInterval, (_) {
+    _fallback = SyncFallbackTimer(() {
       if (!isClosed && _isForeground()) {
         unawaited(refresh(silent: true));
       }
-    });
+    })..start();
 
     _invalidateSub?.cancel();
     _invalidateSub = SyncInvalidation.instance.stream.listen((event) {
@@ -173,7 +173,7 @@ class SocialInboxListCubit extends Cubit<SocialInboxListState> {
 
   @override
   Future<void> close() {
-    _timer?.cancel();
+    _fallback?.stop();
     _searchDebounce?.cancel();
     _invalidateSub?.cancel();
     return super.close();

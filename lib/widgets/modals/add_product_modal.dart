@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/forms/catalog_form_binding.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/snackbar_helper.dart';
@@ -21,6 +22,8 @@ class AddProductModal extends StatefulWidget {
 
 class _AddProductModalState extends State<AddProductModal> {
   final _formKey = GlobalKey<FormState>();
+  final _catalog = CatalogFormBinding('product.upsert');
+  final _nameFocus = FocusNode();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _priceController = TextEditingController();
@@ -41,11 +44,27 @@ class _AddProductModalState extends State<AddProductModal> {
   @override
   void initState() {
     super.initState();
+    _catalog.load();
+    _catalog.watch(_nameFocus, 'name', () => _blurCatalog('name'));
+
     _loadData();
   }
   
+  Map<String, dynamic> _catalogValues() => {
+        'name': _nameController.text,
+        'sku': _skuController.text,
+        'price': _priceController.text,
+        'description': _descriptionController.text,
+      };
+
+  Future<void> _blurCatalog(String key) async {
+    await _catalog.validate(context, _catalogValues(), only: key);
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    _nameFocus.dispose();
     _nameController.dispose();
     _descriptionController.dispose();
     _priceController.dispose();
@@ -86,7 +105,10 @@ class _AddProductModalState extends State<AddProductModal> {
   }
   
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) {
+    final catalogOk = await _catalog.validate(context, _catalogValues());
+    final formOk = _formKey.currentState!.validate();
+    if (!catalogOk || !formOk) {
+      if (mounted) setState(() {});
       return;
     }
     
@@ -139,10 +161,21 @@ class _AddProductModalState extends State<AddProductModal> {
       }
     } catch (e) {
       if (mounted) {
-        SnackbarHelper.showError(
-          context,
-          '${AppLocalizations.of(context)?.translate('error') ?? 'Error'}: ${e.toString()}',
-        );
+        final l10n = AppLocalizations.of(context);
+        final applied = e is ApiFieldException && _catalog.applyApiError(l10n, e);
+        final fieldError = _catalog.errors.keys.any((key) => key != '_general');
+        if (applied && fieldError) {
+          setState(() {});
+          final general = _catalog.errors['_general'];
+          if (general != null && general.isNotEmpty) {
+            SnackbarHelper.showError(context, general);
+          }
+        } else {
+          SnackbarHelper.showError(
+            context,
+            '${l10n?.translate('error') ?? 'Error'}: ${e.toString()}',
+          );
+        }
       }
     } finally {
       if (mounted) {
@@ -214,25 +247,24 @@ class _AddProductModalState extends State<AddProductModal> {
                             // Name
                             AutoDirTextFormField(
                               controller: _nameController,
+                          focusNode: _nameFocus,
+                          onEditingComplete: () => _blurCatalog('name'),
                               decoration: InputDecoration(
-                                labelText: '${localizations?.translate('name') ?? 'Name'} *',
+                                errorText: _catalog.errors['name'],
+                            labelText: '${localizations?.translate('name') ?? 'Name'} *',
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return localizations?.translate('nameRequired') ?? 'Name is required';
-                                }
-                                return null;
-                              },
                             ),
                             const SizedBox(height: 16),
                             // Description
                             AutoDirTextFormField(
                               controller: _descriptionController,
+                          onEditingComplete: () => _blurCatalog('description'),
                               decoration: InputDecoration(
-                                labelText: localizations?.translate('description') ?? 'Description',
+                                errorText: _catalog.errors['description'],
+                            labelText: localizations?.translate('description') ?? 'Description',
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -296,8 +328,10 @@ class _AddProductModalState extends State<AddProductModal> {
                                 Expanded(
                                   child: AutoDirTextFormField(
                                     controller: _priceController,
+                          onEditingComplete: () => _blurCatalog('price'),
                                     decoration: InputDecoration(
-                                      labelText: '${localizations?.translate('price') ?? 'Price'} *',
+                                      errorText: _catalog.errors['price'],
+                            labelText: '${localizations?.translate('price') ?? 'Price'} *',
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),
@@ -382,7 +416,9 @@ class _AddProductModalState extends State<AddProductModal> {
                                 Expanded(
                                   child: AutoDirTextFormField(
                                     controller: _skuController,
+                          onEditingComplete: () => _blurCatalog('sku'),
                                     decoration: InputDecoration(
+                                      errorText: _catalog.errors['sku'],
                                       labelText: localizations?.translate('sku') ?? 'SKU',
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),

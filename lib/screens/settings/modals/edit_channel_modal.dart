@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/forms/catalog_form_binding.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../../../core/utils/api_error_helper.dart';
 import '../../../core/theme/app_theme.dart';
@@ -25,6 +26,9 @@ class EditChannelModal extends StatefulWidget {
 
 class _EditChannelModalState extends State<EditChannelModal> {
   final _formKey = GlobalKey<FormState>();
+  final _catalog = CatalogFormBinding('channel.upsert');
+  final _nameFocus = FocusNode();
+
   late TextEditingController _nameController;
   final ApiService _apiService = ApiService();
 
@@ -136,6 +140,9 @@ class _EditChannelModalState extends State<EditChannelModal> {
   @override
   void initState() {
     super.initState();
+    _catalog.load();
+    _catalog.watch(_nameFocus, 'name', () => _blurNamed('name'));
+
     _nameController = TextEditingController(text: widget.channel.name);
     _selectedType = _normalizeChannelType(widget.channel.type);
     // Normalize priority to match dropdown values (capitalize first letter)
@@ -172,14 +179,28 @@ class _EditChannelModalState extends State<EditChannelModal> {
     };
   }
 
+  Map<String, dynamic> _namedValues() => {
+        'name': _nameController.text,
+      };
+
+  Future<void> _blurNamed(String key) async {
+    await _catalog.validate(context, _namedValues(), only: key);
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    _nameFocus.dispose();
     _nameController.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    final valid = await _catalog.validate(context, _namedValues());
+    if (!valid) {
+      if (mounted) setState(() {});
+      return;
+    }
 
     setState(() {
       _isLoading = true;
@@ -212,6 +233,10 @@ class _EditChannelModalState extends State<EditChannelModal> {
         method: 'PATCH',
       );
       if (mounted) {
+        if (e is ApiFieldException && _catalog.applyApiError(AppLocalizations.of(context), e)) {
+          setState(() => _isLoading = false);
+          return;
+        }
         setState(() {
           _errorMessage = ApiErrorHelper.toUserMessage(context, e);
           _isLoading = false;
@@ -281,18 +306,15 @@ class _EditChannelModalState extends State<EditChannelModal> {
                         // Name
                         AutoDirTextFormField(
                           controller: _nameController,
+                          focusNode: _nameFocus,
+                          onEditingComplete: () => _blurNamed('name'),
                           decoration: InputDecoration(
+                            errorText: _catalog.errors['name'],
                             labelText: '${localizations?.translate('name') ?? 'Name'} *',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return localizations?.translate('nameRequired') ?? 'Name is required';
-                            }
-                            return null;
-                          },
                         ),
                         const SizedBox(height: 16),
                         // Type

@@ -11,6 +11,8 @@ class PhoneInput extends StatefulWidget {
   /// Optional message shown under the input when invalid.
   final String? errorText;
   final String? defaultCountry;
+  final FocusNode? focusNode;
+  final VoidCallback? onEditingComplete;
 
   const PhoneInput({
     super.key,
@@ -20,6 +22,8 @@ class PhoneInput extends StatefulWidget {
     this.error = false,
     this.errorText,
     this.defaultCountry,
+    this.focusNode,
+    this.onEditingComplete,
   });
 
   @override
@@ -131,7 +135,9 @@ class _PhoneInputState extends State<PhoneInput> {
                 Expanded(
                   child: AutoDirTextField(
                     controller: _phoneController,
+                    focusNode: widget.focusNode,
                     keyboardType: TextInputType.phone,
+                    onEditingComplete: widget.onEditingComplete,
                     decoration: InputDecoration(
                       hintText: widget.hintText ??
                           localizations?.translate('enterPhoneNumber') ??

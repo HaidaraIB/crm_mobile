@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/localization/app_localizations.dart';
@@ -11,6 +13,7 @@ import '../../models/lead_model.dart';
 import '../../models/settings_model.dart';
 import '../../models/task_model.dart';
 import '../../services/api_service.dart';
+import '../../services/sync_invalidation.dart';
 import '../leads/lead_profile_screen.dart';
 import '../../widgets/pull_to_refresh_body.dart';
 
@@ -29,12 +32,24 @@ class _CalendarScreenState extends State<CalendarScreen> {
   List<CalendarEvent> _events = [];
   bool _isLoading = true;
   String? _errorMessage;
+  StreamSubscription<Map<String, String>>? _invalidationSub;
 
   @override
   void initState() {
     super.initState();
     _selectedDate = widget.initialDate ?? DateTime.now();
+    _invalidationSub = SyncInvalidation.instance.stream.listen((event) {
+      if (event['invalidate'] == 'crm:todos') {
+        unawaited(_loadEvents());
+      }
+    });
     _loadEvents();
+  }
+
+  @override
+  void dispose() {
+    _invalidationSub?.cancel();
+    super.dispose();
   }
 
   void navigateMonth(int months) {

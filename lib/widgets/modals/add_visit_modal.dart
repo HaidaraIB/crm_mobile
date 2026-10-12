@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/forms/catalog_form_binding.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/snackbar_helper.dart';
@@ -22,8 +23,11 @@ class AddVisitModal extends StatefulWidget {
 
 class _AddVisitModalState extends State<AddVisitModal> {
   final ApiService _apiService = ApiService();
+  final _catalog = CatalogFormBinding('lead_visit.create');
+  final _summaryFocus = FocusNode();
   int? _selectedVisitTypeId;
   final TextEditingController _summaryController = TextEditingController();
+  final Map<String, String> _errors = {};
   DateTime? _visitDatetime;
   bool _hasUpcomingVisit = false;
   DateTime? _upcomingVisitDate;
@@ -35,8 +39,19 @@ class _AddVisitModalState extends State<AddVisitModal> {
   @override
   void initState() {
     super.initState();
+    _catalog.load();
+    _catalog.watch(_summaryFocus, 'notes', () async {
+      await _catalog.validate(context, _visitValues(), only: 'notes');
+      if (mounted) setState(() => _errors..clear()..addAll(_catalog.errors));
+    });
     _loadVisitTypes();
   }
+
+  Map<String, dynamic> _visitValues() => {
+        'visitType': _selectedVisitTypeId,
+        'notes': _summaryController.text,
+        'visitDate': _visitDatetime?.toIso8601String() ?? '',
+      };
 
   Future<void> _loadVisitTypes() async {
     try {
@@ -71,6 +86,7 @@ class _AddVisitModalState extends State<AddVisitModal> {
 
   @override
   void dispose() {
+    _summaryFocus.dispose();
     _summaryController.dispose();
     super.dispose();
   }
@@ -143,28 +159,19 @@ class _AddVisitModalState extends State<AddVisitModal> {
 
   Future<void> _save() async {
     final localizations = AppLocalizations.of(context);
-    if (_selectedVisitTypeId == null) {
-      SnackbarHelper.showError(
-        context,
-        localizations?.translate('pleaseSelectVisitType') ?? 'Please select a visit type',
-      );
-      return;
-    }
-    if (_summaryController.text.trim().isEmpty) {
-      SnackbarHelper.showError(
-        context,
-        localizations?.translate('pleaseEnterSummary') ?? 'Please enter a summary',
-      );
-      return;
-    }
-    if (_visitDatetime == null) {
-      SnackbarHelper.showError(
-        context,
-        localizations?.translate('visitDayRequired') ?? 'Visit day is required',
-      );
+    final valid = await _catalog.validate(context, _visitValues());
+    if (!valid) {
+      if (mounted) {
+        setState(() {
+          _errors
+            ..clear()
+            ..addAll(_catalog.errors);
+        });
+      }
       return;
     }
     if (_hasUpcomingVisit && _upcomingVisitDate == null) {
+      if (!mounted) return;
       SnackbarHelper.showError(
         context,
         localizations?.translate('upcomingVisitDateRequired') ??
@@ -196,6 +203,14 @@ class _AddVisitModalState extends State<AddVisitModal> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSaving = false);
+      if (e is ApiFieldException && _catalog.applyApiError(localizations, e)) {
+        setState(() {
+          _errors
+            ..clear()
+            ..addAll(_catalog.errors);
+        });
+        return;
+      }
       SnackbarHelper.showError(
         context,
         '${localizations?.translate('failedToAddVisit') ?? 'Failed to add visit'}: ${e.toString()}',
@@ -283,6 +298,7 @@ class _AddVisitModalState extends State<AddVisitModal> {
                         initialValue: _selectedVisitTypeId,
                         decoration: InputDecoration(
                           hintText: localizations?.translate('selectItem') ?? 'Select',
+                          errorText: _errors['visitType'],
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -305,10 +321,12 @@ class _AddVisitModalState extends State<AddVisitModal> {
                     const SizedBox(height: 8),
                     AutoDirTextField(
                       controller: _summaryController,
+                      focusNode: _summaryFocus,
                       maxLines: 5,
                       decoration: InputDecoration(
                         hintText:
                             localizations?.translate('visitSummaryHint') ?? 'Describe the visit…',
+                        errorText: _errors['notes'],
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -347,6 +365,14 @@ class _AddVisitModalState extends State<AddVisitModal> {
                         ),
                       ],
                     ),
+                    if (_errors['visitDate'] != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(
+                          _errors['visitDate']!,
+                          style: const TextStyle(color: Colors.red, fontSize: 12),
+                        ),
+                      ),
                     const SizedBox(height: 16),
                     CheckboxListTile(
                       contentPadding: EdgeInsets.zero,

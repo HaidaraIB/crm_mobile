@@ -59,6 +59,7 @@ class ChatThreadCubit<T extends ChatMessage> extends Cubit<ChatThreadState> {
   final bool Function() _isForeground;
 
   Timer? _pollTimer;
+  SyncFallbackTimer? _fallback;
   Timer? _coalesceTimer;
   StreamSubscription<Map<String, String>>? _invalidateSub;
   bool _pollTickInFlight = false;
@@ -143,16 +144,25 @@ class ChatThreadCubit<T extends ChatMessage> extends Cubit<ChatThreadState> {
   /// all arrive sooner. Resolved at call time rather than as a default value,
   /// because the interval now depends on whether a socket is connected.
   void startPolling({Duration? interval}) {
-    interval ??= kSyncFallbackPollInterval;
-    return _startPolling(interval);
+    _startPolling(interval);
   }
 
-  void _startPolling(Duration interval) {
-    stopPolling();
-    _pollTimer = Timer.periodic(interval, (_) {
+  void _startPolling(Duration? interval) {
+    _pollTimer?.cancel();
+    _pollTimer = null;
+    _coalesceTimer?.cancel();
+    _coalesceTimer = null;
+    _fallback?.stop();
+    _fallback = null;
+    Null tick() {
       if (!_isForeground()) return;
       unawaited(_pollTick());
-    });
+    }
+    if (interval != null) {
+      _pollTimer = Timer.periodic(interval, (_) => tick());
+    } else {
+      _fallback = SyncFallbackTimer(tick)..start();
+    }
     _invalidateSub?.cancel();
     _invalidateSub = SyncInvalidation.instance.stream.listen((event) {
       if (event['invalidate'] == invalidationKey) {
@@ -181,6 +191,8 @@ class ChatThreadCubit<T extends ChatMessage> extends Cubit<ChatThreadState> {
   void stopPolling() {
     _pollTimer?.cancel();
     _pollTimer = null;
+    _fallback?.stop();
+    _fallback = null;
     _coalesceTimer?.cancel();
     _coalesceTimer = null;
   }

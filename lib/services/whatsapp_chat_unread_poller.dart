@@ -50,6 +50,9 @@ class WhatsAppChatUnreadPoller {
     'arrivals': 'crm:arrivals',
     'access': 'session:user',
     'account': 'session:user',
+    'leads': 'crm:leads',
+    'deals': 'crm:deals',
+    'todos': 'crm:todos',
   };
 
   void start() {

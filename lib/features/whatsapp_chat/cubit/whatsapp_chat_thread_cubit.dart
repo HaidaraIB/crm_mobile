@@ -27,7 +27,7 @@ class WhatsAppChatThreadCubit extends Cubit<WhatsAppChatThreadState> {
   /// Lifecycle state pushed in by the screen's [WidgetsBindingObserver].
   /// Without it the 5s poll keeps firing while the app is backgrounded.
   bool _foreground = true;
-  Timer? _timer;
+  SyncFallbackTimer? _fallback;
   StreamSubscription<Map<String, String>>? _invalidateSub;
   int _localIdSeq = -1;
   DateTime? _lastKnownInboundAt;
@@ -114,13 +114,13 @@ class WhatsAppChatThreadCubit extends Cubit<WhatsAppChatThreadState> {
       _markReadOnce = true;
       unawaited(markRead());
     }
-    _timer?.cancel();
+    _fallback?.stop();
     // Fallback only — the digest's `chat` slice and FCM both arrive sooner.
-    _timer = Timer.periodic(kSyncFallbackPollInterval, (_) {
+    _fallback = SyncFallbackTimer(() {
       if (!isClosed && _foreground && _isForeground()) {
         unawaited(refresh(silent: true));
       }
-    });
+    })..start();
     _invalidateSub?.cancel();
     _invalidateSub = SyncInvalidation.instance.stream.listen((event) {
       if (event['invalidate'] != 'whatsapp:conversations') return;
@@ -592,7 +592,7 @@ class WhatsAppChatThreadCubit extends Cubit<WhatsAppChatThreadState> {
 
   @override
   Future<void> close() {
-    _timer?.cancel();
+    _fallback?.stop();
     _invalidateSub?.cancel();
     return super.close();
   }

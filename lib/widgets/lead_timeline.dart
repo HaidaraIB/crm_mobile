@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../core/localization/app_localizations.dart';
 import '../core/theme/app_theme.dart';
+import '../core/utils/input_text_direction.dart';
 import '../core/utils/lead_location.dart';
 import '../core/utils/media_url_utils.dart';
 import '../models/timeline_entry.dart';
@@ -29,12 +30,64 @@ Color _timelineAccentColor(BuildContext context) {
 Color _timelineMutedColor(BuildContext context) {
   final theme = Theme.of(context);
   final isDark = theme.brightness == Brightness.dark;
-  if (isDark) return Colors.white.withValues(alpha: 0.75);
+  // Solid gray-200. Alpha white at 11px sinks into the dark card.
+  if (isDark) return const Color(0xFFE5E7EB);
   return theme.colorScheme.onSurfaceVariant;
 }
 
 Color _timelineStrongColor(BuildContext context) {
   return Theme.of(context).colorScheme.onSurface;
+}
+
+/// Thmanyah's Arabic glyphs (and tanween) paint outside the default em box.
+/// A taller line box keeps letters from being sliced by ellipsis and buttons.
+const _timelineHeightBehavior = TextHeightBehavior(
+  applyHeightToFirstAscent: true,
+  applyHeightToLastDescent: true,
+  leadingDistribution: TextLeadingDistribution.even,
+);
+
+TextStyle _timelineReadable(
+  TextStyle? base, {
+  required Color color,
+  double? fontSize,
+  FontWeight? fontWeight,
+  List<FontFeature>? fontFeatures,
+}) {
+  return (base ?? const TextStyle()).copyWith(
+    color: color,
+    fontSize: fontSize,
+    fontWeight: fontWeight,
+    fontFeatures: fontFeatures,
+    height: 1.5,
+    leadingDistribution: TextLeadingDistribution.even,
+  );
+}
+
+/// Keeps "10:46 م" as one unit so the Arabic AM/PM mark does not jump to the
+/// far edge of the line and get clipped.
+String _isolateArabicMeridiem(String value) {
+  return value.replaceAllMapped(
+    RegExp(r'(\d{1,2}:\d{2})\s*([صم])'),
+    (m) => '\u2066${m[1]} ${m[2]}\u2069',
+  );
+}
+
+/// Dark brand colors stay dark on a dark chip. Push them toward white.
+Color _accentOnDark(Color color) {
+  if (color.computeLuminance() >= 0.45) return color;
+  return Color.lerp(color, Colors.white, 0.72)!;
+}
+
+Color _timelineWhatsAppAction(BuildContext context) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  // green-700 (#15803D) is about 3:1 on the dark card; green-300 clears AA.
+  return isDark ? const Color(0xFF86EFAC) : const Color(0xFF15803D);
+}
+
+Color _timelineSocialAction(BuildContext context) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  return isDark ? const Color(0xFFF9A8D4) : const Color(0xFFBE185D);
 }
 
 class LeadTimeline extends StatefulWidget {
@@ -361,7 +414,7 @@ class _TimelineRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final loc = AppLocalizations.of(context);
-    final chip = _typeChip(entry, loc);
+    final chip = _typeChip(entry, loc, theme.brightness == Brightness.dark);
     final showSubtitle = _showActionSubtitle(entry, chip.label);
     const railWidth = 40.0;
     const gap = 10.0;
@@ -414,23 +467,34 @@ class _TimelineRow extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.access_time,
-                          size: 12,
-                          color: _timelineMutedColor(context),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          entry.date,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: _timelineMutedColor(context),
-                            fontSize: 11,
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 168),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(top: 3),
+                            child: Icon(
+                              Icons.access_time,
+                              size: 12,
+                              color: _timelineMutedColor(context),
+                            ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              _isolateArabicMeridiem(entry.date),
+                              textHeightBehavior: _timelineHeightBehavior,
+                              style: _timelineReadable(
+                                theme.textTheme.bodySmall,
+                                color: _timelineMutedColor(context),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -499,10 +563,14 @@ class _TimelineRow extends StatelessWidget {
                 if (entry.details.isNotEmpty &&
                     entry.tagChanges == null &&
                     entry.type != TimelineEntryType.locationUpdate &&
-                    entry.type != TimelineEntryType.whatsappThread) ...[
+                    entry.type != TimelineEntryType.whatsappThread &&
+                    entry.type != TimelineEntryType.socialThread) ...[
                   const SizedBox(height: 6),
                   Text(
                     entry.details,
+                    textDirection: resolveBubbleTextDirection(entry.details),
+                    textAlign: TextAlign.start,
+                    textHeightBehavior: _timelineHeightBehavior,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: _timelineMutedColor(context),
                     ),
@@ -615,93 +683,125 @@ class _ChipStyle {
   });
 }
 
-_ChipStyle _typeChip(TimelineEntry entry, AppLocalizations? loc) {
+_ChipStyle _typeChip(TimelineEntry entry, AppLocalizations? loc, bool isDark) {
   String t(String key, String fallback) => loc?.translate(key) ?? fallback;
+
+  _ChipStyle tone(
+    IconData icon,
+    String label,
+    Color lightFg,
+    Color lightBg,
+    Color darkFg,
+    Color darkBg,
+  ) {
+    return _ChipStyle(
+      icon: icon,
+      label: label,
+      fg: isDark ? darkFg : lightFg,
+      bg: isDark ? darkBg : lightBg,
+    );
+  }
 
   switch (entry.type) {
     case TimelineEntryType.whatsapp:
     case TimelineEntryType.whatsappThread:
-      return _ChipStyle(
-        icon: Icons.chat,
-        label: t('whatsapp', 'WhatsApp'),
-        fg: const Color(0xFF166534),
-        bg: const Color(0xFFDCFCE7),
+      return tone(
+        Icons.chat,
+        t('whatsapp', 'WhatsApp'),
+        const Color(0xFF166534),
+        const Color(0xFFDCFCE7),
+        const Color(0xFFDCFCE7),
+        const Color(0xFF14532D),
       );
     case TimelineEntryType.social:
     case TimelineEntryType.socialThread:
       // The network, not "Inbox" — an owner thinks in Instagram/Messenger.
       if (entry.socialChannel == TimelineSocialChannel.whatsapp) {
-        return _ChipStyle(
-          icon: Icons.chat,
-          label: t('whatsApp', 'WhatsApp'),
-          fg: const Color(0xFF166534),
-          bg: const Color(0xFFDCFCE7),
+        return tone(
+          Icons.chat,
+          t('whatsApp', 'WhatsApp'),
+          const Color(0xFF166534),
+          const Color(0xFFDCFCE7),
+          const Color(0xFFDCFCE7),
+          const Color(0xFF14532D),
         );
       }
       final isMessenger =
           entry.socialChannel == TimelineSocialChannel.messenger;
-      return _ChipStyle(
-        icon: isMessenger ? Icons.forum : Icons.camera_alt_outlined,
-        label: isMessenger
-            ? t('messenger', 'Messenger')
-            : t('instagram', 'Instagram'),
-        fg: const Color(0xFF9D174D),
-        bg: const Color(0xFFFCE7F3),
+      return tone(
+        isMessenger ? Icons.forum : Icons.camera_alt_outlined,
+        isMessenger ? t('messenger', 'Messenger') : t('instagram', 'Instagram'),
+        const Color(0xFF9D174D),
+        const Color(0xFFFCE7F3),
+        const Color(0xFFFCE7F3),
+        const Color(0xFF831843),
       );
     case TimelineEntryType.sms:
-      return _ChipStyle(
-        icon: Icons.sms_outlined,
-        label: t('smsSentLabel', 'SMS sent'),
-        fg: const Color(0xFF1E40AF),
-        bg: const Color(0xFFDBEAFE),
+      return tone(
+        Icons.sms_outlined,
+        t('smsSentLabel', 'SMS sent'),
+        const Color(0xFF1E40AF),
+        const Color(0xFFDBEAFE),
+        const Color(0xFFDBEAFE),
+        const Color(0xFF1E3A8A),
       );
     case TimelineEntryType.call:
-      return _ChipStyle(
-        icon: Icons.phone,
-        label: t('call', 'Call'),
-        fg: const Color(0xFF3730A3),
-        bg: const Color(0xFFE0E7FF),
+      return tone(
+        Icons.phone,
+        t('call', 'Call'),
+        const Color(0xFF3730A3),
+        const Color(0xFFE0E7FF),
+        const Color(0xFFE0E7FF),
+        const Color(0xFF312E81),
       );
     case TimelineEntryType.visit:
-      return _ChipStyle(
-        icon: Icons.place_outlined,
-        label: t('visit', 'Visit'),
-        fg: const Color(0xFF92400E),
-        bg: const Color(0xFFFEF3C7),
+      return tone(
+        Icons.place_outlined,
+        t('visit', 'Visit'),
+        const Color(0xFF92400E),
+        const Color(0xFFFEF3C7),
+        const Color(0xFFFEF3C7),
+        const Color(0xFF78350F),
       );
     case TimelineEntryType.fieldVisit:
-      return _ChipStyle(
-        icon: Icons.map_outlined,
-        label: t('fieldVisit', 'Field visit'),
-        fg: const Color(0xFF065F46),
-        bg: const Color(0xFFD1FAE5),
+      return tone(
+        Icons.map_outlined,
+        t('fieldVisit', 'Field visit'),
+        const Color(0xFF065F46),
+        const Color(0xFFD1FAE5),
+        const Color(0xFFD1FAE5),
+        const Color(0xFF064E3B),
       );
     case TimelineEntryType.locationUpdate:
-      return _ChipStyle(
-        icon: Icons.place_outlined,
-        label: entry.action.isNotEmpty
-            ? entry.action
-            : t('timeline', 'Timeline'),
-        fg: const Color(0xFF065F46),
-        bg: const Color(0xFFD1FAE5),
+      return tone(
+        Icons.place_outlined,
+        entry.action.isNotEmpty ? entry.action : t('timeline', 'Timeline'),
+        const Color(0xFF065F46),
+        const Color(0xFFD1FAE5),
+        const Color(0xFFD1FAE5),
+        const Color(0xFF064E3B),
       );
     case TimelineEntryType.action:
-      return _ChipStyle(
-        icon: Icons.check_circle_outline,
-        label: t('stageUpdated', 'Stage updated'),
-        fg: const Color(0xFF5B21B6),
-        bg: const Color(0xFFEDE9FE),
+      return tone(
+        Icons.check_circle_outline,
+        t('stageUpdated', 'Stage updated'),
+        const Color(0xFF5B21B6),
+        const Color(0xFFEDE9FE),
+        const Color(0xFFEDE9FE),
+        const Color(0xFF4C1D95),
       );
     case TimelineEntryType.event:
-      return _ChipStyle(
-        icon: Icons.access_time,
-        label: entry.fieldLabel != null
+      return tone(
+        Icons.access_time,
+        entry.fieldLabel != null
             ? t('leadEdited', 'Lead edited')
             : (entry.action.isNotEmpty
                 ? entry.action
                 : t('timeline', 'Timeline')),
-        fg: const Color(0xFF92400E),
-        bg: const Color(0xFFFEF3C7),
+        const Color(0xFF92400E),
+        const Color(0xFFFEF3C7),
+        const Color(0xFFFEF3C7),
+        const Color(0xFF78350F),
       );
   }
 }
@@ -764,32 +864,28 @@ class _WhatsAppThreadBodyState extends State<_WhatsAppThreadBody> {
                 TextSpan(
                   text: loc?.translate('whatsappTimelineConversation') ??
                       'WhatsApp conversation',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
+                  style: _timelineReadable(
+                    theme.textTheme.bodyMedium,
                     color: _timelineStrongColor(context),
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 TextSpan(
                   text: '  $countLabel',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w500,
+                  style: _timelineReadable(
+                    theme.textTheme.bodySmall,
                     color: _timelineMutedColor(context),
+                    fontWeight: FontWeight.w500,
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
               ],
             ),
+            textHeightBehavior: _timelineHeightBehavior,
           ),
           if (!_expanded && widget.entry.details.isNotEmpty) ...[
             const SizedBox(height: 6),
-            Text(
-              '$previewCue ${widget.entry.details}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: _timelineMutedColor(context),
-              ),
-            ),
+            _ThreadPreviewLine(cue: previewCue, text: widget.entry.details),
           ],
           if (_expanded && messages.isNotEmpty) ...[
             const SizedBox(height: 8),
@@ -818,7 +914,9 @@ class _WhatsAppThreadBodyState extends State<_WhatsAppThreadBody> {
                         child: Text(
                           cue,
                           textAlign: TextAlign.center,
-                          style: TextStyle(
+                          textHeightBehavior: _timelineHeightBehavior,
+                          style: _timelineReadable(
+                            theme.textTheme.bodyMedium,
                             color: _timelineMutedColor(context),
                             fontSize: 13,
                           ),
@@ -826,9 +924,10 @@ class _WhatsAppThreadBodyState extends State<_WhatsAppThreadBody> {
                       ),
                       const SizedBox(width: 6),
                       Expanded(
-                        child: Text(
-                          msg.body,
-                          style: theme.textTheme.bodyMedium?.copyWith(
+                        child: _ThreadBodyText(
+                          text: msg.body,
+                          style: _timelineReadable(
+                            theme.textTheme.bodyMedium,
                             color: _timelineStrongColor(context),
                             fontSize: 13,
                           ),
@@ -836,10 +935,12 @@ class _WhatsAppThreadBodyState extends State<_WhatsAppThreadBody> {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        msg.date,
-                        style: theme.textTheme.bodySmall?.copyWith(
+                        _isolateArabicMeridiem(msg.date),
+                        textHeightBehavior: _timelineHeightBehavior,
+                        style: _timelineReadable(
+                          theme.textTheme.bodySmall,
                           color: _timelineMutedColor(context),
-                          fontSize: 10,
+                          fontSize: 11,
                         ),
                       ),
                     ],
@@ -850,40 +951,22 @@ class _WhatsAppThreadBodyState extends State<_WhatsAppThreadBody> {
           ],
           if (messages.isNotEmpty) ...[
             const SizedBox(height: 6),
-            TextButton(
+            _ThreadActionButton(
+              color: _timelineWhatsAppAction(context),
+              label: _expanded
+                  ? (loc?.translate('whatsappTimelineCollapse') ?? 'Collapse')
+                  : (loc?.translate('whatsappTimelineExpand') ?? 'Expand'),
               onPressed: () => setState(() => _expanded = !_expanded),
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF15803D),
-                padding: EdgeInsets.zero,
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Text(
-                _expanded
-                    ? (loc?.translate('whatsappTimelineCollapse') ?? 'Collapse')
-                    : (loc?.translate('whatsappTimelineExpand') ?? 'Expand'),
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
             ),
           ],
           if (widget.onOpenWhatsAppChat != null) ...[
-            const SizedBox(height: 4),
-            TextButton.icon(
+            const SizedBox(height: 2),
+            _ThreadActionButton(
+              color: _timelineWhatsAppAction(context),
+              icon: Icons.chat_outlined,
+              label: loc?.translate('whatsappTimelineOpenChat') ??
+                  'Open in Chats',
               onPressed: widget.onOpenWhatsAppChat,
-              icon: const Icon(Icons.chat_outlined, size: 16),
-              label: Text(
-                loc?.translate('whatsappTimelineOpenChat') ?? 'Open in Chats',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-              ),
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF15803D),
-                padding: EdgeInsets.zero,
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
             ),
           ],
         ],
@@ -942,32 +1025,28 @@ class _SocialThreadBodyState extends State<_SocialThreadBody> {
                 TextSpan(
                   text: loc?.translate('socialTimelineConversation') ??
                       'Inbox conversation',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
+                  style: _timelineReadable(
+                    theme.textTheme.bodyMedium,
                     color: _timelineStrongColor(context),
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 TextSpan(
                   text: '  $countLabel',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w500,
+                  style: _timelineReadable(
+                    theme.textTheme.bodySmall,
                     color: _timelineMutedColor(context),
+                    fontWeight: FontWeight.w500,
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
               ],
             ),
+            textHeightBehavior: _timelineHeightBehavior,
           ),
           if (!_expanded && widget.entry.details.isNotEmpty) ...[
             const SizedBox(height: 6),
-            Text(
-              '$previewCue ${widget.entry.details}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: _timelineMutedColor(context),
-              ),
-            ),
+            _ThreadPreviewLine(cue: previewCue, text: widget.entry.details),
           ],
           if (_expanded && messages.isNotEmpty) ...[
             const SizedBox(height: 8),
@@ -996,7 +1075,9 @@ class _SocialThreadBodyState extends State<_SocialThreadBody> {
                         child: Text(
                           cue,
                           textAlign: TextAlign.center,
-                          style: TextStyle(
+                          textHeightBehavior: _timelineHeightBehavior,
+                          style: _timelineReadable(
+                            theme.textTheme.bodyMedium,
                             color: _timelineMutedColor(context),
                             fontSize: 13,
                           ),
@@ -1004,9 +1085,10 @@ class _SocialThreadBodyState extends State<_SocialThreadBody> {
                       ),
                       const SizedBox(width: 6),
                       Expanded(
-                        child: Text(
-                          msg.body,
-                          style: theme.textTheme.bodyMedium?.copyWith(
+                        child: _ThreadBodyText(
+                          text: msg.body,
+                          style: _timelineReadable(
+                            theme.textTheme.bodyMedium,
                             color: _timelineStrongColor(context),
                             fontSize: 13,
                           ),
@@ -1014,10 +1096,12 @@ class _SocialThreadBodyState extends State<_SocialThreadBody> {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        msg.date,
-                        style: theme.textTheme.bodySmall?.copyWith(
+                        _isolateArabicMeridiem(msg.date),
+                        textHeightBehavior: _timelineHeightBehavior,
+                        style: _timelineReadable(
+                          theme.textTheme.bodySmall,
                           color: _timelineMutedColor(context),
-                          fontSize: 10,
+                          fontSize: 11,
                         ),
                       ),
                     ],
@@ -1028,44 +1112,139 @@ class _SocialThreadBodyState extends State<_SocialThreadBody> {
           ],
           if (messages.isNotEmpty) ...[
             const SizedBox(height: 6),
-            TextButton(
+            _ThreadActionButton(
+              color: _timelineSocialAction(context),
+              label: _expanded
+                  ? (loc?.translate('socialTimelineCollapse') ?? 'Collapse')
+                  : (loc?.translate('socialTimelineExpand') ?? 'Expand'),
               onPressed: () => setState(() => _expanded = !_expanded),
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFFBE185D),
-                padding: EdgeInsets.zero,
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Text(
-                _expanded
-                    ? (loc?.translate('socialTimelineCollapse') ?? 'Collapse')
-                    : (loc?.translate('socialTimelineExpand') ?? 'Expand'),
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
             ),
           ],
           if (widget.onOpenSocialInbox != null) ...[
-            const SizedBox(height: 4),
-            TextButton.icon(
+            const SizedBox(height: 2),
+            _ThreadActionButton(
+              color: _timelineSocialAction(context),
+              icon: Icons.inbox_outlined,
+              label:
+                  loc?.translate('socialTimelineOpenInbox') ?? 'Open in Inbox',
               onPressed: widget.onOpenSocialInbox,
-              icon: const Icon(Icons.inbox_outlined, size: 16),
-              label: Text(
-                loc?.translate('socialTimelineOpenInbox') ?? 'Open in Inbox',
-                style:
-                    const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-              ),
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFFBE185D),
-                padding: EdgeInsets.zero,
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// Message body: direction follows the first strong letter, not the UI locale.
+class _ThreadBodyText extends StatelessWidget {
+  final String text;
+  final TextStyle style;
+  final int? maxLines;
+  final TextOverflow? overflow;
+
+  const _ThreadBodyText({
+    required this.text,
+    required this.style,
+    this.maxLines,
+    this.overflow,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      textDirection: resolveBubbleTextDirection(text),
+      textAlign: TextAlign.start,
+      maxLines: maxLines,
+      overflow: overflow,
+      textHeightBehavior: _timelineHeightBehavior,
+      style: style,
+    );
+  }
+}
+
+class _ThreadPreviewLine extends StatelessWidget {
+  final String cue;
+  final String text;
+
+  const _ThreadPreviewLine({required this.cue, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final style = _timelineReadable(
+      Theme.of(context).textTheme.bodyMedium,
+      color: _timelineMutedColor(context),
+    );
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          cue,
+          textHeightBehavior: _timelineHeightBehavior,
+          style: style,
+        ),
+        const SizedBox(width: 6),
+        Flexible(
+          child: _ThreadBodyText(
+            text: text,
+            style: style,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ThreadActionButton extends StatelessWidget {
+  final Color color;
+  final String label;
+  final VoidCallback? onPressed;
+  final IconData? icon;
+
+  const _ThreadActionButton({
+    required this.color,
+    required this.label,
+    required this.onPressed,
+    this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // TextButton inherits the app theme's one-line ellipsis, which slices the
+    // dots on ت in "توسيع". A plain tap target does not clip the glyphs.
+    final labelStyle = _timelineReadable(
+      Theme.of(context).textTheme.bodySmall,
+      color: color,
+      fontSize: 13,
+      fontWeight: FontWeight.w600,
+    ).copyWith(height: 1.8);
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(6),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 16, color: color),
+                const SizedBox(width: 6),
+              ],
+              Text(
+                label,
+                softWrap: false,
+                overflow: TextOverflow.visible,
+                textHeightBehavior: _timelineHeightBehavior,
+                style: labelStyle,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1087,7 +1266,7 @@ class _Chip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(999),
@@ -1098,22 +1277,25 @@ class _Chip extends StatelessWidget {
           if (icon == Icons.chat)
             Image.asset(
               'assets/images/whatsapp_logo.png',
-              width: 12,
-              height: 12,
+              width: 14,
+              height: 14,
               errorBuilder: (_, __, ___) =>
-                  Icon(icon, size: 12, color: foreground),
+                  Icon(icon, size: 14, color: foreground),
             )
           else if (icon == Icons.camera_alt_outlined)
-            const InstagramBrandIcon(size: 12)
+            const InstagramBrandIcon(size: 14)
           else if (icon == Icons.forum)
-            const MessengerBrandIcon(size: 12)
+            const MessengerBrandIcon(size: 14)
           else
-            Icon(icon, size: 12, color: foreground),
+            Icon(icon, size: 14, color: foreground),
           const SizedBox(width: 4),
           Text(
             label,
+            textHeightBehavior: _timelineHeightBehavior,
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 12,
+              height: 1.4,
+              leadingDistribution: TextLeadingDistribution.even,
               fontWeight: FontWeight.w600,
               color: foreground,
             ),
@@ -1146,14 +1328,30 @@ class _StageChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final parsed = _parseColor(colorHex);
-    final bg = parsed?.withValues(alpha: 0.12) ?? const Color(0xFFDBEAFE);
-    final fg = parsed ?? const Color(0xFF1E40AF);
-    final border = parsed?.withValues(alpha: 0.25) ??
-        const Color(0xFF93C5FD);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final Color bg;
+    final Color fg;
+    final Color border;
+    if (parsed != null) {
+      bg = Color.alphaBlend(
+        parsed.withValues(alpha: isDark ? 0.4 : 0.14),
+        isDark ? const Color(0xFF111827) : Colors.white,
+      );
+      fg = isDark ? _accentOnDark(parsed) : parsed;
+      border = parsed.withValues(alpha: isDark ? 0.65 : 0.35);
+    } else if (isDark) {
+      bg = const Color(0xFF1E3A5F);
+      fg = const Color(0xFFDBEAFE);
+      border = const Color(0xFF60A5FA);
+    } else {
+      bg = const Color(0xFFDBEAFE);
+      fg = const Color(0xFF1E3A8A);
+      border = const Color(0xFF93C5FD);
+    }
 
     return Container(
-      constraints: const BoxConstraints(maxWidth: 160),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      constraints: const BoxConstraints(maxWidth: 220),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(999),
@@ -1164,9 +1362,12 @@ class _StageChip extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         textDirection: forceLtr ? TextDirection.ltr : null,
+        textHeightBehavior: _timelineHeightBehavior,
         style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
+          fontSize: 12,
+          height: 1.4,
+          leadingDistribution: TextLeadingDistribution.even,
+          fontWeight: FontWeight.w600,
           color: fg,
         ),
       ),
@@ -1314,6 +1515,9 @@ class _ChangeReason extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               reason,
+              textDirection: resolveBubbleTextDirection(reason),
+              textAlign: TextAlign.start,
+              textHeightBehavior: _timelineHeightBehavior,
               style: theme.textTheme.bodyMedium?.copyWith(color: strong),
             ),
           ],

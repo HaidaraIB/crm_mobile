@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/forms/catalog_form_binding.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/api_error_helper.dart';
@@ -32,6 +33,11 @@ class EditLeadScreen extends StatefulWidget {
 
 class _EditLeadScreenState extends State<EditLeadScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _catalog = CatalogFormBinding('lead.upsert');
+  final _nameFocus = FocusNode();
+  final _notesFocus = FocusNode();
+  final _companyFocus = FocusNode();
+  final _phoneFocus = FocusNode();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _budgetController = TextEditingController();
@@ -74,6 +80,11 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
   @override
   void initState() {
     super.initState();
+    _catalog.load();
+    _catalog.watch(_nameFocus, 'name', () => _blurLead('name'));
+    _catalog.watch(_notesFocus, 'notes', () => _blurLead('notes'));
+    _catalog.watch(_companyFocus, 'leadCompanyName', () => _blurLead('leadCompanyName'));
+    _catalog.watch(_phoneFocus, 'phone', () => _blurLead('phone'));
     _initializeForm();
     _loadData();
   }
@@ -134,6 +145,10 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
 
   @override
   void dispose() {
+    _nameFocus.dispose();
+    _notesFocus.dispose();
+    _companyFocus.dispose();
+    _phoneFocus.dispose();
     _nameController.dispose();
     _phoneController.dispose();
     _budgetController.dispose();
@@ -196,69 +211,73 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
     }
   }
 
-  bool _validateForm() {
-    _errors.clear();
-    bool isValid = true;
-
-    if (_nameController.text.trim().isEmpty) {
-      _errors['name'] =
-          AppLocalizations.of(context)?.translate('nameRequired') ??
-          'Name is required';
-      isValid = false;
+  List<Map<String, dynamic>> _collectedPhones() {
+    if (_phoneNumbers.isNotEmpty) {
+      return _phoneNumbers
+          .where((p) => p['phone_number'].toString().trim().isNotEmpty)
+          .map((p) => {'phone_number': p['phone_number']})
+          .toList();
     }
+    if (_phoneController.text.trim().isEmpty) return const [];
+    return [
+      {'phone_number': _phoneController.text.trim()},
+    ];
+  }
 
-    final finalPhoneNumbers = _phoneNumbers.isNotEmpty
-        ? _phoneNumbers
-              .where((p) => p['phone_number'].toString().trim().isNotEmpty)
-              .toList()
-        : _phoneController.text.trim().isNotEmpty
-        ? [
-            <String, dynamic>{
-              'phone_number': _phoneController.text.trim(),
-              'phone_type': 'mobile',
-              'is_primary': true,
-              'notes': '',
-            },
-          ]
-        : [];
-
-    if (finalPhoneNumbers.isEmpty) {
-      _errors['phone'] =
-          AppLocalizations.of(context)?.translate('phoneNumberRequired') ??
-          'At least one phone number is required';
-      isValid = false;
+  int? _idNamed(List<dynamic> items, String? name) {
+    if (name == null || name.isEmpty) return null;
+    for (final item in items) {
+      if (item.name == name) return item.id as int;
     }
+    return null;
+  }
 
-    if (_selectedChannel == null || _selectedChannel!.isEmpty) {
-      _errors['communicationWay'] =
-          AppLocalizations.of(context)?.translate('communicationWayRequired') ??
-          'Communication channel is required';
-      isValid = false;
+  Map<String, dynamic> _leadValues() {
+    final phones = _collectedPhones();
+    String primary = '';
+    if (_phoneNumbers.isNotEmpty) {
+      final marked = _phoneNumbers.where(
+        (p) => p['is_primary'] == true && p['phone_number'].toString().trim().isNotEmpty,
+      );
+      primary = marked.isEmpty
+          ? (phones.isEmpty ? '' : '${phones.first['phone_number']}')
+          : marked.first['phone_number'].toString();
+    } else {
+      primary = _phoneController.text.trim();
     }
+    return {
+      'name': _nameController.text,
+      'phone': primary,
+      'phoneNumbers': phones,
+      'communicationWay': _idNamed(_channels, _selectedChannel),
+      'status': _idNamed(_statuses, _selectedStatus),
+      'priority': _selectedPriority ?? '',
+      'type': _selectedType ?? '',
+      'leadCompanyName': _companyNameController.text,
+      'notes': _notesController.text,
+    };
+  }
 
-    if (_selectedStatus == null || _selectedStatus!.isEmpty) {
-      _errors['status'] =
-          AppLocalizations.of(context)?.translate('statusRequired') ??
-          'Status is required';
-      isValid = false;
-    }
+  Future<void> _blurLead(String key) async {
+    await _catalog.validate(context, _leadValues(), only: key);
+    if (!mounted) return;
+    setState(() {
+      _errors.remove(key);
+      if (_catalog.errors.containsKey(key)) {
+        _errors[key] = _catalog.errors[key]!;
+      }
+    });
+  }
 
-    if (_selectedPriority == null || _selectedPriority!.isEmpty) {
-      _errors['priority'] =
-          AppLocalizations.of(context)?.translate('priorityRequired') ??
-          'Priority is required';
-      isValid = false;
-    }
-
-    if (_selectedType == null || _selectedType!.isEmpty) {
-      _errors['type'] =
-          AppLocalizations.of(context)?.translate('typeRequired') ??
-          'Type is required';
-      isValid = false;
-    }
-
-    setState(() {});
-    return isValid;
+  Future<bool> _validateForm() async {
+    final ok = await _catalog.validate(context, _leadValues());
+    if (!mounted) return ok;
+    setState(() {
+      _errors
+        ..clear()
+        ..addAll(_catalog.errors);
+    });
+    return ok;
   }
 
   void _clearError(String field) {
@@ -367,7 +386,7 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_validateForm()) {
+    if (!await _validateForm()) {
       return;
     }
 
@@ -392,6 +411,7 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
           break;
         }
       }
+      if (!mounted) return;
       final gate = await resolveStatusChangeReason(context, target);
       if (!gate.proceed || !mounted) return;
       if (gate.reason != null) {
@@ -422,6 +442,9 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
         method: 'PATCH',
       );
       if (mounted) {
+        if (e is ApiFieldException) {
+          _catalog.applyApiError(AppLocalizations.of(context), e);
+        }
         final mapped = mapLeadApiErrorToFieldErrors(
           context,
           e,
@@ -430,7 +453,10 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
         setState(() {
           _errors
             ..clear()
-            ..addAll(mapped);
+            ..addAll(_catalog.errors);
+          mapped.forEach((key, value) {
+            _errors.putIfAbsent(key, () => value);
+          });
         });
         if (ApiErrorHelper.isNoInternetError(e) ||
             ApiErrorHelper.isTimeoutError(e)) {
@@ -566,6 +592,8 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
                                 label:
                                     '${localizations?.translate('clientName') ?? 'Client Name'} *',
                                 controller: _nameController,
+                                focusNode: _nameFocus,
+                                onEditingComplete: () => _blurLead('name'),
                                 hint:
                                     localizations?.translate(
                                       'enterClientName',
@@ -581,6 +609,9 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
                                 label:
                                     localizations?.translate('leadCompanyName') ?? 'Company name',
                                 controller: _companyNameController,
+                                focusNode: _companyFocus,
+                                onEditingComplete: () => _blurLead('leadCompanyName'),
+                                error: _errors['leadCompanyName'],
                                 hint:
                                     localizations?.translate('enterLeadCompanyName') ?? 'Enter company name',
                                 onChanged: () {},
@@ -639,7 +670,10 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
                               _buildAutoDirTextField(
                                 label: localizations?.translate('notes') ?? 'Notes',
                                 controller: _notesController,
+                                focusNode: _notesFocus,
+                                onEditingComplete: () => _blurLead('notes'),
                                 hint: localizations?.translate('enterNotes') ?? 'Enter notes...',
+                                error: _errors['notes'],
                                 onChanged: () {},
                                 minLines: 2,
                                 maxLines: 5,
@@ -751,6 +785,8 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
                                     _selectedType = value;
                                     _clearError('type');
                                   });
+                                  _catalog.touched.add('type');
+                                  _blurLead('type');
                                 },
                               ),
                               const SizedBox(height: 16),
@@ -774,6 +810,8 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
                                     _selectedChannel = value;
                                     _clearError('communicationWay');
                                   });
+                                  _catalog.touched.add('communicationWay');
+                                  _blurLead('communicationWay');
                                 },
                               ),
                               const SizedBox(height: 16),
@@ -811,6 +849,8 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
                                     _selectedPriority = value;
                                     _clearError('priority');
                                   });
+                                  _catalog.touched.add('priority');
+                                  _blurLead('priority');
                                 },
                               ),
                               const SizedBox(height: 16),
@@ -835,6 +875,8 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
                                     _selectedStatus = value;
                                     _clearError('status');
                                   });
+                                  _catalog.touched.add('status');
+                                  _blurLead('status');
                                 },
                               ),
                               if (_tags.isNotEmpty) ...[
@@ -911,6 +953,8 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
     VoidCallback? onChanged,
     int? minLines,
     int? maxLines,
+    FocusNode? focusNode,
+    VoidCallback? onEditingComplete,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -919,6 +963,8 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
         const SizedBox(height: 8),
         AutoDirTextFormField(
           controller: controller,
+          focusNode: focusNode,
+          onEditingComplete: onEditingComplete,
           decoration: InputDecoration(
             hintText: hint,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -1027,6 +1073,8 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
                   PhoneInput(
                     value:
                         _phoneNumbers[index]['phone_number'] as String? ?? '',
+                    focusNode: index == 0 ? _phoneFocus : null,
+                    onEditingComplete: index == 0 ? () => _blurLead('phone') : null,
                     hintText:
                         localizations?.translate('enterPhoneNumber') ??
                         'Enter phone number',

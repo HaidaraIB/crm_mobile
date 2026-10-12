@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/forms/catalog_form_binding.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/snackbar_helper.dart';
@@ -31,7 +32,9 @@ class _PreLoginVerifyEmailScreenState extends State<PreLoginVerifyEmailScreen> {
   static const _cooldownKey = 'mobile_prelogin_email_resend_cd';
   static const int _cooldownSec = 60;
 
+  final _catalog = CatalogFormBinding('auth.email_code');
   final _codeCtrl = TextEditingController();
+  final _codeFocus = FocusNode();
   final _newEmailCtrl = TextEditingController();
   late String? _email;
   bool _showChange = false;
@@ -43,6 +46,11 @@ class _PreLoginVerifyEmailScreenState extends State<PreLoginVerifyEmailScreen> {
   @override
   void initState() {
     super.initState();
+    _catalog.load();
+    _catalog.watch(_codeFocus, 'code', () {
+      _catalog.validate(context, {'code': _codeCtrl.text}, only: 'code');
+      if (mounted) setState(() {});
+    });
     _email = _parseEmail(widget.verifyEmailHref);
     unawaited(_syncCooldownFromStorage());
   }
@@ -50,6 +58,7 @@ class _PreLoginVerifyEmailScreenState extends State<PreLoginVerifyEmailScreen> {
   @override
   void dispose() {
     _tick?.cancel();
+    _codeFocus.dispose();
     _codeCtrl.dispose();
     _newEmailCtrl.dispose();
     super.dispose();
@@ -144,12 +153,9 @@ class _PreLoginVerifyEmailScreenState extends State<PreLoginVerifyEmailScreen> {
     final email = _email;
     if (email == null || email.isEmpty) return;
     final code = _codeCtrl.text.trim();
-    if (code.length < 4) {
-      SnackbarHelper.showError(
-        context,
-        AppLocalizations.of(context)?.translate('pleaseEnter2FACode') ??
-            'Please enter the verification code.',
-      );
+    final valid = await _catalog.validate(context, {'code': code}, keys: {'code'});
+    if (!valid) {
+      if (mounted) setState(() {});
       return;
     }
     setState(() => _busy = true);
@@ -163,7 +169,14 @@ class _PreLoginVerifyEmailScreenState extends State<PreLoginVerifyEmailScreen> {
       );
       Navigator.of(context).pop(true);
     } catch (e) {
-      if (mounted) SnackbarHelper.showError(context, e.toString());
+      if (!mounted) return;
+      if (e is ApiFieldException &&
+          _catalog.applyApiError(AppLocalizations.of(context), e) &&
+          _catalog.errors.containsKey('code')) {
+        setState(() => _busy = false);
+        return;
+      }
+      SnackbarHelper.showError(context, e.toString());
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -291,9 +304,15 @@ class _PreLoginVerifyEmailScreenState extends State<PreLoginVerifyEmailScreen> {
               const SizedBox(height: 24),
               AutoDirTextField(
                 controller: _codeCtrl,
+                focusNode: _codeFocus,
                 keyboardType: TextInputType.number,
+                onEditingComplete: () {
+                  _catalog.validate(context, {'code': _codeCtrl.text}, only: 'code');
+                  setState(() {});
+                },
                 decoration: InputDecoration(
                   labelText: loc?.translate('verificationCode') ?? 'Verification code',
+                  errorText: _catalog.errors['code'],
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),

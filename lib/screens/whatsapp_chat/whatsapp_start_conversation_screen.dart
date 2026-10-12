@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../core/forms/catalog_form_binding.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../features/whatsapp_chat/whatsapp_chat_repository.dart';
 import '../../models/lead_model.dart';
@@ -40,6 +41,7 @@ class _WhatsAppStartConversationScreenState
   final _searchCtrl = TextEditingController();
   final _repo = ApiWhatsAppChatRepository();
   final _api = ApiService();
+  final _form = CatalogFormBinding('whatsapp_chat.start_conversation');
 
   bool _resolving = false;
   bool _searching = false;
@@ -101,8 +103,9 @@ class _WhatsAppStartConversationScreenState
   Future<void> _resolvePhone() async {
     final loc = AppLocalizations.of(context);
     final phone = _phoneCtrl.text.trim();
-    if (phone.replaceAll(RegExp(r'\D'), '').length < 7) {
-      setState(() => _error = loc?.translate('enterPhoneNumber') ?? 'Enter phone');
+    final valid = await _form.validate(context, {'phone': phone});
+    if (!valid) {
+      setState(() => _error = _form.errors['phone']);
       return;
     }
     setState(() {
