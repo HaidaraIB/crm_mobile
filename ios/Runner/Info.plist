@@ -64,6 +64,8 @@
 		<string>This app can save photos to your library.</string>
 		<key>NSMicrophoneUsageDescription</key>
 		<string>This app uses the microphone for team chat voice messages.</string>
+		<key>ITSAppUsesNonExemptEncryption</key>
+		<false/>
 		<key>FirebaseAppDelegateProxyEnabled</key>
 		<true/>
 		<key>UIBackgroundModes</key>
