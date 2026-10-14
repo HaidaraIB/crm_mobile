@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/utils/seed_labels.dart';
 import '../models/settings_model.dart';
 
 /// Compact pill for lead status — replaces the large bordered block for clearer hierarchy.
@@ -91,7 +92,7 @@ class LeadStatusBadge extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              label,
+              seedLabel(label, Localizations.localeOf(context).languageCode),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
@@ -134,7 +135,7 @@ class LeadStatusBadge extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    status.name,
+                    seedLabel(status.name, Localizations.localeOf(context).languageCode),
                     style: TextStyle(
                       color: theme.colorScheme.onSurface,
                       fontSize: 15,
@@ -162,7 +163,7 @@ class LeadStatusBadge extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      status.name,
+                      seedLabel(status.name, Localizations.localeOf(context).languageCode),
                       style: TextStyle(
                         color: theme.colorScheme.onSurface,
                         fontSize: 14,

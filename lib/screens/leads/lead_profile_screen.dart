@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/api_error_helper.dart';
+import '../../core/utils/seed_labels.dart';
 import '../../core/utils/form_api_errors.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../core/utils/budget_range_utils.dart';
@@ -965,7 +966,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
                       if (_lead!.communicationWay != null)
                         _buildInfoChip(
                           icon: Icons.home_outlined,
-                          label: _lead!.communicationWay!,
+                          label: seedLabel(_lead!.communicationWay, localizations?.locale.languageCode),
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                       _buildInfoChip(
@@ -1205,7 +1206,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
             bottom: -3,
             right: -3,
             child: Tooltip(
-              message: _lead!.communicationWay!,
+              message: seedLabel(_lead!.communicationWay, Localizations.localeOf(context).languageCode),
               child: Container(
                 width: 30,
                 height: 30,
@@ -1378,7 +1379,9 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
           _buildDetailCard(
             icon: Icons.work_outline,
             label: localizations?.translate('channel') ?? 'Channel',
-            value: lead.communicationWay ?? '--',
+            value: seedLabel(lead.communicationWay, localizations?.locale.languageCode).isEmpty
+                ? '--'
+                : seedLabel(lead.communicationWay, localizations?.locale.languageCode),
             iconColor: const Color(0xFFF59E0B),
           ),
           const SizedBox(height: 12),

@@ -10,6 +10,7 @@ import '../../services/api_service.dart';
 import '../../widgets/bidi_text.dart';
 import '../../widgets/inventory_card.dart';
 import '../../core/utils/app_locales.dart';
+import '../../core/utils/seed_labels.dart';
 import '../../core/utils/specialization_helper.dart';
 
 class ViewDealScreen extends StatefulWidget {
@@ -271,7 +272,9 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
   /// localized legacy stage.
   String _stageLabel(DealModel deal, AppLocalizations? localizations) {
     final name = deal.pipelineStageName;
-    if (name != null && name.isNotEmpty) return name;
+    if (name != null && name.isNotEmpty) {
+      return seedLabel(name, localizations?.locale.languageCode);
+    }
     return _formatStage(deal.stage, localizations);
   }
 
@@ -498,7 +501,7 @@ class _ViewDealScreenState extends State<ViewDealScreen> {
                                   (deal.lostReasonName ?? '').isNotEmpty) ...[
                                 const SizedBox(height: 8),
                                 Text(
-                                  '${localizations?.translate('dealLostReason') ?? 'Lost reason'}: ${deal.lostReasonName}',
+                                  '${localizations?.translate('dealLostReason') ?? 'Lost reason'}: ${seedLabel(deal.lostReasonName, localizations?.locale.languageCode)}',
                                   style: theme.textTheme.bodyMedium,
                                 ),
                               ],

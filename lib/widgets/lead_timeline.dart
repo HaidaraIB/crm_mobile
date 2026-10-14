@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/localization/app_localizations.dart';
 import '../core/theme/app_theme.dart';
 import '../core/utils/input_text_direction.dart';
+import '../core/utils/seed_labels.dart';
 import '../core/utils/lead_location.dart';
 import '../core/utils/media_url_utils.dart';
 import '../models/timeline_entry.dart';
@@ -457,7 +458,10 @@ class _TimelineRow extends StatelessWidget {
                           ),
                           if (entry.stage != null && entry.stage!.isNotEmpty)
                             _StageChip(
-                              label: entry.stage!,
+                              label: seedLabel(
+                                entry.stage,
+                                Localizations.localeOf(context).languageCode,
+                              ),
                               colorHex: entry.color,
                               forceLtr: entry.type == TimelineEntryType.sms ||
                                   entry.type == TimelineEntryType.whatsapp ||

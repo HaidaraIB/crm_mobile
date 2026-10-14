@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/forms/catalog_form_binding.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../../../core/utils/api_error_helper.dart';
+import '../../../core/utils/seed_labels.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/snackbar_helper.dart';
 import '../../../models/settings_model.dart';
@@ -37,6 +38,7 @@ class _EditCallMethodModalState extends State<EditCallMethodModal> {
   late String _selectedColor;
   late bool _isDefault;
   bool _isLoading = false;
+  bool _appliedSeedLabel = false;
   String? _errorMessage;
   int? _companyId;
   Map<String, dynamic>? _initialPayload;
@@ -53,6 +55,20 @@ class _EditCallMethodModalState extends State<EditCallMethodModal> {
     _selectedColor = widget.callMethod.color;
     _isDefault = widget.callMethod.isDefault;
     _loadInitialPayload();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_appliedSeedLabel) return;
+    _appliedSeedLabel = true;
+    final label = seedLabel(
+      widget.callMethod.name,
+      Localizations.localeOf(context).languageCode,
+    );
+    if (_nameController.text != label) {
+      _nameController.text = label;
+    }
   }
 
   Future<void> _loadInitialPayload() async {

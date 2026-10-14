@@ -3,6 +3,7 @@ import '../../core/forms/catalog_form_binding.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/api_error_helper.dart';
+import '../../core/utils/seed_labels.dart';
 import '../../core/utils/form_api_errors.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/lead_model.dart';
@@ -800,7 +801,7 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
                                     .map(
                                       (channel) => DropdownMenuItem(
                                         value: channel.name,
-                                        child: Text(channel.name),
+                                        child: Text(seedLabel(channel.name, localizations?.locale.languageCode)),
                                       ),
                                     )
                                     .toList(),
@@ -865,7 +866,7 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
                                     .map(
                                       (status) => DropdownMenuItem(
                                         value: status.name,
-                                        child: Text(status.name),
+                                        child: Text(seedLabel(status.name, localizations?.locale.languageCode)),
                                       ),
                                     )
                                     .toList(),

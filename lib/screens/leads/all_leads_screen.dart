@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/api_error_helper.dart';
+import '../../core/utils/seed_labels.dart';
 import '../../core/utils/lead_assignee_users.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../core/utils/budget_range_utils.dart';
@@ -2192,10 +2193,15 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                               ),
                               ..._statuses.map((status) {
                                 final statusName = status.name.toLowerCase();
+                                final seeded = seedLabel(
+                                  status.name,
+                                  localizations?.locale.languageCode,
+                                );
                                 return _buildFilterChip(
-                                  label:
-                                      localizations?.translate(statusName) ??
-                                      status.name,
+                                  label: seeded != status.name
+                                      ? seeded
+                                      : (localizations?.translate(statusName) ??
+                                          status.name),
                                   isSelected:
                                       _selectedStatus?.toLowerCase() ==
                                       statusName,

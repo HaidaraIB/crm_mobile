@@ -5,6 +5,7 @@ import 'package:intl/intl.dart' hide TextDirection;
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/api_error_helper.dart';
+import '../../core/utils/seed_labels.dart';
 import '../../models/deal_model.dart';
 import '../../models/deal_pipeline_model.dart';
 import '../../models/user_model.dart';
@@ -278,7 +279,9 @@ class _DealsScreenState extends State<DealsScreen> {
   /// localized legacy stage.
   String _stageLabel(DealModel deal, AppLocalizations? localizations) {
     final name = deal.pipelineStageName;
-    if (name != null && name.isNotEmpty) return name;
+    if (name != null && name.isNotEmpty) {
+      return seedLabel(name, localizations?.locale.languageCode);
+    }
     return _formatStage(deal.stage, localizations);
   }
 
@@ -804,14 +807,19 @@ class _DealsScreenState extends State<DealsScreen> {
       return items;
     }
 
-    final pipelineNames = {for (final p in _pipelines) p.id: p.name};
+    final pipelineNames = {
+      for (final p in _pipelines)
+        p.id: seedLabel(p.name, localizations?.locale.languageCode),
+    };
     for (final stage in _allStages) {
       // Disambiguate same-named stages when the company runs several pipelines.
       final prefix = _pipelines.length > 1 ? pipelineNames[stage.pipeline] : null;
       items.add(DropdownMenuItem(
         value: stage.id.toString(),
         child: Text(
-          prefix != null ? '$prefix · ${stage.name}' : stage.name,
+          prefix != null
+              ? '$prefix · ${seedLabel(stage.name, localizations?.locale.languageCode)}'
+              : seedLabel(stage.name, localizations?.locale.languageCode),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),

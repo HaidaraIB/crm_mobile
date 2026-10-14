@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/utils/lead_location.dart';
+import '../core/utils/seed_labels.dart';
 import '../models/client_call_model.dart';
 import '../models/client_event_model.dart';
 import '../models/client_field_visit_model.dart';
@@ -149,7 +150,9 @@ List<TimelineEntry> buildLeadTimeline(TimelineBuilderInput input) {
       details: ct.notes,
       date: formatTimelineDate(ct.createdAt, locale),
       timestamp: ct.createdAt.millisecondsSinceEpoch,
-      stage: stageName.isNotEmpty ? stageName : null,
+      stage: stageName.isNotEmpty
+          ? seedLabel(stageName, input.locale.languageCode)
+          : null,
       color: stageConfig?.color ?? _stageColor(input.stages, stageName),
     );
   });
@@ -161,8 +164,15 @@ List<TimelineEntry> buildLeadTimeline(TimelineBuilderInput input) {
     } catch (_) {
       callMethod = null;
     }
-    final callMethodName =
-        callMethod?.name ?? cc.callMethodName ?? _tr(t, 'call');
+    final callMethodName = seedLabel(
+          callMethod?.name ?? cc.callMethodName,
+          input.locale.languageCode,
+        ).isEmpty
+        ? _tr(t, 'call')
+        : seedLabel(
+            callMethod?.name ?? cc.callMethodName,
+            input.locale.languageCode,
+          );
     final callDate = cc.callDatetime ?? cc.createdAt;
     final isWhatsApp = cc.isWhatsApp;
 
@@ -212,7 +222,12 @@ List<TimelineEntry> buildLeadTimeline(TimelineBuilderInput input) {
     } catch (_) {
       vt = null;
     }
-    final visitTypeName = vt?.name ?? cv.visitTypeName ?? _tr(t, 'visit');
+    final visitTypeName = seedLabel(
+          vt?.name ?? cv.visitTypeName,
+          input.locale.languageCode,
+        ).isEmpty
+        ? _tr(t, 'visit')
+        : seedLabel(vt?.name ?? cv.visitTypeName, input.locale.languageCode);
     final visitDate = cv.visitDatetime ?? cv.createdAt;
 
     return TimelineEntry(
@@ -259,6 +274,7 @@ List<TimelineEntry> buildLeadTimeline(TimelineBuilderInput input) {
     users: users,
     statuses: input.statuses,
     channels: input.channels,
+    languageCode: input.locale.languageCode,
   );
 
   final events = input.events.map((ce) {
@@ -348,7 +364,12 @@ List<TimelineEntry> buildLeadTimeline(TimelineBuilderInput input) {
           .replaceAll('{hours}', hours);
     } else {
       translatedDetails =
-          localizeTimelineEventNotes(ce.notes, ce.eventType, t);
+          localizeTimelineEventNotes(
+            ce.notes,
+            ce.eventType,
+            t,
+            languageCode: input.locale.languageCode,
+          );
     }
 
     final showValuePair = ce.eventType != 'location_update' &&

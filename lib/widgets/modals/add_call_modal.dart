@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/forms/catalog_form_binding.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/seed_labels.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/settings_model.dart';
 import '../../services/api_service.dart';
@@ -310,7 +311,7 @@ class _AddCallModalState extends State<AddCallModal> {
                                     items: _callMethods.map((callMethod) {
                                       return DropdownMenuItem<int>(
                                         value: callMethod.id,
-                                        child: Text(callMethod.name),
+                                        child: Text(seedLabel(callMethod.name, localizations?.locale.languageCode)),
                                       );
                                     }).toList(),
                                     onChanged: (value) {

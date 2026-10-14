@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/forms/catalog_form_binding.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/seed_labels.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/settings_model.dart';
 import '../../services/api_service.dart';
@@ -72,6 +73,8 @@ class _AddActionModalState extends State<AddActionModal> {
   }
   
   String _getStageLocalizedName(String stageName, AppLocalizations? localizations) {
+    final seeded = seedLabel(stageName, localizations?.locale.languageCode);
+    if (seeded != stageName) return seeded;
     // Try to match common stage names with localization keys
     final lowerName = stageName.toLowerCase();
     

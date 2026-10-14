@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/localization/app_localizations.dart';
+import '../core/utils/seed_labels.dart';
 import '../core/theme/app_theme.dart';
 import '../models/settings_model.dart';
 import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
@@ -55,7 +56,10 @@ class _StatusChangeReasonDialogState extends State<StatusChangeReasonDialog> {
             Text(
               (localizations?.translate('statusChangeReasonIntro') ??
                       'You are moving this lead to "{status}".')
-                  .replaceAll('{status}', widget.statusName!),
+                  .replaceAll(
+                    '{status}',
+                    seedLabel(widget.statusName, localizations?.locale.languageCode),
+                  ),
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),

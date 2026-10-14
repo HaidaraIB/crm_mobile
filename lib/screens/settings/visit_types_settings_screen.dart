@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/api_error_helper.dart';
+import '../../core/utils/seed_labels.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../models/settings_model.dart';
 import '../../services/api_service.dart';
@@ -260,7 +261,7 @@ class _VisitTypesSettingsScreenState extends State<VisitTypesSettingsScreen> {
                                           children: [
                                             Flexible(
                                               child: Text(
-                                                vt.name,
+                                                seedLabel(vt.name, localizations?.locale.languageCode),
                                                 style: theme.textTheme.titleMedium
                                                     ?.copyWith(fontWeight: FontWeight.w600),
                                                 overflow: TextOverflow.ellipsis,

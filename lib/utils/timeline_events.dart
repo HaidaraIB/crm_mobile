@@ -1,4 +1,5 @@
 import '../core/localization/app_localizations.dart';
+import '../core/utils/seed_labels.dart';
 import '../models/settings_model.dart';
 import '../models/user_model.dart';
 import 'whatsapp_message_body_localize.dart';
@@ -10,12 +11,14 @@ class TimelineEventFormatContext {
   final List<UserModel> users;
   final List<StatusModel> statuses;
   final List<ChannelModel> channels;
+  final String languageCode;
 
   const TimelineEventFormatContext({
     required this.t,
     required this.users,
     required this.statuses,
     required this.channels,
+    this.languageCode = 'en',
   });
 }
 
@@ -293,12 +296,12 @@ String formatTimelineEventValue(
     try {
       final statusById =
           ctx.statuses.firstWhere((s) => s.id.toString() == trimmed);
-      return statusById.name;
+      return seedLabel(statusById.name, ctx.languageCode);
     } catch (_) {}
     try {
       final statusByName =
           ctx.statuses.firstWhere((s) => normalizeToken(s.name) == normalized);
-      return statusByName.name;
+      return seedLabel(statusByName.name, ctx.languageCode);
     } catch (_) {}
   }
 
@@ -306,12 +309,12 @@ String formatTimelineEventValue(
     try {
       final channelById =
           ctx.channels.firstWhere((c) => c.id.toString() == trimmed);
-      return channelById.name;
+      return seedLabel(channelById.name, ctx.languageCode);
     } catch (_) {}
     try {
       final channelByName =
           ctx.channels.firstWhere((c) => normalizeToken(c.name) == normalized);
-      return channelByName.name;
+      return seedLabel(channelByName.name, ctx.languageCode);
     } catch (_) {}
     if (normalized == 'whatsapp') return _tr(t, 'whatsappSource');
   }
@@ -320,7 +323,7 @@ String formatTimelineEventValue(
     return _tr(t, 'timelineValueEmpty');
   }
 
-  return trimmed;
+  return seedLabel(trimmed, ctx.languageCode);
 }
 
 String inferValueHintFromEditNotes(String? notes) {
@@ -368,8 +371,9 @@ String? extractStorefrontImageUrl(String? notes) {
 String localizeTimelineEventNotes(
   String? notes,
   String eventType,
-  TimelineTranslate t,
-) {
+  TimelineTranslate t, {
+  String languageCode = 'en',
+}) {
   if (notes == null || notes.trim().isEmpty) return '';
 
   final trimmed = notes.trim();
@@ -410,6 +414,7 @@ String localizeTimelineEventNotes(
         users: const [],
         statuses: const [],
         channels: const [],
+        languageCode: languageCode,
       );
       return '${_tr(t, 'statusChangedFrom')} ${formatTimelineEventValue(statusMatch.group(1), emptyCtx)} ${_tr(t, 'statusChangedTo')} ${formatTimelineEventValue(statusMatch.group(2), emptyCtx)}';
     }

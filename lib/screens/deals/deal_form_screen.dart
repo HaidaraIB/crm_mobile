@@ -10,6 +10,7 @@ import '../../models/lead_model.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/inventory_card.dart';
+import '../../core/utils/seed_labels.dart';
 import '../../core/utils/specialization_helper.dart';
 import '../../core/utils/snackbar_helper.dart';
 import '../../core/utils/lead_assignee_users.dart';
@@ -663,7 +664,7 @@ class _DealFormScreenState extends State<DealFormScreen> {
         const SizedBox(width: 8),
         Flexible(
           child: Text(
-            stage.name,
+            seedLabel(stage.name, Localizations.localeOf(context).languageCode),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -741,7 +742,7 @@ class _DealFormScreenState extends State<DealFormScreen> {
           items: selectablePipelines
               .map((p) => DropdownMenuItem(
                     value: p.id.toString(),
-                    child: Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    child: Text(seedLabel(p.name, localizations?.locale.languageCode), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ))
               .toList(),
           onChanged: _onPipelineChanged,
@@ -787,7 +788,7 @@ class _DealFormScreenState extends State<DealFormScreen> {
           items: _lostReasons
               .map((r) => DropdownMenuItem(
                     value: r.id.toString(),
-                    child: Text(r.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    child: Text(seedLabel(r.name, localizations?.locale.languageCode), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ))
               .toList(),
           onChanged: (value) {
