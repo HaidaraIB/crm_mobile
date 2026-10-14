@@ -90,6 +90,11 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    final user = _currentUser;
+    // Supervisors without manage_deals get 403 on deal pipelines. Employees can read.
+    final showDeals = user == null ||
+        !user.isSupervisor ||
+        user.hasSupervisorPermission('can_manage_deals');
 
     return Drawer(
       child: Column(
@@ -441,20 +446,21 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
                       ],
                       // Inbox + WhatsApp Chats live in the home app bar (next to
                       // each other), not the drawer — same pattern as Team Chat.
-                      _buildMenuItem(
-                        context,
-                        icon: Icons.handshake,
-                        title: localizations?.translate('deals') ?? 'Deals',
-                        onTap: () {
-                          Navigator.pop(context);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const DealsScreen(),
-                            ),
-                          );
-                        },
-                      ),
+                      if (showDeals)
+                        _buildMenuItem(
+                          context,
+                          icon: Icons.handshake,
+                          title: localizations?.translate('deals') ?? 'Deals',
+                          onTap: () {
+                            Navigator.pop(context);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const DealsScreen(),
+                              ),
+                            );
+                          },
+                        ),
                       _buildMenuItem(
                         context,
                         icon: Icons.headset_mic,

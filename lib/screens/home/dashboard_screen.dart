@@ -346,6 +346,10 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
   }
 
   Widget _buildQuickActions(BuildContext context, AppLocalizations? localizations) {
+    final user = _currentUser;
+    final showDeals = user == null ||
+        !user.isSupervisor ||
+        user.hasSupervisorPermission('can_manage_deals');
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -379,21 +383,23 @@ class DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObs
               if (mounted) _loadOverview(forceRefresh: true);
             },
           ),
-          const SizedBox(width: 8),
-          _buildQuickActionChip(
-            context,
-            label: localizations?.translate('deals') ?? 'Deals',
-            icon: Icons.handshake_outlined,
-            onTap: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const DealsScreen(),
-                ),
-              );
-              if (mounted) _loadOverview(forceRefresh: true);
-            },
-          ),
+          if (showDeals) ...[
+            const SizedBox(width: 8),
+            _buildQuickActionChip(
+              context,
+              label: localizations?.translate('deals') ?? 'Deals',
+              icon: Icons.handshake_outlined,
+              onTap: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const DealsScreen(),
+                  ),
+                );
+                if (mounted) _loadOverview(forceRefresh: true);
+              },
+            ),
+          ],
         ],
       ),
     );
