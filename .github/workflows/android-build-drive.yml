@@ -156,9 +156,7 @@ jobs:
       - name: Upload to Google Drive
         env:
           GDRIVE_AUTH_MODE: ${{ secrets.GDRIVE_AUTH_MODE }}
-          GDRIVE_CREDENTIALS_JSON: ${{ secrets.GDRIVE_CREDENTIALS_JSON }}
           GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
-          GDRIVE_USE_SHARED_DRIVE: ${{ secrets.GDRIVE_USE_SHARED_DRIVE }}
           GDRIVE_OAUTH_CLIENT_ID: ${{ secrets.GDRIVE_OAUTH_CLIENT_ID }}
           GDRIVE_OAUTH_CLIENT_SECRET: ${{ secrets.GDRIVE_OAUTH_CLIENT_SECRET }}
           GDRIVE_OAUTH_REFRESH_TOKEN: ${{ secrets.GDRIVE_OAUTH_REFRESH_TOKEN }}
