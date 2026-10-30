@@ -42,11 +42,16 @@ import '../models/deal_model.dart';
 import '../models/deal_pipeline_model.dart';
 import '../models/support_ticket_model.dart';
 import '../models/tenant_chat_models.dart';
+import '../models/pbx_call_model.dart';
+import 'pbx_call_launcher.dart' show PbxCallLauncher;
 import '../models/mobile_app_version_policy.dart';
 import '../models/maintenance_status.dart';
 import '../screens/splash/maintenance_screen.dart';
+import '../utils/stable_network_image.dart' show isApiOriginUrl;
 import 'device_fcm_token.dart'
-    show clearLocalPushRegistrationAfterLogout, resolveDeviceFcmTokenForUnregister;
+    show
+        clearLocalPushRegistrationAfterLogout,
+        resolveDeviceFcmTokenForUnregister;
 import 'error_logger.dart';
 
 export '../core/api/api_exceptions.dart' show ApiFieldException;
@@ -125,7 +130,9 @@ class LoginVerificationRequiredException implements Exception {
   }
 
   /// Build from [ApiEnvelope.errorContextFromBody] map when login/2FA returns 403 with structured error.
-  static LoginVerificationRequiredException? tryParse(Map<String, dynamic> error) {
+  static LoginVerificationRequiredException? tryParse(
+    Map<String, dynamic> error,
+  ) {
     if (!isBusinessCode(error['code'])) return null;
     final rawMsg = '${error['message'] ?? error['error'] ?? ''}'.trim();
     final msg = rawMsg.isNotEmpty
@@ -155,7 +162,9 @@ class SmsException implements Exception {
 /// WhatsApp Chats are gated (HTTP 403) — per-user access, company policy, or plan.
 /// Not a transient failure — do not show Retry; hide the entry instead.
 class SocialInboxAccessDeniedException implements Exception {
-  const SocialInboxAccessDeniedException({this.code = 'social_inbox_access_disabled'});
+  const SocialInboxAccessDeniedException({
+    this.code = 'social_inbox_access_disabled',
+  });
   final String code;
   @override
   String toString() => 'Omni-channel inbox access is disabled for this account';
@@ -182,14 +191,18 @@ class ApiService {
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
   ApiService._internal();
+
   /// One refresh at a time so parallel 401s do not invalidate a single-use refresh token.
   static Future<void> _refreshTokenChain = Future.value();
   static const Duration _defaultCacheTtl = Duration(seconds: 60);
+
   /// Default HTTP timeout for most API calls (mobile networks + Postgres latency).
   static const Duration _defaultRequestTimeout = Duration(seconds: 15);
+
   /// Matches CRM web full-sync default; capped by API [DRF_MAX_PAGE_SIZE].
   static const int _defaultFullFetchPageSize = 100;
   final Map<String, _CacheEntry<dynamic>> _memoryCache = {};
+
   /// Coalesce concurrent cold-start `/users/me/` calls into one in-flight request.
   Future<UserModel>? _currentUserInFlight;
 
@@ -231,11 +244,7 @@ class ApiService {
     return entry.value as T;
   }
 
-  void _cacheSet<T>(
-    String key,
-    T value, {
-    Duration ttl = _defaultCacheTtl,
-  }) {
+  void _cacheSet<T>(String key, T value, {Duration ttl = _defaultCacheTtl}) {
     _memoryCache[key] = _CacheEntry<T>(
       value: value,
       expiresAt: DateTime.now().add(ttl),
@@ -258,6 +267,7 @@ class ApiService {
     _cacheInvalidateByPrefix('leads');
     _cacheInvalidateByPrefix('dashboard_summary');
   }
+
   void _invalidateDealsCache() => _cacheInvalidateByPrefix('deals');
   void _invalidateNotificationsCache() =>
       _cacheInvalidateByPrefix('notifications');
@@ -348,8 +358,10 @@ class ApiService {
     final nonFieldRaw = fields.remove('non_field');
     if (nonFieldRaw is List) nonField = nonFieldRaw;
 
-    final hasFieldDetails = fields.isNotEmpty || fieldIssues != null || nonField != null;
-    final isValidationCode = code != null &&
+    final hasFieldDetails =
+        fields.isNotEmpty || fieldIssues != null || nonField != null;
+    final isValidationCode =
+        code != null &&
         code.isNotEmpty &&
         (code == 'validation_error' ||
             code == 'bad_request' ||
@@ -384,7 +396,10 @@ class ApiService {
 
   /// Same rule as web: only staff roles report presence (not company owner/admin).
   static bool _roleReportsPresence(String? role) {
-    var token = (role ?? '').trim().toLowerCase().replaceAll(RegExp(r'\s+'), '_');
+    var token = (role ?? '').trim().toLowerCase().replaceAll(
+      RegExp(r'\s+'),
+      '_',
+    );
     return token == 'employee' ||
         token == 'data_entry' ||
         token == 'supervisor';
@@ -429,7 +444,10 @@ class ApiService {
   /// Mirrors WORK_TRACKED_ROLES in accounts/work_tracking.py, which is the actual
   /// enforcement point.
   static bool roleTracksWorkHours(String? role) {
-    final token = (role ?? '').trim().toLowerCase().replaceAll(RegExp(r'\s+'), '_');
+    final token = (role ?? '').trim().toLowerCase().replaceAll(
+      RegExp(r'\s+'),
+      '_',
+    );
     if (token.isEmpty || token == 'super_admin') return false;
     return true;
   }
@@ -479,7 +497,9 @@ class ApiService {
     // Send user language so backend can use it for emails and responses
     final prefs = await SharedPreferences.getInstance();
     final languageCode = prefs.getString(AppConstants.languageKey) ?? 'en';
-    headers['X-Language'] = (languageCode == 'ar' || languageCode == 'en') ? languageCode : 'en';
+    headers['X-Language'] = (languageCode == 'ar' || languageCode == 'en')
+        ? languageCode
+        : 'en';
 
     if (includeAuth) {
       final token = await _getAccessToken();
@@ -488,8 +508,8 @@ class ApiService {
       }
     }
 
-    final trustedDeviceToken =
-        await AuthTokenStorage.instance.readTrustedDeviceToken();
+    final trustedDeviceToken = await AuthTokenStorage.instance
+        .readTrustedDeviceToken();
     if (trustedDeviceToken != null && trustedDeviceToken.trim().isNotEmpty) {
       headers['X-Owner-Trusted-Device'] = trustedDeviceToken.trim();
     }
@@ -498,7 +518,10 @@ class ApiService {
   }
 
   Map<String, dynamic> _unwrapResponseMap(http.Response response) =>
-      ApiEnvelope.decodeAndUnwrapMapForStatus(response.body, response.statusCode);
+      ApiEnvelope.decodeAndUnwrapMapForStatus(
+        response.body,
+        response.statusCode,
+      );
 
   dynamic _unwrapResponseDynamic(http.Response response) =>
       ApiEnvelope.decodeAndUnwrapForStatus(response.body, response.statusCode);
@@ -696,9 +719,7 @@ class ApiService {
         // Refresh failed: clear tokens and auto-logout to login screen (like web)
         await _clearTokens();
         _navigateToLogin('session_expired');
-        throw Exception(
-          _translateError('sessionExpired', locale: null),
-        );
+        throw Exception(_translateError('sessionExpired', locale: null));
       }
     }
 
@@ -741,10 +762,11 @@ class ApiService {
           }
         }
       } catch (_) {}
-      final accountTempInactive = ApiEnvelope.isAccountTemporarilyInactiveSignal(
-        code: errorCode,
-        message: errorMessage,
-      );
+      final accountTempInactive =
+          ApiEnvelope.isAccountTemporarilyInactiveSignal(
+            code: errorCode,
+            message: errorMessage,
+          );
       final subscriptionInactive = ApiEnvelope.isSubscriptionInactiveSignal(
         code: errorCode,
         message: errorMessage,
@@ -777,7 +799,8 @@ class ApiService {
         final firstData = _unwrapResponseDynamic(response);
         if (_isPaginatedBody(firstData)) {
           final mergedResults = <dynamic>[...(firstData['results'] as List)];
-          final initialCount = (firstData['count'] as num?)?.toInt() ?? mergedResults.length;
+          final initialCount =
+              (firstData['count'] as num?)?.toInt() ?? mergedResults.length;
           final initialPrevious = firstData['previous'];
           String? nextUrl = firstData['next']?.toString();
           var safetyCounter = 0;
@@ -801,7 +824,10 @@ class ApiService {
                   .timeout(requestTimeout);
             }
 
-            if (nextResponse.statusCode < 200 || nextResponse.statusCode >= 300) break;
+            if (nextResponse.statusCode < 200 ||
+                nextResponse.statusCode >= 300) {
+              break;
+            }
 
             final nextData = _unwrapResponseDynamic(nextResponse);
             if (!_isPaginatedBody(nextData)) break;
@@ -811,7 +837,9 @@ class ApiService {
           }
 
           final mergedBody = <String, dynamic>{
-            'count': initialCount > mergedResults.length ? initialCount : mergedResults.length,
+            'count': initialCount > mergedResults.length
+                ? initialCount
+                : mergedResults.length,
             'next': null,
             'previous': initialPrevious,
             'results': mergedResults,
@@ -955,6 +983,7 @@ class ApiService {
     // for this install (handlers also ignore payloads when logged out).
     await clearLocalPushRegistrationAfterLogout();
     MedicalLexicon.clear();
+    PbxCallLauncher.reset();
   }
 
   /// مسح الجلسة (رموز + تفضيلات تسجيل الدخول) — للاستخدام من واجهة تسجيل الخروج.
@@ -1079,8 +1108,9 @@ class ApiService {
     required String username,
     required String password,
   }) async {
-    final cleanBaseUrl =
-        baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final cleanBaseUrl = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
     final url = Uri.parse('$cleanBaseUrl/auth/pre-login/email/resend/');
     final response = await http.post(
       url,
@@ -1091,7 +1121,9 @@ class ApiService {
       return _unwrapResponseMap(response);
     }
     final ctx = _errorContextFromBody(response.body);
-    throw Exception(ctx['message']?.toString() ?? 'Failed to resend verification email');
+    throw Exception(
+      ctx['message']?.toString() ?? 'Failed to resend verification email',
+    );
   }
 
   /// POST /auth/pre-login/email/change/
@@ -1100,8 +1132,9 @@ class ApiService {
     required String password,
     required String newEmail,
   }) async {
-    final cleanBaseUrl =
-        baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final cleanBaseUrl = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
     final url = Uri.parse('$cleanBaseUrl/auth/pre-login/email/change/');
     final response = await http.post(
       url,
@@ -1124,8 +1157,9 @@ class ApiService {
     required String username,
     required String password,
   }) async {
-    final cleanBaseUrl =
-        baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final cleanBaseUrl = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
     final url = Uri.parse('$cleanBaseUrl/auth/pre-login/phone/send-otp/');
     final response = await http.post(
       url,
@@ -1136,7 +1170,9 @@ class ApiService {
       return _unwrapResponseMap(response);
     }
     final ctx = _errorContextFromBody(response.body);
-    throw Exception(ctx['message']?.toString() ?? 'Failed to send verification code');
+    throw Exception(
+      ctx['message']?.toString() ?? 'Failed to send verification code',
+    );
   }
 
   /// POST /auth/pre-login/phone/verify-otp/
@@ -1145,8 +1181,9 @@ class ApiService {
     required String password,
     required String code,
   }) async {
-    final cleanBaseUrl =
-        baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final cleanBaseUrl = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
     final url = Uri.parse('$cleanBaseUrl/auth/pre-login/phone/verify-otp/');
     final response = await http.post(
       url,
@@ -1170,8 +1207,9 @@ class ApiService {
     required String password,
     required String newPhone,
   }) async {
-    final cleanBaseUrl =
-        baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final cleanBaseUrl = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
     final url = Uri.parse('$cleanBaseUrl/auth/pre-login/phone/change/');
     final response = await http.post(
       url,
@@ -1220,7 +1258,8 @@ class ApiService {
         final data = _unwrapResponseMap(response);
 
         final requiresTwoFactorRaw = data['requires_two_factor'];
-        final requiresTwoFactor = requiresTwoFactorRaw == true ||
+        final requiresTwoFactor =
+            requiresTwoFactorRaw == true ||
             requiresTwoFactorRaw?.toString().toLowerCase() == 'true';
 
         // Owner-only: if backend requires 2FA, it will return a 2FA token but
@@ -1244,9 +1283,14 @@ class ApiService {
         final accessRaw = data['access'];
         final refreshRaw = data['refresh'];
         final access = accessRaw is String ? accessRaw : accessRaw?.toString();
-        final refresh = refreshRaw is String ? refreshRaw : refreshRaw?.toString();
+        final refresh = refreshRaw is String
+            ? refreshRaw
+            : refreshRaw?.toString();
 
-        if (access == null || access.trim().isEmpty || refresh == null || refresh.trim().isEmpty) {
+        if (access == null ||
+            access.trim().isEmpty ||
+            refresh == null ||
+            refresh.trim().isEmpty) {
           throw Exception('Login succeeded but tokens were missing');
         }
 
@@ -1266,7 +1310,9 @@ class ApiService {
         SubscriptionInactiveException? subscriptionInactiveException;
         try {
           final error = _errorContextFromBody(response.body);
-          final loginVerification = LoginVerificationRequiredException.tryParse(error);
+          final loginVerification = LoginVerificationRequiredException.tryParse(
+            error,
+          );
           if (loginVerification != null) {
             ErrorLogger().logError(
               error: loginVerification.message,
@@ -1366,7 +1412,8 @@ class ApiService {
               code: error['code'],
               message: backendMsg,
             )) {
-              final subIdRaw = error['subscriptionId'] ?? error['subscription_id'];
+              final subIdRaw =
+                  error['subscriptionId'] ?? error['subscription_id'];
               int? subId;
               if (subIdRaw is int) {
                 subId = subIdRaw;
@@ -1470,7 +1517,8 @@ class ApiService {
         final data = _unwrapResponseMap(response);
 
         final requiresTwoFactorRaw = data['requires_two_factor'];
-        final requiresTwoFactor = requiresTwoFactorRaw == true ||
+        final requiresTwoFactor =
+            requiresTwoFactorRaw == true ||
             requiresTwoFactorRaw?.toString().toLowerCase() == 'true';
 
         if (requiresTwoFactor == false &&
@@ -1487,10 +1535,7 @@ class ApiService {
               refresh: refresh,
             );
             final userResponse = await getCurrentUser();
-            return {
-              'requires_two_factor': false,
-              'user': userResponse,
-            };
+            return {'requires_two_factor': false, 'user': userResponse};
           }
         }
 
@@ -1527,7 +1572,9 @@ class ApiService {
           }
 
           // Handle special error codes FIRST - before setting generic error message
-          final loginVerification = LoginVerificationRequiredException.tryParse(error);
+          final loginVerification = LoginVerificationRequiredException.tryParse(
+            error,
+          );
           if (loginVerification != null) {
             customException = loginVerification;
           } else if (ApiEnvelope.isAccountTemporarilyInactiveSignal(
@@ -1705,7 +1752,9 @@ class ApiService {
               error['message'] ??
               errorMessage;
 
-          final loginVerification = LoginVerificationRequiredException.tryParse(error);
+          final loginVerification = LoginVerificationRequiredException.tryParse(
+            error,
+          );
           if (loginVerification != null) {
             throw loginVerification;
           }
@@ -1901,7 +1950,8 @@ class ApiService {
         request.fields['phone'] = phone;
       }
       if (loginTwoFactorEnabled != null) {
-        request.fields['login_two_factor_enabled'] = loginTwoFactorEnabled.toString();
+        request.fields['login_two_factor_enabled'] = loginTwoFactorEnabled
+            .toString();
       }
 
       if (profilePhotoPath != null && profilePhotoPath.isNotEmpty) {
@@ -2179,8 +2229,10 @@ class ApiService {
 
   /// GET /client-events/?client=:leadId
   Future<List<ClientEventModel>> getClientEvents(int leadId) async {
-    final response =
-        await _makeRequest('GET', '/client-events/?client=$leadId');
+    final response = await _makeRequest(
+      'GET',
+      '/client-events/?client=$leadId',
+    );
 
     if (response.statusCode == 200) {
       final data = _unwrapResponseMap(response);
@@ -2204,8 +2256,10 @@ class ApiService {
 
   /// GET /integrations/sms/?client=:leadId
   Future<List<LeadSmsMessageModel>> getLeadSmsMessages(int leadId) async {
-    final response =
-        await _makeRequest('GET', '/integrations/sms/?client=$leadId');
+    final response = await _makeRequest(
+      'GET',
+      '/integrations/sms/?client=$leadId',
+    );
 
     if (response.statusCode == 200) {
       final decoded = jsonDecode(response.body);
@@ -2218,9 +2272,11 @@ class ApiService {
       final resultsList = data['results'] as List?;
       return resultsList != null
           ? resultsList
-              .map((e) =>
-                  LeadSmsMessageModel.fromJson(e as Map<String, dynamic>))
-              .toList()
+                .map(
+                  (e) =>
+                      LeadSmsMessageModel.fromJson(e as Map<String, dynamic>),
+                )
+                .toList()
           : <LeadSmsMessageModel>[];
     } else {
       throw Exception(
@@ -2242,18 +2298,22 @@ class ApiService {
       final decoded = jsonDecode(response.body);
       if (decoded is List) {
         return decoded
-            .map((e) =>
-                LeadWhatsAppMessageModel.fromJson(e as Map<String, dynamic>))
+            .map(
+              (e) =>
+                  LeadWhatsAppMessageModel.fromJson(e as Map<String, dynamic>),
+            )
             .toList();
       }
       final data = _unwrapResponseMap(response);
       final resultsList = data['results'] as List?;
       return resultsList != null
           ? resultsList
-              .map((e) => LeadWhatsAppMessageModel.fromJson(
+                .map(
+                  (e) => LeadWhatsAppMessageModel.fromJson(
                     e as Map<String, dynamic>,
-                  ))
-              .toList()
+                  ),
+                )
+                .toList()
           : <LeadWhatsAppMessageModel>[];
     } else {
       throw Exception(
@@ -2287,9 +2347,11 @@ class ApiService {
     final resultsList = data['results'] as List?;
     return resultsList != null
         ? resultsList
-            .map((e) =>
-                LeadSocialMessageModel.fromJson(e as Map<String, dynamic>))
-            .toList()
+              .map(
+                (e) =>
+                    LeadSocialMessageModel.fromJson(e as Map<String, dynamic>),
+              )
+              .toList()
         : <LeadSocialMessageModel>[];
   }
 
@@ -2308,7 +2370,9 @@ class ApiService {
   }) async {
     final q = <String, String>{};
     if (status != null && status.isNotEmpty) q['status'] = status;
-    if (assignment != null && assignment.isNotEmpty) q['assignment'] = assignment;
+    if (assignment != null && assignment.isNotEmpty) {
+      q['assignment'] = assignment;
+    }
     if (agentId != null) q['agent'] = '$agentId';
     if (starred == true) q['starred'] = '1';
     if (unreplied == true) q['unreplied'] = '1';
@@ -2326,20 +2390,29 @@ class ApiService {
     if (response.statusCode == 403) {
       final err = _errorContextFromBody(response.body);
       final code =
-          (err['error_key'] ?? err['code'])?.toString() ?? 'whatsapp_access_disabled';
+          (err['error_key'] ?? err['code'])?.toString() ??
+          'whatsapp_access_disabled';
       throw WhatsAppAccessDeniedException(code: code);
     }
     if (response.statusCode != 200) {
-      throw Exception(_translateError('whatsappChatCouldNotLoad', locale: null));
+      throw Exception(
+        _translateError('whatsappChatCouldNotLoad', locale: null),
+      );
     }
     final decoded = _unwrapResponseDynamic(response);
     if (decoded is List) {
       final results = decoded
-          .map((e) => WhatsAppConversationModel.fromJson(Map<String, dynamic>.from(e as Map)))
+          .map(
+            (e) => WhatsAppConversationModel.fromJson(
+              Map<String, dynamic>.from(e as Map),
+            ),
+          )
           .toList();
       return WhatsAppConversationsPage(count: results.length, results: results);
     }
-    final map = decoded is Map ? Map<String, dynamic>.from(decoded) : <String, dynamic>{};
+    final map = decoded is Map
+        ? Map<String, dynamic>.from(decoded)
+        : <String, dynamic>{};
     final list = map['results'] as List<dynamic>? ?? [];
     final statusCounts = <String, int>{};
     final rawStatus = map['status_counts'];
@@ -2358,7 +2431,11 @@ class ApiService {
     return WhatsAppConversationsPage(
       count: (map['count'] as num?)?.toInt() ?? list.length,
       results: list
-          .map((e) => WhatsAppConversationModel.fromJson(Map<String, dynamic>.from(e as Map)))
+          .map(
+            (e) => WhatsAppConversationModel.fromJson(
+              Map<String, dynamic>.from(e as Map),
+            ),
+          )
           .toList(),
       statusCounts: statusCounts,
       assignmentCounts: assignmentCounts,
@@ -2385,7 +2462,9 @@ class ApiService {
       timeout: const Duration(seconds: 20),
     );
     if (response.statusCode != 200 && response.statusCode != 201) {
-      throw Exception(_translateError('whatsappChatCouldNotLoad', locale: null));
+      throw Exception(
+        _translateError('whatsappChatCouldNotLoad', locale: null),
+      );
     }
     final decoded = _unwrapResponseDynamic(response);
     return decoded is Map
@@ -2500,7 +2579,10 @@ class ApiService {
   }
 
   /// POST /integrations/whatsapp/conversations/mark-read/ — mark a thread read.
-  Future<void> markWhatsAppConversationRead({int? clientId, String? phone}) async {
+  Future<void> markWhatsAppConversationRead({
+    int? clientId,
+    String? phone,
+  }) async {
     final response = await _makeRequest(
       'POST',
       '/integrations/whatsapp/conversations/mark-read/',
@@ -2511,7 +2593,9 @@ class ApiService {
       timeout: const Duration(seconds: 15),
     );
     if (response.statusCode != 200) {
-      throw Exception(_translateError('whatsappChatCouldNotLoad', locale: null));
+      throw Exception(
+        _translateError('whatsappChatCouldNotLoad', locale: null),
+      );
     }
   }
 
@@ -2569,7 +2653,9 @@ class ApiService {
         '/integrations/whatsapp/unread-count/',
         timeout: const Duration(seconds: 10),
       );
-      if (response.statusCode == 403) throw const WhatsAppAccessDeniedException();
+      if (response.statusCode == 403) {
+        throw const WhatsAppAccessDeniedException();
+      }
       if (response.statusCode != 200) return 0;
       final data = _unwrapResponseMap(response);
       return (data['unread_count'] as num?)?.toInt() ?? 0;
@@ -2621,8 +2707,9 @@ class ApiService {
         : (decoded is Map ? decoded['results'] as List? : null);
     return (list ?? [])
         .whereType<Map>()
-        .map((e) =>
-            CompanyLibraryFileModel.fromJson(Map<String, dynamic>.from(e)))
+        .map(
+          (e) => CompanyLibraryFileModel.fromJson(Map<String, dynamic>.from(e)),
+        )
         .toList();
   }
 
@@ -2632,8 +2719,9 @@ class ApiService {
     int id,
     String originalFilename,
   ) async {
-    final cleanBaseUrl =
-        baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final cleanBaseUrl = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
     final bytes = await fetchAuthenticatedBinaryGet(
       '$cleanBaseUrl/company-library/$id/download/',
     );
@@ -2696,7 +2784,8 @@ class ApiService {
     );
     if (response.statusCode == 403) {
       final err = _errorContextFromBody(response.body);
-      final code = (err['error_key'] ?? err['code'])?.toString() ??
+      final code =
+          (err['error_key'] ?? err['code'])?.toString() ??
           'social_inbox_access_disabled';
       throw SocialInboxAccessDeniedException(code: code);
     }
@@ -2704,7 +2793,9 @@ class ApiService {
       throw Exception(_translateError('socialInboxCouldNotLoad', locale: null));
     }
     final decoded = _unwrapResponseDynamic(response);
-    final map = decoded is Map ? Map<String, dynamic>.from(decoded) : <String, dynamic>{};
+    final map = decoded is Map
+        ? Map<String, dynamic>.from(decoded)
+        : <String, dynamic>{};
     return SocialConversationsPage.fromJson(map);
   }
 
@@ -2717,7 +2808,8 @@ class ApiService {
     );
     if (response.statusCode == 403) {
       final err = _errorContextFromBody(response.body);
-      final code = (err['error_key'] ?? err['code'])?.toString() ??
+      final code =
+          (err['error_key'] ?? err['code'])?.toString() ??
           'social_inbox_access_disabled';
       throw SocialInboxAccessDeniedException(code: code);
     }
@@ -2725,7 +2817,9 @@ class ApiService {
       throw Exception(_translateError('socialInboxCouldNotLoad', locale: null));
     }
     final decoded = _unwrapResponseDynamic(response);
-    final map = decoded is Map ? Map<String, dynamic>.from(decoded) : <String, dynamic>{};
+    final map = decoded is Map
+        ? Map<String, dynamic>.from(decoded)
+        : <String, dynamic>{};
     final rows = map['results'] as List<dynamic>? ?? const [];
     return rows
         .whereType<Map>()
@@ -2741,7 +2835,9 @@ class ApiService {
     );
     if (response.statusCode != 200) return const SocialSendWindow();
     final decoded = _unwrapResponseDynamic(response);
-    final map = decoded is Map ? Map<String, dynamic>.from(decoded) : <String, dynamic>{};
+    final map = decoded is Map
+        ? Map<String, dynamic>.from(decoded)
+        : <String, dynamic>{};
     return SocialSendWindow.fromJson(map);
   }
 
@@ -2761,12 +2857,15 @@ class ApiService {
       // The window closing is expected, not a failure to retry blindly.
       throw SocialSendException(
         code: code,
-        message: err['message']?.toString() ??
+        message:
+            err['message']?.toString() ??
             _translateError('socialInboxCouldNotSend', locale: null),
       );
     }
     final decoded = _unwrapResponseDynamic(response);
-    final map = decoded is Map ? Map<String, dynamic>.from(decoded) : <String, dynamic>{};
+    final map = decoded is Map
+        ? Map<String, dynamic>.from(decoded)
+        : <String, dynamic>{};
     final message = map['message'];
     if (message is Map) {
       return SocialMessageModel.fromJson(Map<String, dynamic>.from(message));
@@ -2780,8 +2879,9 @@ class ApiService {
     required String filePath,
     String? text,
   }) async {
-    final cleanBaseUrl =
-        baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final cleanBaseUrl = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
     final url = Uri.parse('$cleanBaseUrl/integrations/inbox/send-media/');
     final token = await _getAccessToken();
     if (token == null) {
@@ -2804,7 +2904,8 @@ class ApiService {
       final err = _errorContextFromBody(response.body);
       throw SocialSendException(
         code: (err['error_key'] ?? err['code'])?.toString() ?? '',
-        message: err['message']?.toString() ??
+        message:
+            err['message']?.toString() ??
             _translateError('socialInboxCouldNotSend', locale: null),
       );
     }
@@ -2838,7 +2939,9 @@ class ApiService {
       body: body,
     );
     if (response.statusCode != 200) {
-      throw Exception(_translateError('socialInboxCouldNotUpdate', locale: null));
+      throw Exception(
+        _translateError('socialInboxCouldNotUpdate', locale: null),
+      );
     }
   }
 
@@ -2853,13 +2956,17 @@ class ApiService {
       body: {'name': name.trim()},
     );
     if (response.statusCode != 200) {
-      throw Exception(_translateError('socialInboxCouldNotUpdate', locale: null));
+      throw Exception(
+        _translateError('socialInboxCouldNotUpdate', locale: null),
+      );
     }
     final decoded = jsonDecode(response.body);
     final data = decoded is Map ? (decoded['data'] ?? decoded) : decoded;
     final contactJson = data is Map ? data['contact'] : null;
     if (contactJson is! Map<String, dynamic>) {
-      throw Exception(_translateError('socialInboxCouldNotUpdate', locale: null));
+      throw Exception(
+        _translateError('socialInboxCouldNotUpdate', locale: null),
+      );
     }
     return SocialContactModel.fromJson(contactJson);
   }
@@ -2891,12 +2998,15 @@ class ApiService {
       final err = _errorContextFromBody(response.body);
       throw SocialSendException(
         code: (err['error_key'] ?? err['code'])?.toString() ?? '',
-        message: err['message']?.toString() ??
+        message:
+            err['message']?.toString() ??
             _translateError('socialInboxCouldNotConvert', locale: null),
       );
     }
     final decoded = _unwrapResponseDynamic(response);
-    return decoded is Map ? Map<String, dynamic>.from(decoded) : <String, dynamic>{};
+    return decoded is Map
+        ? Map<String, dynamic>.from(decoded)
+        : <String, dynamic>{};
   }
 
   /// POST /integrations/inbox/send-location/
@@ -2915,14 +3025,16 @@ class ApiService {
         'latitude': latitude,
         'longitude': longitude,
         if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
-        if (address != null && address.trim().isNotEmpty) 'address': address.trim(),
+        if (address != null && address.trim().isNotEmpty)
+          'address': address.trim(),
       },
     );
     if (response.statusCode != 200 && response.statusCode != 201) {
       final err = _errorContextFromBody(response.body);
       throw SocialSendException(
         code: (err['error_key'] ?? err['code'])?.toString() ?? '',
-        message: err['message']?.toString() ??
+        message:
+            err['message']?.toString() ??
             _translateError('socialInboxCouldNotSend', locale: null),
       );
     }
@@ -2947,7 +3059,8 @@ class ApiService {
       final err = _errorContextFromBody(response.body);
       throw SocialSendException(
         code: (err['error_key'] ?? err['code'])?.toString() ?? '',
-        message: err['message']?.toString() ??
+        message:
+            err['message']?.toString() ??
             _translateError('socialInboxCouldNotSend', locale: null),
       );
     }
@@ -2960,7 +3073,9 @@ class ApiService {
       '/integrations/inbox/conversations/$conversationId/',
     );
     if (response.statusCode != 200 && response.statusCode != 204) {
-      throw Exception(_translateError('socialInboxCouldNotUpdate', locale: null));
+      throw Exception(
+        _translateError('socialInboxCouldNotUpdate', locale: null),
+      );
     }
   }
 
@@ -2974,7 +3089,9 @@ class ApiService {
     );
     if (response.statusCode != 200) return const [];
     final decoded = _unwrapResponseDynamic(response);
-    final map = decoded is Map ? Map<String, dynamic>.from(decoded) : <String, dynamic>{};
+    final map = decoded is Map
+        ? Map<String, dynamic>.from(decoded)
+        : <String, dynamic>{};
     final rows = map['results'] as List<dynamic>? ?? const [];
     return rows
         .whereType<Map>()
@@ -2985,10 +3102,15 @@ class ApiService {
   /// GET /integrations/inbox/unread-count/
   Future<int> getSocialInboxUnreadCount() async {
     try {
-      final response = await _makeRequest('GET', '/integrations/inbox/unread-count/');
+      final response = await _makeRequest(
+        'GET',
+        '/integrations/inbox/unread-count/',
+      );
       if (response.statusCode != 200) return 0;
       final decoded = _unwrapResponseDynamic(response);
-      final map = decoded is Map ? Map<String, dynamic>.from(decoded) : <String, dynamic>{};
+      final map = decoded is Map
+          ? Map<String, dynamic>.from(decoded)
+          : <String, dynamic>{};
       return (map['unread'] as num?)?.toInt() ?? 0;
     } catch (_) {
       return 0;
@@ -2997,8 +3119,9 @@ class ApiService {
 
   /// Auth-gated attachment URL - media inherits the thread's ACL.
   String socialMessageAttachmentUrl(int messageId) {
-    final cleanBaseUrl =
-        baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final cleanBaseUrl = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
     return '$cleanBaseUrl/integrations/inbox/messages/$messageId/attachment/';
   }
 
@@ -3031,15 +3154,21 @@ class ApiService {
     final decoded = jsonDecode(response.body);
     if (decoded is List) {
       return decoded
-          .map((e) => LeadWhatsAppMessageModel.fromJson(e as Map<String, dynamic>))
+          .map(
+            (e) => LeadWhatsAppMessageModel.fromJson(e as Map<String, dynamic>),
+          )
           .toList();
     }
     final data = _unwrapResponseMap(response);
     final resultsList = data['results'] as List?;
     return resultsList != null
         ? resultsList
-            .map((e) => LeadWhatsAppMessageModel.fromJson(e as Map<String, dynamic>))
-            .toList()
+              .map(
+                (e) => LeadWhatsAppMessageModel.fromJson(
+                  e as Map<String, dynamic>,
+                ),
+              )
+              .toList()
         : <LeadWhatsAppMessageModel>[];
   }
 
@@ -3051,12 +3180,17 @@ class ApiService {
       timeout: const Duration(seconds: 20),
     );
     if (response.statusCode != 200 && response.statusCode != 204) {
-      throw Exception(_translateError('whatsappChatCouldNotSend', locale: null));
+      throw Exception(
+        _translateError('whatsappChatCouldNotSend', locale: null),
+      );
     }
   }
 
   /// DELETE /integrations/whatsapp/conversations/?client= | ?phone=
-  Future<void> deleteWhatsAppConversation({int? clientId, String? phone}) async {
+  Future<void> deleteWhatsAppConversation({
+    int? clientId,
+    String? phone,
+  }) async {
     final parts = <String>[];
     if (clientId != null) parts.add('client=$clientId');
     final digits = (phone ?? '').replaceAll(RegExp(r'\D'), '');
@@ -3068,7 +3202,9 @@ class ApiService {
       timeout: const Duration(seconds: 30),
     );
     if (response.statusCode != 200 && response.statusCode != 204) {
-      throw Exception(_translateError('whatsappChatCouldNotLoad', locale: null));
+      throw Exception(
+        _translateError('whatsappChatCouldNotLoad', locale: null),
+      );
     }
   }
 
@@ -3086,7 +3222,9 @@ class ApiService {
       throw Exception('whatsapp_contact_not_found');
     }
     if (response.statusCode != 200) {
-      throw Exception(_translateError('whatsappChatCouldNotLoad', locale: null));
+      throw Exception(
+        _translateError('whatsappChatCouldNotLoad', locale: null),
+      );
     }
     final decoded = _unwrapResponseDynamic(response);
     if (decoded == null) return null;
@@ -3159,14 +3297,20 @@ class ApiService {
 
   /// GET/POST /integrations/whatsapp/calls/agent-status/
   Future<Map<String, dynamic>> getWhatsAppAgentStatus() async {
-    final response = await _makeRequest('GET', '/integrations/whatsapp/calls/agent-status/');
+    final response = await _makeRequest(
+      'GET',
+      '/integrations/whatsapp/calls/agent-status/',
+    );
     if (response.statusCode != 200) return {'status': 'ready'};
     final decoded = _unwrapResponseDynamic(response);
     if (decoded is Map) return Map<String, dynamic>.from(decoded);
     return {'status': 'ready'};
   }
 
-  Future<void> setWhatsAppAgentStatus({String status = 'ready', int? durationMinutes}) async {
+  Future<void> setWhatsAppAgentStatus({
+    String status = 'ready',
+    int? durationMinutes,
+  }) async {
     await _makeRequest(
       'POST',
       '/integrations/whatsapp/calls/agent-status/',
@@ -3185,14 +3329,20 @@ class ApiService {
       timeout: const Duration(seconds: 25),
     );
     if (response.statusCode != 200) {
-      throw Exception(_translateError('whatsappChatCouldNotLoad', locale: null));
+      throw Exception(
+        _translateError('whatsappChatCouldNotLoad', locale: null),
+      );
     }
     final decoded = _unwrapResponseDynamic(response);
     final list = decoded is List
         ? decoded
         : (decoded is Map ? decoded['results'] as List? : null);
     return (list ?? [])
-        .map((e) => WhatsAppTemplateModel.fromJson(Map<String, dynamic>.from(e as Map)))
+        .map(
+          (e) => WhatsAppTemplateModel.fromJson(
+            Map<String, dynamic>.from(e as Map),
+          ),
+        )
         .where((t) => t.isWhatsApp && t.isApproved)
         .toList();
   }
@@ -3405,7 +3555,6 @@ class ApiService {
     }
   }
 
-
   // Get client calls for a lead
   Future<List<ClientCallModel>> getClientCalls(int leadId) async {
     final response = await _makeRequest('GET', '/client-calls/?client=$leadId');
@@ -3455,15 +3604,20 @@ class ApiService {
   }
 
   Future<List<ClientVisitModel>> getClientVisits(int leadId) async {
-    final response = await _makeRequest('GET', '/client-visits/?client=$leadId');
+    final response = await _makeRequest(
+      'GET',
+      '/client-visits/?client=$leadId',
+    );
 
     if (response.statusCode == 200) {
       final data = _unwrapResponseMap(response);
       final resultsList = data['results'] as List?;
       final results = resultsList != null
           ? resultsList
-              .map((e) => ClientVisitModel.fromJson(e as Map<String, dynamic>))
-              .toList()
+                .map(
+                  (e) => ClientVisitModel.fromJson(e as Map<String, dynamic>),
+                )
+                .toList()
           : <ClientVisitModel>[];
       return results;
     } else {
@@ -3490,8 +3644,11 @@ class ApiService {
       final resultsList = data['results'] as List?;
       final results = resultsList != null
           ? resultsList
-              .map((e) => ClientFieldVisitModel.fromJson(e as Map<String, dynamic>))
-              .toList()
+                .map(
+                  (e) =>
+                      ClientFieldVisitModel.fromJson(e as Map<String, dynamic>),
+                )
+                .toList()
           : <ClientFieldVisitModel>[];
       return results;
     } else {
@@ -3528,7 +3685,11 @@ class ApiService {
         body['upcoming_visit_date'] = upcomingVisitDate.toIso8601String();
       }
 
-      final response = await _makeRequest('POST', '/client-field-visits/', body: body);
+      final response = await _makeRequest(
+        'POST',
+        '/client-field-visits/',
+        body: body,
+      );
       if (response.statusCode == 201) {
         final data = _unwrapResponseMap(response);
         return ClientFieldVisitModel.fromJson(data);
@@ -3556,14 +3717,16 @@ class ApiService {
       request.fields['summary'] = summary;
       request.fields['visit_datetime'] = visitDatetime.toIso8601String();
       request.fields['employee_latitude'] = employeeLatitude.toStringAsFixed(6);
-      request.fields['employee_longitude'] = employeeLongitude.toStringAsFixed(6);
+      request.fields['employee_longitude'] = employeeLongitude.toStringAsFixed(
+        6,
+      );
       if (employeeLocationAccuracy != null) {
-        request.fields['employee_location_accuracy'] =
-            employeeLocationAccuracy.toString();
+        request.fields['employee_location_accuracy'] = employeeLocationAccuracy
+            .toString();
       }
       if (upcomingVisitDate != null) {
-        request.fields['upcoming_visit_date'] =
-            upcomingVisitDate.toIso8601String();
+        request.fields['upcoming_visit_date'] = upcomingVisitDate
+            .toIso8601String();
       }
       request.files.add(
         await http.MultipartFile.fromPath(
@@ -3704,7 +3867,9 @@ class ApiService {
 
     // Always send lead_company_name when provided (including null/empty to clear)
     if (leadCompanyName != null) {
-      body['lead_company_name'] = leadCompanyName.trim().isEmpty ? null : leadCompanyName.trim();
+      body['lead_company_name'] = leadCompanyName.trim().isEmpty
+          ? null
+          : leadCompanyName.trim();
     }
     if (profession != null) {
       body['profession'] = profession.trim().isEmpty ? null : profession.trim();
@@ -3741,7 +3906,9 @@ class ApiService {
       _invalidateLeadsCache();
       return CreateLeadResult(
         lead: lead,
-        urgentAssignmentWarning: warning != null && warning.isNotEmpty ? warning : null,
+        urgentAssignmentWarning: warning != null && warning.isNotEmpty
+            ? warning
+            : null,
       );
     } else {
       final error = _errorContextFromBody(response.body);
@@ -3767,6 +3934,7 @@ class ApiService {
     int? statusId, // Preferred: status ID
     /// Required by the API when the target status is flagged in settings.
     String? statusChangeReason,
+
     /// Full replacement set; omit to leave the lead's tags untouched.
     List<int>? tagIds,
     String? leadCompanyName,
@@ -3814,7 +3982,9 @@ class ApiService {
 
     // Always send lead_company_name when provided (so API can set or clear the field)
     if (leadCompanyName != null) {
-      body['lead_company_name'] = leadCompanyName.trim().isEmpty ? null : leadCompanyName.trim();
+      body['lead_company_name'] = leadCompanyName.trim().isEmpty
+          ? null
+          : leadCompanyName.trim();
     }
     if (profession != null) {
       body['profession'] = profession.trim().isEmpty ? null : profession.trim();
@@ -4083,8 +4253,7 @@ class ApiService {
         fallbackKey: 'failedToLoadDeals',
       );
     } catch (_) {
-      errorMessage =
-          'Failed to load deal with status ${response.statusCode}';
+      errorMessage = 'Failed to load deal with status ${response.statusCode}';
     }
     throw Exception(errorMessage);
   }
@@ -4106,7 +4275,10 @@ class ApiService {
           fallbackKey: 'failedToCreateDeal',
         );
       } catch (_) {
-        errorMessage = _translateError('failedToCreateDealWithStatus', locale: null);
+        errorMessage = _translateError(
+          'failedToCreateDealWithStatus',
+          locale: null,
+        );
       }
       throw Exception(errorMessage);
     }
@@ -4172,7 +4344,9 @@ class ApiService {
     final data = _unwrapResponseDynamic(response);
     final rows = data is List
         ? data
-        : (data is Map && data['results'] is List ? data['results'] as List : const []);
+        : (data is Map && data['results'] is List
+              ? data['results'] as List
+              : const []);
     final pipelines = rows
         .whereType<Map<String, dynamic>>()
         .map(DealPipelineModel.fromJson)
@@ -4200,7 +4374,9 @@ class ApiService {
     final data = _unwrapResponseDynamic(response);
     final rows = data is List
         ? data
-        : (data is Map && data['results'] is List ? data['results'] as List : const []);
+        : (data is Map && data['results'] is List
+              ? data['results'] as List
+              : const []);
     final reasons = rows
         .whereType<Map<String, dynamic>>()
         .map(DealLostReasonModel.fromJson)
@@ -4372,10 +4548,7 @@ class ApiService {
         _translateError('userMustBeAssociatedWithCompany', locale: null),
       );
     }
-    return {
-      'is_default': true,
-      'company': currentUser.company!.id,
-    };
+    return {'is_default': true, 'company': currentUser.company!.id};
   }
 
   Future<ChannelModel> patchChannel(
@@ -4585,10 +4758,7 @@ class ApiService {
     }
   }
 
-  Future<StageModel> patchStage(
-    int stageId,
-    Map<String, dynamic> data,
-  ) async {
+  Future<StageModel> patchStage(int stageId, Map<String, dynamic> data) async {
     final response = await _makeRequest(
       'PATCH',
       '/settings/stages/$stageId/',
@@ -4889,7 +5059,10 @@ class ApiService {
     Duration cacheTtl = _defaultCacheTtl,
   }) async {
     const cacheKey = 'settings_tags';
-    final cached = _cacheGet<List<TagModel>>(cacheKey, forceRefresh: forceRefresh);
+    final cached = _cacheGet<List<TagModel>>(
+      cacheKey,
+      forceRefresh: forceRefresh,
+    );
     if (cached != null) return cached;
     final response = await _makeRequest('GET', '/settings/tags/');
 
@@ -5197,19 +5370,27 @@ class ApiService {
       final data = _unwrapResponseDynamic(response);
       if (data is List) {
         final visitTypes = data
-            .map((item) => VisitTypeModel.fromJson(item as Map<String, dynamic>))
+            .map(
+              (item) => VisitTypeModel.fromJson(item as Map<String, dynamic>),
+            )
             .toList();
         _cacheSet<List<VisitTypeModel>>(cacheKey, visitTypes, ttl: cacheTtl);
         return visitTypes;
       } else if (data is Map && data['results'] != null) {
         final results = data['results'] as List;
         final visitTypes = results
-            .map((item) => VisitTypeModel.fromJson(item as Map<String, dynamic>))
+            .map(
+              (item) => VisitTypeModel.fromJson(item as Map<String, dynamic>),
+            )
             .toList();
         _cacheSet<List<VisitTypeModel>>(cacheKey, visitTypes, ttl: cacheTtl);
         return visitTypes;
       }
-      _cacheSet<List<VisitTypeModel>>(cacheKey, <VisitTypeModel>[], ttl: cacheTtl);
+      _cacheSet<List<VisitTypeModel>>(
+        cacheKey,
+        <VisitTypeModel>[],
+        ttl: cacheTtl,
+      );
       return [];
     } else {
       throw Exception(_translateError('failedToGetVisitTypes', locale: null));
@@ -5359,7 +5540,10 @@ class ApiService {
     Duration cacheTtl = _defaultCacheTtl,
   }) async {
     const cacheKey = 'inventory_developers';
-    final cached = _cacheGet<List<Developer>>(cacheKey, forceRefresh: forceRefresh);
+    final cached = _cacheGet<List<Developer>>(
+      cacheKey,
+      forceRefresh: forceRefresh,
+    );
     if (cached != null) return cached;
     final response = await _makeRequest('GET', '/developers/');
     if (response.statusCode == 200) {
@@ -5380,7 +5564,10 @@ class ApiService {
     Duration cacheTtl = _defaultCacheTtl,
   }) async {
     const cacheKey = 'inventory_projects';
-    final cached = _cacheGet<List<Project>>(cacheKey, forceRefresh: forceRefresh);
+    final cached = _cacheGet<List<Project>>(
+      cacheKey,
+      forceRefresh: forceRefresh,
+    );
     if (cached != null) return cached;
     final response = await _makeRequest('GET', '/projects/');
     if (response.statusCode == 200) {
@@ -5445,7 +5632,10 @@ class ApiService {
     Duration cacheTtl = _defaultCacheTtl,
   }) async {
     const cacheKey = 'inventory_services';
-    final cached = _cacheGet<List<Service>>(cacheKey, forceRefresh: forceRefresh);
+    final cached = _cacheGet<List<Service>>(
+      cacheKey,
+      forceRefresh: forceRefresh,
+    );
     if (cached != null) return cached;
     final response = await _makeRequest('GET', '/services/');
     if (response.statusCode == 200) {
@@ -5520,7 +5710,10 @@ class ApiService {
     Duration cacheTtl = _defaultCacheTtl,
   }) async {
     const cacheKey = 'inventory_products';
-    final cached = _cacheGet<List<Product>>(cacheKey, forceRefresh: forceRefresh);
+    final cached = _cacheGet<List<Product>>(
+      cacheKey,
+      forceRefresh: forceRefresh,
+    );
     if (cached != null) return cached;
     final response = await _makeRequest('GET', '/products/');
     if (response.statusCode == 200) {
@@ -5567,7 +5760,10 @@ class ApiService {
     Duration cacheTtl = _defaultCacheTtl,
   }) async {
     const cacheKey = 'inventory_suppliers';
-    final cached = _cacheGet<List<Supplier>>(cacheKey, forceRefresh: forceRefresh);
+    final cached = _cacheGet<List<Supplier>>(
+      cacheKey,
+      forceRefresh: forceRefresh,
+    );
     if (cached != null) return cached;
     final response = await _makeRequest('GET', '/suppliers/');
     if (response.statusCode == 200) {
@@ -6088,8 +6284,9 @@ class ApiService {
     final queryParams = <String, String>{};
     if (page != null) queryParams['page'] = page.toString();
     queryParams['page_size'] = pageSize.toString();
-    final queryString =
-        queryParams.isEmpty ? '' : '?${queryParams.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&')}';
+    final queryString = queryParams.isEmpty
+        ? ''
+        : '?${queryParams.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&')}';
     final cacheKey = _cacheKey('support_tickets', queryParams);
     final cached = _cacheGet<Map<String, dynamic>>(
       cacheKey,
@@ -6208,22 +6405,173 @@ class ApiService {
     headers['X-Client-Platform'] = 'mobile';
     final prefs = await SharedPreferences.getInstance();
     final languageCode = prefs.getString(AppConstants.languageKey) ?? 'en';
-    headers['X-Language'] =
-        (languageCode == 'ar' || languageCode == 'en') ? languageCode : 'en';
+    headers['X-Language'] = (languageCode == 'ar' || languageCode == 'en')
+        ? languageCode
+        : 'en';
     final token = await _getAccessToken();
     if (token != null) {
       headers['Authorization'] = 'Bearer $token';
     }
-    final trustedDeviceToken =
-        await AuthTokenStorage.instance.readTrustedDeviceToken();
+    final trustedDeviceToken = await AuthTokenStorage.instance
+        .readTrustedDeviceToken();
     if (trustedDeviceToken != null && trustedDeviceToken.trim().isNotEmpty) {
       headers['X-Owner-Trusted-Device'] = trustedDeviceToken.trim();
     }
     return headers;
   }
 
+  /// Loop Cloud PBX: a 5-minute, audit-logged playback URL for one recording
+  /// (visibility is re-checked server-side on every request).
+  Future<String> fetchPbxRecordingAccessUrl(String recordingId) async {
+    final response = await _makeRequest(
+      'POST',
+      '/telephony/recordings/$recordingId/access/',
+    );
+    if (response.statusCode != 200) {
+      throw Exception('HTTP ${response.statusCode}');
+    }
+    final url = _unwrapResponseMap(response)['url'] as String?;
+    if (url == null || url.isEmpty) throw Exception('no recording url');
+    return url;
+  }
+
+  /// Whether the shared company policy explicitly enables the PBX pilot.
+  ///
+  /// A successful response with no enabled telephony entry is a denial. HTTP
+  /// and decoding failures throw so callers can use `/telephony/me/` as the
+  /// same failure fallback as the tenant web.
+  Future<bool> getTelephonyPolicyEnabled() async {
+    final response = await _makeRequest(
+      'GET',
+      '/integrations/policy/',
+      timeout: const Duration(seconds: 10),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('HTTP ${response.statusCode}');
+    }
+    final policies = _unwrapResponseMap(response);
+    final telephony = policies['telephony'];
+    if (telephony is! Map) return false;
+    return telephony['enabled'] == true;
+  }
+
+  /// Loop Cloud PBX: the caller's extension and what the phone system offers
+  /// them. Null when the company has no phone system (403: no plan feature or
+  /// kill switch) or the request fails; callers fall back to `tel:`.
+  Future<PbxMe?> getTelephonyMe() async {
+    try {
+      final response = await _makeRequest(
+        'GET',
+        '/telephony/me/',
+        timeout: const Duration(seconds: 10),
+      );
+      if (response.statusCode != 200) return null;
+      return PbxMe.fromJson(_unwrapResponseMap(response));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Phone-system call history, newest first (cursor pages; visibility is
+  /// enforced server-side). [missedOnly] keeps inbound missed, unanswered and
+  /// abandoned calls.
+  Future<PbxCallsPage> getPbxCalls({
+    String? cursor,
+    bool missedOnly = false,
+    int limit = 30,
+  }) async {
+    final q = <String, String>{'limit': '$limit', 'page': '1'};
+    if (cursor != null && cursor.isNotEmpty) q['cursor'] = cursor;
+    if (missedOnly) {
+      q['direction'] = 'inbound';
+      q['status'] = PbxCallRecord.missedStatuses.join(',');
+    }
+    final response = await _makeRequest(
+      'GET',
+      '/telephony/calls/?${Uri(queryParameters: q).query}',
+    );
+    if (response.statusCode != 200) {
+      throw Exception('HTTP ${response.statusCode}');
+    }
+    final data = _unwrapResponseMap(response);
+    final results = (data['results'] as List<dynamic>? ?? [])
+        .map((e) => PbxCallRecord.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+    return PbxCallsPage(
+      results: results,
+      nextCursor: PbxCallsPage.cursorFromNextUrl(data['next']?.toString()),
+    );
+  }
+
+  /// Recording ids of one call (`GET /telephony/calls/<id>/recordings/`).
+  Future<List<String>> getPbxCallRecordingIds(String callId) async {
+    final response = await _makeRequest(
+      'GET',
+      '/telephony/calls/$callId/recordings/',
+    );
+    if (response.statusCode != 200) {
+      throw Exception('HTTP ${response.statusCode}');
+    }
+    final data = _unwrapResponseDynamic(response);
+    final rows = data is List
+        ? data
+        : (data is Map ? (data['results'] as List? ?? const []) : const []);
+    return rows
+        .map((e) => (e as Map)['id']?.toString() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toList();
+  }
+
+  /// Click-to-call (`POST /telephony/calls/`): the node rings the agent's own
+  /// phone first, then [destination]. [idempotencyKey] makes a retry return
+  /// the same call instead of dialling twice.
+  Future<PbxPlaceCallResult> placePbxCall({
+    required String destination,
+    int? crmContactId,
+    required String idempotencyKey,
+  }) async {
+    try {
+      final response = await _makeRequest(
+        'POST',
+        '/telephony/calls/',
+        body: {
+          'destination': destination,
+          if (crmContactId != null) 'crm_contact_id': crmContactId,
+        },
+        extraHeaders: {'Idempotency-Key': idempotencyKey},
+        timeout: const Duration(seconds: 20),
+      );
+      if (response.statusCode == 202 || response.statusCode == 200) {
+        return const PbxPlaceCallResult.ok();
+      }
+      final code = _errorContextFromBody(response.body)['code']?.toString();
+      return PbxPlaceCallResult.refused(code ?? 'http_${response.statusCode}');
+    } catch (_) {
+      return const PbxPlaceCallResult.refused('pbx_unavailable');
+    }
+  }
+
+  /// Download a presigned URL: no Authorization header (object storage would reject it).
+  Future<Uint8List> fetchPresignedBinaryGet(String absoluteUrl) async {
+    final response = await http
+        .get(Uri.parse(absoluteUrl))
+        .timeout(const Duration(seconds: 60));
+    if (response.statusCode == 200) return response.bodyBytes;
+    throw Exception('HTTP ${response.statusCode}');
+  }
+
   /// Download bytes from an absolute URL (e.g. [TenantChatMessage.attachmentUrl]) with auth.
   Future<Uint8List> fetchAuthenticatedBinaryGet(String absoluteUrl) async {
+    // Object-storage URLs (presigned R2 GETs from the API) carry their own
+    // signature. Never send our token to another host; R2 also rejects a request
+    // with both a header and a query signature. CRM-api-1 docs/STORAGE.md.
+    if (!isApiOriginUrl(absoluteUrl, baseUrl)) {
+      final response = await http
+          .get(Uri.parse(absoluteUrl))
+          .timeout(const Duration(seconds: 60));
+      if (response.statusCode == 200) return response.bodyBytes;
+      throw Exception('HTTP ${response.statusCode}');
+    }
     Future<Uint8List> once(Map<String, String> headers) async {
       final uri = Uri.parse(absoluteUrl);
       final response = await http
@@ -6259,8 +6607,9 @@ class ApiService {
   Future<TenantChatConversationsPage> getTenantChatConversations() {
     final existing = _conversationsInFlight;
     if (existing != null) return existing;
-    final future = _getTenantChatConversations()
-        .whenComplete(() => _conversationsInFlight = null);
+    final future = _getTenantChatConversations().whenComplete(
+      () => _conversationsInFlight = null,
+    );
     _conversationsInFlight = future;
     return future;
   }
@@ -6276,8 +6625,11 @@ class ApiService {
     }
     final data = _unwrapResponseMap(response);
     final results = (data['results'] as List<dynamic>? ?? [])
-        .map((e) =>
-            TenantChatConversation.fromJson(Map<String, dynamic>.from(e as Map)))
+        .map(
+          (e) => TenantChatConversation.fromJson(
+            Map<String, dynamic>.from(e as Map),
+          ),
+        )
         .toList();
     return TenantChatConversationsPage(
       count: (data['count'] as num?)?.toInt() ?? results.length,
@@ -6298,7 +6650,9 @@ class ApiService {
     }
     final data = _unwrapResponseMap(response);
     final results = (data['results'] as List<dynamic>? ?? [])
-        .map((e) => TenantChatPeer.fromJson(Map<String, dynamic>.from(e as Map)))
+        .map(
+          (e) => TenantChatPeer.fromJson(Map<String, dynamic>.from(e as Map)),
+        )
         .toList();
     return TenantChatPeersPage(
       count: (data['count'] as num?)?.toInt() ?? results.length,
@@ -6306,7 +6660,9 @@ class ApiService {
     );
   }
 
-  Future<TenantChatConversation> startTenantChatConversation(int withUserId) async {
+  Future<TenantChatConversation> startTenantChatConversation(
+    int withUserId,
+  ) async {
     final response = await _makeRequest(
       'POST',
       '/tenant-chat/conversations/',
@@ -6335,7 +6691,9 @@ class ApiService {
     if (beforeId != null) qp['before_id'] = '$beforeId';
     if (afterId != null) qp['after_id'] = '$afterId';
     if (aroundId != null) qp['around_id'] = '$aroundId';
-    final q = qp.entries.map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value)}').join('&');
+    final q = qp.entries
+        .map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value)}')
+        .join('&');
     final response = await _makeRequest(
       'GET',
       '/tenant-chat/conversations/$conversationId/messages/${q.isEmpty ? '' : '?$q'}',
@@ -6346,8 +6704,10 @@ class ApiService {
     }
     final data = _unwrapResponseMap(response);
     final results = (data['results'] as List<dynamic>? ?? [])
-        .map((e) =>
-            TenantChatMessage.fromJson(Map<String, dynamic>.from(e as Map)))
+        .map(
+          (e) =>
+              TenantChatMessage.fromJson(Map<String, dynamic>.from(e as Map)),
+        )
         .toList();
     return TenantChatMessagesPage(
       count: (data['count'] as num?)?.toInt() ?? results.length,
@@ -6413,8 +6773,8 @@ class ApiService {
     final languageCode = prefs.getString(AppConstants.languageKey) ?? 'en';
     request.headers['X-Language'] =
         (languageCode == 'ar' || languageCode == 'en') ? languageCode : 'en';
-    final trustedDeviceToken =
-        await AuthTokenStorage.instance.readTrustedDeviceToken();
+    final trustedDeviceToken = await AuthTokenStorage.instance
+        .readTrustedDeviceToken();
     if (trustedDeviceToken != null && trustedDeviceToken.trim().isNotEmpty) {
       request.headers['X-Owner-Trusted-Device'] = trustedDeviceToken.trim();
     }
@@ -6644,7 +7004,10 @@ class ApiService {
         if (success) {
           final decoded = _unwrapResponseMap(response);
           message =
-              (decoded['message'] ?? decoded['detail'] ?? decoded['error'] ?? '')
+              (decoded['message'] ??
+                      decoded['detail'] ??
+                      decoded['error'] ??
+                      '')
                   .toString();
           if (message.isEmpty) {
             message = response.body;
@@ -6662,11 +7025,7 @@ class ApiService {
         'message': message,
       };
     } catch (e) {
-      return {
-        'success': false,
-        'status_code': null,
-        'message': e.toString(),
-      };
+      return {'success': false, 'status_code': null, 'message': e.toString()};
     }
   }
 
@@ -6720,11 +7079,7 @@ class ApiService {
   /// إرسال تقرير تشخيص FCM الكامل للخادم (جميع الخطوات)
   Future<void> sendFcmDiagnosticsFull(Map<String, dynamic> payload) async {
     try {
-      await _makeRequest(
-        'POST',
-        '/users/fcm-diagnostics-full/',
-        body: payload,
-      );
+      await _makeRequest('POST', '/users/fcm-diagnostics-full/', body: payload);
     } catch (e) {
       debugPrint('Failed to send FCM full diagnostics: $e');
     }
@@ -6869,10 +7224,7 @@ class ApiService {
             .join('&');
         endpoint += '?$queryString';
       }
-      final cacheKey = _cacheKey('notifications', {
-        'read': read,
-        'type': type,
-      });
+      final cacheKey = _cacheKey('notifications', {'read': read, 'type': type});
       final cached = _cacheGet<List<Map<String, dynamic>>>(
         cacheKey,
         forceRefresh: forceRefresh,
@@ -7080,10 +7432,7 @@ class ApiService {
 }
 
 class _CacheEntry<T> {
-  _CacheEntry({
-    required this.value,
-    required this.expiresAt,
-  });
+  _CacheEntry({required this.value, required this.expiresAt});
 
   final T value;
   final DateTime expiresAt;

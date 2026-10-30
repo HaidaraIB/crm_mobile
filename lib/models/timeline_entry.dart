@@ -80,6 +80,9 @@ class TimelineEntry {
   /// Optional: WhatsApp call recording playback URL.
   final String? recordingUrl;
   final String? recordingStatus;
+  /// Loop Cloud PBX recording: played through the audited access endpoint
+  /// (`POST /telephony/recordings/<id>/access/`), never a stored URL.
+  final String? pbxRecordingId;
   /// Direction for individual WhatsApp / social rows (before thread collapse).
   final String? direction;
   /// Messages inside a collapsed WhatsApp or social conversation block.
@@ -111,6 +114,7 @@ class TimelineEntry {
     this.locationPhotoUrl,
     this.recordingUrl,
     this.recordingStatus,
+    this.pbxRecordingId,
     this.direction,
     this.messages,
     this.socialChannel,

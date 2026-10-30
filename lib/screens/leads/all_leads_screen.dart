@@ -39,6 +39,7 @@ import 'lead_profile_screen.dart';
 import '../../services/leads_excel_service.dart';
 import '../../utils/whatsapp_launch.dart';
 import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
+import '../../services/pbx_call_launcher.dart';
 
 /// Label/checkmark color on selected filter chips (readable on tinted fills).
 Color _filterChipOnBase(Color baseColor) {
@@ -1532,7 +1533,7 @@ class _AllLeadsScreenState extends State<AllLeadsScreen> {
                           _LeadQuickActions(
                             lead: lead,
                             onWhatsapp: () => _openWhatsApp(lead),
-                            onCall: () => _makeCall(resolvePrimaryPhone(lead)),
+                            onCall: () => PbxCallLauncher.call(context, phone: resolvePrimaryPhone(lead), leadId: lead.id, dialer: _makeCall),
                             onSms: () => _showSendSMSModal(lead),
                           ),
 

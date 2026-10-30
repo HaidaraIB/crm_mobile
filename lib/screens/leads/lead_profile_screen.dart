@@ -52,6 +52,7 @@ import '../../widgets/scrolling_single_line_text.dart';
 import '../../widgets/lead_location_map_picker.dart';
 import '../../widgets/lead_timeline.dart';
 import 'edit_lead_screen.dart';
+import '../../services/pbx_call_launcher.dart';
 
 class LeadProfileScreen extends StatefulWidget {
   final int leadId;
@@ -1264,7 +1265,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
         LeadContactActionButton(
           accentColor: AppTheme.primaryColor,
           icon: Icons.phone_outlined,
-          onPressed: () => _makeCall(primaryPhone),
+          onPressed: () => PbxCallLauncher.call(context, phone: primaryPhone, leadId: widget.leadId, dialer: _makeCall),
         ),
         const SizedBox(width: 8),
         LeadContactActionButton(
@@ -2043,7 +2044,7 @@ class _LeadProfileScreenState extends State<LeadProfileScreen> {
           LeadContactActionButton(
             accentColor: AppTheme.primaryColor,
             icon: Icons.phone_outlined,
-            onPressed: () => _makeCall(phone.phoneNumber),
+            onPressed: () => PbxCallLauncher.call(context, phone: phone.phoneNumber, leadId: widget.leadId, dialer: _makeCall),
           ),
           const SizedBox(width: 8),
           // SMS Button

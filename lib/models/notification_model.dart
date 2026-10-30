@@ -60,6 +60,13 @@ enum NotificationType {
   taskCompleted, // تم إكمال مهمة
   /// 📞 تذكير مكالمة
   callReminder, // تذكير بموعد مكالمة متابعة
+  /// Loop Cloud PBX: an inbound call nobody answered (`pbx_call_missed`)
+  pbxCallMissed,
+  /// Loop Cloud PBX: a trunk or GSM gateway went down / came back (`pbx_trunk_down` / `pbx_trunk_recovered`)
+  pbxTrunkDown,
+  pbxTrunkRecovered,
+  /// Loop Cloud PBX: someone in the company dialled an emergency number (`pbx_emergency_call`)
+  pbxEmergencyCall,
   /// موعد زيارة / متابعة (طبية وغيرها)
   visitReminder,
   /// تذكير استقبال لموعد زيارة (عيادة)

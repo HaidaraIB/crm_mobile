@@ -1338,6 +1338,7 @@ class NotificationService {
       case NotificationType.taskCompleted:
       case NotificationType.taskReminder:
       case NotificationType.callReminder:
+      case NotificationType.pbxCallMissed:
       case NotificationType.visitReminder:
       case NotificationType.receptionVisitReminder:
       case NotificationType.fieldVisitReminder:
@@ -1365,6 +1366,9 @@ class NotificationService {
       case NotificationType.subscriptionExpiring:
       case NotificationType.paymentFailed:
       case NotificationType.subscriptionExpired:
+      case NotificationType.pbxTrunkDown:
+      case NotificationType.pbxTrunkRecovered:
+      case NotificationType.pbxEmergencyCall:
         return 'system';
       
       default:

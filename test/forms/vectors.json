@@ -1297,6 +1297,22 @@
       "expect": {}
     },
     {
+      "form": "company_business_hours.update",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "company_business_hours.update",
+      "data": {
+        "response_sla_minutes": 15
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
       "form": "system_settings.update",
       "data": {},
       "context": {},
@@ -1379,9 +1395,62 @@
         "name_ar": "Sample",
         "description": "Plan details",
         "description_ar": "تفاصيل",
-        "monthly_price": 10,
-        "yearly_price": 100,
-        "trial_days": 14
+        "price_monthly": 10,
+        "price_yearly": 100,
+        "trial_days": 14,
+        "sale_price_monthly": 5,
+        "sale_price_yearly": 50,
+        "sale_starts_at": "2026-10-09",
+        "sale_ends_at": "2026-10-09",
+        "badge": "most_popular",
+        "badge_text": "Hot",
+        "badge_text_ar": "رائج",
+        "offer_note": "2x credits",
+        "offer_note_ar": "Sample",
+        "sort_order": 0
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "promotion.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ],
+        "theme": [
+          "validation.required"
+        ],
+        "starts_at": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "promotion.upsert",
+      "data": {
+        "name": "Sample",
+        "messages": [
+          {
+            "en": "Biggest deals of the year",
+            "ar": "Sample"
+          }
+        ],
+        "cta_label": "See plans",
+        "cta_label_ar": "Sample",
+        "cta_url": "/register",
+        "theme": "sale",
+        "starts_at": "2026-10-09",
+        "ends_at": "2026-10-09",
+        "show_countdown": true,
+        "audiences": [
+          "public"
+        ],
+        "priority": 0
       },
       "context": {},
       "partial": false,
@@ -1544,6 +1613,419 @@
       "form": "support_message.send",
       "data": {
         "body": "Hello"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "pbx_extension.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "number": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "pbx_extension.upsert",
+      "data": {
+        "number": "101",
+        "display_name": "Front desk",
+        "device_type": "webrtc",
+        "outbound_number": "Sample"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "pbx_trunk.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ],
+        "host": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "pbx_trunk.upsert",
+      "data": {
+        "name": "Sales",
+        "kind": "sip",
+        "host": "sip.example.com",
+        "port": 5060,
+        "transport": "udp",
+        "auth_username": "loop",
+        "auth_secret": "abcdefghijklmnop",
+        "allowed_sources": []
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "pbx_gateway.create",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "pbx_gateway.create",
+      "data": {
+        "name": "Sales"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "pbx_number.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "e164": [
+          "validation.required"
+        ],
+        "trunk": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "pbx_number.upsert",
+      "data": {
+        "e164": "+9647700000001",
+        "label": "Main line",
+        "trunk": "1a2b3c4d-0000-4000-8000-000000000001"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "pbx_inbound_route.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "number": [
+          "validation.required"
+        ],
+        "destination_type": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "pbx_inbound_route.upsert",
+      "data": {
+        "number": "1a2b3c4d-0000-4000-8000-000000000001",
+        "destination_type": "extension",
+        "extension": "1a2b3c4d-0000-4000-8000-000000000001",
+        "ivr": "Sample",
+        "queue": "Sample",
+        "business_hours": "Sample",
+        "closed_type": "hangup",
+        "closed_extension": "Sample",
+        "closed_ivr": "Sample",
+        "closed_queue": "Sample"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "pbx_outbound_route.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ],
+        "patterns": [
+          "validation.required"
+        ],
+        "trunk": [
+          "validation.required"
+        ],
+        "caller_id": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "pbx_outbound_route.upsert",
+      "data": {
+        "name": "Sales",
+        "priority": 100,
+        "patterns": [
+          "Sample"
+        ],
+        "trunk": "1a2b3c4d-0000-4000-8000-000000000001",
+        "caller_id": "1a2b3c4d-0000-4000-8000-000000000001",
+        "enabled": true
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "pbx_settings.update",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "pbx_settings.update",
+      "data": {
+        "recording_mode": "off",
+        "recording_notice": "ar_en",
+        "accept_recording_terms": true,
+        "recording_retention_days": 90
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "pbx_business_hours.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ],
+        "timezone": [
+          "validation.required"
+        ],
+        "rules": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "pbx_business_hours.upsert",
+      "data": {
+        "name": "Sales",
+        "timezone": "Asia/Baghdad",
+        "rules": [
+          "Sample"
+        ],
+        "closed_dates": []
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "pbx_ivr.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "pbx_ivr.upsert",
+      "data": {
+        "name": "Sales",
+        "prompt": "loop/ivr-default",
+        "greeting": "Sample",
+        "timeout_s": 5,
+        "max_retries": 2,
+        "timeout_type": "hangup",
+        "timeout_extension": "Sample",
+        "timeout_ivr": "Sample",
+        "timeout_queue": "Sample",
+        "options": []
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "pbx_sound.upload",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ],
+        "file": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "pbx_sound.upload",
+      "data": {
+        "name": "Sales",
+        "file": "greeting.wav"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "pbx_sound.update",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "pbx_sound.update",
+      "data": {
+        "name": "Sales"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "pbx_node.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "pbx_node.upsert",
+      "data": {
+        "name": "pbx-1",
+        "region": "iq-bgw",
+        "control_url": "http://10.77.0.2:7070",
+        "status": "active",
+        "max_tenants": 100,
+        "gateway_wg_public_key": "",
+        "gateway_wg_endpoint": "pbx-1.example.com:51821",
+        "gateway_wg_address": "10.78.0.1"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "pbx_tenant.admin_update",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "pbx_tenant.admin_update",
+      "data": {
+        "fraud_limits": "Sample",
+        "recording_legal_hold": true
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "pbx_tenant.suspend",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "pbx_tenant.suspend",
+      "data": {
+        "reason": "Unpaid"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "pbx_tenant.migrate",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "node": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "pbx_tenant.migrate",
+      "data": {
+        "node": "1a2b3c4d-0000-4000-8000-000000000001"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "pbx_fraud_alert.resolve",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "pbx_fraud_alert.resolve",
+      "data": {
+        "note": "Checked"
+      },
+      "context": {},
+      "partial": false,
+      "expect": {}
+    },
+    {
+      "form": "pbx_queue.upsert",
+      "data": {},
+      "context": {},
+      "partial": false,
+      "expect": {
+        "name": [
+          "validation.required"
+        ]
+      }
+    },
+    {
+      "form": "pbx_queue.upsert",
+      "data": {
+        "name": "Sales",
+        "strategy": "ringall",
+        "member_timeout_s": 20,
+        "max_wait_s": 300,
+        "wrapup_s": 0,
+        "overflow_type": "hangup",
+        "overflow_extension": "Sample",
+        "overflow_ivr": "Sample",
+        "members": []
       },
       "context": {},
       "partial": false,

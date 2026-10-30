@@ -24,6 +24,8 @@ import '../services/work_session_service.dart';
 import 'app_avatar.dart';
 import 'permission_guard.dart';
 import 'working_hours_today_card.dart';
+import '../models/pbx_call_model.dart';
+import '../services/pbx_call_launcher.dart';
 
 class NavigationDrawer extends StatefulWidget {
   final VoidCallback? onProfileUpdated;
@@ -42,11 +44,20 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
   String _appVersionLine = '';
   final ApiService _apiService = ApiService();
 
+  /// The company's phone system for this user (null = none): shows "Phone calls".
+  PbxMe? _pbx;
+
   @override
   void initState() {
     super.initState();
     _loadUser();
     _loadPackageInfo();
+    _loadPbx();
+  }
+
+  Future<void> _loadPbx() async {
+    final me = await PbxCallLauncher.me();
+    if (mounted) setState(() => _pbx = me);
   }
 
   Future<void> _loadPackageInfo() async {
@@ -92,7 +103,8 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
     final theme = Theme.of(context);
     final user = _currentUser;
     // Supervisors without manage_deals get 403 on deal pipelines. Employees can read.
-    final showDeals = user == null ||
+    final showDeals =
+        user == null ||
         !user.isSupervisor ||
         user.hasSupervisorPermission('can_manage_deals');
 
@@ -444,6 +456,19 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
                           ],
                         ],
                       ],
+                      // Loop Cloud PBX call history (only with the phone system).
+                      if (_pbx?.provisioned == true)
+                        _buildMenuItem(
+                          context,
+                          icon: Icons.phone_in_talk,
+                          title:
+                              localizations?.translate('phoneCalls') ??
+                              'Phone calls',
+                          onTap: () {
+                            Navigator.pop(context);
+                            Navigator.pushNamed(context, '/phone-calls');
+                          },
+                        ),
                       // Inbox + WhatsApp Chats live in the home app bar (next to
                       // each other), not the drawer — same pattern as Team Chat.
                       if (showDeals)

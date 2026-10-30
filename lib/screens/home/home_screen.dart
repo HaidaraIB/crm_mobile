@@ -17,6 +17,7 @@ import '../../services/whatsapp_chat_unread_poller.dart';
 import '../../widgets/navigation_drawer.dart';
 import '../../widgets/bottom_navigation.dart';
 import '../../widgets/work_hours_chip.dart';
+import '../../widgets/promo_bar.dart';
 import '../calendar/calendar_screen.dart';
 import '../call_center/call_center_home_screen.dart';
 import '../leads/all_leads_screen.dart';
@@ -61,6 +62,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   StreamSubscription<Map<String, String>>? _sessionInvalidationSub;
 
   bool get _isDataEntry => _sessionUser?.isDataEntry ?? false;
+
+  /// Platform promotion bar above the tabs — company owners only (they are the
+  /// ones who can buy). The bar collapses to nothing when no promotion is live.
+  Widget _withPromoBar(Widget content) {
+    if (_sessionUser?.isCompanyOwner != true) return content;
+    return Column(
+      children: [
+        const PromoBar(),
+        Expanded(child: content),
+      ],
+    );
+  }
 
   @override
   void initState() {
@@ -546,11 +559,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ),
       body: !_sessionResolved
           ? _buildSessionLoadingState(localizations)
-          : _isDataEntry
-          ? _allLeadsScreen
-          : IndexedStack(
-              index: _currentIndex,
-              children: [_dashboardScreen, _allLeadsScreen, _calendarScreen],
+          : _withPromoBar(
+              _isDataEntry
+                  ? _allLeadsScreen
+                  : IndexedStack(
+                      index: _currentIndex,
+                      children: [_dashboardScreen, _allLeadsScreen, _calendarScreen],
+                    ),
             ),
       bottomNavigationBar: (!_sessionResolved || _isDataEntry)
           ? null

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_theme.dart';
+import '../utils/stable_network_image.dart';
 
 /// Brand avatar colors that stay readable in light and dark mode.
 ///
@@ -148,7 +149,7 @@ class _AppAvatarState extends State<AppAvatar> {
     if (!(url.startsWith('http://') || url.startsWith('https://'))) {
       return null;
     }
-    return NetworkImage(url);
+    return StableNetworkImage(url);
   }
 
   void _resolveImage() {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/notification_model.dart';
 import 'notification_display.dart';
+import 'pbx_call_launcher.dart';
 
 /// مسؤول عن توجيه المستخدم إلى الشاشة المناسبة بناءً على نوع الإشعار
 class NotificationRouter {
@@ -33,15 +34,18 @@ class NotificationRouter {
   /// يمكن توسيع هذه الطريقة بسهولة لإضافة أنواع جديدة من الإشعارات
   static Future<void> navigateFromNotification(
     BuildContext? context,
-    NotificationPayload payload,
-  ) async {
+    NotificationPayload payload, {
+    Future<bool> Function()? canOpenPbxCallHistory,
+  }) async {
     if (context == null) return;
     if (!canNavigate(payload.type)) return;
 
     // التحقق من أن context يحتوي على Navigator
     final navigator = Navigator.maybeOf(context);
     if (navigator == null) {
-      debugPrint('Warning: Navigator not found in context. Cannot navigate from notification.');
+      debugPrint(
+        'Warning: Navigator not found in context. Cannot navigate from notification.',
+      );
       return;
     }
 
@@ -85,10 +89,12 @@ class NotificationRouter {
       case NotificationType.whatsappSendFailed:
       case NotificationType.whatsappWaitingResponse:
         final leadId = _intFromPayload(payload.data?['lead_id']);
-        final leadName = payload.data?['lead_name']?.toString() ??
+        final leadName =
+            payload.data?['lead_name']?.toString() ??
             payload.data?['client_name']?.toString() ??
             '';
-        final phone = payload.data?['phone']?.toString() ??
+        final phone =
+            payload.data?['phone']?.toString() ??
             payload.data?['phone_number']?.toString() ??
             '';
         if (leadId != null) {
@@ -121,6 +127,20 @@ class NotificationRouter {
         navigator.pushNamed('/calendar');
         break;
 
+      case NotificationType.pbxCallMissed:
+        final canOpen =
+            await (canOpenPbxCallHistory ??
+                PbxCallLauncher.canOpenCallHistory)();
+        if (!canOpen || !navigator.mounted) break;
+        // The caller's lead when the number matched one, else the missed-call history.
+        final missedLead = _intFromPayload(payload.data?['client_id']);
+        if (missedLead != null) {
+          navigator.pushNamed('/leads/details', arguments: missedLead);
+        } else {
+          navigator.pushNamed('/phone-calls', arguments: {'missed': true});
+        }
+        break;
+
       case NotificationType.callReminder:
       case NotificationType.visitReminder:
       case NotificationType.receptionVisitReminder:
@@ -135,7 +155,9 @@ class NotificationRouter {
         break;
 
       case NotificationType.tenantChat:
-        final conversationId = _intFromPayload(payload.data?['conversation_id']);
+        final conversationId = _intFromPayload(
+          payload.data?['conversation_id'],
+        );
         navigator.pushNamed('/team-chat', arguments: conversationId);
         break;
 
@@ -177,10 +199,26 @@ class NotificationRouter {
         navigator.pushNamed('/settings');
         break;
 
+      // Phone lines are managed on the web (Settings → Phone System); the app opens home.
+      case NotificationType.pbxTrunkDown:
+      case NotificationType.pbxTrunkRecovered:
+        navigator.pushNamed('/home');
+        break;
+
+      // Who called which emergency number: the phone call history.
+      case NotificationType.pbxEmergencyCall:
+        final canOpen =
+            await (canOpenPbxCallHistory ??
+                PbxCallLauncher.canOpenCallHistory)();
+        if (canOpen && navigator.mounted) {
+          navigator.pushNamed('/phone-calls');
+        }
+        break;
+
       // ==================== إشعارات عامة ====================
       case NotificationType.general:
       case NotificationType.unknown:
-      // لا يوجد تنقل محدد
+        // لا يوجد تنقل محدد
         break;
     }
   }
@@ -211,7 +249,7 @@ class NotificationRouter {
       case NotificationType.teamActivityStatus:
       case NotificationType.teamActivityOverdue:
         return Icons.groups;
-      
+
       // إشعارات واتساب
       case NotificationType.whatsappMessageReceived:
         return Icons.message;
@@ -221,7 +259,7 @@ class NotificationRouter {
         return Icons.error;
       case NotificationType.whatsappWaitingResponse:
         return Icons.hourglass_empty;
-      
+
       // إشعارات الحملات
       case NotificationType.campaignPerformance:
         return Icons.trending_up;
@@ -231,7 +269,7 @@ class NotificationRouter {
         return Icons.stop_circle;
       case NotificationType.campaignBudgetAlert:
         return Icons.account_balance_wallet;
-      
+
       // إشعارات المهام
       case NotificationType.taskCreated:
         return Icons.task;
@@ -241,6 +279,8 @@ class NotificationRouter {
         return Icons.alarm;
       case NotificationType.callReminder:
         return Icons.phone;
+      case NotificationType.pbxCallMissed:
+        return Icons.phone_missed;
       case NotificationType.visitReminder:
         return Icons.event_available;
       case NotificationType.receptionVisitReminder:
@@ -260,30 +300,36 @@ class NotificationRouter {
         return Icons.check_circle;
       case NotificationType.dealReminder:
         return Icons.event;
-      
+
       // إشعارات التقارير
       case NotificationType.dailyReport:
       case NotificationType.weeklyReport:
         return Icons.assessment;
       case NotificationType.topEmployee:
         return Icons.emoji_events;
-      
+
       // إشعارات النظام
       case NotificationType.loginFromNewDevice:
         return Icons.devices;
       case NotificationType.systemUpdate:
         return Icons.system_update;
+      case NotificationType.pbxTrunkDown:
+        return Icons.phonelink_erase;
+      case NotificationType.pbxTrunkRecovered:
+        return Icons.phonelink_ring;
+      case NotificationType.pbxEmergencyCall:
+        return Icons.emergency;
       case NotificationType.subscriptionExpiring:
       case NotificationType.subscriptionExpired:
         return Icons.payment;
       case NotificationType.paymentFailed:
         return Icons.payment;
-      
+
       // إشعارات عامة
       case NotificationType.general:
         return Icons.info;
       case NotificationType.unknown:
-      return Icons.notifications;
+        return Icons.notifications;
     }
   }
 
@@ -313,7 +359,7 @@ class NotificationRouter {
       case NotificationType.teamActivityStatus:
       case NotificationType.teamActivityOverdue:
         return Colors.indigo;
-      
+
       // إشعارات واتساب
       case NotificationType.whatsappMessageReceived:
       case NotificationType.whatsappTemplateSent:
@@ -322,7 +368,7 @@ class NotificationRouter {
         return Colors.red;
       case NotificationType.whatsappWaitingResponse:
         return Colors.orange;
-      
+
       // إشعارات الحملات
       case NotificationType.campaignPerformance:
         return Colors.green;
@@ -332,7 +378,7 @@ class NotificationRouter {
         return Colors.red;
       case NotificationType.campaignBudgetAlert:
         return Colors.amber;
-      
+
       // إشعارات المهام
       case NotificationType.taskCreated:
         return Colors.purple;
@@ -342,6 +388,8 @@ class NotificationRouter {
         return Colors.red;
       case NotificationType.callReminder:
         return Colors.green;
+      case NotificationType.pbxCallMissed:
+        return Colors.red;
       case NotificationType.visitReminder:
         return Colors.teal;
       case NotificationType.receptionVisitReminder:
@@ -361,37 +409,44 @@ class NotificationRouter {
         return Colors.teal;
       case NotificationType.dealReminder:
         return Colors.amber;
-      
+
       // إشعارات التقارير
       case NotificationType.dailyReport:
       case NotificationType.weeklyReport:
         return Colors.blue;
       case NotificationType.topEmployee:
         return Colors.amber;
-      
+
       // إشعارات النظام
       case NotificationType.loginFromNewDevice:
         return Colors.blueGrey;
       case NotificationType.systemUpdate:
         return Colors.blue;
+      case NotificationType.pbxTrunkDown:
+        return Colors.red;
+      case NotificationType.pbxTrunkRecovered:
+        return Colors.green;
+      case NotificationType.pbxEmergencyCall:
+        return Colors.red;
       case NotificationType.subscriptionExpiring:
         return Colors.orange;
       case NotificationType.subscriptionExpired:
       case NotificationType.paymentFailed:
         return Colors.red;
-      
+
       // إشعارات عامة
       case NotificationType.general:
         return Colors.grey;
       case NotificationType.unknown:
-      return Colors.grey;
+        return Colors.grey;
     }
   }
 
   /// Localized type label for the current UI language (falls back to AR).
   static String getTypeName(NotificationType type, {String? languageCode}) {
-    final lang =
-        (languageCode ?? 'ar').toLowerCase().startsWith('en') ? 'en' : 'ar';
+    final lang = (languageCode ?? 'ar').toLowerCase().startsWith('en')
+        ? 'en'
+        : 'ar';
 
     // Settings-only preference keys — not inbox types.
     if (type == NotificationType.teamActivityAction) {

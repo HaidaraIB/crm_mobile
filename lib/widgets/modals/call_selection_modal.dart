@@ -4,6 +4,7 @@ import '../../core/localization/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/lead_model.dart';
 import 'send_sms_modal.dart';
+import '../../services/pbx_call_launcher.dart';
 
 class CallSelectionModal extends StatelessWidget {
   final LeadModel lead;
@@ -93,8 +94,10 @@ class CallSelectionModal extends StatelessWidget {
                     IconButton(
                       icon: Icon(Icons.phone_outlined, color: AppTheme.primaryColor, size: 22),
                       onPressed: () {
-                        _makeCall(phone.phoneNumber);
+                        // The navigator's own context outlives this dialog.
+                        final navContext = Navigator.of(context).context;
                         Navigator.pop(context);
+                        PbxCallLauncher.call(navContext, phone: phone.phoneNumber, leadId: lead.id, dialer: _makeCall);
                       },
                       tooltip: localizations?.translate('call') ?? 'Call',
                     ),

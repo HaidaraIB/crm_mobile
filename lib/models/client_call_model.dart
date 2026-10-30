@@ -13,6 +13,13 @@ class ClientCallModel {
   final int? whatsappDurationSec;
   final String? whatsappRecordingUrl;
   final String? whatsappRecordingStatus;
+  /// Loop Cloud PBX (source == 'pbx'): typed fields, localized in the timeline.
+  final String? pbxCallId;
+  final String? pbxDirection;
+  final String? pbxCallStatus;
+  final int? pbxDurationSec;
+  final String? pbxRecordingId;
+  final String? pbxRecordingStatus;
   final int createdBy;
   final String? createdByUsername;
   final DateTime createdAt;
@@ -32,6 +39,12 @@ class ClientCallModel {
     this.whatsappDurationSec,
     this.whatsappRecordingUrl,
     this.whatsappRecordingStatus,
+    this.pbxCallId,
+    this.pbxDirection,
+    this.pbxCallStatus,
+    this.pbxDurationSec,
+    this.pbxRecordingId,
+    this.pbxRecordingStatus,
     required this.createdBy,
     this.createdByUsername,
     required this.createdAt,
@@ -42,6 +55,8 @@ class ClientCallModel {
 
   bool get isWhatsApp => source == 'whatsapp';
 
+  bool get isPbx => source == 'pbx';
+
   String? get timelineRecordingUrl {
     if (isWhatsApp) return whatsappRecordingUrl;
     return null;
@@ -49,6 +64,7 @@ class ClientCallModel {
 
   String? get timelineRecordingStatus {
     if (isWhatsApp) return whatsappRecordingStatus;
+    if (isPbx) return pbxRecordingStatus;
     return null;
   }
 
@@ -78,6 +94,12 @@ class ClientCallModel {
       whatsappDurationSec: json['whatsapp_duration_sec'] as int?,
       whatsappRecordingUrl: json['whatsapp_recording_url'] as String?,
       whatsappRecordingStatus: json['whatsapp_recording_status'] as String?,
+      pbxCallId: json['pbx_call_id'] as String?,
+      pbxDirection: json['pbx_direction'] as String?,
+      pbxCallStatus: json['pbx_call_status'] as String?,
+      pbxDurationSec: json['pbx_duration_sec'] as int?,
+      pbxRecordingId: json['pbx_recording_id'] as String?,
+      pbxRecordingStatus: json['pbx_recording_status'] as String?,
       createdBy: json['created_by'] as int? ?? json['createdBy'] as int? ?? 0,
       createdByUsername: json['created_by_username'] as String?,
       createdAt: DateTime.parse(
@@ -104,6 +126,12 @@ class ClientCallModel {
       'whatsapp_duration_sec': whatsappDurationSec,
       'whatsapp_recording_url': whatsappRecordingUrl,
       'whatsapp_recording_status': whatsappRecordingStatus,
+      'pbx_call_id': pbxCallId,
+      'pbx_direction': pbxDirection,
+      'pbx_call_status': pbxCallStatus,
+      'pbx_duration_sec': pbxDurationSec,
+      'pbx_recording_id': pbxRecordingId,
+      'pbx_recording_status': pbxRecordingStatus,
       'created_by': createdBy,
       'created_by_username': createdByUsername,
       'created_at': createdAt.toIso8601String(),

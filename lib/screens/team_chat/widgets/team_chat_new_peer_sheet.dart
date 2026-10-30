@@ -7,6 +7,7 @@ import '../../../models/tenant_chat_models.dart';
 import '../../../widgets/app_avatar.dart';
 import '../team_chat_common.dart';
 import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
+import '../../../utils/stable_network_image.dart';
 
 class TeamChatNewPeerSheet extends StatefulWidget {
   const TeamChatNewPeerSheet({
@@ -145,7 +146,7 @@ class _TeamChatNewPeerSheetState extends State<TeamChatNewPeerSheet> {
                                           photo.isNotEmpty &&
                                           (photo.startsWith('http://') ||
                                               photo.startsWith('https://'))
-                                      ? NetworkImage(photo)
+                                      ? StableNetworkImage(photo)
                                       : null;
 
                               return Material(

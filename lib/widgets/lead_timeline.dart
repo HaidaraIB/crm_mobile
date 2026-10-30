@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
@@ -19,6 +20,7 @@ import 'bidi_text.dart';
 import 'brand_icons.dart';
 import 'lead_tag_chips.dart' show parseTagHexColor;
 import 'media/open_app_media_viewer.dart';
+import '../utils/stable_network_image.dart';
 
 const _timelineSortKey = 'leadTimelineSortOrder';
 
@@ -598,8 +600,8 @@ class _TimelineRow extends StatelessWidget {
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            photoUrl,
+                          child: Image(
+                            image: StableNetworkImage(photoUrl),
                             height: 160,
                             width: double.infinity,
                             fit: BoxFit.cover,
@@ -1835,6 +1837,13 @@ class _TimelineCallRecording extends StatelessWidget {
     if (status.isEmpty) return const SizedBox.shrink();
 
     final muted = _timelineMutedColor(context);
+    final pbxId = entry.pbxRecordingId?.trim();
+    if (status == 'ready' && pbxId != null && pbxId.isNotEmpty) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: _TimelineRecordingPlayer(url: '', pbxRecordingId: pbxId, loc: loc),
+      );
+    }
     final readyUrl = entry.recordingUrl?.trim();
     if (status == 'ready' && readyUrl != null && readyUrl.isNotEmpty) {
       return Padding(
@@ -1875,9 +1884,11 @@ class _TimelineCallRecording extends StatelessWidget {
 
 class _TimelineRecordingPlayer extends StatefulWidget {
   final String url;
+  /// Loop Cloud PBX: [url] is fetched on demand from the audited access endpoint.
+  final String? pbxRecordingId;
   final AppLocalizations? loc;
 
-  const _TimelineRecordingPlayer({required this.url, required this.loc});
+  const _TimelineRecordingPlayer({required this.url, this.pbxRecordingId, required this.loc});
 
   @override
   State<_TimelineRecordingPlayer> createState() =>
@@ -1913,8 +1924,17 @@ class _TimelineRecordingPlayerState extends State<_TimelineRecordingPlayer> {
 
   Future<void> _prepare() async {
     try {
-      final absolute = resolveMediaUrl(widget.url) ?? widget.url;
-      final bytes = await ApiService().fetchAuthenticatedBinaryGet(absolute);
+      final pbxId = widget.pbxRecordingId;
+      final String absolute;
+      final Uint8List bytes;
+      if (pbxId != null) {
+        // Presigned object-storage URL: fetched without the CRM's auth header.
+        absolute = await ApiService().fetchPbxRecordingAccessUrl(pbxId);
+        bytes = await ApiService().fetchPresignedBinaryGet(absolute);
+      } else {
+        absolute = resolveMediaUrl(widget.url) ?? widget.url;
+        bytes = await ApiService().fetchAuthenticatedBinaryGet(absolute);
+      }
       final dir = await getTemporaryDirectory();
       final lower = absolute.toLowerCase();
       final ext = lower.contains('.mp3')

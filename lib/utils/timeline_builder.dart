@@ -111,6 +111,24 @@ String _formatWhatsAppCallSummary(ClientCallModel cc, TimelineTranslate t) {
   return parts.join(' · ');
 }
 
+/// Loop Cloud PBX call: "Outgoing · Answered · 61s" (stage chip: "Phone system").
+/// Parity with web `formatPbxCallSummary` in ViewLeadPage.
+String _formatPbxCallSummary(ClientCallModel cc, TimelineTranslate t) {
+  final parts = <String>[];
+  final direction = cc.pbxDirection?.trim();
+  if (direction != null && direction.isNotEmpty) {
+    parts.add(_tr(t, 'pbxDirection_$direction'));
+  }
+  final status = cc.pbxCallStatus?.trim();
+  if (status != null && status.isNotEmpty) {
+    parts.add(_tr(t, 'pbxStatus_$status'));
+  }
+  if (cc.pbxDurationSec != null && cc.pbxDurationSec! > 0) {
+    parts.add(_tr(t, 'callDurationSeconds').replaceAll('{n}', '${cc.pbxDurationSec}'));
+  }
+  return parts.isEmpty ? _tr(t, 'call') : parts.join(' · ');
+}
+
 String? _stageColor(List<StageModel> stages, String? stageName) {
   if (stageName == null || stageName.isEmpty) return null;
   try {
@@ -188,6 +206,11 @@ List<TimelineEntry> buildLeadTimeline(TimelineBuilderInput input) {
           : '';
       stage = _tr(t, 'whatsappCallSource');
       color = '#16a34a';
+    } else if (cc.isPbx) {
+      action = _formatPbxCallSummary(cc, t);
+      details = '';
+      stage = _tr(t, 'pbxCallSource');
+      color = '#2563eb';
     } else {
       action = _tr(t, 'callMade');
       details = cc.notes;
@@ -212,6 +235,7 @@ List<TimelineEntry> buildLeadTimeline(TimelineBuilderInput input) {
           : null,
       recordingUrl: cc.timelineRecordingUrl,
       recordingStatus: cc.timelineRecordingStatus,
+      pbxRecordingId: cc.isPbx ? cc.pbxRecordingId : null,
     );
   });
 

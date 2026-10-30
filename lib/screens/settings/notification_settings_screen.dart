@@ -29,6 +29,7 @@ const Set<NotificationType> kVisibleNotificationSettingsTypes = {
   NotificationType.campaignBudgetAlert,
   NotificationType.taskReminder,
   NotificationType.callReminder,
+  NotificationType.pbxCallMissed,
   NotificationType.visitReminder,
   NotificationType.receptionVisitReminder,
   NotificationType.dealCreated,
@@ -39,6 +40,8 @@ const Set<NotificationType> kVisibleNotificationSettingsTypes = {
   NotificationType.topEmployee,
   NotificationType.subscriptionExpiring,
   NotificationType.subscriptionExpired,
+  NotificationType.pbxTrunkDown,
+  NotificationType.pbxTrunkRecovered,
 };
 
 class NotificationSettingsScreen extends StatefulWidget {
@@ -259,6 +262,7 @@ class _NotificationSettingsScreenState
             types: _visible([
               NotificationType.taskReminder,
               NotificationType.callReminder,
+              NotificationType.pbxCallMissed,
               NotificationType.visitReminder,
               NotificationType.receptionVisitReminder,
             ]),
@@ -293,6 +297,8 @@ class _NotificationSettingsScreenState
             types: _visible([
               NotificationType.subscriptionExpiring,
               NotificationType.subscriptionExpired,
+              NotificationType.pbxTrunkDown,
+              NotificationType.pbxTrunkRecovered,
             ]),
             masterEnabled: masterEnabled,
             localizations: localizations,
@@ -463,6 +469,12 @@ class _NotificationSettingsScreenState
         return 'taskCompleted';
       case NotificationType.callReminder:
         return 'callReminder';
+      case NotificationType.pbxCallMissed:
+        return 'pbxCallMissed';
+      case NotificationType.pbxTrunkDown:
+        return 'pbxTrunkDown';
+      case NotificationType.pbxTrunkRecovered:
+        return 'pbxTrunkRecovered';
       case NotificationType.visitReminder:
         return 'visitReminder';
       case NotificationType.receptionVisitReminder:

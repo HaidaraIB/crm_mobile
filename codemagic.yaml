@@ -13,7 +13,7 @@ workflows:
         distribution_type: app_store
         bundle_identifier: com.loopcrm.mobile
       groups:
-        - ios_config # BASE_URL, API_KEY_MOBILE (or API_KEY), GOOGLE_SERVICE_INFO_PLIST
+        - ios_config # BASE_URL, API_KEY_MOBILE (or API_KEY), WEB_APP_URL, GOOGLE_SERVICE_INFO_PLIST
       vars:
         APP_ID: "com.loopcrm.mobile"
         APP_STORE_ID: "6758578493" # سيتم ملؤه لاحقاً بعد إنشاء التطبيق في App Store Connect
@@ -37,6 +37,9 @@ workflows:
           MOBILE_KEY="${API_KEY_MOBILE:-$API_KEY}"
           echo "API_KEY_MOBILE=$MOBILE_KEY" >> .env
           echo "API_KEY=$API_KEY" >> .env
+          # Web CRM origin for links out of the app (promo bar CTA).
+          if [ -z "$WEB_APP_URL" ]; then echo "ERROR: WEB_APP_URL is not set in ios_config"; exit 1; fi
+          echo "WEB_APP_URL=$WEB_APP_URL" >> .env
           echo "✅ Created .env file with production settings"
           cat .env
       - name: Create GoogleService-Info.plist for Firebase

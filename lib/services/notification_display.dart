@@ -248,6 +248,54 @@ const Map<String, Map<String, _Tpl>> _templates = {
       bodyWithCampaign: null,
     ),
   },
+  'pbx_trunk_down': {
+    'ar': (
+      title: 'خط الهاتف متوقف',
+      body: 'تعذّر الوصول إلى {trunk_name}: تفشل المكالمات عبره حتى يعود.',
+      bodyWithCampaign: null,
+    ),
+    'en': (
+      title: 'Phone line down',
+      body: '{trunk_name} is unreachable: calls through it fail until it is back.',
+      bodyWithCampaign: null,
+    ),
+  },
+  'pbx_trunk_recovered': {
+    'ar': (
+      title: 'عاد خط الهاتف',
+      body: 'أصبح {trunk_name} متاحاً من جديد.',
+      bodyWithCampaign: null,
+    ),
+    'en': (
+      title: 'Phone line back',
+      body: '{trunk_name} is reachable again.',
+      bodyWithCampaign: null,
+    ),
+  },
+  'pbx_emergency_call': {
+    'ar': (
+      title: 'مكالمة طوارئ',
+      body: 'اتصل {caller} برقم الطوارئ {number}.',
+      bodyWithCampaign: null,
+    ),
+    'en': (
+      title: 'Emergency call',
+      body: '{caller} dialled the emergency number {number}.',
+      bodyWithCampaign: null,
+    ),
+  },
+  'pbx_call_missed': {
+    'ar': (
+      title: 'مكالمة فائتة',
+      body: 'مكالمة فائتة من {caller}',
+      bodyWithCampaign: null,
+    ),
+    'en': (
+      title: 'Missed call',
+      body: 'Missed call from {caller}',
+      bodyWithCampaign: null,
+    ),
+  },
   'call_reminder': {
     'ar': (
       title: 'تذكير مكالمة',

@@ -53,6 +53,7 @@ class WhatsAppChatUnreadPoller {
     'leads': 'crm:leads',
     'deals': 'crm:deals',
     'todos': 'crm:todos',
+    'telephony': kTelephonyCallsInvalidation,
   };
 
   void start() {

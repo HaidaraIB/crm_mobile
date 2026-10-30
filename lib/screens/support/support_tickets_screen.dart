@@ -12,6 +12,7 @@ import '../../services/api_service.dart';
 import '../../widgets/media/open_app_media_viewer.dart';
 import '../../widgets/pull_to_refresh_body.dart';
 import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
+import '../../utils/stable_network_image.dart';
 
 class SupportTicketsScreen extends StatefulWidget {
   const SupportTicketsScreen({super.key});
@@ -607,8 +608,8 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
                             color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                           ),
                           child: imageUrl != null
-                              ? Image.network(
-                                  imageUrl,
+                              ? Image(
+                                  image: StableNetworkImage(imageUrl),
                                   width: 120,
                                   height: 96,
                                   fit: BoxFit.cover,

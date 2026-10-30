@@ -32,6 +32,15 @@ class AppConstants {
     return _trimTrailingSlash(u);
   }
 
+  /// Public web CRM origin for links out of the app (e.g. the promotion bar's
+  /// "See plans"). `WEB_APP_URL` via `--dart-define` or `.env`; never derived from
+  /// the API host. Empty when unset — callers hide links that need it.
+  static String get webCrmUrl {
+    const fromDefine = String.fromEnvironment('WEB_APP_URL');
+    if (fromDefine.isNotEmpty) return _trimTrailingSlash(fromDefine);
+    return _trimTrailingSlash(dotenv.env['WEB_APP_URL'] ?? '');
+  }
+
   /// Canonical API prefix: `/api/v1/` (see CRM-api-1 `urls.py`).
   static String get baseUrl {
     const fromDefine = String.fromEnvironment('BASE_URL');

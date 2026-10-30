@@ -77,21 +77,26 @@ jobs:
         env:
           BASE_URL: ${{ secrets.BASE_URL }}
           API_KEY_MOBILE: ${{ secrets.API_KEY_MOBILE }}
-          API_KEY: ${{ secrets.API_KEY }}
+          # Web CRM origin for links out of the app (promo bar CTA).
+          WEB_APP_URL: ${{ secrets.WEB_APP_URL }}
         run: |
           if [ -z "$BASE_URL" ]; then
             echo "ERROR: BASE_URL secret is not set"
             exit 1
           fi
-          MOBILE_KEY="${API_KEY_MOBILE:-$API_KEY}"
-          if [ -z "$MOBILE_KEY" ]; then
-            echo "ERROR: Set API_KEY_MOBILE or API_KEY secret"
+          if [ -z "$API_KEY_MOBILE" ]; then
+            echo "ERROR: API_KEY_MOBILE secret is not set"
+            exit 1
+          fi
+          if [ -z "$WEB_APP_URL" ]; then
+            echo "ERROR: WEB_APP_URL secret is not set"
             exit 1
           fi
           {
             echo "BASE_URL=$BASE_URL"
-            echo "API_KEY_MOBILE=$MOBILE_KEY"
-            echo "API_KEY=$MOBILE_KEY"
+            echo "API_KEY_MOBILE=$API_KEY_MOBILE"
+            echo "API_KEY=$API_KEY_MOBILE"
+            echo "WEB_APP_URL=$WEB_APP_URL"
           } > .env
           echo "Created .env with BASE_URL and API keys"
 

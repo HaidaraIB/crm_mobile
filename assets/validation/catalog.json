@@ -1,5 +1,5 @@
 {
-  "version": "95c90c50730ddb96",
+  "version": "1ff42470267c9023",
   "forms": {
     "task.upsert": {
       "public": false,
@@ -2894,6 +2894,31 @@
         "noFollowUpDigestHour": "no_follow_up_digest_hour"
       }
     },
+    "company_business_hours.update": {
+      "public": false,
+      "fields": {
+        "response_sla_minutes": {
+          "type": "integer",
+          "label_key": "responseSlaMinutes",
+          "rules": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number_range",
+              "params": {
+                "min": 1,
+                "max": 10080
+              }
+            }
+          ],
+          "ui_key": "responseSlaMinutes"
+        }
+      },
+      "aliases": {
+        "responseSlaMinutes": "response_sla_minutes"
+      }
+    },
     "system_settings.update": {
       "public": false,
       "fields": {
@@ -3074,7 +3099,7 @@
             }
           ]
         },
-        "monthly_price": {
+        "price_monthly": {
           "type": "number",
           "label_key": "monthlyPrice",
           "rules": [
@@ -3085,9 +3110,10 @@
               },
               "client_only": true
             }
-          ]
+          ],
+          "ui_key": "monthlyPrice"
         },
-        "yearly_price": {
+        "price_yearly": {
           "type": "number",
           "label_key": "yearlyPrice",
           "rules": [
@@ -3098,7 +3124,8 @@
               },
               "client_only": true
             }
-          ]
+          ],
+          "ui_key": "yearlyPrice"
         },
         "trial_days": {
           "type": "integer",
@@ -3116,14 +3143,393 @@
               "client_only": true
             }
           ]
+        },
+        "sale_price_monthly": {
+          "type": "number",
+          "label_key": "salePriceMonthly",
+          "rules": [
+            {
+              "type": "number_range",
+              "params": {
+                "min": 0.01
+              }
+            },
+            {
+              "type": "decimal_places",
+              "params": {
+                "max": 2
+              }
+            }
+          ],
+          "ui_key": "salePriceMonthly"
+        },
+        "sale_price_yearly": {
+          "type": "number",
+          "label_key": "salePriceYearly",
+          "rules": [
+            {
+              "type": "number_range",
+              "params": {
+                "min": 0.01
+              }
+            },
+            {
+              "type": "decimal_places",
+              "params": {
+                "max": 2
+              }
+            }
+          ],
+          "ui_key": "salePriceYearly"
+        },
+        "sale_starts_at": {
+          "type": "date",
+          "label_key": "saleStartsAt",
+          "rules": [],
+          "ui_key": "saleStartsAt"
+        },
+        "sale_ends_at": {
+          "type": "date",
+          "label_key": "saleEndsAt",
+          "rules": [
+            {
+              "type": "date_range",
+              "params": {
+                "gte_field": "sale_starts_at"
+              }
+            }
+          ],
+          "ui_key": "saleEndsAt"
+        },
+        "badge": {
+          "type": "string",
+          "label_key": "badge",
+          "rules": [
+            {
+              "type": "one_of",
+              "params": {
+                "values": [
+                  "",
+                  "most_popular",
+                  "best_value",
+                  "recommended",
+                  "new",
+                  "limited_offer",
+                  "custom"
+                ]
+              }
+            }
+          ]
+        },
+        "badge_text": {
+          "type": "string",
+          "label_key": "badgeText",
+          "rules": [
+            {
+              "type": "required_if",
+              "params": {
+                "field": "badge",
+                "equals": "custom"
+              }
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 40
+              }
+            }
+          ],
+          "ui_key": "badgeText"
+        },
+        "badge_text_ar": {
+          "type": "string",
+          "label_key": "badgeTextAr",
+          "rules": [
+            {
+              "type": "required_if",
+              "params": {
+                "field": "badge",
+                "equals": "custom"
+              }
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 40
+              }
+            }
+          ],
+          "ui_key": "badgeTextAr"
+        },
+        "offer_note": {
+          "type": "string",
+          "label_key": "offerNote",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 160
+              }
+            }
+          ],
+          "ui_key": "offerNote"
+        },
+        "offer_note_ar": {
+          "type": "string",
+          "label_key": "offerNoteAr",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 160
+              }
+            }
+          ],
+          "ui_key": "offerNoteAr"
+        },
+        "sort_order": {
+          "type": "integer",
+          "label_key": "sortOrder",
+          "rules": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number_range",
+              "params": {
+                "min": 0,
+                "max": 999
+              }
+            }
+          ],
+          "ui_key": "sortOrder"
         }
       },
       "aliases": {
         "nameAr": "name_ar",
         "descriptionAr": "description_ar",
-        "monthlyPrice": "monthly_price",
-        "yearlyPrice": "yearly_price",
-        "trialDays": "trial_days"
+        "monthlyPrice": "price_monthly",
+        "yearlyPrice": "price_yearly",
+        "trialDays": "trial_days",
+        "salePriceMonthly": "sale_price_monthly",
+        "salePriceYearly": "sale_price_yearly",
+        "saleStartsAt": "sale_starts_at",
+        "saleEndsAt": "sale_ends_at",
+        "badgeText": "badge_text",
+        "badgeTextAr": "badge_text_ar",
+        "offerNote": "offer_note",
+        "offerNoteAr": "offer_note_ar",
+        "sortOrder": "sort_order"
+      }
+    },
+    "promotion.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "name",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 120
+              }
+            }
+          ]
+        },
+        "messages": {
+          "type": "array",
+          "label_key": "promotionMessages",
+          "rules": [
+            {
+              "type": "array",
+              "params": {
+                "min": 1,
+                "max": 6
+              }
+            }
+          ],
+          "item": {
+            "type": "object",
+            "label_key": "promotionMessage",
+            "rules": [],
+            "fields": {
+              "en": {
+                "type": "string",
+                "label_key": "messageEn",
+                "rules": [
+                  {
+                    "type": "required"
+                  },
+                  {
+                    "type": "max_length",
+                    "params": {
+                      "max": 120
+                    }
+                  }
+                ]
+              },
+              "ar": {
+                "type": "string",
+                "label_key": "messageAr",
+                "rules": [
+                  {
+                    "type": "required"
+                  },
+                  {
+                    "type": "max_length",
+                    "params": {
+                      "max": 120
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "cta_label": {
+          "type": "string",
+          "label_key": "ctaLabel",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 40
+              }
+            }
+          ],
+          "ui_key": "ctaLabel"
+        },
+        "cta_label_ar": {
+          "type": "string",
+          "label_key": "ctaLabelAr",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 40
+              }
+            }
+          ],
+          "ui_key": "ctaLabelAr"
+        },
+        "cta_url": {
+          "type": "string",
+          "label_key": "ctaUrl",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 500
+              }
+            }
+          ],
+          "ui_key": "ctaUrl"
+        },
+        "theme": {
+          "type": "string",
+          "label_key": "theme",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "one_of",
+              "params": {
+                "values": [
+                  "sale",
+                  "brand",
+                  "dark",
+                  "amber"
+                ]
+              }
+            }
+          ]
+        },
+        "starts_at": {
+          "type": "date",
+          "label_key": "startsAt",
+          "rules": [
+            {
+              "type": "required"
+            }
+          ],
+          "ui_key": "startsAt"
+        },
+        "ends_at": {
+          "type": "date",
+          "label_key": "endsAt",
+          "rules": [
+            {
+              "type": "date_range",
+              "params": {
+                "gte_field": "starts_at"
+              }
+            }
+          ],
+          "ui_key": "endsAt"
+        },
+        "show_countdown": {
+          "type": "boolean",
+          "label_key": "showCountdown",
+          "rules": [],
+          "ui_key": "showCountdown"
+        },
+        "audiences": {
+          "type": "array",
+          "label_key": "audiences",
+          "rules": [
+            {
+              "type": "array",
+              "params": {
+                "min": 1
+              }
+            }
+          ],
+          "item": {
+            "type": "string",
+            "label_key": "audience",
+            "rules": [
+              {
+                "type": "one_of",
+                "params": {
+                  "values": [
+                    "public",
+                    "dashboard",
+                    "mobile"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "priority": {
+          "type": "integer",
+          "label_key": "priority",
+          "rules": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number_range",
+              "params": {
+                "min": -999,
+                "max": 999
+              }
+            }
+          ]
+        }
+      },
+      "aliases": {
+        "ctaLabel": "cta_label",
+        "ctaLabelAr": "cta_label_ar",
+        "ctaUrl": "cta_url",
+        "startsAt": "starts_at",
+        "endsAt": "ends_at",
+        "showCountdown": "show_countdown"
       }
     },
     "payment_gateway.create": {
@@ -3380,6 +3786,1146 @@
               }
             }
           ]
+        }
+      }
+    },
+    "pbx_extension.upsert": {
+      "public": false,
+      "fields": {
+        "number": {
+          "type": "string",
+          "label_key": "pbxExtensionNumber",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "pattern",
+              "params": {
+                "regex": "[1-9][0-9]{1,5}"
+              }
+            }
+          ]
+        },
+        "display_name": {
+          "type": "string",
+          "label_key": "pbxDisplayName",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 80
+              }
+            }
+          ]
+        },
+        "device_type": {
+          "type": "string",
+          "label_key": "pbxDeviceType",
+          "rules": [
+            {
+              "type": "one_of",
+              "params": {
+                "values": [
+                  "webrtc",
+                  "desk_phone",
+                  "softphone"
+                ]
+              }
+            }
+          ]
+        },
+        "outbound_number": {
+          "type": "string",
+          "label_key": "pbxOutboundSim",
+          "rules": []
+        }
+      }
+    },
+    "pbx_trunk.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "pbxTrunkName",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 80
+              }
+            }
+          ]
+        },
+        "kind": {
+          "type": "string",
+          "label_key": "pbxTrunkKind",
+          "rules": [
+            {
+              "type": "one_of",
+              "params": {
+                "values": [
+                  "sip",
+                  "gsm_gateway"
+                ]
+              }
+            }
+          ]
+        },
+        "host": {
+          "type": "string",
+          "label_key": "pbxTrunkHost",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 253
+              }
+            }
+          ]
+        },
+        "port": {
+          "type": "integer",
+          "label_key": "pbxTrunkPort",
+          "rules": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number_range",
+              "params": {
+                "min": 1,
+                "max": 65535
+              }
+            }
+          ]
+        },
+        "transport": {
+          "type": "string",
+          "label_key": "pbxTrunkTransport",
+          "rules": [
+            {
+              "type": "one_of",
+              "params": {
+                "values": [
+                  "udp",
+                  "tcp",
+                  "tls"
+                ]
+              }
+            }
+          ]
+        },
+        "auth_username": {
+          "type": "string",
+          "label_key": "pbxTrunkAuthUsername",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 80
+              }
+            },
+            {
+              "type": "pattern",
+              "params": {
+                "regex": "[A-Za-z0-9_.+-]*"
+              }
+            }
+          ]
+        },
+        "auth_secret": {
+          "type": "string",
+          "label_key": "pbxTrunkAuthSecret",
+          "rules": [
+            {
+              "type": "min_length",
+              "params": {
+                "min": 16
+              }
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 128
+              }
+            },
+            {
+              "type": "pattern",
+              "params": {
+                "regex": "[A-Za-z0-9_-]*"
+              }
+            }
+          ]
+        },
+        "allowed_sources": {
+          "type": "array",
+          "label_key": "pbxTrunkAllowedSources",
+          "rules": [
+            {
+              "type": "array",
+              "params": {
+                "max": 16
+              }
+            }
+          ],
+          "item": {
+            "type": "string",
+            "label_key": "pbxTrunkAllowedSources",
+            "rules": []
+          }
+        }
+      }
+    },
+    "pbx_gateway.create": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "pbxGatewayName",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 80
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pbx_number.upsert": {
+      "public": false,
+      "fields": {
+        "e164": {
+          "type": "string",
+          "label_key": "pbxNumberE164",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "pattern",
+              "params": {
+                "regex": "\\+[1-9][0-9]{6,14}"
+              }
+            }
+          ]
+        },
+        "label": {
+          "type": "string",
+          "label_key": "pbxNumberLabel",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 80
+              }
+            }
+          ]
+        },
+        "trunk": {
+          "type": "string",
+          "label_key": "pbxNumberTrunk",
+          "rules": [
+            {
+              "type": "required"
+            }
+          ]
+        }
+      }
+    },
+    "pbx_inbound_route.upsert": {
+      "public": false,
+      "fields": {
+        "number": {
+          "type": "string",
+          "label_key": "pbxRouteNumber",
+          "rules": [
+            {
+              "type": "required"
+            }
+          ]
+        },
+        "destination_type": {
+          "type": "string",
+          "label_key": "pbxDestination",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "one_of",
+              "params": {
+                "values": [
+                  "extension",
+                  "ivr",
+                  "queue"
+                ]
+              }
+            }
+          ]
+        },
+        "extension": {
+          "type": "string",
+          "label_key": "pbxDestinationExtension",
+          "rules": [
+            {
+              "type": "required_if",
+              "params": {
+                "field": "destination_type",
+                "equals": "extension"
+              }
+            }
+          ]
+        },
+        "ivr": {
+          "type": "string",
+          "label_key": "pbxDestinationIvr",
+          "rules": [
+            {
+              "type": "required_if",
+              "params": {
+                "field": "destination_type",
+                "equals": "ivr"
+              }
+            }
+          ]
+        },
+        "queue": {
+          "type": "string",
+          "label_key": "pbxDestinationQueue",
+          "rules": [
+            {
+              "type": "required_if",
+              "params": {
+                "field": "destination_type",
+                "equals": "queue"
+              }
+            }
+          ]
+        },
+        "business_hours": {
+          "type": "string",
+          "label_key": "pbxBusinessHours",
+          "rules": []
+        },
+        "closed_type": {
+          "type": "string",
+          "label_key": "pbxClosedDestination",
+          "rules": [
+            {
+              "type": "one_of",
+              "params": {
+                "values": [
+                  "extension",
+                  "ivr",
+                  "queue",
+                  "hangup"
+                ]
+              }
+            }
+          ]
+        },
+        "closed_extension": {
+          "type": "string",
+          "label_key": "pbxDestinationExtension",
+          "rules": [
+            {
+              "type": "required_if",
+              "params": {
+                "field": "closed_type",
+                "equals": "extension"
+              }
+            }
+          ]
+        },
+        "closed_ivr": {
+          "type": "string",
+          "label_key": "pbxDestinationIvr",
+          "rules": [
+            {
+              "type": "required_if",
+              "params": {
+                "field": "closed_type",
+                "equals": "ivr"
+              }
+            }
+          ]
+        },
+        "closed_queue": {
+          "type": "string",
+          "label_key": "pbxDestinationQueue",
+          "rules": [
+            {
+              "type": "required_if",
+              "params": {
+                "field": "closed_type",
+                "equals": "queue"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pbx_outbound_route.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "pbxRouteName",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 80
+              }
+            }
+          ]
+        },
+        "priority": {
+          "type": "integer",
+          "label_key": "pbxRoutePriority",
+          "rules": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number_range",
+              "params": {
+                "min": 0,
+                "max": 9999
+              }
+            }
+          ]
+        },
+        "patterns": {
+          "type": "array",
+          "label_key": "pbxRoutePatterns",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "array",
+              "params": {
+                "min": 1,
+                "max": 50
+              }
+            }
+          ],
+          "item": {
+            "type": "object",
+            "label_key": "pbxRoutePatterns",
+            "rules": []
+          }
+        },
+        "trunk": {
+          "type": "string",
+          "label_key": "pbxNumberTrunk",
+          "rules": [
+            {
+              "type": "required"
+            }
+          ]
+        },
+        "caller_id": {
+          "type": "string",
+          "label_key": "pbxRouteCallerId",
+          "rules": [
+            {
+              "type": "required"
+            }
+          ]
+        },
+        "enabled": {
+          "type": "boolean",
+          "label_key": "pbxRouteEnabled",
+          "rules": []
+        }
+      }
+    },
+    "pbx_settings.update": {
+      "public": false,
+      "fields": {
+        "recording_mode": {
+          "type": "string",
+          "label_key": "pbxRecordingMode",
+          "rules": [
+            {
+              "type": "one_of",
+              "params": {
+                "values": [
+                  "off",
+                  "external",
+                  "all"
+                ]
+              }
+            }
+          ]
+        },
+        "recording_notice": {
+          "type": "string",
+          "label_key": "pbxRecordingNotice",
+          "rules": [
+            {
+              "type": "one_of",
+              "params": {
+                "values": [
+                  "none",
+                  "ar",
+                  "en",
+                  "ar_en"
+                ]
+              }
+            }
+          ]
+        },
+        "accept_recording_terms": {
+          "type": "boolean",
+          "label_key": "pbxRecordingTerms",
+          "rules": []
+        },
+        "recording_retention_days": {
+          "type": "integer",
+          "label_key": "pbxRecordingRetention",
+          "rules": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number_range",
+              "params": {
+                "min": 7,
+                "max": 3650
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pbx_business_hours.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "pbxHoursName",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 80
+              }
+            }
+          ]
+        },
+        "timezone": {
+          "type": "string",
+          "label_key": "pbxTimezone",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 64
+              }
+            }
+          ]
+        },
+        "rules": {
+          "type": "array",
+          "label_key": "pbxHoursRules",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "array",
+              "params": {
+                "min": 1,
+                "max": 14
+              }
+            }
+          ],
+          "item": {
+            "type": "object",
+            "label_key": "pbxHoursRules",
+            "rules": []
+          }
+        },
+        "closed_dates": {
+          "type": "array",
+          "label_key": "pbxClosedDates",
+          "rules": [
+            {
+              "type": "array",
+              "params": {
+                "max": 100
+              }
+            }
+          ],
+          "item": {
+            "type": "string",
+            "label_key": "pbxClosedDates",
+            "rules": []
+          }
+        }
+      }
+    },
+    "pbx_ivr.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "pbxIvrName",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 80
+              }
+            }
+          ]
+        },
+        "prompt": {
+          "type": "string",
+          "label_key": "pbxIvrPrompt",
+          "rules": [
+            {
+              "type": "one_of",
+              "params": {
+                "values": [
+                  "loop/ivr-default",
+                  "loop/ivr-welcome-ar",
+                  "loop/ivr-welcome-en"
+                ]
+              }
+            }
+          ]
+        },
+        "greeting": {
+          "type": "string",
+          "label_key": "pbxIvrGreeting",
+          "rules": []
+        },
+        "timeout_s": {
+          "type": "integer",
+          "label_key": "pbxIvrTimeout",
+          "rules": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number_range",
+              "params": {
+                "min": 1,
+                "max": 30
+              }
+            }
+          ]
+        },
+        "max_retries": {
+          "type": "integer",
+          "label_key": "pbxIvrRetries",
+          "rules": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number_range",
+              "params": {
+                "min": 0,
+                "max": 5
+              }
+            }
+          ]
+        },
+        "timeout_type": {
+          "type": "string",
+          "label_key": "pbxIvrTimeoutDestination",
+          "rules": [
+            {
+              "type": "one_of",
+              "params": {
+                "values": [
+                  "extension",
+                  "ivr",
+                  "queue",
+                  "hangup"
+                ]
+              }
+            }
+          ]
+        },
+        "timeout_extension": {
+          "type": "string",
+          "label_key": "pbxDestinationExtension",
+          "rules": [
+            {
+              "type": "required_if",
+              "params": {
+                "field": "timeout_type",
+                "equals": "extension"
+              }
+            }
+          ]
+        },
+        "timeout_ivr": {
+          "type": "string",
+          "label_key": "pbxDestinationIvr",
+          "rules": [
+            {
+              "type": "required_if",
+              "params": {
+                "field": "timeout_type",
+                "equals": "ivr"
+              }
+            }
+          ]
+        },
+        "timeout_queue": {
+          "type": "string",
+          "label_key": "pbxDestinationQueue",
+          "rules": [
+            {
+              "type": "required_if",
+              "params": {
+                "field": "timeout_type",
+                "equals": "queue"
+              }
+            }
+          ]
+        },
+        "options": {
+          "type": "array",
+          "label_key": "pbxIvrOptions",
+          "rules": [
+            {
+              "type": "array",
+              "params": {
+                "max": 12
+              }
+            }
+          ],
+          "item": {
+            "type": "object",
+            "label_key": "pbxIvrOptions",
+            "rules": []
+          }
+        }
+      }
+    },
+    "pbx_sound.upload": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "pbxSoundName",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 80
+              }
+            }
+          ]
+        },
+        "file": {
+          "type": "string",
+          "label_key": "pbxSoundFile",
+          "rules": [
+            {
+              "type": "required",
+              "client_only": true
+            },
+            {
+              "type": "file",
+              "params": {
+                "max_bytes": 1000000,
+                "mime": [
+                  "audio/wav",
+                  "audio/x-wav",
+                  "audio/wave"
+                ]
+              },
+              "client_only": true
+            }
+          ]
+        }
+      }
+    },
+    "pbx_sound.update": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "pbxSoundName",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 80
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pbx_node.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "pbxNodeName",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 64
+              }
+            }
+          ]
+        },
+        "region": {
+          "type": "string",
+          "label_key": "pbxNodeRegion",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 64
+              }
+            }
+          ]
+        },
+        "control_url": {
+          "type": "string",
+          "label_key": "pbxNodeControlUrl",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 200
+              }
+            },
+            {
+              "type": "pattern",
+              "params": {
+                "regex": "(https?://[^\\s/]+(:[0-9]{1,5})?/?)?"
+              }
+            }
+          ]
+        },
+        "status": {
+          "type": "string",
+          "label_key": "pbxNodeStatus",
+          "rules": [
+            {
+              "type": "one_of",
+              "params": {
+                "values": [
+                  "active",
+                  "draining",
+                  "offline"
+                ]
+              }
+            }
+          ]
+        },
+        "max_tenants": {
+          "type": "integer",
+          "label_key": "pbxNodeMaxTenants",
+          "rules": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number_range",
+              "params": {
+                "min": 1,
+                "max": 10000
+              }
+            }
+          ]
+        },
+        "gateway_wg_public_key": {
+          "type": "string",
+          "label_key": "pbxNodeGatewayKey",
+          "rules": [
+            {
+              "type": "pattern",
+              "params": {
+                "regex": "([A-Za-z0-9+/]{43}=)?"
+              }
+            }
+          ]
+        },
+        "gateway_wg_endpoint": {
+          "type": "string",
+          "label_key": "pbxNodeGatewayEndpoint",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 200
+              }
+            },
+            {
+              "type": "pattern",
+              "params": {
+                "regex": "([A-Za-z0-9.-]+:[0-9]{1,5})?"
+              }
+            }
+          ]
+        },
+        "gateway_wg_address": {
+          "type": "string",
+          "label_key": "pbxNodeGatewayAddress",
+          "rules": [
+            {
+              "type": "pattern",
+              "params": {
+                "regex": "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pbx_tenant.admin_update": {
+      "public": false,
+      "fields": {
+        "fraud_limits": {
+          "type": "object",
+          "label_key": "pbxFraudLimits",
+          "rules": []
+        },
+        "recording_legal_hold": {
+          "type": "boolean",
+          "label_key": "pbxLegalHold",
+          "rules": []
+        }
+      }
+    },
+    "pbx_tenant.suspend": {
+      "public": false,
+      "fields": {
+        "reason": {
+          "type": "string",
+          "label_key": "pbxSuspendReason",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 200
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pbx_tenant.migrate": {
+      "public": false,
+      "fields": {
+        "node": {
+          "type": "string",
+          "label_key": "pbxMigrateNode",
+          "rules": [
+            {
+              "type": "required"
+            }
+          ]
+        }
+      }
+    },
+    "pbx_fraud_alert.resolve": {
+      "public": false,
+      "fields": {
+        "note": {
+          "type": "string",
+          "label_key": "pbxResolveNote",
+          "rules": [
+            {
+              "type": "max_length",
+              "params": {
+                "max": 500
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pbx_queue.upsert": {
+      "public": false,
+      "fields": {
+        "name": {
+          "type": "string",
+          "label_key": "pbxQueueName",
+          "rules": [
+            {
+              "type": "required"
+            },
+            {
+              "type": "max_length",
+              "params": {
+                "max": 80
+              }
+            }
+          ]
+        },
+        "strategy": {
+          "type": "string",
+          "label_key": "pbxQueueStrategy",
+          "rules": [
+            {
+              "type": "one_of",
+              "params": {
+                "values": [
+                  "ringall",
+                  "rrmemory",
+                  "leastrecent",
+                  "fewestcalls",
+                  "random"
+                ]
+              }
+            }
+          ]
+        },
+        "member_timeout_s": {
+          "type": "integer",
+          "label_key": "pbxQueueMemberTimeout",
+          "rules": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number_range",
+              "params": {
+                "min": 5,
+                "max": 120
+              }
+            }
+          ]
+        },
+        "max_wait_s": {
+          "type": "integer",
+          "label_key": "pbxQueueMaxWait",
+          "rules": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number_range",
+              "params": {
+                "min": 10,
+                "max": 3600
+              }
+            }
+          ]
+        },
+        "wrapup_s": {
+          "type": "integer",
+          "label_key": "pbxQueueWrapup",
+          "rules": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number_range",
+              "params": {
+                "min": 0,
+                "max": 600
+              }
+            }
+          ]
+        },
+        "overflow_type": {
+          "type": "string",
+          "label_key": "pbxQueueOverflow",
+          "rules": [
+            {
+              "type": "one_of",
+              "params": {
+                "values": [
+                  "extension",
+                  "ivr",
+                  "hangup"
+                ]
+              }
+            }
+          ]
+        },
+        "overflow_extension": {
+          "type": "string",
+          "label_key": "pbxDestinationExtension",
+          "rules": [
+            {
+              "type": "required_if",
+              "params": {
+                "field": "overflow_type",
+                "equals": "extension"
+              }
+            }
+          ]
+        },
+        "overflow_ivr": {
+          "type": "string",
+          "label_key": "pbxDestinationIvr",
+          "rules": [
+            {
+              "type": "required_if",
+              "params": {
+                "field": "overflow_type",
+                "equals": "ivr"
+              }
+            }
+          ]
+        },
+        "members": {
+          "type": "array",
+          "label_key": "pbxQueueMembers",
+          "rules": [
+            {
+              "type": "array",
+              "params": {
+                "max": 100
+              }
+            }
+          ],
+          "item": {
+            "type": "object",
+            "label_key": "pbxQueueMembers",
+            "rules": []
+          }
         }
       }
     },

@@ -33,12 +33,15 @@ import 'services/notification_router.dart';
 import 'services/api_service.dart';
 import 'models/notification_model.dart';
 import 'services/team_chat_away_service.dart';
+import 'services/app_route_observer.dart';
 import 'services/team_chat_route_observer.dart';
 import 'services/work_session_service.dart';
 import 'services/realtime_channel.dart';
 import 'services/whatsapp_chat_unread_poller.dart';
 import 'services/sync_invalidation.dart';
 import 'core/utils/snackbar_helper.dart';
+import 'screens/calls/pbx_calls_screen.dart';
+import 'widgets/pbx_access_guard.dart';
 
 int? _routeIntArguments(Object? args) {
   if (args == null) return null;
@@ -60,7 +63,7 @@ void main() async {
   // Do not set statusBarColor / navigationBarColor here — those Window APIs
   // are deprecated on Android 15 and are what Play Console flags.
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  
+
   // Initialize Firebase (optional - only if google-services.json exists)
   bool firebaseInitialized = false;
   try {
@@ -69,11 +72,13 @@ void main() async {
     debugPrint('✓ Firebase initialized successfully');
   } catch (e) {
     debugPrint('⚠ Warning: Firebase initialization failed: $e');
-    debugPrint('⚠ This is normal if google-services.json is not configured yet');
+    debugPrint(
+      '⚠ This is normal if google-services.json is not configured yet',
+    );
     debugPrint('⚠ Local notifications will still work');
     firebaseInitialized = false;
   }
-  
+
   // Load environment variables
   try {
     await dotenv.load(fileName: ".env");
@@ -94,20 +99,22 @@ void main() async {
     debugPrint('⚠ Warning: .env file not found. Using default values.');
     debugPrint('Error: $e');
   }
-  
+
   // Initialize Notification Service (works even without Firebase)
   try {
     await NotificationService().initialize();
     if (firebaseInitialized) {
       debugPrint('✓ Notification Service initialized with FCM support');
     } else {
-      debugPrint('✓ Notification Service initialized (local notifications only)');
+      debugPrint(
+        '✓ Notification Service initialized (local notifications only)',
+      );
     }
   } catch (e, stackTrace) {
     debugPrint('⚠ Warning: Notification Service initialization failed: $e');
     debugPrint('Stack trace: $stackTrace');
   }
-  
+
   runApp(const MyApp());
 }
 
@@ -127,7 +134,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   bool _reachabilityCheckInFlight = false;
   bool _reachabilitySeeded = false;
   bool _lastReachable = true;
-  
+
   @override
   void initState() {
     super.initState();
@@ -201,12 +208,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       _workIdleDialogOpen = true;
 
       final loc = AppLocalizations.of(ctx);
-      final minutes = WorkSessionService.instance.snapshot.value.idleTimeoutMinutes;
-      final title = loc?.translate('workTrackingPausedTitle') ?? 'Time tracking paused';
-      final body = (loc?.translate('workTrackingPausedBody') ??
-              "We didn't detect any activity for {minutes} minutes, so your CRM usage "
-                  'time is no longer being counted. Press Resume to continue.')
-          .replaceAll('{minutes}', '$minutes');
+      final minutes =
+          WorkSessionService.instance.snapshot.value.idleTimeoutMinutes;
+      final title =
+          loc?.translate('workTrackingPausedTitle') ?? 'Time tracking paused';
+      final body =
+          (loc?.translate('workTrackingPausedBody') ??
+                  "We didn't detect any activity for {minutes} minutes, so your CRM usage "
+                      'time is no longer being counted. Press Resume to continue.')
+              .replaceAll('{minutes}', '$minutes');
       final resume = loc?.translate('workTrackingResume') ?? 'Resume tracking';
 
       try {
@@ -251,7 +261,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 
   void _setupConnectivityListener() {
-    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((_) {
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
+      _,
+    ) {
       unawaited(_runReachabilityCheck());
     });
     unawaited(_runReachabilityCheck());
@@ -283,14 +295,17 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       if (ctx == null || !ctx.mounted) return;
       final loc = AppLocalizations.of(ctx);
       if (!reachable) {
-        final title = loc?.translate('noInternetConnection') ?? 'No Internet Connection';
-        final body = loc?.translate('noInternetMessage') ??
+        final title =
+            loc?.translate('noInternetConnection') ?? 'No Internet Connection';
+        final body =
+            loc?.translate('noInternetMessage') ??
             'Please check your internet connection and try again.';
         SnackbarHelper.showError(ctx, '$title. $body');
       } else {
         SnackbarHelper.showSuccess(
           ctx,
-          loc?.translate('connectivityBackOnline') ?? 'Internet connection is back online.',
+          loc?.translate('connectivityBackOnline') ??
+              'Internet connection is back online.',
         );
       }
     });
@@ -327,9 +342,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        BlocProvider(
-          create: (context) => ThemeBloc()..add(const LoadTheme()),
-        ),
+        BlocProvider(create: (context) => ThemeBloc()..add(const LoadTheme())),
         BlocProvider(
           create: (context) => LanguageBloc()..add(const LoadLanguage()),
         ),
@@ -340,17 +353,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             builder: (context, themeState) {
               return MaterialApp(
                 navigatorKey: navigatorKey,
-                navigatorObservers: [teamChatRouteObserver],
+                navigatorObservers: [teamChatRouteObserver, appRouteObserver],
                 title: 'LOOP CRM',
                 debugShowCheckedModeBanner: false,
                 theme: AppTheme.lightThemeFor(languageState.locale),
                 darkTheme: AppTheme.darkThemeFor(languageState.locale),
                 themeMode: themeState.themeMode,
                 locale: languageState.locale,
-                supportedLocales: const [
-                  AppLocales.english,
-                  AppLocales.arabic,
-                ],
+                supportedLocales: const [AppLocales.english, AppLocales.arabic],
                 localizationsDelegates: const [
                   AppLocalizations.delegate,
                   GlobalMaterialLocalizations.delegate,
@@ -359,7 +369,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                 ],
                 routes: {
                   '/login': (context) {
-                    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+                    final args =
+                        ModalRoute.of(context)?.settings.arguments
+                            as Map<String, dynamic>?;
                     final reason = args?['reason'] as String?;
                     return LoginScreen(logoutReason: reason);
                   },
@@ -379,6 +391,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                     return LeadProfileScreen(leadId: id);
                   },
                   '/calendar': (context) => const CalendarScreen(),
+                  // Loop Cloud PBX call history; {'missed': true} opens the Missed filter (missed-call push).
+                  '/phone-calls': (context) {
+                    final args = ModalRoute.of(context)?.settings.arguments;
+                    final missed = args is Map && args['missed'] == true;
+                    return PbxAccessGuard(
+                      builder: (_) => PbxCallsScreen(missedOnly: missed),
+                    );
+                  },
                   '/deals': (context) => const DealsScreen(),
                   '/deals/view': (context) {
                     final id = _routeIntArguments(
@@ -400,8 +420,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                   // Deep links from push notifications reach these regardless of
                   // role, so gate on WhatsApp Chats access before building.
                   '/whatsapp-chat': (context) => WhatsAppAccessGuard(
-                        builder: (_) => const WhatsAppConversationListScreen(),
-                      ),
+                    builder: (_) => const WhatsAppConversationListScreen(),
+                  ),
                   '/whatsapp-chat/thread': (context) {
                     final args = ModalRoute.of(context)?.settings.arguments;
                     return WhatsAppAccessGuard(
@@ -432,7 +452,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                   },
                   '/2fa': (context) {
                     // Get username, password, and token from arguments
-                    final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+                    final args =
+                        ModalRoute.of(context)!.settings.arguments
+                            as Map<String, dynamic>?;
                     if (args != null) {
                       return TwoFactorAuthScreen(
                         username: args['username'] as String,
@@ -449,8 +471,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                 // consuming them or competing with any widget below.
                 builder: (context, child) => Listener(
                   behavior: HitTestBehavior.translucent,
-                  onPointerDown: (_) => WorkSessionService.instance.markActivity(),
-                  onPointerMove: (_) => WorkSessionService.instance.markActivity(),
+                  onPointerDown: (_) =>
+                      WorkSessionService.instance.markActivity(),
+                  onPointerMove: (_) =>
+                      WorkSessionService.instance.markActivity(),
                   child: child ?? const SizedBox.shrink(),
                 ),
                 home: const SplashScreen(),

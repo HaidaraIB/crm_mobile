@@ -38,11 +38,40 @@ class RealtimeChannel {
   /// this user offline for colleagues watching.
   static const Duration _heartbeatInterval = Duration(seconds: 45);
 
+  /// How long a connection must stay up before the backoff starts over.
+  ///
+  /// A server that accepts and then drops at once would otherwise reset the
+  /// backoff on every attempt and be retried every second, forever.
+  static const Duration _stableAfter = Duration(seconds: 10);
+
+  /// Opens the socket. Replaced in tests.
+  @visibleForTesting
+  static WebSocketChannel Function(Uri uri) connector = WebSocketChannel.connect;
+
+  /// Reads the access token. Replaced in tests.
+  @visibleForTesting
+  static Future<String?> Function() tokenReader =
+      AuthTokenStorage.instance.readAccessToken;
+
+  /// Delay before reconnect attempt [attempt] (0-based): exponential from 1s,
+  /// capped at 30s, then scaled by [jitter] (0..1 maps to 0.5x..1.5x).
+  ///
+  /// Jitter matters: without it every device in a company reconnects in
+  /// lockstep after a server restart and stampedes it.
+  @visibleForTesting
+  static Duration reconnectDelay(int attempt, double jitter) {
+    final base = _minBackoff * pow(2, attempt).toInt();
+    final capped = base > _maxBackoff ? _maxBackoff : base;
+    return Duration(milliseconds: (capped.inMilliseconds * (0.5 + jitter)).round());
+  }
+
   WebSocketChannel? _channel;
   StreamSubscription<dynamic>? _subscription;
   Timer? _reconnectTimer;
   Timer? _heartbeatTimer;
   int _attempt = 0;
+  /// Resets the backoff once a connection has stayed up for [_stableAfter].
+  Timer? _stableTimer;
   bool _started = false;
   bool _connected = false;
   /// True once a connection has been established at least this session.
@@ -55,6 +84,14 @@ class RealtimeChannel {
   final Random _random = Random();
 
   bool get isConnected => _connected;
+
+  /// Reconnect attempts since the last stable connection.
+  @visibleForTesting
+  int get attempt => _attempt;
+
+  /// The delay the pending reconnect was scheduled with, if one is pending.
+  @visibleForTesting
+  Duration? lastReconnectDelay;
 
   /// Presence frames for chat threads this connection has subscribed to.
   ///
@@ -131,9 +168,12 @@ class RealtimeChannel {
   Future<void> stop() async {
     _started = false;
     _attempt = 0;
+    _stableTimer?.cancel();
+    _stableTimer = null;
     _hasConnected = false;
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
+    lastReconnectDelay = null;
     _heartbeatTimer?.cancel();
     _heartbeatTimer = null;
     _connected = false;
@@ -160,7 +200,7 @@ class RealtimeChannel {
       return;
     }
 
-    final token = await AuthTokenStorage.instance.readAccessToken();
+    final token = await tokenReader();
     if (token == null || token.isEmpty) {
       // Signed out, or mid token refresh. Retry rather than give up — stop() is
       // what ends this loop on a real logout.
@@ -168,15 +208,34 @@ class RealtimeChannel {
       return;
     }
 
+    if (!_started) return;
+
+    // connect() returns before the handshake. Awaiting `ready` is what turns an
+    // unreachable server into a handled failure: left unawaited, its error was
+    // reported as an unhandled WebSocketChannelException on every attempt, and
+    // the connection was counted as up, which reset the backoff to 1s each time.
+    final WebSocketChannel channel;
     try {
-      final channel = WebSocketChannel.connect(
-        Uri.parse('$url?token=${Uri.encodeQueryComponent(token)}'),
-      );
+      channel = connector(Uri.parse('$url?token=${Uri.encodeQueryComponent(token)}'));
       _channel = channel;
+      await channel.ready;
+    } catch (e) {
+      debugPrint('Realtime: connect failed (${redactSocketError(e)})');
+      _channel = null;
+      _scheduleReconnect();
+      return;
+    }
+    if (!_started || _channel != channel) {
+      // stop() ran during the handshake.
+      unawaited(channel.sink.close().catchError((_) {}));
+      return;
+    }
+
+    try {
       _subscription = channel.stream.listen(
         _onFrame,
         onError: (Object error) {
-          debugPrint('Realtime: socket error ($error)');
+          debugPrint('Realtime: socket error (${redactSocketError(error)})');
           unawaited(_onDisconnected());
         },
         onDone: () {
@@ -194,7 +253,8 @@ class RealtimeChannel {
       );
 
       _connected = true;
-      _attempt = 0;
+      _stableTimer?.cancel();
+      _stableTimer = Timer(_stableAfter, () => _attempt = 0);
       debugPrint('Realtime: connected');
 
       if (_hasConnected) {
@@ -214,8 +274,15 @@ class RealtimeChannel {
 
       _startHeartbeat();
     } catch (e) {
-      debugPrint('Realtime: connect failed ($e)');
-      _onDisconnected();
+      debugPrint('Realtime: connect failed (${redactSocketError(e)})');
+      if (_connected) {
+        unawaited(_onDisconnected());
+      } else {
+        unawaited(_subscription?.cancel());
+        _subscription = null;
+        _channel = null;
+        _scheduleReconnect();
+      }
     }
   }
 
@@ -282,6 +349,13 @@ class RealtimeChannel {
       return;
     }
 
+    if (scope == 'telephony') {
+      // A PBX call involving this user moved (ringing, answered, ended). Type
+      // and call id only; the Phone calls screen re-reads over REST.
+      SyncInvalidation.instance.emit({'invalidate': kTelephonyCallsInvalidation});
+      return;
+    }
+
     // A version bump. Its value is not read: it means "something changed", and
     // the digest is what says what — refreshing it updates every badge holder
     // and emits the slice invalidations the cubits already listen for.
@@ -289,7 +363,12 @@ class RealtimeChannel {
   }
 
   Future<void> _onDisconnected({int? closeCode}) async {
+    final wasConnected = _connected;
     _connected = false;
+    _stableTimer?.cancel();
+    _stableTimer = null;
+    // Already handled: a drop can be reported by both onError and onDone.
+    if (!wasConnected) return;
     WhatsAppChatUnreadPoller.instance.onRealtimeConnectionChanged();
     _statusController.add(false);
     _heartbeatTimer?.cancel();
@@ -309,18 +388,24 @@ class RealtimeChannel {
   void _scheduleReconnect() {
     if (!_started) return;
     _reconnectTimer?.cancel();
-    // Exponential with jitter: without it, every device in a company reconnects
-    // in lockstep after a server restart and stampedes it.
-    final base = _minBackoff * pow(2, _attempt).toInt();
-    final capped = base > _maxBackoff ? _maxBackoff : base;
-    final jittered = Duration(
-      milliseconds: (capped.inMilliseconds * (0.5 + _random.nextDouble())).round(),
-    );
+    final delay = reconnectDelay(_attempt, _random.nextDouble());
+    lastReconnectDelay = delay;
     _attempt = min(_attempt + 1, 10);
-    _reconnectTimer = Timer(jittered, () => unawaited(_connect()));
+    _reconnectTimer = Timer(delay, () {
+      _reconnectTimer = null;
+      lastReconnectDelay = null;
+      unawaited(_connect());
+    });
   }
 }
 
+
+/// The error text with the socket URL's `token=` value removed.
+///
+/// A failed handshake's message quotes the whole URL, and the access token
+/// rides in its query string: logging it as is put a live JWT in logcat.
+String redactSocketError(Object error) =>
+    error.toString().replaceAll(RegExp(r'''token=[^&#\s'"]+'''), 'token=<redacted>');
 
 /// One peer's ephemeral activity in a chat thread, delivered over the socket.
 class RealtimePresence {

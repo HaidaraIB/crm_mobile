@@ -54,6 +54,10 @@ class SyncFallbackTimer {
   }
 }
 
+/// Invalidation key for PBX call history: the digest's `telephony` slice, the
+/// per-agent `telephony` socket frame and a `pbx_call_missed` push all emit it.
+const String kTelephonyCallsInvalidation = 'telephony:calls';
+
 /// Thin FCM `invalidate` keys (e.g. `whatsapp:conversations`).
 class SyncInvalidation {
   SyncInvalidation._();
