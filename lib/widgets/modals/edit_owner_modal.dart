@@ -6,6 +6,7 @@ import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
 import '../../utils/build_update_diff.dart';
+import '../../core/constants/countries.dart';
 import '../../widgets/phone_input.dart';
 import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
@@ -43,7 +44,7 @@ class _EditOwnerModalState extends State<EditOwnerModal> {
     _catalog.watch(_nameFocus, 'name', () => _blurCatalog('name'));
 
     _nameController = TextEditingController(text: widget.owner.name);
-    _phoneController = TextEditingController(text: widget.owner.phone);
+    _phoneController = TextEditingController(text: phoneForForm(widget.owner.phone));
     _cityController = TextEditingController(text: widget.owner.city ?? '');
     _districtController = TextEditingController(text: widget.owner.district ?? '');
     _initialPayload = _buildPayload();

@@ -121,6 +121,17 @@ Country getCountryByCode(String code, {String fallback = 'IQ'}) {
   return null;
 }
 
+/// Stored phones can be digits-only (User.phone, WhatsApp leads) or local (07...).
+/// Forms and PhoneInput work in +E.164. Mirrors the API's normalize_phone_to_e164.
+String phoneForForm(String? stored) {
+  final value = (stored ?? '').trim().replaceAll(RegExp(r'[\s-]'), '');
+  if (value.isEmpty) return '';
+  if (value.startsWith('07') && value.length >= 10) {
+    return '+964${value.substring(1)}';
+  }
+  return value.startsWith('+') ? value : '+$value';
+}
+
 List<Country> filterCountries(String query, {required bool isRtl}) {
   final q = query.trim().toLowerCase();
   if (q.isEmpty) return kCountries;

@@ -14,6 +14,7 @@ import '../../widgets/media/open_app_media_viewer.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/app_avatar.dart';
+import '../../core/constants/countries.dart';
 import '../../widgets/phone_input.dart';
 import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
@@ -80,7 +81,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _currentUser = user;
         _firstNameController.text = user.firstName ?? '';
         _lastNameController.text = user.lastName ?? '';
-        _phoneController.text = user.phone;
+        _phoneController.text = phoneForForm(user.phone);
         _emailController.text = user.email ?? '';
         _profilePhotoUrl = user.profilePhoto ?? user.avatar;
         _isLoading = false;
@@ -267,7 +268,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         userId: _currentUser!.id,
         firstName: _firstNameController.text.trim(),
         lastName: _lastNameController.text.trim(),
-        phone: _phoneController.text.trim(),
+        phone: _phoneController.text.replaceAll(RegExp(r'\D'), ''),
         profilePhotoPath: _selectedImage?.path,
       );
 

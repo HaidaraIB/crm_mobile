@@ -6,6 +6,7 @@ import '../../core/utils/snackbar_helper.dart';
 import '../../models/inventory_model.dart';
 import '../../services/api_service.dart';
 import '../../utils/build_update_diff.dart';
+import '../../core/constants/countries.dart';
 import '../../widgets/phone_input.dart';
 import 'package:crm_mobile/widgets/auto_dir_text_field.dart';
 
@@ -43,7 +44,7 @@ class _EditServiceProviderModalState extends State<EditServiceProviderModal> {
     _catalog.watch(_nameFocus, 'name', () => _blurCatalog('name'));
 
     _nameController = TextEditingController(text: widget.provider.name);
-    _phoneController = TextEditingController(text: widget.provider.phone);
+    _phoneController = TextEditingController(text: phoneForForm(widget.provider.phone));
     _emailController = TextEditingController(text: widget.provider.email ?? '');
     _specializationController = TextEditingController(text: widget.provider.specialization ?? '');
     _initialPayload = _buildPayload();

@@ -14,6 +14,7 @@ import '../../services/error_logger.dart';
 import '../../core/utils/lead_assignee_users.dart';
 import '../../core/utils/budget_range_utils.dart';
 import '../../utils/lead_update_payload.dart';
+import '../../core/constants/countries.dart';
 import '../../widgets/phone_input.dart';
 import '../../widgets/status_change_reason_dialog.dart';
 import '../../widgets/lead_location_map_picker.dart';
@@ -92,7 +93,7 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
 
   void _initializeForm() {
     _nameController.text = widget.lead.name;
-    _phoneController.text = widget.lead.phone;
+    _phoneController.text = phoneForForm(widget.lead.phone);
     _budgetController.text = widget.lead.budget > 0
         ? widget.lead.budget.toString()
         : '';
@@ -125,7 +126,7 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
       _phoneNumbers = widget.lead.phoneNumbers!
           .map(
             (pn) => <String, dynamic>{
-              'phone_number': pn.phoneNumber,
+              'phone_number': phoneForForm(pn.phoneNumber),
               'phone_type': pn.phoneType,
               'is_primary': pn.isPrimary,
               'notes': pn.notes ?? '',
@@ -135,7 +136,7 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
     } else {
       _phoneNumbers = [
         <String, dynamic>{
-          'phone_number': widget.lead.phone,
+          'phone_number': phoneForForm(widget.lead.phone),
           'phone_type': 'mobile',
           'is_primary': true,
           'notes': '',

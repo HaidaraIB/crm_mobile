@@ -65,7 +65,7 @@ class _PhoneInputState extends State<PhoneInput> {
 
   void _parsePhoneNumber() {
     if (widget.value != null && widget.value!.isNotEmpty) {
-      final matched = matchCountryByPhone(widget.value!);
+      final matched = matchCountryByPhone(phoneForForm(widget.value));
       if (matched != null) {
         _selectedCountry = matched.country;
         _phoneController.text = matched.national;
